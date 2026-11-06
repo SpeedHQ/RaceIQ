@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
-import type { SemanticReplayFrame } from "@raceiq/lap-replay/contracts"
+import type { SemanticReplayFrame, SpectateSegment } from "@raceiq/lap-replay/contracts"
 import { useLapSemanticTelemetry, useLaps as useLapsQuery, useSessionLaps } from "../../hooks/laps";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -127,7 +127,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const segments = useMemo(() => {
     if (!segmentsRaw || typeof segmentsRaw !== "object") return null;
     const s = segmentsRaw as { segments?: unknown };
-    return Array.isArray(s.segments) ? (s.segments as { type: string; name: string; startFrac: number; endFrac: number }[]) : null;
+    return Array.isArray(s.segments) ? (s.segments as SpectateSegment[]) : null;
   }, [segmentsRaw]);
   const initialCursor = search.cursor;
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);

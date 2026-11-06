@@ -14,7 +14,7 @@ import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
 import { segmentPromptLabels } from "@raceiq/shared/racing/tracks/segment-label";
 import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { ADJUSTMENT_FORMAT_PROMPT, CORNER_ACTIONS_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 import { getRuleTable, renderSetupCapabilityBlock } from "../setups/rules/catalog";
 
 function valueAtPath(source: unknown, path: string): unknown {
@@ -112,6 +112,9 @@ Your response MUST be valid JSON matching this exact schema. Output ONLY the JSO
   ],
   "setup": [
     { "component": "setup component explicitly present in provided data", "symptom": "what the telemetry shows", "fix": "evidence-backed adjustment and why", "current": "provided current value with unit", "target": "supported target value with unit", "direction": "increase|decrease|adjust" }
+  ],
+  "actions": [
+    { "id": "a1", "cornerKey": "T1", "label": "T1", "target": "solo", "path": "verdict", "span": { "start": 24, "end": 26 } }
   ]
 }
 
@@ -143,7 +146,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
   const base = adapter ? adapter.aiSystemPrompt : GENERIC_ANALYST_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${CORNER_ACTIONS_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(

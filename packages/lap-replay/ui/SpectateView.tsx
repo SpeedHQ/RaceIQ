@@ -1,6 +1,6 @@
 import { useCompareLineSpread } from "./host"
 import { SpectateLineScore } from "./SpectateLineScore";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMessages } from "./host"
 import { CompareAiPanel } from "./host"
 import { useReplayHost } from "./host"
@@ -19,6 +19,7 @@ import { SpectateInsightsPanel } from "./SpectateInsightsPanel";
 import { useLocalStorage } from "./host"
 import { SpectateWorkspace } from "./SpectateWorkspace"
 import { useSceneMode } from "./useSceneMode";
+import { CornerFocusProvider, type CornerFocusController } from "./corner-focus-react";
 
 const FOCUS_MODES: readonly SpectateFocusMode[] = ["inputs", "speed", "balance", "ers"];
 export function SpectateView({
@@ -34,11 +35,13 @@ export function SpectateView({
   panelHeaderTarget,
   onAiOpenChange,
   ai,
+  cornerFocus,
 }: {
   pair: ReplaySession;
   controller: SpectateController;
   outline: readonly { x: number; z: number }[] | null;
   segments: readonly SpectateSegment[];
+  cornerFocus: CornerFocusController;
   aiOpen: boolean;
   telemetryOpen: boolean;
   carPanelOpen: boolean;
@@ -60,11 +63,23 @@ const [aiHeaderControls, setAiHeaderControls] = useState<HTMLDivElement | null>(
 const [dataOpen, setDataOpen] = useLocalStorage(single ? "replay-data-open" : "spectate-data-open", single);
 const [insightsOpen, setInsightsOpen] = useLocalStorage(single ? "replay-insights-open" : "spectate-insights-open", false);
 const [segmentsOpen, setSegmentsOpen] = useLocalStorage("replay-segments-open", false);
+useEffect(() => {
+  if (!cornerFocus.active) return;
+  const handleEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"]')) return;
+    cornerFocus.clear();
+  };
+  window.addEventListener("keydown", handleEscape, true);
+  return () => window.removeEventListener("keydown", handleEscape, true);
+}, [cornerFocus.active, cornerFocus.clear]);
 return (
+  <CornerFocusProvider value={cornerFocus}>
   <SpectateWorkspace storageKey={single ? "replay-panel-width" : "spectate-panel-width"} panelHeaderTarget={panelHeaderTarget} panels={[
     { id: single ? "replay-telemetry-panel" : "spectate-telemetry-panel", label: m.spectate_telemetry(), open: telemetryOpen, closedWidth: 100, toggle: onTelemetryOpenChange, collapseOnNarrow: true,
       headerControls: <div ref={setTelemetryHeaderControls} className="shrink-0 pr-3" />,
-      content: <SpectateTelemetryPanel pair={pair} controller={controller} headerTarget={telemetryHeaderControls} /> },
+      content: <SpectateTelemetryPanel pair={pair} controller={controller} headerTarget={telemetryHeaderControls} cornerFocus={cornerFocus} /> },
     ...(!opponentReplay ? [{ id: single ? "replay-car-panel" : "spectate-2d-panel", label: "Car layout", open: carPanelOpen, width: 384, closedWidth: 88, toggle: onCarPanelOpenChange,
       content: <SpectateCarPanel pair={pair} controller={controller} /> },
     { id: single ? "replay-data-panel" : "spectate-data-panel", label: m.analyse_tab_data(), open: dataOpen, width: 384, closedWidth: 72, toggle: setDataOpen,
@@ -83,7 +98,7 @@ return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="relative min-h-0 flex-1 overflow-hidden">
       <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
-        overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
+        overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} cornerFocus={cornerFocus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={!opponentReplay && carPanelOpen} onTirePanelOpenChange={opponentReplay ? undefined : onCarPanelOpenChange} />
       {pair.b && playerLapA && playerLapB && <ComparisonLineScore pair={pair} controller={controller} lapAId={playerLapA.id} lapBId={playerLapB.id} />}
       </div>
@@ -91,6 +106,7 @@ return (
     </div>
     <SpectatePlayback controller={controller} pair={pair} />
   </SpectateWorkspace>
+  </CornerFocusProvider>
 ); }
 function ComparisonLineScore({ pair, controller, lapAId, lapBId }: { pair: ReplaySession; controller: SpectateController; lapAId: number; lapBId: number }) {
   const { data } = useCompareLineSpread(pair.gameId, [lapAId, lapBId]);

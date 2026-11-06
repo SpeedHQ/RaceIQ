@@ -2,6 +2,7 @@ import { useMessages } from "./host"
 import { useMemo, useSyncExternalStore } from "react";
 import type { SpectateController, ReplaySession, SpectateSegment } from "../contracts/spectate";
 import { focusRuns, type SpectateFocus } from "./spectate-focus";
+import type { CornerFocusController } from "./corner-focus-react";
 
 type TrackPoint = { distance: number; run: number; x: number; z: number };
 function trackRuns(pair: ReplaySession): TrackPoint[][] {
@@ -117,7 +118,7 @@ function splitText(delta: number | null, unavailable: string) {
   return delta === null ? unavailable : `${delta > 0 ? "+" : ""}${delta.toFixed(3)} s`;
 }
 
-export function SpectateOverview({ pair, controller, segments, focus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus, "opponentLapId" in pair.a.replay ? 0.3 : pair.a.maximumGapSeconds), ...(pair.b ? [focusRuns(pair.b.samples, focus, "opponentLapId" in pair.b.replay ? 0.3 : pair.b.maximumGapSeconds)] : [])], [pair, focus]);
+export function SpectateOverview({ pair, controller, segments, focus, cornerFocus }: { pair: ReplaySession; controller: SpectateController; segments: readonly SpectateSegment[]; focus: SpectateFocus; cornerFocus: CornerFocusController }) { const m = useMessages(); const coloredRuns = useMemo(() => [focusRuns(pair.a.samples, focus, "opponentLapId" in pair.a.replay ? 0.3 : pair.a.maximumGapSeconds), ...(pair.b ? [focusRuns(pair.b.samples, focus, "opponentLapId" in pair.b.replay ? 0.3 : pair.b.maximumGapSeconds)] : [])], [pair, focus]);
 const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 const splitAt = useMemo(() => splitLookup(pair), [pair]);
   const hasAuthoritativeOpponentLength = !("opponentLapId" in pair.a.replay) || (typeof pair.a.trackLengthM === "number" && Number.isFinite(pair.a.trackLengthM) && pair.a.trackLengthM > 0);
@@ -216,6 +217,20 @@ const projectedFocusRuns = useMemo(() => geometry ? coloredRuns.map((runs) => ru
   token: run.token,
   points: run.points.map((point) => { const p = geometry.project(point); return `${p.x},${p.y}`; }).join(" "),
 }))) : [], [coloredRuns, geometry]);
+const cornerFocusPaths = useMemo(() => {
+  if (!geometry || !cornerFocus.running || !cornerFocus.active) return [];
+  const projectString = (point: { x: number; z: number }) => {
+    const projected = geometry.project(point);
+    return projected.x + "," + projected.y;
+  };
+  return (["a", "b"] as const).flatMap((side) =>
+    cornerFocus.active!.rangesBySide[side].flatMap((range) => {
+      const start = (range.start + distanceOrigin) / maximum;
+      const end = (range.end + distanceOrigin) / maximum;
+      return segmentPaths(runs, start, end, maximum, projectString).map((path) => ({ side, path, start, end }));
+    }),
+  );
+}, [cornerFocus.active, cornerFocus.running, distanceOrigin, geometry, maximum, runs]);
 const poseA = geometry?.project(snapshot.a?.pose ?? { x: Number.NaN, z: Number.NaN });
 const poseB = geometry?.project(snapshot.b?.pose ?? { x: Number.NaN, z: Number.NaN });
 return (
@@ -223,6 +238,10 @@ return (
     className="group/overview absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-h-[calc(100%-1.5rem)] overflow-y-auto max-sm:z-30 max-sm:w-[calc(100%-1.5rem)] max-sm:bg-app-bg max-sm:opacity-100"
     aria-label={m.spectate_overview()}
     data-focus-mode={focus.mode}
+    data-corner-focus-active={cornerFocus.running && cornerFocus.active ? "true" : undefined}
+    data-corner-focus-label={cornerFocus.active?.action.label}
+    data-corner-focus-distance-start={cornerFocus.active?.rangesBySide.a[0]?.start ?? cornerFocus.active?.rangesBySide.b[0]?.start}
+    data-corner-focus-distance-end={cornerFocus.active?.rangesBySide.a[0]?.end ?? cornerFocus.active?.rangesBySide.b[0]?.end}
   >
     <div className="flex items-center justify-between max-sm:min-h-11 max-sm:pr-11">
       <strong>{m.spectate_overview()}</strong>
@@ -232,6 +251,11 @@ return (
       <svg viewBox="0 0 200 108" className="mt-2 block h-48 w-full max-sm:aspect-[200/140] max-sm:h-auto" role="group" aria-label={m.spectate_segment_map()}>
         {geometry.paths.map((path, index) => (
           <polyline key={index} points={path} fill="none" stroke="var(--app-border)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+        {cornerFocusPaths.map(({ side, path, start, end }, index) => (
+          <polyline key={"corner-" + side + "-" + index} data-corner-focus-side={side} data-corner-focus-start={start} data-corner-focus-end={end} points={path} fill="none"
+            stroke={side === "b" ? "var(--comparison-lap-b)" : "var(--comparison-lap-a)"}
+            strokeWidth={side === "b" ? "3" : "5"} strokeLinecap="round" strokeLinejoin="round" opacity="0.75" pointerEvents="none" />
         ))}
         {projectedFocusRuns.flatMap((runs, side) => runs.map((run, index) => (
           <polyline key={`${side}-${index}`} data-focus-lap={side === 0 ? "a" : "b"} data-focus-color={run.token}

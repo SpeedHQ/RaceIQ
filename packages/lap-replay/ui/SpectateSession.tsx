@@ -11,7 +11,11 @@ import { useMessages } from "./host"
 import { Button } from "./host"
 import { LoadingIndicator } from "./host"
 import { SpectateView } from "./SpectateView";
+import { useCornerFocus } from "./corner-focus-react";
 import type { SpectateController, ReplaySession, SpectateLap, SpectateSegment } from "../contracts/spectate";
+
+/** Focused controls own Space; the replay shortcut only drives empty surfaces. */
+const INTERACTIVE_SPACE_TARGETS = 'button, a[href], [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"]';
 
 type OpponentReplayComparison = {
   kind: "opponent";
@@ -103,6 +107,7 @@ const pair = useMemo<ReplayPair | null>(() => {
 }, [gameId, playerLap, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
 const [controllerEntry, setControllerEntry] = useState<{ pair: ReplayPair; controller: SpectateController } | null>(null);
 const controller = controllerEntry?.pair === pair ? controllerEntry.controller : null;
+const cornerFocus = useCornerFocus(pair, segments, controller);
 const distanceCallback = useRef(onDistanceChange);
 distanceCallback.current = onDistanceChange;
 useEffect(() => {
@@ -133,6 +138,9 @@ useEffect(() => {
       if (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]')) return;
       if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
     }
+    // Map markers are SVG elements, not HTMLElements: check every Element so a
+    // focused role=button marker keeps its own Space activation.
+    if (target instanceof Element && target.closest(INTERACTIVE_SPACE_TARGETS)) return;
     // Capture both phases of native Space activation before focused controls
     // can click, seek, or scroll instead of controlling replay.
     event.preventDefault();
@@ -213,4 +221,4 @@ if (pair.a.samples.length < 2 || pair.b.samples.length < 2)
       {m.spectate_replay_unavailable()}
     </div>
   );
-return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }
+return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} cornerFocus={cornerFocus} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }

@@ -22,6 +22,7 @@ const validAnalysis = JSON.stringify({
   corners: [],
   technique: [],
   setup: [],
+  actions: [],
 });
 
 type LapResult = {

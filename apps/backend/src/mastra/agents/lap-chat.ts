@@ -14,6 +14,7 @@ import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapInsightsTool } from "../tools/lap-insights";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
+import { cornerActionsTool } from "../tools/corner-actions";
 import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
 
@@ -105,6 +106,7 @@ export const lapChatAgent = new Agent({
     get_lap_insights: getLapInsightsTool,
     get_lap_analysis: getLapAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
+    corner_actions: cornerActionsTool,
   },
   memory: getChatMemory(),
 });

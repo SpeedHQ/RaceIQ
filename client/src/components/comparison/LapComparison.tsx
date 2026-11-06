@@ -1,6 +1,6 @@
 import type { ComparisonRangeData } from "@raceiq/shared/racing/comparison/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import type { OpponentLapCatalog, OpponentLapComparison, OpponentLapSummary } from "@raceiq/lap-replay/contracts";
+import type { OpponentLapCatalog, OpponentLapComparison, OpponentLapSummary, SpectateSegment } from "@raceiq/lap-replay/contracts";
 import { useLapComparison, useLapComparisonRange, useLaps } from "@/hooks/laps";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -213,8 +213,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     return null;
   }, [outlineData]);
   const { data: sectorsData } = useTrackSectors(selectedTrack ?? undefined);
-  const trackSegments = useMemo((): { type: string; name: string; startFrac: number; endFrac: number }[] | null => {
-    const s = sectorsData as { segments?: { type: string; name: string; startFrac: number; endFrac: number }[] } | undefined;
+  const trackSegments = useMemo((): SpectateSegment[] | null => {
+    const s = sectorsData as { segments?: SpectateSegment[] } | undefined;
     return s?.segments ?? null;
   }, [sectorsData]);
   const prevTrackRef = useRef<string | null | undefined>(undefined);

@@ -62,6 +62,7 @@ export function TrackCard({
   seg,
   color,
   onJumpToFrac,
+  onFocusCorner,
   onHighlightsChange,
   className,
   children,
@@ -69,19 +70,26 @@ export function TrackCard({
   seg: Segment | null;
   color: "good" | "warning" | "critical";
   onJumpToFrac?: (frac: number) => void;
+  onFocusCorner?: () => boolean;
   onHighlightsChange?: (h: AnalysisHighlight[]) => void;
   className?: string;
   children: ReactNode;
 }) {
-  const clickable = !!(seg && onJumpToFrac);
+  const clickable = !!(seg && (onFocusCorner || onJumpToFrac));
   const activate = () => {
     if (!seg) return;
+    if (onFocusCorner) {
+      onFocusCorner();
+      onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
+      return;
+    }
     onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
     onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
   };
   return (
     <div
       className={`${className ?? ""} ${clickable ? "cursor-pointer hover:brightness-110 transition" : ""}`}
+      data-corner-card={clickable ? seg?.name : undefined}
       {...(clickable
         ? {
             role: "button" as const,

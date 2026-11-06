@@ -13,6 +13,8 @@ import { segmentPromptNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
+import { CornerActionsInputSchema } from "@raceiq/shared/integrations/ai/corner-action";
+import { CORNER_ACTIONS_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -48,6 +50,8 @@ export const InputsCompareSchema = z.object({
       targetLap: z.enum(["A", "B"]),
     }),
   ),
+  /** Validated inline corner references; malformed entries are dropped. */
+  actions: CornerActionsInputSchema,
 });
 
 export type InputsCompareResult = z.infer<typeof InputsCompareSchema>;
@@ -327,6 +331,9 @@ Output JSON only with this exact shape:
   ],
   "coaching": [
     { "tip": "actionable change", "detail": "why and how", "targetLap": "A" | "B" }
+  ],
+  "actions": [
+    { "id": "a1", "cornerKey": "T1", "label": "T1", "target": "A", "path": "segments[0].action", "span": { "start": 0, "end": 2 } }
   ]
 }
 
@@ -349,6 +356,8 @@ Per-segment notes:
 - "Tire health" lines show tire health at segment start and end (100% = fresh). "Unavailable" means simulator does not provide usable tire-wear telemetry; do not infer degradation.
 
 To produce a concrete "action", you MUST diff the events/speed rows between Lap A and Lap B for the same segment and quote the resulting numbers. If the slower lap brakes 120m into a corner and the faster lap brakes at 132m, the action is "Brake 12m later into T1 (current brake point 120m, target 132m)." Do not produce actions without such numeric evidence.
+
+${CORNER_ACTIONS_PROMPT}
 
 ${precomputedInsights ?? ""}
 Segments to analyse (${expectedCount} total — produce EXACTLY ${expectedCount} entries in your "segments" array):

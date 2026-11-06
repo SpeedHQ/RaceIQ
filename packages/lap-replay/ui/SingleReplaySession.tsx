@@ -5,8 +5,12 @@ import type { SemanticLapTelemetry } from "../contracts/replay";
 import type { ReplayOpponentMetadata, ReplaySession as ReplaySessionData, SpectateController, SpectateSegment } from "../contracts/spectate";
 import type { OpponentSemanticLapTelemetry } from "../contracts/opponents";
 import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
+import { useCornerFocus } from "./corner-focus-react";
 import { SpectateView } from "./SpectateView";
 import { useLocalStorage, useSettings } from "./host";
+/** Focused controls own Space; the replay shortcut only drives empty surfaces. */
+const INTERACTIVE_SPACE_TARGETS = 'button, a[href], [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"]';
+
 export interface SingleReplaySessionProps {
   gameId: GameId;
   lap: LapMeta | ReplayOpponentMetadata;
@@ -46,6 +50,7 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
   const [carPanelOpen, setCarPanelOpen] = useLocalStorage("replay-car-open", false);
   const [active, setActive] = useState<{ a: ReplaySessionData["a"]; gameId: GameId; controller: SpectateController } | null>(null);
   const controller = active?.a === a && active.gameId === gameId ? active.controller : null;
+  const cornerFocus = useCornerFocus(session, segments, controller);
   useEffect(() => {
     const next = createSpectateController(a, null, undefined, () => fpsCapRef.current);
     next.setActive(true);
@@ -83,6 +88,9 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest('textarea, select, [role="textbox"], [role="dialog"], [role="alertdialog"]'))) return;
       if (target instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type)) return;
       if (arrow && target instanceof Element && target.closest('input, [role="separator"], [role="slider"], [role="combobox"], [role="listbox"], [role="tablist"], [role="menu"], [role="tree"], [role="grid"], [role="spinbutton"], [role="radiogroup"], [role="toolbar"]')) return;
+      // Space belongs to the focused control (native activation); arrows keep
+      // their existing scrub behaviour on interactive targets.
+      if (!arrow && target instanceof Element && target.closest(INTERACTIVE_SPACE_TARGETS)) return;
       event.preventDefault();
       event.stopPropagation();
       if (arrow) {
@@ -111,7 +119,7 @@ export function SingleReplaySession({ gameId, lap, replay, outline, segments, tr
     };
   }, [a, controller]);
   if (!controller) return null;
-  return <SpectateView pair={session} controller={controller} outline={outline} segments={segments}
+  return <SpectateView pair={session} controller={controller} outline={outline} segments={segments} cornerFocus={cornerFocus}
     ai={ai} aiOpen={aiOpen} onAiOpenChange={onAiOpenChange} telemetryOpen={telemetryOpen}
     onTelemetryOpenChange={setTelemetryOpen} carPanelOpen={carPanelOpen} onCarPanelOpenChange={setCarPanelOpen}
     panelHeaderTarget={panelHeaderTarget} />;

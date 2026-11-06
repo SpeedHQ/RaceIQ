@@ -5,7 +5,7 @@ import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DownloadIcon, M
 import { type FC, useContext } from "react";
 import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { ChatCornerActionsProvider, ChatCornerActionsTool } from "@/components/assistant-ui/chat-corner-actions";
 import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
@@ -34,7 +34,8 @@ const MessageError: FC = () => (
 );
 
 const AssistantMessage: FC = () => {
-  const { Text: TextComponent, ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
+  const { Text: TextComponent, ToolFallback: ToolFallbackComponent = ChatCornerActionsTool, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
+  const message = useAuiState((state) => state.message);
   const ACTION_BAR_PT = "pt-1.5";
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
   return (
@@ -43,20 +44,27 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
       className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
+      <ChatCornerActionsProvider>
       <div data-slot="aui_assistant-message-content" className="text-foreground px-2 leading-relaxed wrap-break-word">
         <MessagePrimitive.GroupedParts groupBy={groupPartByType({ reasoning: [], "tool-call": ["group-chainOfThought", "group-tool"], "standalone-tool-call": [] })}>
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
                 return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-tool":
+              case "group-tool": {
+                const visibleCount = part.indices.filter((index) => {
+                  const content = message.content[index];
+                  return !(content?.type === "tool-call" && content.toolName === "corner_actions");
+                }).length;
+                if (visibleCount === 0) return <>{children}</>;
                 if (ToolGroup) return <ToolGroup group={part}>{children}</ToolGroup>;
                 return (
                   <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger count={part.indices.length} active={part.status.type === "running"} />
+                    <ToolGroupTrigger count={visibleCount} active={part.status.type === "running"} />
                     <ToolGroupContent>{children}</ToolGroupContent>
                   </ToolGroupRoot>
                 );
+              }
               case "group-reasoning":
                 return ReasoningGroup ? <ReasoningGroup group={part}>{children}</ReasoningGroup> : <ReasoningGroupFallback group={part}>{children}</ReasoningGroupFallback>;
               case "text":
@@ -94,6 +102,7 @@ const AssistantMessage: FC = () => {
         <BranchPicker />
         <AssistantActionBar />
       </div>
+      </ChatCornerActionsProvider>
     </MessagePrimitive.Root>
   );
 };

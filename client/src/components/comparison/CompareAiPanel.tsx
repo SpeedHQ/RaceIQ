@@ -5,6 +5,7 @@ import { m } from "../../paraglide/messages";
 import { authenticatedFetch } from "@/lib/rpc";
 import { uiStore } from "../../stores/ui";
 import { ChatPanel } from "../ai-chat/ChatPanel";
+import { LapAnalysisText } from "../ai-chat/LapAnalysisText";
 import { Button } from "../ui/button";
 import { PanelSectionHeader } from "../ui/panel-section-header";
 import { useComparisonAiSettings } from "./compare-ai-hooks";
@@ -19,7 +20,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const openSettings = uiStore.actions.openSettings;
   const [hasA, setHasA] = useState(false);
   const [hasB, setHasB] = useState(false);
-  const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);
+  const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary; focusTarget: "A" | "B"; lapId: number } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
   const clearChat = useCallback(() => {
@@ -54,7 +55,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               aiConfigured={aiConfigured}
               configureAi={configureAi}
               onAnalysisChange={setHasA}
-              onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
+              onView={(label, s) => setViewing({ kind: "lap", label, summary: s, focusTarget: "A", lapId: lapA.id })}
             />
             <LapSection
               lap={lapB}
@@ -63,7 +64,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               aiConfigured={aiConfigured}
               configureAi={configureAi}
               onAnalysisChange={setHasB}
-              onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
+              onView={(label, s) => setViewing({ kind: "lap", label, summary: s, focusTarget: "B", lapId: lapB.id })}
             />
             <InputsSection
               lapAId={lapA.id}
@@ -91,10 +92,11 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             historyQueryKey={["compare-chat-history", lapA.id, lapB.id, chatRemountKey]}
             remountKey={`${lapA.id}:${lapB.id}:${chatRemountKey}`}
             compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
+            components={{ Text: LapAnalysisText }}
           />
         </div>
       )}
-      {viewing?.kind === "lap" && <AnalysisModal label={viewing.label} summary={viewing.summary} onClose={() => setViewing(null)} />}
+      {viewing?.kind === "lap" && <AnalysisModal label={viewing.label} summary={viewing.summary} trackSegments={trackSegments} focusTarget={viewing.focusTarget} lapId={viewing.lapId} onClose={() => setViewing(null)} />}
       {viewing?.kind === "inputs" && <InputsModal analysis={viewing.analysis} onClose={() => setViewing(null)} trackSegments={trackSegments} onJumpToFrac={onJumpToFrac} />}
     </div>
   );

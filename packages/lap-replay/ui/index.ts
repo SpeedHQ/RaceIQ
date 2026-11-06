@@ -10,3 +10,4 @@ export { buildSpectateChannels, channelValue, type SpectateChannel } from "./spe
 export { CATEGORY_LABELS, classify, type Category } from "./SpectateTelemetryPanel";
 export { SpectateInputs } from "./SpectateInputs";
 export { SingleReplaySession } from "./SingleReplaySession";
+export { CornerFocusProvider, useCornerFocusController, type CornerFocusController, type CornerFocusActive } from "./corner-focus-react";

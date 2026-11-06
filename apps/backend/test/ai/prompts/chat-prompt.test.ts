@@ -97,6 +97,7 @@ describe("lap chat prompt", () => {
     expect(prompt).toContain("Internal lap reference");
     expect(prompt).toContain("No JSON output.");
     expect(prompt).toContain("--- TELEMETRY DATA ---");
+    expect(prompt).toContain("corner_actions");
     expect(prompt).not.toContain("Your response MUST be valid JSON");
   });
 

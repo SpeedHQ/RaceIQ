@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CornerActionsInputSchema } from "@raceiq/shared/integrations/ai/corner-action";
 import type { AnalysisData } from "./analysis-types";
 
 const Assessment = z.enum(["good", "warning", "critical"]);
@@ -15,6 +16,7 @@ const CornerItem = z.object({
   severity: z.enum(["minor", "moderate", "major"]),
 });
 const TechniqueItem = z.object({ tip: z.string(), detail: z.string() });
+const Provenance = z.object({ lapId: z.number().int().nullable().optional() }).passthrough();
 const SetupItem = z.object({
   component: z.string(),
   symptom: z.string(),
@@ -31,6 +33,8 @@ const LapAnalysisForDisplay = z.object({
   corners: z.array(CornerItem),
   technique: z.array(TechniqueItem),
   setup: z.array(SetupItem).optional(),
+  actions: CornerActionsInputSchema,
+  setupProvenance: Provenance.optional(),
 });
 
 export function parseLapAnalysisForDisplay(text: string): AnalysisData | null {
@@ -56,5 +60,7 @@ export function parseLapAnalysisForDisplay(text: string): AnalysisData | null {
     throttle: [],
     coaching: parsed.data.technique,
     setup: parsed.data.setup ?? [],
+    actions: parsed.data.actions,
+    lapId: parsed.data.setupProvenance?.lapId ?? null,
   };
 }

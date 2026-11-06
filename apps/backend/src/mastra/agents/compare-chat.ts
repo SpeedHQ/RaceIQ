@@ -16,6 +16,7 @@ import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { getCompareAnalysisTool } from "../tools/compare-analysis";
+import { cornerActionsTool } from "../tools/corner-actions";
 import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 export const compareChatAgent = new Agent({
   id: "compare-chat",
@@ -40,6 +41,7 @@ export const compareChatAgent = new Agent({
     get_lap_analysis: getLapAnalysisTool,
     get_compare_analysis: getCompareAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
+    corner_actions: cornerActionsTool,
   },
   memory: getChatMemory(),
 });

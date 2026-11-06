@@ -164,7 +164,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           if (typeof data.analysis === "string" && data.analysis.trim().length === 0) {
             throw new Error(m.aipanel_no_text_error());
           }
-          const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
+          const parsed = (typeof data.analysis === "string"
+            ? safeParseAnalysis(data.analysis)
+            : parseLapAnalysisForDisplay(JSON.stringify(data.analysis)) ?? data.analysis) as AnalysisData | null;
           setAnalysis(parsed);
           if (data.usage) setUsage(data.usage);
           if (data.cornerFracs) {
@@ -271,7 +273,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         hasTune?: boolean;
       };
       if (!data.cached) return;
-      const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
+      const parsed = (typeof data.analysis === "string"
+        ? safeParseAnalysis(data.analysis)
+        : parseLapAnalysisForDisplay(JSON.stringify(data.analysis)) ?? data.analysis) as AnalysisData | null;
       setAnalysis(parsed);
       if (data.usage) setUsage(data.usage);
       if (data.cornerFracs) {
@@ -529,6 +533,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   onExport={handleExport}
                   onRegenerate={regenerateAnalysis}
                   onClear={deleteAnalysis}
+                  lapId={lapId}
                 />
               )}
             </AnalysisModalShell>
