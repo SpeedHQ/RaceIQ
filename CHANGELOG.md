@@ -4,7 +4,6 @@
 - Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
-- Open lap analysis and lap comparisons faster after a long session: a player lap now loads from its own published capture chunk instead of streaming the whole session capture from the first byte, which cost about 30 seconds per lap on a 5 GB stint.
 
 ### Internal
 - Require an explicitly configured model for AI evaluation runs.
