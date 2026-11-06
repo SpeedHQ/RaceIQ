@@ -9,6 +9,7 @@ const validAnalysis = JSON.stringify({
   corners: [],
   technique: [],
   setup: [],
+  actions: [],
 });
 
 type GenerateResult = {
@@ -75,6 +76,7 @@ describe("lap analysis generation tool", () => {
         corners: [],
         technique: [],
         setup: [],
+        actions: [],
       },
       readable: JSON.stringify(
         {
@@ -84,6 +86,7 @@ describe("lap analysis generation tool", () => {
           corners: [],
           technique: [],
           setup: [],
+          actions: [],
         },
         null,
         2,

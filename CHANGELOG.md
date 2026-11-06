@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Make AI corner references in analysis and chat actionable: focus the replay segment, mark it on the map and telemetry chart, and play one pass from entry to exit with Shift-loop.
 
 ### Fixes
 
