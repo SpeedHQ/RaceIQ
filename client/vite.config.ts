@@ -168,6 +168,11 @@ export default defineConfig(({ command }) => {
       host: "127.0.0.1",
       proxy: {
         "/ws": { target: serverTarget, changeOrigin: true, ws: true, configure: forwardDashboardOrigin },
+        "/audio/live-engineer": {
+          target: serverTarget,
+          changeOrigin: true,
+          configure: forwardDashboardOrigin,
+        },
         "/api": {
           target: serverTarget,
           changeOrigin: true,

@@ -16,6 +16,7 @@
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
+- Restore Race Engineer voice playback through the development dashboard proxy and align speech previews with the installed voice pack.
 - Keep native recording write/close/replay working on Windows without calling unsupported directory `fsync`; preserve file flushes, POSIX directory syncing, and genuine filesystem errors.
 - Keep recording layout migration progress polling from racing atomic journal replacement on Windows; preserve collision checks and resumable cutover.
 - Keep ACC laps readable and exportable when recordings include opponent data, and hide stale opponent standings until the source recovers.
