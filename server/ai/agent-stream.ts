@@ -3,6 +3,10 @@ import { toAISdkStream } from "@mastra/ai-sdk";
 import { formatClientAiErrorMessage, toClientAiError } from "./provider-error";
 import { logLlmEvent, type LlmDiagnosticContext } from "./diagnostic-logging";
 import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
+import { withStallDeadline } from "./stream-deadline";
+
+// The stall deadline is part of this module's contract for callers and tests.
+export { STREAM_STALL_LIMITS, withStallDeadline } from "./stream-deadline";
 
 /**
  * Route-agnostic bridge from a Mastra agent stream to an AI SDK v5 UI-message
@@ -205,7 +209,10 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
     },
     execute: async ({ writer }) => {
       try {
-        for await (const part of toAISdkStream(agentStream, {
+        // A provider that opens the stream and then goes quiet would otherwise
+        // leave the panel spinning forever; the wrapper turns silence into the
+        // typed error handled below.
+        for await (const part of withStallDeadline(toAISdkStream(agentStream, {
           from: "agent",
           sendReasoning: true,
           messageMetadata: ({ part }) => {
@@ -222,7 +229,7 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
               ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
             };
           },
-        })) {
+        }))) {
           if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
             const now = Date.now();
             if (reasoningFirstTs === 0) reasoningFirstTs = now;
