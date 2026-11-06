@@ -9,6 +9,26 @@ import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 import { ANTHROPIC_OPENAI_BASE_URL, deepseekCompatibleBody, isAnthropicEndpoint, openAiCompatibleAuthHeaders } from "./openai-compatible-headers";
 import { defaultReasoningEffortFor, isDeepSeekEndpoint, mapDeepSeekModels, responseFormatFor } from "./provider-capabilities";
 import { baseUrlFor } from "./provider-endpoints";
+import { fetchWithResilience } from "./provider-resilience";
+// Resilience primitives travel with the provider module so callers and tests
+// import one entry point per package boundary.
+export {
+  DEFAULT_CIRCUIT_POLICY,
+  DEFAULT_REQUEST_DEADLINES,
+  DEFAULT_RETRY_POLICY,
+  fetchWithResilience,
+  isRetryableStatus,
+  parseRetryAfter,
+  providerCircuitSnapshot,
+  resetProviderCircuits,
+  retryDelayMs,
+  type CircuitPolicy,
+  type RequestDeadlines,
+  type ResilienceDeps,
+  type ResilientRequestOptions,
+  type RetryPolicy,
+} from "./provider-resilience";
+
 export interface AiResult {
   analysis: string;
   usage: {
@@ -46,7 +66,9 @@ export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelList
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
     console.info(`[AI] GET ${url}`);
-    const res = await fetch(url);
+    // A settings-panel probe must never hang the picker; same 5s bound the other
+    // model lists already use.
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       const message = `Gemini models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
@@ -278,14 +300,21 @@ export async function runGeminiRequest(options: GeminiRequestOptions): Promise<A
       generationConfig.responseSchema = options.schema;
     }
 
+    const payload = JSON.stringify({
+      contents: [{ parts: [{ text: options.prompt }] }],
+      generationConfig,
+    });
     const start = performance.now();
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: options.prompt }] }],
-        generationConfig,
-      }),
+    const res = await fetchWithResilience({
+      provider: "gemini",
+      modelId: model,
+      send: (signal) =>
+        fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          signal,
+        }),
     });
     const durationMs = Math.round(performance.now() - start);
 
@@ -399,11 +428,20 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
       }
     }
 
+    // Serialise once: retries reuse the same bytes, and a retry must send the
+    // identical body the user's prompt produced.
+    const payload = JSON.stringify(body);
     const start = performance.now();
-    const res = await fetch(`${endpoint}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
+    const res = await fetchWithResilience({
+      provider: providerLabel,
+      modelId: model,
+      send: (signal) =>
+        fetch(`${endpoint}/chat/completions`, {
+          method: "POST",
+          headers,
+          body: payload,
+          signal,
+        }),
     });
     const durationMs = Math.round(performance.now() - start);
 
