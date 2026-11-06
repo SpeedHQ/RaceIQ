@@ -18,6 +18,7 @@ export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
     gameId: "fm-2023",
     carId: "100",
     trackId: "200",
+    processing: { state: "ready", stage: null, error: null },
     ...over,
   };
 }

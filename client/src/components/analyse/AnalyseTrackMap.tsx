@@ -1,7 +1,7 @@
 import type { SceneBuilder } from "./track-map/scene";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { compositeTrack, drawCarOverlay } from "./track-map/overlay-drawing";
 import { pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
 import { drawStaticTrack } from "./track-map/static-drawing";

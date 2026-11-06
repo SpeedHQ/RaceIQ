@@ -24,7 +24,7 @@ test("storage renders true-empty and recovers from controlled API error", async 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("button", { name: "Recording" }).click();
     await page.getByRole("tab", { name: "Storage" }).click();
     await expect(page.getByText("No recording files yet.")).toBeVisible();
 
@@ -34,14 +34,14 @@ test("storage renders true-empty and recovers from controlled API error", async 
     });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("button", { name: "Recording" }).click();
     await page.getByRole("tab", { name: "Storage" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Failed to load storage stats." })).toBeVisible();
 
     await page.unroute("**/api/storage/sessions");
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("button", { name: "Recording" }).click();
     await page.getByRole("tab", { name: "Storage" }).click();
     await expect(page.getByText("Total size")).toBeVisible();
     expect(
@@ -86,7 +86,7 @@ test("compression conflict is announced and can be retried", async ({ page }) =>
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("button", { name: "Recording" }).click();
     await page.getByRole("tab", { name: "Storage" }).click();
     const compress = page.getByRole("button", { name: "Compress now" });
     await expect(compress).toBeVisible();
@@ -136,7 +136,7 @@ test("storage and cache totals refresh while settings stay open", async ({ page 
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Storage" }).click();
+  await page.getByRole("button", { name: "Recording" }).click();
   await expect(page.getByText("1.0 KB / 1.0 MB")).toBeVisible();
   await page.clock.fastForward(5_000);
   await expect(page.getByText("2.0 KB / 1.0 MB")).toBeVisible();
@@ -146,3 +146,4 @@ test("storage and cache totals refresh while settings stay open", async ({ page 
   await page.clock.fastForward(30_000);
   await expect(page.getByText("2.0 KB", { exact: true }).first()).toBeVisible();
 });
+

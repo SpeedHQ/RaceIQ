@@ -1,5 +1,6 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
+import { withDatabaseWrite } from "./write-coordination";
 import { trackCorners, trackOutlines } from "./schema";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { Corner } from "../lap-analysis/corners"
@@ -9,13 +10,12 @@ export async function getCorners(
   gameId: GameId,
   options?: { manualOnly?: boolean },
 ): Promise<Corner[]> {
-  const rows = await db
-    .select({
-      cornerIndex: trackCorners.cornerIndex,
-      label: trackCorners.label,
-      distanceStart: trackCorners.distanceStart,
-      distanceEnd: trackCorners.distanceEnd,
-    })
+  const rows = await readDb.select({
+    cornerIndex: trackCorners.cornerIndex,
+    label: trackCorners.label,
+    distanceStart: trackCorners.distanceStart,
+    distanceEnd: trackCorners.distanceEnd,
+  })
     .from(trackCorners)
     .where(and(
       eq(trackCorners.trackId, trackId),
@@ -44,13 +44,13 @@ export async function saveCorners(
   gameId: GameId,
   isAuto: boolean = false
 ): Promise<void> {
-  await db.delete(trackCorners)
+  await withDatabaseWrite(() => db.delete(trackCorners)
     .where(and(eq(trackCorners.trackId, trackId), eq(trackCorners.gameId, gameId)))
-    .run();
+    .run());
 
   // Insert new corners
   if (corners.length > 0) {
-    await db.insert(trackCorners)
+    await withDatabaseWrite(() => db.insert(trackCorners)
       .values(
         corners.map((c) => ({
           trackId,
@@ -62,7 +62,7 @@ export async function saveCorners(
           gameId,
         }))
       )
-      .run();
+      .run());
   }
 }
 
@@ -75,8 +75,7 @@ export async function getTrackOutline(
   trackId: string,
   gameId: GameId
 ): Promise<{ x: number; z: number; speed: number }[] | null> {
-  const row = await db
-    .select({ outline: trackOutlines.outline })
+  const row = await readDb.select({ outline: trackOutlines.outline })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackId, trackId), eq(trackOutlines.gameId, gameId)))
     .get();

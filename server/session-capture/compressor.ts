@@ -12,11 +12,14 @@ import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { Cause, Effect, Fiber, Schedule } from "effect";
 import { getUncompressedSessions } from "../db/session-queries";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { and, eq, inArray, or, gt } from "drizzle-orm";
 import { dashboardSummaryState, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
+import { recoverPendingOpponentRemovalCleanup } from "./opponent-removal";
 import { cleanupOrphanSessionFiles, listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { repairDirectCaptureManifests } from "./direct-capture-repair";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
@@ -35,6 +38,7 @@ import {
 import { cleanupInterruptedSessionDownsampleFiles, runScheduledSessionDownsampleEffect } from "./session-downsample";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { RecordingStorageBusyError, reserveRecordingStorageOperation } from "./storage-activity";
+import { startLmuOpponentIndexRuntime, stopLmuOpponentIndexRuntime } from "./lmu-opponent-index-runtime";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 type MaintenanceError = RecordingMaintenanceBusyError | RecordingMaintenanceIOError | RecordingMaintenanceValidationError;
@@ -78,14 +82,10 @@ async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
 async function compressSessionGroup(ids: number[], binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(sessions)
-        .set({ rawFile: compressedFile.gzPath })
-        .where(eq(sessions.rawFile, binPath))
-        .run();
+    await withDatabaseWrite(() => db.transaction(async (tx) => {
+      await tx.update(sessions).set({ rawFile: compressedFile.gzPath }).where(eq(sessions.rawFile, binPath)).run();
       await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, ids)).run();
-    });
+    }));
   } catch (error) {
     await rm(compressedFile.gzPath, { force: true }).catch((cleanupError) => {
       console.error(`[Compressor] Failed to remove uncommitted target ${compressedFile.gzPath}:`, cleanupError);
@@ -163,10 +163,10 @@ async function runCompression(userTriggered = false): Promise<void> {
       // paths owned by live epochs or pending split work. The shared path set
       // also includes every sessions.raw_file, so consulting it here would
       // make every DB-backed capture ineligible for compression.
-      const rows = await db.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile })
+      const rows = await readDb.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile })
         .from(sessions).where(eq(sessions.rawFile, rawFile)).all();
       if (rows.some((row) => row.captureLayoutVersion != null || row.captureArchiveFile != null)) continue;
-      const activeLiveCapture = await db.select({ sessionId: liveCaptures.sessionId })
+      const activeLiveCapture = await readDb.select({ sessionId: liveCaptures.sessionId })
         .from(liveCaptures)
         .where(and(
           or(
@@ -180,7 +180,7 @@ async function runCompression(userTriggered = false): Promise<void> {
           ),
         )).limit(1).get();
       if (activeLiveCapture) continue;
-      const activeJob = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+      const activeJob = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId })
         .from(sessionCaptureSplitJobs)
         .where(and(
           or(
@@ -239,8 +239,19 @@ let maintenanceFiber: Fiber.Fiber<unknown, unknown> | null = null;
 function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
   return Effect.gen(function* () {
     yield* Effect.tryPromise({
+      try: async () => {
+        const result = await repairDirectCaptureManifests();
+        if (result.failed > 0) throw new Error(`Failed to repair ${result.failed} direct capture manifest(s)`);
+      },
+      catch: (cause) => maintenanceIOError("direct-capture-repair", cause),
+    }).pipe(Effect.uninterruptible);
+    yield* Effect.tryPromise({
       try: () => runCompression(),
       catch: (cause) => maintenanceIOError("compression", cause),
+    }).pipe(Effect.uninterruptible);
+    yield* Effect.tryPromise({
+      try: () => recoverPendingOpponentRemovalCleanup(),
+      catch: (cause) => maintenanceIOError("opponent-removal-recovery", cause),
     }).pipe(Effect.uninterruptible);
     const settings = yield* Effect.sync(() => loadSettings());
     if (!isRecordingRetentionPolicyValid(settings)) {
@@ -284,10 +295,12 @@ function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
       try: () => cleanupExpiredStagedMotec(),
       catch: (cause) => maintenanceIOError("staged-import-cleanup", cause),
     }).pipe(Effect.uninterruptible);
-    const downsampleTempCount = yield* Effect.tryPromise({
-      try: () => cleanupInterruptedSessionDownsampleFiles(),
-      catch: (cause) => maintenanceIOError("downsample-temp-cleanup", cause),
-    }).pipe(Effect.uninterruptible);
+    const downsampleTempCount = !isSessionActive()
+      ? yield* Effect.tryPromise({
+        try: () => cleanupInterruptedSessionDownsampleFiles(),
+        catch: (cause) => maintenanceIOError("downsample-temp-cleanup", cause),
+      }).pipe(Effect.uninterruptible)
+      : 0;
     console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
     if (stagedMotecCount > 0) console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
     if (downsampleTempCount > 0) console.debug(`[Downsample] Removed ${downsampleTempCount} interrupted temporary file(s)`);
@@ -326,9 +339,11 @@ export function startSessionCompressor(): void {
   if (maintenanceFiber) return;
   const runtime = getRecordingMaintenanceController();
   maintenanceFiber = trackMaintenanceFiber(runtime, runtime.managed.runFork(sessionMaintenanceSchedule(runAdmittedMaintenanceEffect())));
+  startLmuOpponentIndexRuntime();
 }
 
 export async function stopSessionCompressor(): Promise<void> {
   maintenanceFiber = null;
+  await stopLmuOpponentIndexRuntime();
   await disposeRecordingMaintenanceRuntime();
 }

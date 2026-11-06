@@ -1,5 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { deltaColor } from "@/lib/colors";
+import { deltaColor } from "@raceiq/scene-3d/colors";
 import { COLOR_A, COLOR_B, compareSegmentKey, formatSectionTime } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
 import type { SegmentTiming } from "./CompareTrackMap";

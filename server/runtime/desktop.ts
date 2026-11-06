@@ -18,6 +18,8 @@ export function preventMacSleep(): void {
 }
 
 export function openFirstRunDashboard(port: number): void {
+  // Installed shortcuts wait for HTTP readiness and open the dashboard themselves.
+  if (process.env.RACEIQ_LAUNCHER_OPENS_BROWSER === "1") return;
   const url = `http://localhost:${port}`;
   console.log(`[Server] First run detected — opening ${url}`);
   try {

@@ -1,4 +1,5 @@
-import { semanticNumber, type Point, type SemanticAnalysisFrame } from "./types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { Point } from "./types";
 
 const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
   x: semanticNumber(frame, "motion.position-x") ?? 0,

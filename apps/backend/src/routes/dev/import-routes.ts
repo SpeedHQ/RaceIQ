@@ -1,3 +1,4 @@
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -162,6 +163,22 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         const packet = serverAdapter.tryParse(sourceFrame, null);
         if (!packet) continue;
         await pipeline.processPacket(packet, sourceFrame);
+        packetCount++;
+      }
+    } else if (gameId === "ams2") {
+      const serverAdapter = getAllServerGames().find(a => a.id === gameId);
+      if (!serverAdapter) return c.json({ error: "AMS2 adapter is not registered" }, 400);
+      const parserState = serverAdapter.createParserState();
+      for await (const sourceFrame of readAMS2DumpFrames(tmpPath)) {
+        if (serverAdapter.isSessionEndFrame?.(sourceFrame)) {
+          await pipeline.finalizeCurrentSession();
+          continue;
+        }
+        const packet = serverAdapter.tryParse(sourceFrame, parserState);
+        if (!packet) continue;
+        carModel ??= packet.ams2?.carName ?? null;
+        trackName ??= packet.ams2?.trackName ?? null;
+        await pipeline.processPacket(packet, sourceFrame, packet.TimestampMS);
         packetCount++;
       }
     } else {

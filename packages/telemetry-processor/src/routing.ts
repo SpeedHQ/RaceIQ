@@ -1,3 +1,4 @@
+import { ams2Parser } from "@raceiq/game-ams2/game-parser";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryParser } from "./parser";
 import { accParser } from "@raceiq/game-acc/game-parser";
@@ -10,6 +11,7 @@ import { lmuParser } from "@raceiq/game-lmu/game-parser";
 /** Select parser explicitly by game; parser-owned state remains caller-owned. */
 export function getGameParser(gameId: GameId): TelemetryParser<any> {
   switch (gameId) {
+    case "ams2": return ams2Parser;
     case "acc": return accParser;
     case "ac-evo": return acEvoParser;
     case "fm-2023": return forzaParser;

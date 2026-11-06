@@ -30,7 +30,7 @@ function StoreState({ descriptor }: { descriptor: StoreDescriptor<unknown> }) {
   return (
     <details open className="border border-app-border rounded bg-app-surface">
       <summary className="cursor-pointer px-2 py-1 text-xs text-app-text">{descriptor.name}</summary>
-      <pre className="overflow-auto border-t border-app-border p-2 text-xs font-mono text-app-text">{JSON.stringify(state, null, 2)}</pre>
+      <pre className="overflow-auto border-t border-app-border p-2 text-xs font-mono text-app-text">{JSON.stringify(state, (_key, value) => typeof value === "bigint" ? value.toString() : value, 2)}</pre>
     </details>
   );
 }

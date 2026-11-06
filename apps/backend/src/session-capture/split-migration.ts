@@ -1,10 +1,10 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { stat } from "node:fs/promises";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, readDb } from "@raceiq/backend-core/db/index"
+import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 import { liveCaptures, sessionCaptureSplitJobs, sessions } from "@raceiq/backend-core/db/schema";
 import { enqueueSessionCaptureSplit, getQueuedSessionCaptureSplitJobs, type SessionCaptureSplitWork } from "@raceiq/backend-core/db/session-queries";
 import { isSparseCaptureFile } from "@raceiq/backend-core/session-capture/source-loader";
-import { getRecordingStorageActivity } from "@raceiq/backend-core/session-capture/storage-activity";
 
 type SplitMigrationStatus = "idle" | "running" | "success" | "partial" | "error";
 interface SplitMigrationProgress {
@@ -33,7 +33,7 @@ async function isEligibleStartupJob(job: SessionCaptureSplitWork): Promise<boole
         !Number.isSafeInteger(window.frameCount) || window.frameCount < 1 ||
         !Number.isSafeInteger(window.lapNumber) || window.lapNumber < 0 ||
         (index > 0 && job.windows[index - 1]!.startByteOffset >= window.startByteOffset))) return false;
-  const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+  const liveCapture = await readDb.select({ status: liveCaptures.status }).from(liveCaptures)
     .where(eq(liveCaptures.sessionId, job.sessionId)).get();
   if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) return false;
   let info;
@@ -54,7 +54,7 @@ async function getEligibleStartupJobs(): Promise<SessionCaptureSplitWork[]> {
 
 /** Call after split-job recovery and before starting the split manager. */
 export async function initializeStartupSplitMigration(): Promise<void> {
-  const latestSession = await db.select({ id: sessions.id }).from(sessions).orderBy(desc(sessions.id)).limit(1).get();
+  const latestSession = await readDb.select({ id: sessions.id }).from(sessions).orderBy(desc(sessions.id)).limit(1).get();
   startupSessionIdCeiling = latestSession?.id ?? 0;
   startupSessionIds = (await getEligibleStartupJobs()).map(({ sessionId }) => sessionId);
   startupSessionIdSet = new Set(startupSessionIds);
@@ -90,7 +90,7 @@ export async function getStartupSplitMigrationStatus(): Promise<{
   if (!initialized || startupSessionIds.length === 0) {
     return { sessionCount: 0, progress: { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null } };
   }
-  const jobs = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId, status: sessionCaptureSplitJobs.status, errorMessage: sessionCaptureSplitJobs.errorMessage })
+  const jobs = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId, status: sessionCaptureSplitJobs.status, errorMessage: sessionCaptureSplitJobs.errorMessage })
     .from(sessionCaptureSplitJobs).where(inArray(sessionCaptureSplitJobs.sessionId, startupSessionIds)).all();
   const presentIds = new Set(jobs.map(({ sessionId }) => sessionId));
   startupSessionIds = startupSessionIds.filter((sessionId) => presentIds.has(sessionId));
@@ -121,23 +121,19 @@ export async function consentToStartupSplitMigration(): Promise<{
   sessionCount: number;
   progress: SplitMigrationProgress;
 }> {
-  const activity = getRecordingStorageActivity();
-  if (activity.imports > 0 || activity.relocating) {
-    throw Object.assign(new Error("Recording storage is busy"), { code: activity.relocating ? "MOVE_ACTIVE" : "IMPORT_ACTIVE" });
-  }
   const current = await getStartupSplitMigrationStatus();
   if (!consented || current.progress.status !== "running") {
     // Folder organization can move a queued source or replace its inode before consent.
     for (const sessionId of startupSessionIds) await enqueueSessionCaptureSplit(sessionId);
     if (current.progress.failed > 0) {
-      const failed = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId }).from(sessionCaptureSplitJobs)
+      const failed = await readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId }).from(sessionCaptureSplitJobs)
         .where(and(inArray(sessionCaptureSplitJobs.sessionId, startupSessionIds), eq(sessionCaptureSplitJobs.status, "failed"))).all();
       for (const { sessionId } of failed) {
-        await db.update(sessionCaptureSplitJobs).set({
+        await withDatabaseWrite(() => db.update(sessionCaptureSplitJobs).set({
           status: "queued", attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`, sequence: 0,
           errorCode: null, errorMessage: null, stagingPath: null, processedSourceFrames: null,
           totalSourceFrames: null, completedLapArtifacts: 0, updatedAt: new Date().toISOString(),
-        }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), eq(sessionCaptureSplitJobs.status, "failed"))).run();
+        }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), eq(sessionCaptureSplitJobs.status, "failed"))).run());
       }
     }
     consented = true;

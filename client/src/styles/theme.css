@@ -510,8 +510,8 @@
   background: var(--status-unavailable);
 }
 
-table th:hover,
-table th:focus-within {
+table:not([data-static-headers]) th:hover,
+table:not([data-static-headers]) th:focus-within {
   background-color: var(--app-surface-hover);
   color: var(--app-accent-hover);
 }

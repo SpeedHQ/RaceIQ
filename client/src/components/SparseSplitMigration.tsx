@@ -40,12 +40,11 @@ export function SparseSplitMigration({ layoutPrecedence, onVisibilityChange }: {
             {completed ? m.sparse_split_migration_success_title() : running ? m.sparse_split_migration_running() : m.sparse_split_migration_title()}
           </DialogTitle>
         </div>
-        <DialogDescription className={running || completed ? "text-app-detail text-app-text-secondary" : "text-app-detail leading-relaxed text-app-text-secondary"}>
+        <DialogDescription role={running ? "status" : undefined} aria-live={running ? "polite" : undefined} className={running || completed ? "text-app-detail text-app-text-secondary" : "text-app-detail leading-relaxed text-app-text-secondary"}>
           {running || completed ? m.sparse_split_migration_progress({ done: progress?.done ?? 0, total: progress?.total ?? 0 }) : m.sparse_split_migration_description({ sessions: status.data?.sessionCount ?? 0 })}
         </DialogDescription>
       </DialogHeader>
       {running && <>
-        <p role="status" aria-live="polite" className="text-xs text-app-text-muted">{m.sparse_split_migration_progress({ done: progress?.done ?? 0, total: progress?.total ?? 0 })}</p>
         <div role="progressbar" aria-label={m.sparse_split_migration_progress_label()} aria-valuemin={0} aria-valuemax={progress?.total ?? 0} aria-valuenow={progress?.done ?? 0} aria-valuetext={`${percent}%`} className="h-1.5 overflow-hidden rounded-full bg-app-progress-track"><div className="h-full bg-app-accent transition-all" style={{ width: `${percent}%` }} /></div>
       </>}
       {completed && <p role="status" className="flex items-center gap-2 text-sm text-status-success"><Check aria-hidden="true" className="size-4" />{m.sparse_split_migration_success({ migrated: progress.migrated })}</p>}

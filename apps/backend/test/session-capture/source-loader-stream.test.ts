@@ -223,6 +223,7 @@ test("rejects sparse deltas backed by same-size cross-format checkpoints in both
   directories.push(directory);
   const lmu = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
   LMU_SOURCE_FRAME_MAGIC.copy(lmu);
+  lmu.writeUInt16LE(2, 8);
   const packed = packTriplet(ACC_PACKED_MAGIC, 0, 0, Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE - 28), Buffer.alloc(0), Buffer.alloc(0));
   for (const wrongCheckpoint of [packed, lmu]) {
     const delta = wrongCheckpoint === packed
@@ -304,29 +305,6 @@ test("cache cannot transfer converted-capture provenance to an unconverted sourc
   await expect(loadSessionSource({ rawFile, source: null, gameId: "fm-2023", carId: "0", trackId: "0" }))
     .rejects.toThrow(/Legacy full-frame captures are not supported/);
 });
-test("accepts released LMU source checkpoint-only captures with version-1 provenance", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "raceiq-released-lmu-"));
-  directories.push(directory);
-  const frame = encodeLMUSourcePayload({
-    gameVersion: 1,
-    sessionEvent: 1,
-    captureTimestampMs: 1_000,
-    telemetry: Buffer.alloc(LMU_TELEMETRY_INFO_SIZE),
-    scoringInfo: Buffer.alloc(LMU_SCORING_INFO_SIZE),
-  });
-  expect(frame.length).toBe(LMU_SOURCE_FRAME_SIZE);
-  const capture = Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]);
-  const rawFile = join(directory, "lmu-spa-iron-lynx-gte.bin.gz");
-  writeFileSync(rawFile, gzipSync(capture));
-  const source = { rawFile, source: null, gameId: "lmu" as const, carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec", captureFormatVersion: 1 };
-  const records = [];
-  for await (const record of iterateSessionCaptureRecordsFromSource(source)) records.push(record);
-  expect(records).toEqual([{ kind: "frame", offset: 12, endOffset: 12 + 4 + frame.length, frame }]);
-  const loaded = await loadSessionSource(source);
-  expect(loaded.kind).toBe("capture");
-  if (loaded.kind !== "capture") throw new Error("Expected capture source");
-  expect(loaded.buffer).toEqual(capture);
-});
 test("loads and indexes gzip sparse captures from decompressed bytes", async () => {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-gzip-load-"));
   directories.push(directory);
@@ -405,6 +383,15 @@ test("replays standalone manifest chunks once, including null-emission source fr
   if (loaded.kind !== "capture") throw new Error("Expected capture source");
   expect(loaded.buffer.subarray(12)).toEqual(Buffer.concat([wire(f1), wire(shared), wire(f3)]));
   expect(loaded.frameIndex.records.map(({ offset }) => offset)).toEqual([12, 12 + wire(f1).length, 12 + wire(f1).length + wire(shared).length]);
+  expect(loaded.frameIndex.records.map(({ prefixOffset, frame }) => ({ prefixOffset, frame }))).toEqual([
+    { prefixOffset: firstStart, frame: f1 },
+    { prefixOffset: firstStart + wire(f1).length, frame: shared },
+    { prefixOffset: secondStart, frame: f3 },
+  ]);
+  for (const record of loaded.frameIndex.records) {
+    expect(loaded.frameIndex.byOffset.get(record.offset)).toBe(record);
+    expect(loaded.frameIndex.byOffset.get(record.prefixOffset)).toBe(record);
+  }
 
   const changed = JSON.parse(JSON.stringify(manifest));
   changed.gameId = "acc";

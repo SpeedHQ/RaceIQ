@@ -16,12 +16,21 @@ on:
         description: "Optional compiled Paraglide artifact from the upstream build"
         required: false
         type: string
-        default: ""
+      runner-labels:
+        description: "JSON list of runner labels for seed and E2E jobs"
+        required: false
+        type: string
+        default: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
+      hardware-webgpu:
+        description: "Run the native WebGPU hardware gate"
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   seed-database:
     name: Seed database
-    runs-on: mars-ubuntu-2vcpu-10g
+    runs-on: ${{ fromJSON(inputs.runner-labels)[0] }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -29,7 +38,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
@@ -60,60 +69,67 @@ jobs:
           - name: fresh
             server_set: fresh
             projects: --project=fresh-install
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: tunes
             server_set: tunes
             projects: --project=tunes
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: tunes-unseeded
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-1
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 1/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-2
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 2/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-3
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 3/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-4
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 4/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-5
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 5/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-6
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 6/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-7
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
             shard: 7/7
-            runs_on: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
       server-set: ${{ matrix.server_set }}
       projects: ${{ matrix.projects }}
       shard: ${{ matrix.shard }}
-      runs-on: ${{ matrix.runs_on }}
+      runs-on: ${{ inputs.runner-labels }}
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
       target-ref: ${{ inputs.target-ref }}
       seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
+      paraglide-artifact: ${{ inputs.paraglide-artifact }}
+      dist-artifact: ${{ inputs.dist-artifact }}
+
+  playwright-webgpu:
+    name: Native WebGPU
+    if: inputs.hardware-webgpu
+    needs: seed-database
+    uses: ./.github/workflows/playwright.yml
+    with:
+      server-mode: compiled
+      server-set: seeded
+      projects: --project=lap-replay-webgpu
+      runs-on: ${{ inputs.runner-labels }}
+      artifact-name: playwright-lap-replay-webgpu
+      diagnostic-artifact-name: server-diagnostics-lap-replay-webgpu
+      target-ref: ${{ inputs.target-ref }}
+      seed-database-artifact: playwright-seeded-database
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
       dist-artifact: ${{ inputs.dist-artifact }}

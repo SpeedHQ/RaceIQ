@@ -8,12 +8,13 @@ function loadReleaseEnvironment(path: string) {
   delete env.RACEIQ_FEATURE_IRACING_ADAPTER;
   delete env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER;
   delete env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS;
+  delete env.RACEIQ_FEATURE_AMS2_ADAPTER;
   const result = Bun.spawnSync({
     cmd: [
       "bun",
       `--env-file=${path}`,
       "-e",
-      'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS }))',
+      'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER, RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS }))',
     ],
     cwd: ROOT_DIR,
     env,
@@ -28,16 +29,21 @@ describe("release feature flags", () => {
     RACEIQ_FEATURE_IRACING_ADAPTER: "true",
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: "true",
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: " acc, acc ",
+    RACEIQ_FEATURE_AMS2_ADAPTER: "true",
   };
   const productionEnv = {
     RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
-    RACEIQ_FEATURE_IRACING_ADAPTER: "false",
+    RACEIQ_FEATURE_IRACING_ADAPTER: "true",
+    RACEIQ_FEATURE_AMS2_ADAPTER: "true",
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: "false",
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: "acc",
   };
 
   test("parses strict boolean and trimmed deduplicated game CSV", () => {
     expect(releaseFeatureFlags(developmentEnv)).toMatchObject({
+      f1Experiments: true,
+      iracingAdapter: true,
+      ams2Adapter: true,
       liveSpotterEngineer: true,
       liveSpotterEngineerGameIds: ["acc"],
     });
@@ -57,9 +63,10 @@ describe("release feature flags", () => {
   test("parses production rollout flags", () => {
     expect(releaseFeatureFlags(productionEnv)).toEqual({
       f1Experiments: false,
-      iracingAdapter: false,
+      iracingAdapter: true,
       liveSpotterEngineer: false,
       liveSpotterEngineerGameIds: ["acc"],
+      ams2Adapter: true,
     });
   });
 
@@ -71,13 +78,15 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment(".env.development"))).toMatchObject({
       f1Experiments: true,
       iracingAdapter: true,
+      ams2Adapter: true,
     });
   });
 
   test("loads production rollout flags from committed environment", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment(".env.production"))).toEqual({
       f1Experiments: false,
-      iracingAdapter: false,
+      iracingAdapter: true,
+      ams2Adapter: true,
       liveSpotterEngineer: false,
       liveSpotterEngineerGameIds: ["acc"],
     });
@@ -90,6 +99,7 @@ describe("release feature flags", () => {
       iracingAdapter: true,
       liveSpotterEngineer: true,
       liveSpotterEngineerGameIds: ["acc"],
+      ams2Adapter: true,
     });
   });
 
@@ -97,22 +107,23 @@ describe("release feature flags", () => {
     expect(
       releaseFeatureFlags({
         ...developmentEnv,
-        RACEIQ_FEATURE_F1_EXPERIMENTS: undefined,
+        RACEIQ_FEATURE_AMS2_ADAPTER: undefined,
       }),
     ).toEqual({
-      f1Experiments: false,
+      f1Experiments: true,
       iracingAdapter: true,
       liveSpotterEngineer: true,
       liveSpotterEngineerGameIds: ["acc"],
+      ams2Adapter: false,
     });
   });
 
-  test("rejects malformed flags with the variable name", () => {
+  test("rejects malformed AMS2 flags with the variable name", () => {
     expect(() =>
       releaseFeatureFlags({
         ...developmentEnv,
-        RACEIQ_FEATURE_IRACING_ADAPTER: "yes",
+        RACEIQ_FEATURE_AMS2_ADAPTER: "yes",
       }),
-    ).toThrow("RACEIQ_FEATURE_IRACING_ADAPTER");
+    ).toThrow("RACEIQ_FEATURE_AMS2_ADAPTER");
   });
 });

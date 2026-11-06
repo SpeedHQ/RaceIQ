@@ -73,7 +73,7 @@ describe("recording layout migration", () => {
 
     const started = await startMigration();
     expect(started.status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     const minePath = join(root, "fm-2023", "own", "shared.bin.gz");
     const otherPath = join(root, "fm-2023", "others", "shared.bin.gz");
     expect(await readFile(minePath, "utf8")).toBe("shared legacy capture");
@@ -105,7 +105,7 @@ describe("recording layout migration", () => {
     await writeFile(source, "selected capture");
     const response = await startMigration(destination);
     expect(response.status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(resolveRecordingDirectory()).toBe(await realpath(destination));
     expect(await readFile(join(destination, "fm-2023", "own", "selected.bin"), "utf8")).toBe("selected capture");
   });
@@ -122,7 +122,7 @@ describe("recording layout migration", () => {
     await writeFile(source, "keep source");
     await writeFile(join(destination, "unrelated.txt"), preserved);
     expect((await startMigration(destination)).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(resolveRecordingDirectory()).toBe(await realpath(destination));
     expect(await readFile(organized, "utf8")).toBe("keep source");
     expect(await Bun.file(source).exists()).toBe(false);
@@ -198,7 +198,7 @@ describe("recording layout migration", () => {
 
     await rm(otherDestination);
     expect((await startMigration()).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(await Bun.file(source).exists()).toBe(false);
     expect(await readFile(ownDestination, "utf8")).toBe("original capture");
     expect(await readFile(otherDestination, "utf8")).toBe("original capture");
@@ -240,7 +240,7 @@ describe("recording layout migration", () => {
     }));
     expect(await isLayoutMigrationReadyForStartup()).toBe(false);
     expect((await startMigration()).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(await isLayoutMigrationReadyForStartup()).toBe(true);
     expect(await readFile(destination, "utf8")).toBe(payload);
     expect(await Bun.file(join(resolveDataDir(), "recording-layout-migration.json")).exists()).toBe(false);
@@ -279,8 +279,12 @@ describe("recording layout migration", () => {
 
     const releaseImport = beginRecordingStorageImport();
     try {
-      const busy = await startMigration();
-      expect(busy.status).toBe(409);
+      const waiting = startMigration();
+      expect((await startMigration()).status).toBe(409);
+      releaseImport();
+      expect((await waiting).status).toBe(202);
+      expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
+      expect(await readFile(join(root, "fm-2023", "own", "reserved.bin"), "utf8")).toBe("legacy");
     } finally { releaseImport(); }
 
     let unlock!: () => void;
@@ -293,13 +297,14 @@ describe("recording layout migration", () => {
       if (state.progress.status === "running") break;
     }
     try {
+      expect(() => beginRecordingStorageImport()).toThrow("Recording storage operation is active");
       await expect(startRecordingDirectoryMove(movedRoot)).rejects.toMatchObject({ code: "MOVE_ACTIVE" });
     } finally {
       unlock();
       await lock;
     }
     expect((await migration).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
   });
   test("rejects a symlinked migration journal without reading its external target", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-layout-journal-root-"));
@@ -310,13 +315,10 @@ describe("recording layout migration", () => {
     const journalPath = join(resolveDataDir(), "recording-layout-migration.json");
     const contents = JSON.stringify({ outside: true });
     await writeFile(target, contents);
-    if (process.platform === "win32") {
-      await symlink(external, journalPath, "junction");
-    } else {
-      await symlink(target, journalPath);
-    }
+    // Windows junctions exercise the same reparse-point rejection without symlink privileges.
+    await symlink(process.platform === "win32" ? external : target, journalPath, process.platform === "win32" ? "junction" : "file");
     const response = await miscRoutes.request("/api/storage/layout-migration");
-    expect((await response.json() as { progress: { status: string; error: string | null } }).progress).toMatchObject({ status: "error" });
+    expect((await response.json() as { progress: { status: string; error: string | null } }).progress).toMatchObject({ status: "error", error: "Unsafe recording migration journal" });
     expect(await readFile(target, "utf8")).toBe(contents);
   });
   test.each(["missing-destination", "unrelated-file"] as const)("rejects unsafe %s journal without removing the source", async (scenario) => {

@@ -75,6 +75,7 @@ test("legacy recordings automatically prompt for consent and migrate to the user
     expect(importedSessionIds.length).toBeGreaterThan(0);
     const database = createClient({ url: `file:${join(runtime.freshInstall.dataDir, "app.db")}` });
     try {
+      await database.execute("PRAGMA busy_timeout = 5000");
       const transaction = await database.transaction("write");
       try {
         const rows = await transaction.execute({

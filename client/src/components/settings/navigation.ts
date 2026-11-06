@@ -9,7 +9,7 @@ export const NAV_ITEMS = [
   { id: "speed", label: "Units" },
   { id: "sound", label: "Sound" },
   { id: "live-engineer", label: "Live Engineer" },
-  { id: "storage", label: "Storage" },
+  { id: "storage", label: "Recording" },
   { id: "ai", label: "AI Analysis" },
   { id: "diagnostics", label: "Diagnostics" },
   { id: "updates", label: "Updates" },

@@ -53,6 +53,18 @@ Ordinary backend tests live in their owning workspace's `test/` tree. Local
 `test/<suite>-files.txt` manifests contain repository-root-relative paths and
 retain unit, tooling, integration, and recording E2E classifications.
 
+Nested test workspaces may set `raceiq.testRoot: "."` in their package manifest;
+the default remains `test`. The containing runtime workspace sets
+`raceiq.testOwner: false` to avoid claiming the child's manifests twice.
+Configured roots cannot escape their workspace. LMU uses this pattern:
+`@raceiq/game-lmu-tests` at `packages/game-lmu/test`, with `unit/` and
+`e2e/{backend,recordings,browser}/`. Existing SDK test scripts dispatch to this
+child owner; direct owner selection uses `--package @raceiq/game-lmu-tests`.
+Test-support APIs are declared package exports, not cross-package relatives.
+Default Turbo suite dispatch excludes disabled parent wrappers, preventing
+duplicate execution alongside child tasks. Explicit filters retain requested
+selection; selecting only the SDK still runs its forwarding command once.
+
 Responsibility packages expose only used module leaves and declare actual source dependencies. Applications import release/data/catalog owners directly, never the control plane. Release and optimizer suites do not inherit client compilation or backend task dependencies. UI tests use temporary screenshot and Storybook fixtures; only the optimizer tooling suite hashes the three real source GLBs. DuckDB copying retains its original unit classification.
 
 ```sh
@@ -68,8 +80,8 @@ unit → tooling → integration → E2E order, stopping at the first failure.
 
 Every owner/suite gets a fresh temporary `DATA_DIR`, regardless of inherited
 production paths. Unit runs have no DB preload; other suites run serially with
-neutral DB setup. Only application and frontend contract owners preload
-application assembly. Immutable fixtures and output locations remain at root.
+neutral DB setup. Application, frontend contract and LMU child test owners
+preload application assembly. Immutable fixtures stay with their owning games.
 
 Concrete adapters and catalogs belong to six `@raceiq/game-<id>-metadata` owners; cross-game registration and catalog composition belong to `@raceiq/game-catalogs`. A metadata implementation edit leaves neutral shared transit and other metadata owners unchanged. Backend composition still legitimately depends on all games. Non-unit teardown actually reads the Forza, F1, and iRacing `tracks.csv` catalogs; those three paths remain explicit common non-unit inputs. Unit suites do not inherit those preload inputs.
 
@@ -130,8 +142,8 @@ Paths below are repository-relative. Each aggregate `test` hashes its owner's un
 | Owner | Suite | External inputs |
 |---|---|---|
 | `@raceiq/tooling` | `test:tooling` | `assets/models/source/f1_2025_mclaren_mcl39.glb`<br>`assets/models/source/aston_martin_vantage_gt3.glb`<br>`assets/models/source/peugeot_9x8_evo_2024.glb`<br>`client/src/**`<br>`client/DESIGN.md`<br>`client/.impeccable/design.json`<br>`client/.storybook/preview.ts` |
-| `@raceiq/backend` | `test:integration` | `test/artifacts/sessions/*.bin.gz`<br>`test/artifacts/sessions/iracing-road-america-gt3.bin.gz`<br>`test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`<br>`test/artifacts/sessions/fm-2023-with-pitting.bin.gz`<br>`test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz`<br>`test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz`<br>`test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz`<br>`test/artifacts/carsetup/*.carsetup`<br>`test/artifacts/motec/acc-barcelona-porsche-992.zip`<br>`shared/data/tracks/meta/*.json`<br>`data/diagnostics/iracing-session-info/*.json`<br>`data/diagnostics/iracing-session-info/iracing-all-vars-2026-07-29T02-06-39-162Z.json` |
-| `@raceiq/backend` | `test:e2e:recordings` | `test/artifacts/motec/acc-barcelona-porsche-992.zip`<br>`test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz`<br>`test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz`<br>`test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz`<br>`test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz`<br>`test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz`<br>`test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz` |
+| `@raceiq/backend` | `test:integration` | `test/artifacts/sessions/*.bin.gz`<br>`test/artifacts/sessions/iracing-road-america-gt3.bin.gz`<br>`test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`<br>`test/artifacts/sessions/fm-2023-with-pitting.bin.gz`<br>`packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-2026-10-22.bin.gz`<br>`packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz`<br>`test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz`<br>`test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz`<br>`test/artifacts/carsetup/*.carsetup`<br>`test/artifacts/motec/acc-barcelona-porsche-992.zip`<br>`shared/data/tracks/meta/*.json`<br>`data/diagnostics/iracing-session-info/*.json`<br>`data/diagnostics/iracing-session-info/iracing-all-vars-2026-07-29T02-06-39-162Z.json` |
+| `@raceiq/backend` | `test:e2e:recordings` | `test/artifacts/motec/acc-barcelona-porsche-992.zip`<br>`packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-2026-10-22.bin.gz`<br>`packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz`<br>`test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz`<br>`test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz`<br>`test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz`<br>`test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz`<br>`test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz`<br>`test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz` |
 | `@raceiq/frontend-contract-tests` | `test:integration` | `test/artifacts/carsetup/mustang.carsetup`<br>`test/artifacts/carsetup/Tourist.carsetup`<br>`test/artifacts/carsetup/Default-12312.carsetup` |
 | `@raceiq/game-acc` | `test:integration` | `test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz`<br>`test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz` |
 | `@raceiq/game-acc` | `test:e2e:recordings` | `test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-12T20-41-21-436Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-12T21-16-07-841Z.bin.gz`<br>`test/artifacts/sessions/acc-2026-04-12T21-44-38-899Z.bin.gz` |
@@ -142,7 +154,10 @@ Paths below are repository-relative. Each aggregate `test` hashes its owner's un
 | `@raceiq/game-fm-2023` | `test:e2e:recordings` | `test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz`<br>`test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`<br>`test/artifacts/sessions/fm-2023-with-pitting.bin.gz` |
 | `@raceiq/game-iracing` | `test:integration` | `test/artifacts/sessions/iracing-road-america-gt3.bin.gz` |
 | `@raceiq/game-iracing` | `test:e2e:recordings` | `test/artifacts/sessions/iracing-road-america-gt3.bin.gz`<br>`test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz` |
-| `@raceiq/game-lmu` | `test:e2e:recordings` | `test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz`<br>`test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz`<br>`test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1`<br>`test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2` |
+| `@raceiq/game-lmu-tests` | `test:unit` | Package-owned `fixtures/sessions/*.bin.gz`; feature support/source tracked through declared workspace dependencies and transit. |
+| `@raceiq/game-lmu-tests` | `test:integration` | Package-owned `fixtures/sessions/*.bin.gz`; backend/client/support source tracked through declared workspace dependencies and transit; root application preload closure retained. |
+| `@raceiq/game-lmu-tests` | `test:e2e:recordings` | Package-owned `fixtures/**/*.bin.gz`, `fixtures/**/*.part*`; backend and control-plane support tracked through declared dependencies; recording task uncached. |
+| `@raceiq/game-lmu` | SDK test wrappers | Child `**/*.ts`, `**/*.tsx`, `**/*.json`, `*-files.txt` and matching fixture gzip/part globs; `@raceiq/game-lmu-tests#transit` supplies declared cross-layer dependencies without a reverse package dependency or duplicate test-task execution. |
 
 Exported game/backend test support remains in transit when runtime tools consume it. Update this matrix with source/test ownership changes; directory scans require matching globs, not a sampled filename.
 

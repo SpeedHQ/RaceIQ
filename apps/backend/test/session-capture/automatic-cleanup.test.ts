@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -15,6 +15,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
+import * as livePipeline from "@raceiq/backend-core/telemetry/live-pipeline";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -68,6 +69,25 @@ afterEach(async () => {
 });
 
 describe("automatic capture cleanup", () => {
+  test("defers interrupted downsample cleanup until recording is inactive", async () => {
+    const original = await eligibleCapture(0);
+    const temporary = original.path.replace(/\.bin$/, `.downsample-${crypto.randomUUID()}.bin.raw.tmp`);
+    const originalBytes = readFileSync(original.path);
+    writeFileSync(temporary, "interrupted downsample");
+    saveSettings({ ...loadSettings(), sessionDownsampleEnabled: true, sessionCleanupEnabled: true });
+    const active = spyOn(livePipeline, "isSessionActive").mockReturnValue(true);
+    try {
+      await runSessionCaptureMaintenanceNow();
+      expect(readFileSync(temporary, "utf8")).toBe("interrupted downsample");
+      expect(readFileSync(original.path)).toEqual(originalBytes);
+      active.mockRestore();
+      await runSessionCaptureMaintenanceNow();
+      expect(existsSync(temporary)).toBe(false);
+      expect(readFileSync(original.path)).toEqual(originalBytes);
+    } finally {
+      active.mockRestore();
+    }
+  });
   test("remains off until opted in, then archives only captures older than persisted age", async () => {
     const old = await capture(100);
     const recent = await capture(40);

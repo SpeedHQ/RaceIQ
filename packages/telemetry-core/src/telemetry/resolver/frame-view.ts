@@ -1,5 +1,5 @@
 import type { DerivationContext, DerivationResult } from "@raceiq/shared/telemetry/derivations/contracts";
-import type { FreshnessState, ResolutionState, ResolvedValue, SemanticSlot, SourceObservation, TelemetryFrameView, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { FreshnessState, ResolutionState, ResolvedTelemetrySample, ResolvedValue, SemanticSlot, SourceObservation, SourceTimestampReader, TelemetryFrameView, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { NativeObject, ReaderContext, RuntimeResolver, SourceFreshness } from "./plan";
 import { canonicalValue, INVALID_VALUE, sources } from "./value";
 import { TELEMETRY_RESOLVER_VERSION } from "@raceiq/shared/telemetry/resolver/versions";
@@ -9,6 +9,13 @@ type ObservationDomain = TelemetryTimestamp["domain"] | "mixed";
 interface SourceState {
   value: unknown;
   observation: SourceObservation;
+}
+
+function sameTimestamp(left: TelemetryTimestamp, right: TelemetryTimestamp): boolean {
+  if (left.domain !== right.domain) return false;
+  return left.domain === "monotonic" && right.domain === "monotonic"
+    ? left.nanoseconds === right.nanoseconds
+    : left.domain !== "monotonic" && right.domain !== "monotonic" && Object.is(left.milliseconds, right.milliseconds);
 }
 
 function sourceValuesEqual(left: unknown, right: unknown): boolean {
@@ -67,6 +74,8 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     updateSequence: 0n,
   };
   private native!: NativeObject;
+  private nativeFrame!: NativeFrame;
+  private sourceTimestampReader?: SourceTimestampReader<NativeFrame>;
   private generation = 0;
   private readonly generations: Uint32Array;
   private readonly states: Uint8Array;
@@ -75,6 +84,7 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
   private readonly observationDomains: Array<ObservationDomain | undefined>;
   private readonly sourceChannels: Array<string | undefined>;
   private readonly sourceStates = new Map<string, SourceState>();
+  private readonly timestampStates = new Map<string, { timestamp: TelemetryTimestamp; observation: SourceObservation }>();
   private readonly reusableDerivationResult: {
     state: "ok" | "missing";
     value?: unknown;
@@ -120,7 +130,16 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     };
   }
 
-  private observeSource(sourceChannel: string, value: unknown, freshness: SourceFreshness): SourceObservation {
+  private observeSource(sourceChannel: string, value: unknown, freshness: SourceFreshness): SourceObservation | undefined {
+    const timestamp = this.sourceTimestampReader?.(this.nativeFrame, sourceChannel);
+    if (timestamp === null) return undefined;
+    if (timestamp !== undefined) {
+      const previous = this.timestampStates.get(sourceChannel);
+      if (previous && sameTimestamp(previous.timestamp, timestamp)) return previous.observation;
+      const observation = { timestamp, updateSequence: this.observation.updateSequence };
+      this.timestampStates.set(sourceChannel, { timestamp, observation });
+      return observation;
+    }
     if (freshness === "continuous") return this.observation;
     const key = `${freshness}:${sourceChannel}`;
     const previous = this.sourceStates.get(key);
@@ -182,8 +201,10 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     return typeof value === "string" ? value : undefined;
   }
 
-  reset(native: NativeFrame, observation: SourceObservation): this {
+  reset(native: NativeFrame, observation: SourceObservation, sourceTimestampReader?: SourceTimestampReader<NativeFrame>): this {
     this.native = native as unknown as NativeObject;
+    this.nativeFrame = native;
+    this.sourceTimestampReader = sourceTimestampReader;
     this.observation = observation;
     this.generation += 1;
     if (this.generation === 0) {
@@ -228,6 +249,10 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
 
   resolveBoolean(slot: SemanticSlot): ResolvedValue<boolean> {
     return this.resolve(slot, "boolean") as ResolvedValue<boolean>;
+  }
+
+  resolveSample(slot: SemanticSlot): ResolvedTelemetrySample {
+    return this.resolve(slot, undefined, true);
   }
 
   resolveMany(slots: readonly SemanticSlot[], target: ResolvedValue<unknown>[] = []): readonly ResolvedValue<unknown>[] {
@@ -304,7 +329,7 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
           this.values[slot] = value;
           this.states[slot] = 1;
           this.observations[slot] = reading.observation;
-          this.observationDomains[slot] = reading.observation.timestamp.domain;
+          this.observationDomains[slot] = reading.observation?.timestamp.domain;
           this.sourceChannels[slot] = reading.sourceChannel;
         }
       }
@@ -330,7 +355,9 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     return age <= threshold ? "fresh" : "stale";
   }
 
-  private resolve(slot: SemanticSlot, expected?: "number" | "boolean"): ResolvedValue<unknown> {
+  private resolve(slot: SemanticSlot, expected?: "number" | "boolean"): ResolvedValue<unknown>;
+  private resolve(slot: SemanticSlot, expected: undefined, sampleOnly: true): ResolvedTelemetrySample;
+  private resolve(slot: SemanticSlot, expected?: "number" | "boolean", sampleOnly = false): ResolvedValue<unknown> | ResolvedTelemetrySample {
     this.evaluate(slot);
     const plan = this.resolver.plans[slot];
     let value: unknown = this.states[slot] === 1 ? this.values[slot] : null;
@@ -362,6 +389,9 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     const fidelity = mappingStatus === "direct" ? 1 : mappingStatus === "normalized" ? 0.99 : mappingStatus === "derived" ? 0.95 : mappingStatus === "simplified" ? 0.7 : 0;
     const freshness = this.freshnessState(slot);
     if (state === "ok" && freshness === "stale") state = "stale";
+    if (sampleOnly) {
+      return { semanticId: plan.semanticId, value, unit: plan.mapping.kind === "unavailable" ? null : plan.variable.canonicalUnit, state, freshness };
+    }
     const freshnessConfidence = freshness === "fresh" ? 1 : freshness === "stale" ? 0 : null;
     const completeness = state === "ok" || (state === "stale" && value !== null) ? 1 : 0;
     const confidence = completeness === 0 ? 0 : freshnessConfidence === null ? null : fidelity * freshnessConfidence * completeness;

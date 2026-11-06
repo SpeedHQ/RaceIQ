@@ -18,6 +18,7 @@
  */
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { experiments, experimentActions, experimentVersions, laps } from "../db/schema";
 import type { ExperimentAction } from "../db/experiment-action-queries";
 
@@ -33,7 +34,7 @@ export interface UndoResult {
 
 export async function undoLastAction(sessionId: number, expectedHeadVersionId?: number | null): Promise<UndoResult> {
   let warning: string | undefined;
-  const result = await db.transaction(async (tx) => {
+  const result = await withDatabaseWrite(() => db.transaction(async (tx) => {
     const session = await tx.select({ headVersionId: experiments.headVersionId })
       .from(experiments).where(eq(experiments.id, sessionId)).get();
     if (!session) return { error: "Tuning session not found" as const };
@@ -194,7 +195,7 @@ export async function undoLastAction(sessionId: number, expectedHeadVersionId?: 
     const updatedSession = await tx.select({ headVersionId: experiments.headVersionId })
       .from(experiments).where(eq(experiments.id, sessionId)).get();
     return { action, headVersionId: updatedSession?.headVersionId ?? null };
-  });
+  }));
   if ("error" in result) return {
     ok: false, undone: false,
     error: result.error === "stale-experiment-head"

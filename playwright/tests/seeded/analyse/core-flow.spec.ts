@@ -25,7 +25,7 @@ test("Analyse supports selection, playback, and notes", async ({ page, request }
   await expect(alternateLap).toBeVisible();
   await alternateLap.click();
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/fm23/sessions/${initialLap.sessionId}/replay/${alternateSeededLap.id}`);
-  await expect(page.getByText(/Packet 1\/\d+/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-spectate-playback]")).toHaveAttribute("data-time", "0");
 
   const selectedLapId = alternateSeededLap.id;
   const selectedLap = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id === selectedLapId);

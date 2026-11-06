@@ -5,21 +5,22 @@ import { f1ServerAdapter } from "@raceiq/game-f1-2025";
 import { accServerAdapter } from "@raceiq/game-acc";
 import { acEvoServerAdapter } from "@raceiq/game-ac-evo";
 import { iracingServerAdapter } from "@raceiq/game-iracing";
+import { ams2ServerAdapter } from "@raceiq/game-ams2";
 import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 export function nativeTelemetryGameIds(
-  flags = releaseFeatureFlags({
+  flags: ReleaseFeatureFlags = releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+    RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   }),
 ) {
   const gameIds = ["acc", "ac-evo"] as const;
-  return flags.iracingAdapter
-    ? [...gameIds, "iracing", "lmu"] as const
-    : [...gameIds, "lmu"] as const;
+  if (flags.iracingAdapter) return [...gameIds, "iracing", "lmu", ...(flags.ams2Adapter ? ["ams2"] as const : [])] as const;
+  return [...gameIds, "lmu", ...(flags.ams2Adapter ? ["ams2"] as const : [])] as const;
 }
 
 export function serverGameAdaptersForFeatures(
@@ -28,6 +29,7 @@ export function serverGameAdaptersForFeatures(
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+    RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   }),
 ) {
   const adapters = [
@@ -38,6 +40,7 @@ export function serverGameAdaptersForFeatures(
   ];
   if (flags.iracingAdapter) adapters.push(iracingServerAdapter);
   adapters.push(lmuServerAdapter);
+  if (flags.ams2Adapter) adapters.push(ams2ServerAdapter);
   return adapters;
 }
 
@@ -48,6 +51,7 @@ export function initServerGameAdapters(
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+    RACEIQ_FEATURE_AMS2_ADAPTER: process.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   }),
 ): void {
   for (const adapter of serverGameAdaptersForFeatures(flags)) {

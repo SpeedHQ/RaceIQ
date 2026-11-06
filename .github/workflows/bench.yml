@@ -18,8 +18,7 @@ jobs:
     if: ${{ !startsWith(github.head_ref, 'release/v') }}
     timeout-minutes: 30
     runs-on:
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     steps:
       - name: Checkout PR
@@ -32,6 +31,8 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
       - name: Install benchmark dependencies
         run: bun pr/scripts/ci/workflow-ops.ts bench-install
       - name: Run counterbalanced benchmark rounds

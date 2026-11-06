@@ -10,7 +10,7 @@ import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
 import { liveCaptures, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { db } from "../db/index";
+import { readDb } from "../db/index";
 import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
@@ -53,12 +53,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 }
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
-  const sessionRows = await db
-    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
+  const sessionRows = await readDb.select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
-  const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+  const liveCapture = await readDb.select({ status: liveCaptures.status }).from(liveCaptures)
     .where(eq(liveCaptures.sessionId, sessionId)).get();
   if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) {
     throw new Error(`Session ${sessionId} live capture is ${liveCapture.status}; reprocess after capture recovery/seal`);

@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { useQuery } from "@tanstack/react-query";
-import { teams } from "@/components/f1/cars/data";
+import { teams } from "@raceiq/cars-catalogue/ui"
 import { client } from "@/lib/rpc";
 import { rpcJson } from "@/lib/rpc-json";
 

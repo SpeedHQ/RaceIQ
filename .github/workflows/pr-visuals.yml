@@ -48,13 +48,13 @@ jobs:
       - responsive
       - storybook
     runs-on:
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - name: Download comparison previews
         uses: actions/download-artifact@v7
         with:

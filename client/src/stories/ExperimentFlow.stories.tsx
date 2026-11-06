@@ -5,8 +5,9 @@ import { fireEvent, userEvent, within } from "storybook/test";
 import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
 import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
 import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
+import { SessionAnalyseHostProvider } from "@/features/session-analyse-host";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
-import type { SemanticLapTelemetry } from "@/hooks/laps";
+import type { SemanticLapTelemetry } from "@raceiq/lap-replay/contracts"
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { GameStoryScope } from "./GameStoryScope";
 import { validateTuneReviewSearch } from "@/lib/game-routes";
@@ -324,9 +325,11 @@ function withProviders(Story: React.ComponentType) {
   const Comp = () => (
     <QueryClientProvider client={qc}>
       <GameStoryScope gameId="acc">
-        <div style={{ height: "100vh", overflow: "hidden", background: "var(--app-bg)" }}>
-          <Story />
-        </div>
+        <SessionAnalyseHostProvider>
+          <div style={{ height: "100vh", overflow: "hidden", background: "var(--app-bg)" }}>
+            <Story />
+          </div>
+        </SessionAnalyseHostProvider>
       </GameStoryScope>
     </QueryClientProvider>
   );
@@ -494,7 +497,9 @@ export const ReturnedToBaseReview: StoryObj = {
       component: () => (
         <QueryClientProvider client={qc}>
           <GameStoryScope gameId="acc">
-            <Outlet />
+            <SessionAnalyseHostProvider>
+              <Outlet />
+            </SessionAnalyseHostProvider>
           </GameStoryScope>
         </QueryClientProvider>
       ),

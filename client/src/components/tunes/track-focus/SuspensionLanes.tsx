@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { WHEEL_COLOR_VARS } from "@/lib/colors";
+import { WHEEL_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { indexAtFrac } from "../../../lib/stint-traces";
 import { Lane, type AnnotationMarker, type LaneSeries } from "./Lane";

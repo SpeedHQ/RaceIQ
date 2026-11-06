@@ -14,7 +14,7 @@ Track contracts and neutral geometry/storage primitives support maps, AI prompts
 - **Track identity/catalog:** metadata-owner `racing/tracks/catalogs/*`; cross-game names under `@raceiq/game-catalogs/racing/tracks/resolve-name`.
 - **Persistence and cache:** `storage/files.ts`, `storage/meta.ts`, `storage/cache.ts`.
 - **Geometry sources:** cross-game outlines/extracted geometry under `@raceiq/game-catalogs/racing/tracks/geometry/`; neutral `geometry/shared.ts` remains shared.
-- **Runtime capture:** cross-game recording outlines under `@raceiq/game-catalogs/racing/tracks/recording/outlines`; neutral `recording/curbs.ts` remains shared.
+- **Runtime capture:** cross-game recording outlines under `@raceiq/game-catalogs/racing/tracks/recording/outlines`. Shared `recording/curbs.ts` only detects segments from telemetry; curb maps are not recorded or used for calibration.
 - **Curation pipeline:** `curation/generate.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, `curation/segment-align-match.ts`, `curation/segment-align-validate.ts`, `curation/verified.ts`, `curation/coverage.ts`.
 - **Authored guides:** `guide/data.ts`, `guide/types.ts`.
 
@@ -69,10 +69,10 @@ Map correspondence matters beyond counts: Montréal T10 is the main hairpin and 
 
 ## Browser vs Node boundary
 ### Browser-safe imports
-- `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`, `projection.ts`, `coords.ts`, `sectors.ts`, `path.ts`, `geometry/points.ts`, `geometry/types.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, and `curation/segment-align-match.ts`.
+- `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`, `projection.ts`, `coords.ts`, `sectors.ts`, `path.ts`, `geometry/points.ts`, `geometry/types.ts`, `recording/curbs.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, and `curation/segment-align-match.ts`.
 
 ### Node-only leaves
-- Metadata-owner catalog readers and game-catalogs name/outline composition; shared `detect-hints.ts`, `storage/*`, `geometry/shared.ts`, `recording/curbs.ts`, `guide/data.ts`, `curation/generate.ts`, `curation/coverage.ts`, `curation/verified.ts`, and `curation/segment-align-validate.ts`.
+- Metadata-owner catalog readers and game-catalogs name/outline composition; shared `detect-hints.ts`, `storage/*`, `geometry/shared.ts`, `guide/data.ts`, `curation/generate.ts`, `curation/coverage.ts`, `curation/verified.ts`, and `curation/segment-align-validate.ts`.
 - These leaves read or write files directly, depend on runtime path resolution, or import another Node-only leaf.
 - Browser code should consume normalized values from its data boundary instead of importing these modules.
 

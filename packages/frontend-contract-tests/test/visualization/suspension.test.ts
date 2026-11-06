@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeSuspensionTravel } from "client/src/lib/suspension";
+import { normalizeSuspensionTravel } from "@raceiq/scene-3d/suspension"
 
 describe("normalizeSuspensionTravel", () => {
   test("returns neutral values when telemetry is absent", () => {

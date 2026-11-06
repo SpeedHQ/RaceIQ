@@ -7,9 +7,24 @@ import type { TelemetryVersionIdentity } from "../../telemetry/version";
 
 export type SessionOwnership = "mine" | "others";
 
+export type ProcessingStage = "capture" | "opponent-index";
 
+export type OpponentIndexState =
+  | "waiting-finalization"
+  | "queued"
+  | "building"
+  | "ready"
+  | "failed"
+  | "not-required";
+
+export type ProcessingMetadata =
+  | { state: "queued" | "processing"; stage: ProcessingStage; error: null }
+  | { state: "ready"; stage: null; error: null }
+  /** Failed preparation exposes a non-empty, user-safe message. */
+  | { state: "failed"; stage: ProcessingStage; error: string };
 
 export interface LapMeta extends Partial<TelemetryVersionIdentity> {
+  processing: ProcessingMetadata;
   id: number;
   sessionId: number;
   lapNumber: number;
@@ -73,6 +88,7 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
 }
 
 export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
+  processing: ProcessingMetadata;
   id: number;
   carId: string;
   trackId: string;

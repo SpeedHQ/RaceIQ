@@ -42,7 +42,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     runs-on:
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
@@ -71,7 +71,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
 
       - name: Mark workspace safe for git
         run: bun scripts/ci/workflow-ops.ts safe-git
@@ -145,7 +145,7 @@ jobs:
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
@@ -155,7 +155,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - name: Install dependencies
         run: bun install --frozen-lockfile
 

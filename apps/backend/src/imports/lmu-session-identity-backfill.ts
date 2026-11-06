@@ -3,7 +3,8 @@ import { and, asc, eq, gt, ne, or, sql } from "drizzle-orm";
 import { resolveLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, readDb } from "@raceiq/backend-core/db/index";
+import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
@@ -39,7 +40,7 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
     missingFile: 0,
     malformedFile: 0,
   };
-  const filled = await db
+  const filled = await readDb
     .select({ count: sql<number>`count(*)` })
     .from(sessions)
     .where(and(
@@ -61,7 +62,7 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
   let afterId = 0;
 
   while (true) {
-    const rows = await db
+    const rows = await readDb
       .select({
         id: sessions.id,
         carId: sessions.carId,
@@ -111,9 +112,11 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
         ...((!row.trackId || legacyTrack) && trackId ? { trackId } : {}),
       };
       if (Object.keys(updates).length > 0) {
-        await db.update(sessions).set(updates).where(eq(sessions.id, row.id)).run();
+        await withDatabaseWrite(() => db.update(sessions).set(updates).where(eq(sessions.id, row.id)).run());
       }
-      if (carId && trackId) result.resolved++;
+      const resolvedCar = Boolean(carId) && !/^\d+$/.test(carId);
+      const resolvedTrack = Boolean(trackId) && !/^\d+$/.test(trackId);
+      if (resolvedCar && resolvedTrack) result.resolved++;
       else result.unresolved++;
     }
   }

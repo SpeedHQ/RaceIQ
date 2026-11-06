@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { operatingColor, severityColor } from "../../lib/colors";
+import { operatingColor, severityColor } from "@raceiq/scene-3d/colors";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";

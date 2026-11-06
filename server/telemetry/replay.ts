@@ -2,7 +2,7 @@ import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { canonicalTelemetryValue } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
 import type { CanonicalTelemetryEnvelope, CanonicalTelemetryValue, SemanticTelemetryReplay, TelemetryRawReference } from "@raceiq/shared/telemetry/replay/contracts";
 import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
-import type { ResolvedValue, SourceObservation, TelemetryFrameView, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { CompiledTelemetryResolver, ResolvedValue, SemanticSlot, SourceObservation, TelemetryFrameView, TelemetryTimestamp } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
@@ -13,6 +13,8 @@ import { createRawCaptureIdentity, loadRawCaptureIdentity, type RawCaptureIdenti
 import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
 import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { lmuSourceTimestamp, lmuTelemetryTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
 }
@@ -95,21 +97,32 @@ function receivedTimestamp(createdAt: string): TelemetryTimestamp {
 
 function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp): TelemetryTimestamp {
   if (packet.extendedRaceIQ?.frameTimeMs !== undefined) return { domain: "wall-clock", milliseconds: packet.extendedRaceIQ.frameTimeMs };
+  if (packet.gameId === "lmu" && packet.lmu && Number.isFinite(packet.TimestampMS)) return { domain: "wall-clock", milliseconds: packet.TimestampMS };
   if (packet.gameId === "acc" || packet.gameId === "ac-evo" || !Number.isFinite(packet.TimestampMS)) return fallback;
   return { domain: "session", milliseconds: packet.TimestampMS };
 }
 
-/**
- * Resolve preloaded native packets into canonical semantic envelopes.
- * Persistence and raw-capture I/O belong to callers.
- */
-export function resolveTelemetryReplay(
+export interface ResolvedTelemetryReplayFrame {
+  sequence: number;
+  observedAt: TelemetryTimestamp;
+  receivedAt: TelemetryTimestamp;
+  packet: TelemetryPacket;
+  view: TelemetryFrameView<ReplayNativeFrame>;
+}
+
+/** Consume each full-resolution frame before advancing the reusable resolver view. */
+export function visitTelemetryReplayFrames(
   lapId: number,
   source: LapReplaySource,
   packets: readonly TelemetryPacket[],
   requestedSemanticIds: readonly string[],
+  visit: (
+    frame: ResolvedTelemetryReplayFrame,
+    resolver: CompiledTelemetryResolver<ReplayNativeFrame>,
+    slots: readonly SemanticSlot[],
+  ) => void,
   rawCapture?: RawCaptureIdentity,
-): SemanticTelemetryReplay {
+): string[] {
   if (requestedSemanticIds.length === 0) {
     throw new Error("At least one semantic ID is required for telemetry replay");
   }
@@ -124,10 +137,7 @@ export function resolveTelemetryReplay(
   });
   const slots = semanticIds.map((semanticId) => resolver.slot(semanticId));
   const receivedAt = receivedTimestamp(source.createdAt);
-  const rawReference = resolveRawReference(source, rawCapture);
   const nativeFrames = iterateIRacingNativeFrames(source, rawCapture?.bytes);
-  const envelopes: CanonicalTelemetryEnvelope[] = new Array(packets.length);
-  const target: ResolvedValue<unknown>[] = [];
   const nativeFrame: ReplayNativeFrame = { packet: packets[0] };
   let view: TelemetryFrameView<ReplayNativeFrame> | undefined;
 
@@ -135,22 +145,42 @@ export function resolveTelemetryReplay(
     const packet = packets[sequence];
     const observedAt = replayTimestamp(packet, receivedAt);
     const observation: SourceObservation = {
-      timestamp: observedAt,
+      timestamp: packet.gameId === "lmu" ? lmuTelemetryTimestamp(packet) ?? observedAt : observedAt,
       updateSequence: BigInt(sequence),
     };
     nativeFrame.packet = packet;
     nativeFrame.nativeValues = nativeFrames.next().value;
-    view = resolver.createFrameView(nativeFrame, observation, view);
-    const resolved = view.resolveMany(slots, target);
+    view = resolver.createFrameView(nativeFrame, observation, view, source.gameId === "lmu" ? lmuSourceTimestamp : undefined);
+    visit({ sequence, observedAt, receivedAt, packet, view }, resolver, slots);
+  }
+  return semanticIds;
+}
+
+/**
+ * Resolve preloaded native packets into canonical semantic envelopes.
+ * Persistence and raw-capture I/O belong to callers.
+ */
+export function resolveTelemetryReplay(
+  lapId: number,
+  source: LapReplaySource,
+  packets: readonly TelemetryPacket[],
+  requestedSemanticIds: readonly string[],
+  rawCapture?: RawCaptureIdentity,
+): SemanticTelemetryReplay {
+  const rawReference = resolveRawReference(source, rawCapture);
+  const envelopes: CanonicalTelemetryEnvelope[] = new Array(packets.length);
+  const target: ResolvedValue<unknown>[] = [];
+  const semanticIds = visitTelemetryReplayFrames(lapId, source, packets, requestedSemanticIds, (frame, resolver, slots) => {
+    const resolved = frame.view.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);
-    for (let index = 0; index < resolved.length; index++) {
+    for (let index = 0; index < values.length; index++) {
       values[index] = canonicalTelemetryValue(slots[index], resolved[index]);
     }
-    envelopes[sequence] = {
+    envelopes[frame.sequence] = {
       sessionId: String(source.sessionId),
-      sequence: BigInt(sequence),
-      observedAt,
-      receivedAt,
+      sequence: BigInt(frame.sequence),
+      observedAt: frame.observedAt,
+      receivedAt: frame.receivedAt,
       simulator: source.gameId,
       catalogVersion: resolver.catalogVersion,
       catalogHash: resolver.catalogHash,
@@ -161,8 +191,9 @@ export function resolveTelemetryReplay(
       recordedWith: source.versionIdentity,
       values,
       rawReference,
+      ...(source.gameId === "lmu" && frame.packet.lmuContext ? { lmu: encodeLmuContext(frame.packet.lmuContext) } : {}),
     };
-  }
+  }, rawCapture);
 
   return {
     lapId,

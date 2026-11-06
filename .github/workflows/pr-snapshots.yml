@@ -43,7 +43,7 @@ jobs:
     name: Render
     timeout-minutes: 30
     runs-on:
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
@@ -73,7 +73,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - name: Prepare base comparison worktree
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}

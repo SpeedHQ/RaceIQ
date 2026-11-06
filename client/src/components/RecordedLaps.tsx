@@ -1,3 +1,7 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { queryKeys } from "../hooks/query-keys";
+import { ProcessingStatus } from "./ProcessingStatus";
 import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
@@ -26,6 +30,13 @@ interface RecordedLapsProps {
 export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
+  const queryClient = useQueryClient();
+  const refreshProcessing = useCallback(() => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+    ]);
+  }, [queryClient]);
 
   // Filter by track if provided, otherwise use all
   const filteredLaps = trackId != null ? laps.filter((l) => l.trackId === trackId) : laps;
@@ -77,8 +88,12 @@ export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps)
               const delta = eligible && best > 0 ? l.lapTime - best : null;
               const isBest = delta === 0;
               const timeColor = isBest ? "text-(--lap-pace-best)" : delta != null && delta < 0.5 ? "text-(--lap-pace-on-target)" : delta != null && delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const processing = l.processing;
+              const processingLoading = processing == null;
+              const ready = processing?.state === "ready";
+              const pending = processing == null || processing.state === "queued" || processing.state === "processing";
               return (
-                <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
+                <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }} aria-busy={pending}>
                   <span
                     className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`}
                     title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}
@@ -98,7 +113,7 @@ export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps)
                   <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{delta == null ? "—" : isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center w-16 justify-end">
                     <Button
-                      disabled={l.sessionId == null}
+                      disabled={l.sessionId == null || !ready}
                       title={l.sessionId == null ? "Replay unavailable: session missing" : undefined}
                       onClick={() => void navigate({ to: `${gameRoute}/sessions/${l.sessionId}/replay/${l.id}` as never })}
                       variant="app-primary"
@@ -108,6 +123,7 @@ export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps)
                       {m.sessions_replay_lap()}
                     </Button>
                   </div>
+                  {!ready && <div className="col-span-full"><ProcessingStatus processing={processing} loading={processingLoading} onRefresh={refreshProcessing} /></div>}
                 </div>
               );
             })}

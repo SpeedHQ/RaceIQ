@@ -7,15 +7,15 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
-import type { LineSpreadTrace } from "../../../hooks/experiments";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
 import { useLapIssues } from "../../../hooks/tunes";
 import { useLapInsights } from "../../../hooks/laps";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
-import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
-import type { TuneReviewTrackTab } from "../../../lib/game-routes";
+import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
+import type { TuneReviewTrackTab } from "@raceiq/session-analyse/contracts";
 import { trackFractionRange } from "../../../lib/aligned-telemetry-fidelity";
 
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";

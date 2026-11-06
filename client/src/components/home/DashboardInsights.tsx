@@ -18,7 +18,7 @@ import type { FavouriteInsight } from "./dashboard-insights";
 import { formatDrivenTime } from "./Stats";
 import type { PeriodStats } from "./types";
 import { trackRoutePath } from "@/lib/track-routes";
-import { piClass } from "@/components/forza/PiBadge";
+import { piClass } from "@raceiq/frontend-pure/pi-class";
 import { useDashboardCars } from "@/hooks/dashboard-cars";
 
 

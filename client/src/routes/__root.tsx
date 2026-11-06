@@ -30,6 +30,11 @@ import { useLiveEngineerVoicePackMutation } from "@/hooks/live-engineer-voice-pa
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
+import { CarsCatalogueHostProvider } from "../features/cars-catalogue-host";
+import { TracksCatalogueHostProvider } from "../features/tracks-catalogue-host";
+import { LapReplayHostProvider } from "../features/lap-replay-host";
+import { SessionsPageHostProvider } from "../features/sessions-page-host";
+import { SessionAnalyseHostProvider } from "../features/session-analyse-host";
 function OverlayShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
@@ -94,8 +99,9 @@ function AppShell() {
   const showPackageUpdate = clientReleaseFeatures.liveSpotterEngineer && Boolean(displaySettings.radioSpotterEnabled || displaySettings.radioRaceEngineerEnabled) && packageStatus.data?.updateAvailable === true && offeredRevision !== null && dismissedPackageRevision !== offeredRevision;
   const packageInstall = useLiveEngineerVoicePackMutation("install");
   const showSettings = useUiStore((s) => s.settingsOpen);
-  const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
   const settingsSection = useUiStore((s) => s.settingsSection);
+  const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
+  const opponentRecordingError = useTelemetryStore((s) => s.opponentRecordingError);
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -228,7 +234,7 @@ function AppShell() {
           </div>
         )}
 
-        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
+        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled ?? true} externalUpdateUrl={updateState?.externalUpdateUrl} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <RecordingLayoutMigration onPrecedenceChange={setLayoutMigrationPrecedence} />
@@ -239,6 +245,10 @@ function AppShell() {
       {liveCaptureError && <div role="alert" className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-danger/40 bg-app-surface px-4 py-3 text-sm text-app-danger">
         <p className="min-w-0 whitespace-pre-wrap break-words">{liveCaptureError}</p>
         <Button type="button" variant="app-ghost" size="app-sm" aria-label="Dismiss recording failure" onClick={() => telemetryStore.actions.setLiveCaptureError(null)} className="shrink-0">Dismiss</Button>
+      </div>}
+      {opponentRecordingError && <div role="alert" className="fixed bottom-20 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-warning/40 bg-app-surface px-4 py-3 text-sm text-app-text">
+        <p className="min-w-0 whitespace-pre-wrap break-words">{m.opponent_recording_failed({ error: opponentRecordingError })}</p>
+        <Button type="button" variant="app-ghost" size="app-sm" aria-label={m.opponent_recording_dismiss()} onClick={() => telemetryStore.actions.setOpponentRecordingError(null)} className="shrink-0">{m.opponent_recording_dismiss()}</Button>
       </div>}
     </>
   );
@@ -268,8 +278,18 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GameRouteProvider value={gameId}>
-        {auth.authenticated && <DashboardConnection />}
-        {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+        <TracksCatalogueHostProvider>
+          <CarsCatalogueHostProvider>
+            <LapReplayHostProvider>
+            <SessionsPageHostProvider>
+            <SessionAnalyseHostProvider>
+            {auth.authenticated && <DashboardConnection />}
+            {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+            </SessionAnalyseHostProvider>
+            </SessionsPageHostProvider>
+            </LapReplayHostProvider>
+          </CarsCatalogueHostProvider>
+        </TracksCatalogueHostProvider>
       </GameRouteProvider>
     </QueryClientProvider>
   );

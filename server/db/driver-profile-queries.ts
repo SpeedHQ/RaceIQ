@@ -1,6 +1,7 @@
 import type { AnalysisUsage } from "./analysis-queries";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
+import { withDatabaseWrite } from "./write-coordination";
 import { driverProfiles, driverProfileRuns } from "./schema";
 import type { GameId } from "@raceiq/shared/games/ids";
 
@@ -101,16 +102,15 @@ export async function saveDriverProfile(
     createdAt: sql`(datetime('now'))`,
   };
 
-  const existing = await db
-    .select({ id: driverProfiles.id })
+  const existing = await readDb.select({ id: driverProfiles.id })
     .from(driverProfiles)
     .where(eq(driverProfiles.scopeKey, scopeKey))
     .get();
 
   if (existing) {
-    await db.update(driverProfiles).set(values).where(eq(driverProfiles.scopeKey, scopeKey)).run();
+    await withDatabaseWrite(() => db.update(driverProfiles).set(values).where(eq(driverProfiles.scopeKey, scopeKey)).run());
   } else {
-    await db
+    await withDatabaseWrite(() => db
       .insert(driverProfiles)
       .values({
         scopeKey,
@@ -119,7 +119,7 @@ export async function saveDriverProfile(
         trackId: scope.trackId ?? null,
         ...values,
       })
-      .run();
+      .run());
   }
 }
 
@@ -129,7 +129,7 @@ export async function createDriverProfileRun(
   scope: DriverProfileScopeKey,
   data: CreateDriverProfileRunInput,
 ): Promise<number> {
-  const result = await db
+  const result = await withDatabaseWrite(() => db
     .insert(driverProfileRuns)
     .values({
       scopeKey: driverProfileScopeKey(scope),
@@ -151,7 +151,7 @@ export async function createDriverProfileRun(
       completedAt: data.completedAt ?? null,
     })
     .returning({ id: driverProfileRuns.id })
-    .get();
+    .get());
   return result.id;
 }
 
@@ -188,7 +188,7 @@ export async function updateDriverProfileRun(
   };
   if (Object.keys(values).length === 0) return;
 
-  const result = await db
+  const result = await withDatabaseWrite(() => db
     .update(driverProfileRuns)
     .set(values)
     .where(and(
@@ -196,7 +196,7 @@ export async function updateDriverProfileRun(
       eq(driverProfileRuns.scopeKey, scopeKey),
       eq(driverProfileRuns.status, expectedStatus),
     ))
-    .run();
+    .run());
   if (result.rowsAffected !== 1) {
     throw new Error(`Driver profile run ${id} was not owned by scope or status ${expectedStatus}`);
   }
@@ -204,8 +204,7 @@ export async function updateDriverProfileRun(
 
 
 export async function getDriverProfileRun(id: number): Promise<DriverProfileRunRow | null> {
-  const row = await db
-    .select()
+  const row = await readDb.select()
     .from(driverProfileRuns)
     .where(eq(driverProfileRuns.id, id))
     .get();
@@ -217,8 +216,7 @@ export async function listDriverProfileRuns(
   scope: DriverProfileScopeKey,
   limit = 50,
 ): Promise<DriverProfileRunRow[]> {
-  const rows = await db
-    .select()
+  const rows = await readDb.select()
     .from(driverProfileRuns)
     .where(eq(driverProfileRuns.scopeKey, driverProfileScopeKey(scope)))
     .orderBy(desc(sql`datetime(${driverProfileRuns.createdAt})`), desc(driverProfileRuns.id))
@@ -232,8 +230,7 @@ export async function findDriverProfileRunByScopePool(
   scope: DriverProfileScopeKey,
   poolKey: string,
 ): Promise<DriverProfileRunRow | null> {
-  const row = await db
-    .select()
+  const row = await readDb.select()
     .from(driverProfileRuns)
     .where(and(
       eq(driverProfileRuns.scopeKey, driverProfileScopeKey(scope)),

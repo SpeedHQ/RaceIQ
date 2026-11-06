@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
-import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { laps, sessions, sessionCaptureSplitJobs } from "@raceiq/backend-core/db/schema";
+import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-
-initGameAdapters();
 initServerGameAdapters();
 
 describe("GET /api/laps/:id game context", () => {
@@ -14,10 +13,35 @@ describe("GET /api/laps/:id game context", () => {
 
   afterEach(async () => {
     for (const sessionId of sessionIds) {
+      const lapRows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+      for (const lap of lapRows) cacheDelete(lap.id);
       await db.delete(laps).where(eq(laps.sessionId, sessionId)).run();
+      await db.delete(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).run();
       await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
     }
     sessionIds.length = 0;
+  });
+
+  test("blocks cached aligned telemetry after capture becomes queued", async () => {
+    const lapId = await insertLap();
+    alignedTelemetryCacheSet([lapId], "{\"cached\":true}");
+    expect(alignedTelemetryCacheGet([lapId])).toBe("{\"cached\":true}");
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId: sessionIds.at(-1)!,
+      jobId: `lap-route-${lapId}`,
+      pendingSourceRevision: "test-source-revision",
+      sourcePath: "lap-route-capture.bin",
+      status: "queued",
+    });
+
+    const response = await lapRoutes.request("/api/laps/aligned-telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [lapId], step: 1 }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "RECORDING_PROCESSING", error: "Recording is queued or processing" });
   });
 
   async function insertLap(): Promise<number> {

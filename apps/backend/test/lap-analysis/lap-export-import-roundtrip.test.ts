@@ -1,3 +1,8 @@
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
+/**
+ * Generic lap/session ZIP round-trips across all supported games.
+ * LMU-only opponent and supplemental-data cases live in packages/game-lmu.
+ */
 /**
  * End-to-end round-trip for the lap/session ZIP feature, against a *real*
  * recorded capture rather than the synthetic frames used in
@@ -18,7 +23,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { META_FRAME_BYTES, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
@@ -29,17 +34,20 @@ import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
-import {
-  iterateSessionCaptureRecords,
-  iterateSessionFrames,
-  META_FRAME_BYTES,
-} from "@raceiq/capture-formats/session/framing";
+import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { initMotecTargets } from "../../src/games/motec-init";
+import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
+import { readLmuOpponentCaptureFrames, indexLmuOpponentLaps } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
+import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 initGameAdapters();
 initServerGameAdapters();
 initMotecTargets();
@@ -56,7 +64,8 @@ const GAME_CAPTURES: Record<GameId, { capture: string; label: string }> = {
   acc: { capture: "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz", label: "Assetto Corsa Competizione" },
   "ac-evo": { capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
   iracing: { capture: IRACING_CAPTURE, label: "iRacing" },
-  lmu: { capture: "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", label: "Le Mans Ultimate" },
+  ams2: { capture: "test/artifacts/sessions/ams2-time-trial.bin.gz", label: "Automobilista 2" },
+  lmu: { capture: "packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-2026-10-22.bin.gz", label: "Le Mans Ultimate" },
 };
 function captureSource(session: {
   rawFile: string | null;
@@ -113,16 +122,20 @@ describe("lap export → import round-trip (real capture)", () => {
     minimumLaps?: number;
     frameTimeStartMs?: number;
   } = {}) {
-    const frames = gameId === "iracing"
+    const frames = gameId === "ams2"
+      ? readAMS2DumpFrames(capture)
+      : gameId === "iracing"
       ? readIRacingFrames(capture)
       : gameId === "lmu"
-        ? readLMUFrames(capture)
+        ? [...iterateSessionCaptureRecords(Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())))]
+            .filter((record): record is Extract<typeof record, { kind: "frame" }> => record.kind === "frame")
+            .map(({ frame }) => Buffer.from(frame))
         : iterateSessionFrames(
             Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
           );
-    const sourceFrames = frameTimeStartMs === undefined ? frames : (function* () {
+    const sourceFrames = frameTimeStartMs === undefined ? frames : (async function* () {
       let index = 0;
-      for (const frame of frames) {
+      for await (const frame of frames) {
         yield { frame, frameTimeMs: frameTimeStartMs + index * 10 + Math.floor(index / 100) * 5_000 };
         index++;
       }
@@ -166,6 +179,7 @@ describe("lap export → import round-trip (real capture)", () => {
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
   }, 120000);
+
   for (const gameId of KNOWN_GAME_IDS) {
     const { capture, label } = GAME_CAPTURES[gameId];
     test(`${label} selected lap preserves source telemetry through export and import`, async () => {

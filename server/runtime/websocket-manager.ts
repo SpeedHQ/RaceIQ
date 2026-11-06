@@ -16,7 +16,7 @@ import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/das
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { ClassificationMigrationStatusNotification } from "@raceiq/shared/racing/laps/classification-migration";
-import { IS_DEV, IS_E2E } from "./config/env";
+
 import {
   isDevTelemetryControlMessageV1,
   type DevTelemetryControlMessageV1,
@@ -30,6 +30,8 @@ import {
   type LiveEngineerDeliveryStatusV3,
   type LiveEngineerVoiceLineMessageV3,
 } from "@raceiq/shared/racing/live/engineer-contracts";
+import { encodeLmuContext, encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 
 export interface WSData {
   createdAt: number;
@@ -93,8 +95,9 @@ export class WebSocketManager {
   /** Owned projection; packet-handler context must not mutate before publication. */
   private lastFrame: LiveProjection["frame"] | null = null;
   private lastFrameJson: string | null = null;
+  private liveSimulator: string | null = null;
+  private lastProjectionAt = 0;
   private lastDevPacketJson: string | null = null;
-  private readonly allowDevTelemetry = IS_DEV || IS_E2E;
   /** Injected getter for session laps — avoids circular import with pipeline */
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
   /** Stale lap detection notification — sent to each new client on connect */
@@ -175,7 +178,6 @@ export class WebSocketManager {
     return this.clients.size;
   }
   get wantsDevTelemetry(): boolean {
-    if (!this.allowDevTelemetry) return false;
     for (const client of this.clients) if (client.data.devTelemetrySubscribed) return true;
     return false;
   }
@@ -199,6 +201,7 @@ export class WebSocketManager {
   }
 
   addClient(ws: ServerWebSocket<WSData>): void {
+    this.expireAMS2Frame();
     this.clients.add(ws);
     let sendFailed = false;
     if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch { sendFailed = true; } }
@@ -277,6 +280,7 @@ export class WebSocketManager {
       trackId: string;
     } | null;
   }): void {
+    this.expireAMS2Frame();
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "status", ...status });
     for (const client of this.clients) {
@@ -311,6 +315,7 @@ export class WebSocketManager {
 
   publishTelemetry(projection: Pick<LiveProjection, "schema" | "frame">): void {
     if (projection.schema) {
+      this.liveSimulator = projection.schema.simulator;
       this.lastSchemaJson = JSON.stringify(projection.schema);
       this.pendingSchemaJson = this.clients.size > 0 ? this.lastSchemaJson : null;
       if (this.lastFrame?.schemaId !== projection.schema.schemaId) {
@@ -319,9 +324,37 @@ export class WebSocketManager {
       }
     }
     if (projection.frame) {
+      this.lastProjectionAt = Date.now();
       this.lastFrame = { ...projection.frame, context: structuredClone(projection.frame.context) };
       this.lastFrameJson = null;
     }
+  }
+
+  private expireAMS2Frame(): void {
+    // AMS2 stops updating shared memory after leaving a session. Keep the
+    // schema so the projector can resume without emitting it again.
+    if (this.liveSimulator !== "ams2" || !this.lastFrame || Date.now() - this.lastProjectionAt < 5000) return;
+    this.lastFrame = null;
+    this.lastFrameJson = null;
+    this.lastDevPacketJson = null;
+    this.broadcastNotification({ type: "telemetry-idle" });
+  }
+
+  /** Publish scoring-only LMU snapshots without synthesizing a player telemetry frame. */
+  publishLmuContext(context: LmuLiveContext): void {
+    const lmu = encodeLmuContext(context);
+    this.broadcastNotification({ type: "lmu-context", lmu });
+  }
+  /** Clear only the LMU generation that lost its player/native source. */
+
+  invalidateLmuTelemetry(context: LmuLiveContext): void {
+    const frame = this.lastFrame;
+    if (!frame?.lmu || frame.lmu.key.sessionKey !== context.key.sessionKey) return;
+    this.publishTelemetry({ frame: {
+      ...frame, receivedAtMs: Date.now(), values: frame.values.map(() => null),
+      states: Object.fromEntries(frame.values.map((_, index) => [index, "missing" as const])),
+      freshness: undefined, context: {}, lmu: encodeLmuContext(context),
+    } });
   }
 
   private serializeLatestFrame(): string | null {
@@ -348,17 +381,14 @@ export class WebSocketManager {
       ws.send(JSON.stringify({ type: "subscription", channel: "dev-state", subscribed } satisfies DevTelemetrySubscriptionMessageV1));
       return;
     }
-    if (!this.allowDevTelemetry) {
-      ws.data.devTelemetrySubscribed = false;
-      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1)); return;
-    }
+    // Raw is a user-facing page in compiled builds; stream only to subscribers.
     ws.data.devTelemetrySubscribed = control.type === "subscribe";
     ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: ws.data.devTelemetrySubscribed } satisfies DevTelemetrySubscriptionMessageV1));
     if (ws.data.devTelemetrySubscribed && this.lastDevPacketJson) ws.send(this.lastDevPacketJson);
   }
 
   stageDevTelemetry(packet: TelemetryPacket): void {
-    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
+    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet: encodeLmuPacket(packet) } satisfies DevTelemetryPacketMessageV1);
   }
 
   flushLatest(): void { this._pushToClients(); }
@@ -426,6 +456,7 @@ export class WebSocketManager {
   }
 
   private _pushToClients(): void {
+    this.expireAMS2Frame();
     if (this.clients.size === 0) return;
     const frameJson = this.serializeLatestFrame();
     const schemaJson = this.pendingSchemaJson;
@@ -440,4 +471,6 @@ export class WebSocketManager {
   }
 }
 
-export const wsManager = new WebSocketManager();
+const wsManagerKey = Symbol.for("@raceiq/backend-core/runtime/websocket-manager");
+const sharedManagers = globalThis as typeof globalThis & Record<symbol, WebSocketManager | undefined>;
+export const wsManager = sharedManagers[wsManagerKey] ??= new WebSocketManager();

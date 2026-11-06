@@ -1,0 +1,16 @@
+{
+  "name": "@raceiq/game-ams2-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./identity": "./src/identity.ts",
+    "./index": "./src/index.ts",
+    "./track-boundaries": "./src/track-boundaries.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  }
+}

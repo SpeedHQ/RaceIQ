@@ -61,7 +61,7 @@ for (const game of SEEDED_GAME_CASES) {
       await route.continue();
     });
 
-    await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}&view=compare`, { waitUntil: "domcontentloaded" });
     const originalStorage = await page.evaluate(() => ({
       mapWidth: localStorage.getItem("compare-left-column-width"),
       aiPanel: localStorage.getItem("compare-ai-panel-open"),
@@ -69,14 +69,14 @@ for (const game of SEEDED_GAME_CASES) {
     try {
       const workspace = page.getByTestId("lap-compare-workspace");
       await expect(workspace).toBeVisible();
-      await expect(workspace.getByText(/loading/i)).toBeVisible();
+      await expect(workspace.getByRole("status", { name: "Loading comparison data..." })).toBeVisible();
       const initialResponse = page.waitForResponse((response) => alignedRequestMatches(response, pair.lapA.id, pair.lapB.id, 1));
       releaseLoading();
       expect((await initialResponse).ok(), `${game.name} initial comparison load`).toBe(true);
       await page.unroute(ALIGNED_TELEMETRY_ENDPOINT);
       await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
 
-      const lapB = page.getByLabel("Lap B");
+      const lapB = page.getByRole("combobox", { name: "Lap B", exact: true });
       await lapB.click();
       await page
         .getByRole("option", {
@@ -94,10 +94,10 @@ for (const game of SEEDED_GAME_CASES) {
         })
         .click();
       await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
-      await expect(workspace.getByText("Time Delta", { exact: true })).toBeVisible();
+      await expect(workspace.getByTestId("compare-time-delta")).toBeVisible();
       await expect(workspace.getByText("Gaining", { exact: true })).toBeVisible();
       await expect(workspace.getByText("Losing", { exact: true })).toBeVisible();
-      await expect(workspace.getByText("Overview", { exact: true })).toBeVisible();
+      await expect(workspace.getByRole("tabpanel", { name: "Focus View", exact: true }).getByText("Overview", { exact: true })).toBeVisible();
       await expect(workspace.getByText("Zoomed", { exact: true })).toBeVisible();
       await assertSynchronizedCursors(page);
 
@@ -127,10 +127,25 @@ for (const game of SEEDED_GAME_CASES) {
 
       expect(browserErrors.errors, `unexpected browser errors before injected Compare failure in ${game.name}`).toEqual([]);
       const errorBody = JSON.stringify({ error: "Seeded compare failure" });
-      await page.route(ALIGNED_TELEMETRY_ENDPOINT, (route) => route.fulfill({ status: 503, contentType: "application/json", body: errorBody }));
+      await page.route(ALIGNED_TELEMETRY_ENDPOINT, async (route) => {
+        const body = route.request().postDataJSON() as { ids?: number[]; step?: number } | null;
+        if (body?.step !== 1 || body.ids?.[0] !== pair.lapA.id || body.ids?.[1] !== pair.lapB.id) return route.continue();
+        await route.fulfill({ status: 503, contentType: "application/json", body: errorBody });
+      });
+      const failedResponse = page.waitForResponse((response) => alignedRequestMatches(response, pair.lapA.id, pair.lapB.id, 1));
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByText("Seeded compare failure", { exact: true })).toBeVisible();
+      const failure = await failedResponse;
+      expect(failure.status(), `${game.name} injected comparison response`).toBe(503);
+      expect(await failure.json()).toEqual({ error: "Seeded compare failure" });
+      await expect(page.getByText("Failed to load comparison data", { exact: true })).toBeVisible();
+      await expect(workspace.locator(".uplot")).toHaveCount(0);
       await page.unroute(ALIGNED_TELEMETRY_ENDPOINT);
+
+      const recoveredResponse = page.waitForResponse((response) => alignedRequestMatches(response, pair.lapA.id, pair.lapB.id, 1));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      expect((await recoveredResponse).ok(), `${game.name} comparison recovers through real endpoint`).toBe(true);
+      await expect(workspace.getByTestId("compare-time-delta")).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByText("Failed to load comparison data", { exact: true })).toHaveCount(0);
 
       const expectedFailureUrl = new URL(ALIGNED_TELEMETRY_ENDPOINT, page.url()).toString();
       const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)";

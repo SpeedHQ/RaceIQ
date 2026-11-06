@@ -22,9 +22,14 @@ export async function seedReleaseDatabase(temporary: string, source?: ReleaseFix
   await command(["git", "rev-parse", "--verify", `${CLASSIFICATION_BASELINE}^{commit}`]);
   const archive = join(temporary, "release.tar");
   await command(["git", "archive", "--format=tar", `--output=${archive}`, CLASSIFICATION_BASELINE]);
-  await command(["tar", "-xf", archive, "-C", releaseDir, "--exclude=.claude"]);
+  const tar = process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+  await command([tar, "-xf", archive, "-C", releaseDir, "--exclude=.claude"]);
   await command(["git", "init", "--quiet"], releaseDir);
-  await command([process.execPath, "install", "--frozen-lockfile"], releaseDir);
+  // Use the historical release's package manager to preserve its frozen lockfile.
+  const releasePackage = JSON.parse(readFileSync(join(releaseDir, "package.json"), "utf8")) as { packageManager: string };
+  if (!/^bun@\d+\.\d+\.\d+$/.test(releasePackage.packageManager)) throw new Error("Historical release must pin an exact Bun version");
+  const releaseBun = (await command([process.execPath, "x", releasePackage.packageManager, "--print", "process.execPath"], releaseDir)).trim();
+  await command([releaseBun, "install", "--frozen-lockfile"], releaseDir);
   let paths = source?.paths;
   if (!paths) {
     const fixture = join(temporary, "ac-evo-tourist.bin.gz");
@@ -33,7 +38,7 @@ export async function seedReleaseDatabase(temporary: string, source?: ReleaseFix
     )));
     paths = [fixture];
   }
-  await command([process.execPath, "run", "db:seed", `--games=${source?.gameId ?? "ac-evo"}`, `--fixtures=${paths.join(",")}`], releaseDir, upgradeEnvironment(dataDir));
+  await command([releaseBun, "run", "db:seed", `--games=${source?.gameId ?? "ac-evo"}`, `--fixtures=${paths.join(",")}`], releaseDir, upgradeEnvironment(dataDir));
   return { releaseDir, dataDir };
 }
 

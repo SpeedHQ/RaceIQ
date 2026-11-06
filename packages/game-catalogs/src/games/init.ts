@@ -5,6 +5,7 @@ import { f1Adapter } from "@raceiq/game-f1-2025-metadata/index";
 import { accAdapter } from "@raceiq/game-acc-metadata/index";
 import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
 import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
+import { ams2Adapter } from "@raceiq/game-ams2-metadata/index";
 import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 
 export function gameAdaptersForFeatures(
@@ -13,11 +14,13 @@ export function gameAdaptersForFeatures(
     RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+    RACEIQ_FEATURE_AMS2_ADAPTER: import.meta.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   }),
 ) {
   const adapters = [forzaAdapter, f1Adapter, accAdapter, acEvoAdapter];
   if (flags.iracingAdapter) adapters.push(iracingAdapter);
   adapters.push(lmuAdapter);
+  if (flags.ams2Adapter) adapters.push(ams2Adapter);
   return adapters;
 }
 
@@ -28,6 +31,7 @@ export function initGameAdapters(
     RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
     RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+    RACEIQ_FEATURE_AMS2_ADAPTER: import.meta.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   }),
 ): void {
   for (const adapter of gameAdaptersForFeatures(flags)) registerGame(adapter);

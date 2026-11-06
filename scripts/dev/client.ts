@@ -3,6 +3,12 @@ import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { readDashboardHosts } from "./dashboard-network";
 
 const serverTarget = process.env.PROXY_TARGET ?? `http://localhost:${process.env.SERVER_PORT ?? "3117"}`;
+const children: Bun.Subprocess[] = [];
+process.once("SIGINT", () => process.exit(130));
+process.once("SIGTERM", () => process.exit(143));
+process.on("exit", () => {
+  for (const child of children) child.kill();
+});
 
 async function waitForServer(): Promise<void> {
   const deadline = Date.now() + 30_000;
@@ -23,6 +29,7 @@ const prepare = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts", "--once"], {
   stdout: "inherit",
   stderr: "inherit",
 });
+children.push(prepare);
 const prepareExitCode = await prepare.exited;
 if (prepareExitCode !== 0) process.exit(prepareExitCode);
 await waitForServer();
@@ -37,6 +44,7 @@ const watcher = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts"], {
   stdout: "inherit",
   stderr: "inherit",
 });
+children.push(watcher);
 
 const vite = Bun.spawn(["portless", "run", "--name", process.env.RACEIQ_DEV_PORTLESS_NAME ?? "raceiq", "bun", "run", "dev", "--host", "127.0.0.1"], {
   cwd: `${process.cwd()}/client`,
@@ -45,6 +53,7 @@ const vite = Bun.spawn(["portless", "run", "--name", process.env.RACEIQ_DEV_PORT
   stdout: "inherit",
   stderr: "inherit",
 });
+children.push(vite);
 
 const exitCode = await vite.exited;
 watcher.kill();

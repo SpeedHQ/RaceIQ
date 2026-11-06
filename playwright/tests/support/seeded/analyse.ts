@@ -1,12 +1,12 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function setAnalyseFrame(page: Page, frame: number): Promise<void> {
-  await page.evaluate(async (index) => {
-    const setFrame = (window as typeof window & { __setFrame?: (value: number) => Promise<void> }).__setFrame;
-    if (!setFrame) throw new Error("Analyse frame control is unavailable");
-    await setFrame(index);
+  await page.evaluate((index) => {
+    const seekFrame = (window as typeof window & { __seekReplayFrame?: (value: number) => void }).__seekReplayFrame;
+    if (!seekFrame) throw new Error("Analyse frame control is unavailable");
+    seekFrame(index);
   }, frame);
-  await expect(page.getByRole("slider", { name: "Lap timeline" })).toHaveAttribute("aria-valuenow", String(frame));
+  await expect(page.locator('[data-spectate-data-side="a"]')).toHaveAttribute("data-packet-number", String(frame + 1));
 }
 
 export async function metricRowText(page: Page, label: string): Promise<string> {

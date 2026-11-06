@@ -5,13 +5,14 @@
  * gets back structured `TuneIntent`s (which knob, which way, how much). The
  * model is grammar-constrained to `TuneIntentsSchema` — no free-form numbers.
  * Provider dispatch mirrors the lap-analysis flow (settings.aiProvider +
- * keystore secrets), but uses the low-level `runClaudeCli/runGemini/runOpenAi`
+ * keystore secrets), but uses the low-level `runGemini/runOpenAi/runOpenAiCompatible`
  * helpers directly since we want a single structured turn, not a chat agent.
  */
 import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSettings } from "../runtime/config/settings";
 import { getAiProviderApiKey, requireAiProviderApiKey } from "./openai-compatible-provider";
-import { runGemini, runOpenAi } from "./providers";
+import { runGemini, runOpenAi, runOpenAiCompatible } from "./providers";
+import { ANTHROPIC_OPENAI_BASE_URL } from "./openai-compatible-headers";
 import {
   getTuneIntentJsonSchema,
   parseTuneIntents,
@@ -162,11 +163,16 @@ async function runTuneIntentProvider(
       const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
       return { raw: r.analysis, model: r.usage.model };
     }
+    case "anthropic": {
+      const key = await requireAiProviderApiKey("anthropic");
+      const r = await runOpenAiCompatible({ prompt, apiKey: key, endpoint: ANTHROPIC_OPENAI_BASE_URL, model: tuneModel, schema, schemaName: "tune_intents" });
+      return { raw: r.analysis, model: r.usage.model };
+    }
     case "openai-compatible": {
-      // Local OpenAI-compatible endpoint (LM Studio / Ollama).
+      // OpenAI-compatible endpoint (LM Studio / Ollama, or a hosted API such as Anthropic's).
       const base = settings.localEndpoint || "http://localhost:1234/v1";
       const key = await getAiProviderApiKey("openai-compatible");
-      const r = await runOpenAiLocal(prompt, base, tuneModel, schema, key);
+      const r = await runOpenAiCompatible({ prompt, apiKey: key, endpoint: base, model: tuneModel, schema, schemaName: "tune_intents" });
       return { raw: r.analysis, model: r.usage.model };
     }
     default: {
@@ -197,46 +203,4 @@ export async function requestTuneIntents(
     throw new Error("AI returned an invalid tune-intent response. Try again or switch models.");
   }
   return { intents: parsed.data, model };
-}
-
-/** OpenAI-compatible call against a local endpoint (no API key required). */
-async function runOpenAiLocal(
-  prompt: string,
-  baseUrl: string,
-  model: string,
-  schema: object,
-  apiKey?: string,
-): ReturnType<typeof runOpenAi> {
-  // runOpenAi hard-codes the OpenAI host, so hit the local endpoint inline.
-  const start = performance.now();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "tune_intents", strict: true, schema },
-      },
-      temperature: 0.3,
-    }),
-  });
-  const durationMs = Math.round(performance.now() - start);
-  if (!res.ok) throw new Error(`Local model error: ${res.status}`);
-  const data = (await res.json()) as any;
-  const text = data.choices?.[0]?.message?.content ?? "";
-  if (!text.trim()) throw new Error("Local model returned empty response");
-  return {
-    analysis: text,
-    usage: {
-      inputTokens: data.usage?.prompt_tokens ?? 0,
-      outputTokens: data.usage?.completion_tokens ?? 0,
-      costUsd: 0,
-      durationMs,
-      model,
-    },
-  };
 }

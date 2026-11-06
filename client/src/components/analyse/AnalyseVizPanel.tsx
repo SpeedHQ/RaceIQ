@@ -1,4 +1,4 @@
-import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
+import type { SceneRuntime, SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
 import type { GameId } from "@raceiq/shared/games/ids";
 import { memo, type RefObject, useEffect, useRef, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
@@ -7,7 +7,8 @@ import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { TireDiagram } from "../telemetry/TireDiagram";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import type { Point, TrackMapBoundaries } from "./track-map/types";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;

@@ -1,9 +1,9 @@
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState, type Ref } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../../lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
-import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, ProcessingMetadata, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { formatLapTime } from "../../lib/format";
 import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queries";
@@ -11,6 +11,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
+import { ProcessingStatus } from "../ProcessingStatus";
 import { queryKeys } from "../../hooks/query-keys";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
@@ -23,7 +24,7 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
-import { MotecBadge } from "../sessions/MotecBadge";
+import { MotecBadge } from "@raceiq/sessions-page/ui";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
   onBack?: () => void;
   sessionFocused?: boolean;
   onAnalyseSession?: () => void;
+  panelHeaderRef: Ref<HTMLDivElement>;
   // Selection state
   selectedTrack: string | null;
   selectedCar: string | null;
@@ -48,7 +50,10 @@ interface Props {
   tunePending: boolean;
   // UI state
   loading: boolean;
-  aiPanelOpen: boolean;
+  processingLoading: boolean;
+  onRefreshProcessing: () => void;
+  analyseSessionProcessing?: ProcessingMetadata;
+  sessionProcessingLoading?: boolean;
   // Callbacks
   onTrackChange: (v: string | null) => void;
   onCarChange: (v: string | null) => void;
@@ -63,7 +68,6 @@ interface Props {
   importingBin: boolean;
   ownership: SessionOwnership;
   onOwnershipChange: (value: SessionOwnership) => void;
-  onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
 }
@@ -73,6 +77,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   onBack,
   sessionFocused,
   onAnalyseSession,
+  panelHeaderRef,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -87,12 +92,15 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   availableTunes,
   tunePending,
   loading,
-  aiPanelOpen,
+  processingLoading,
+  onRefreshProcessing,
+  analyseSessionProcessing,
+  sessionProcessingLoading = false,
   onTrackChange,
   onCarChange,
-  onLapChange,
   onTuneChange,
   onViewTune,
+  onLapChange,
   onShowSetup,
   onExport,
   onExportBin,
@@ -101,7 +109,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   importingBin,
   ownership,
   onOwnershipChange,
-  onToggleAi,
   onDeleteLap,
   onNotesChange,
 }: Props) {
@@ -125,13 +132,20 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
       const sessionDate = parseUtcTimestamp(sessionLaps[sessionLaps.length - 1].createdAt);
       const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
-      return { ...buildAnalyseLapOption(lap), group: sessionLabel };
+      const processing = lap.processing;
+      const status = processing?.state === "queued" ? m.recording_processing_queued()
+        : processing?.state === "processing" ? m.recording_processing_running()
+          : processing?.state === "failed" ? m.recording_processing_failed({ error: processing.error })
+            : processing?.state == null ? m.recording_processing_loading()
+              : "";
+      const option = buildAnalyseLapOption(lap);
+      return { ...option, label: status ? `${option.label} — ${status}` : option.label, group: sessionLabel, disabled: processing?.state !== "ready" };
     });
   }, [filteredLaps]);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   return (
     <>
-      <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
+      <div data-replay-page-header="" className="flex items-center gap-2 px-3 pt-3 border-b border-app-border flex-wrap shrink-0">
         {onBack && (
           <Button variant="app-outline" size="app-md" onClick={onBack}>
             {m.label_sessions()}
@@ -168,7 +182,9 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             disabled={selectedCar == null}
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
+            ariaLabel={m.analyse_search_laps_placeholder()}
           />
+          {selectedLapId != null && <ProcessingStatus processing={selectedLap?.processing} loading={processingLoading} onRefresh={onRefreshProcessing} />}
           {selectedLap && <FavoriteToggleButton target="lap" id={selectedLap.id} isFavorite={Boolean(selectedLap.isFavorite)} />}
           {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
@@ -208,12 +224,15 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             )}
           </div>
         )}
-        {sessionFocused && (
-          <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
-            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
-            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
-          </div>
-        )}
+        <div className="order-2 flex w-full min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          {sessionFocused && (
+            <div className="flex min-w-0 max-w-full flex-col text-app-caption text-app-text-muted @3xl/workspace:max-w-xs">
+              <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
+              <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
+            </div>
+          )}
+          <div ref={panelHeaderRef} data-replay-panel-header="" className="-mr-3 ml-auto flex min-w-0 max-w-full flex-wrap items-end justify-end" />
+        </div>
 
         {noteOpen && (
           <NoteModal
@@ -310,13 +329,10 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 : []),
             ]}
           />
-          {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-md" onClick={onToggleAi}>
-              <Sparkles className="size-3.5" />
-              {m.label_ai_analysis()}
-            </Button>
-          )}
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
+          {analyseSessionProcessing != null || sessionProcessingLoading ? (
+            <ProcessingStatus processing={analyseSessionProcessing} loading={sessionProcessingLoading} onRefresh={onRefreshProcessing} />
+          ) : null}
         </div>
       </div>
       {pendingImport && (

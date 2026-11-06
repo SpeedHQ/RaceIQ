@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { formatMotecLapTime, hasCompleteMotecSource } from "../src/components/analyse/motec-import-utils";
 import * as motecImportResult from "../src/components/analyse/MotecImportModal";
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 test("formats imported lap times as seconds", () => {
   expect(formatMotecLapTime(143.637)).toBe("2:23.637");
   expect(formatMotecLapTime(138.146)).toBe("2:18.146");

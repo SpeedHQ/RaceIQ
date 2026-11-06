@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "./index";
+import { readDb as db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -166,7 +166,8 @@ export function alignedTelemetryCacheGet(ids: readonly number[]): string | undef
 export function alignedTelemetryCacheSet(ids: readonly number[], body: string): void {
   const key = alignedKey(ids); const existing = telemetryCache.get(key);
   if (existing) cacheBytesUsed -= existing.bytes;
-  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, bytes: alignedBytes(body, existing?.kind === "aligned" ? existing.alignmentIndex : undefined), ids: [...ids] };
+  const alignmentIndex = existing?.kind === "aligned" ? existing.alignmentIndex : undefined;
+  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, alignmentIndex, bytes: alignedBytes(body, alignmentIndex), ids: [...ids] };
   telemetryCache.set(key, entry); cacheBytesUsed += entry.bytes; evictUntilWithinBudget();
 }
 export function lapSetAlignmentIndexCacheGet(ids: readonly number[]): LapSetAlignmentIndex | undefined {
@@ -747,6 +748,9 @@ export interface LapReplaySource {
   createdAt: string;
   gameId: GameId;
   rawFile: string | null;
+  source: string | null;
+  carId: string;
+  trackId: string;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
   captureManifestFile?: string | null;
@@ -767,6 +771,9 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       createdAt: laps.createdAt,
       gameId: sessions.gameId,
       rawFile: sessions.rawFile,
+      source: sessions.source,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       captureManifestFile: sessions.captureManifestFile,
@@ -794,6 +801,9 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     createdAt: row.createdAt,
     gameId: row.gameId as GameId,
     rawFile: row.rawFile,
+    source: row.source,
+    carId: row.carId,
+    trackId: row.trackId,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
     captureManifestFile: row.captureManifestFile,

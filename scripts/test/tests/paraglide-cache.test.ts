@@ -2,8 +2,24 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getParaglideBuildKey } from "../../dev/paraglide-build";
+import { getParaglideBuildKey, renameParaglideOutput } from "../../dev/paraglide-build";
 import { computeParaglideInputHash } from "../../dev/paraglide-cache";
+
+test("Paraglide directory swap retries transient Windows locks but stops on permanent errors", async () => {
+  let calls = 0;
+  await renameParaglideOutput("old", "new", async () => {
+    if (++calls < 3) throw Object.assign(new Error("locked"), {code: "EPERM"});
+  }, "win32");
+  expect(calls).toBe(3);
+  calls = 0;
+  const missing = Object.assign(new Error("missing"), {code: "ENOENT"});
+  await expect(renameParaglideOutput("old", "new", async () => { calls++; throw missing; }, "win32")).rejects.toBe(missing);
+  expect(calls).toBe(1);
+  calls = 0;
+  const locked = Object.assign(new Error("locked"), {code: "EPERM"});
+  await expect(renameParaglideOutput("old", "new", async () => { calls++; throw locked; }, "win32")).rejects.toBe(locked);
+  expect(calls).toBe(11);
+});
 
 describe("Paraglide dev cache", () => {
   test("changes when translation input changes", async () => {

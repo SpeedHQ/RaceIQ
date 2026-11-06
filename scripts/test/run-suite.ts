@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { checkTestShards } from "./check-shards";
-import { discoverTestOwners, readSuiteFiles, SUITES, type Suite } from "./owners";
+import { discoverTestOwners, ownerTestRoot, readSuiteFiles, SUITES, type Suite } from "./owners";
 const args = process.argv.slice(2);
 const requested = args[0];
 let packageName: string | undefined;
@@ -30,7 +30,7 @@ const requestedSuites = requested === "all" ? SUITES : [requested as Suite];
 const ownersWithSuites = new Set<string>();
 for (const suite of requestedSuites) {
   for (const owner of selectedOwners) {
-    const manifest = resolve(root, owner.root, "test", `${suite}-files.txt`);
+    const manifest = resolve(root, ownerTestRoot(owner), `${suite}-files.txt`);
     if (!existsSync(manifest)) {
       if (requested !== "all" && packageName) throw new Error(`${manifest}: suite manifest is required`);
       continue;
@@ -55,7 +55,7 @@ async function run(owner: (typeof owners)[number], suite: Suite): Promise<number
     const configPath = resolve(isolatedDir, "bunfig.toml");
     const tomlPath = isolatedDir.replaceAll("\\", "/");
     const preloads = unit ? [] : [resolve(root, "server/test-support/setup-data-dir.ts")];
-    if (!unit && ["@raceiq/backend", "@raceiq/frontend-contract-tests"].includes(owner.name)) {
+    if (!unit && ["@raceiq/backend", "@raceiq/frontend-contract-tests", "@raceiq/game-lmu-tests"].includes(owner.name)) {
       preloads.push(resolve(root, "apps/backend/test/support/setup-app.ts"));
     }
     const preloadToml = preloads.length

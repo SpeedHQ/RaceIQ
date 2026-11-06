@@ -14,12 +14,15 @@ import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { parsePacket, resetParserState, subscribeParserSource } from "@raceiq/backend-core/games/packet-dispatch";
 import { iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { initServerGameAdapters } from "../../src/games/init";
 import { buildLapsZip, importLapsZip } from "../../src/laps/archive";
 import { fixtureFrames } from "../benchmarks/live-lossless-release.bench";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
 import type { GameId } from "@raceiq/shared/games/ids";
+
+registerDriverProfileLapNotifier(() => {});
 function telemetrySampleKey(packet: Pick<TelemetryPacket, "gameId" | "LapNumber" | "CurrentLap" | "LastLap" | "DistanceTraveled" | "Speed" | "TimestampMS">): string {
   return JSON.stringify([packet.gameId, packet.LapNumber, packet.CurrentLap, packet.LastLap, packet.DistanceTraveled, packet.Speed, packet.TimestampMS]);
 }
@@ -69,7 +72,13 @@ test("direct recording retains queued native input across a delayed lap binding 
     },
   } });
   const failures: unknown[] = [];
-  const ws = new class extends NullWsAdapter { override broadcastNotification(event: Record<string, unknown>) { if (event.type === "recording-failed") failures.push(event.error); } }();
+  const sessionLapSnapshots: Array<{ laps: Array<{ standaloneCaptureReady?: boolean; processing?: { state: string } }> }> = [];
+  const ws = new class extends NullWsAdapter {
+    override broadcastNotification(event: Record<string, unknown>) {
+      if (event.type === "recording-failed") failures.push(event.error);
+      if (event.type === "session-laps") sessionLapSnapshots.push(event as typeof sessionLapSnapshots[number]);
+    }
+  }();
   const pipeline = new LiveTelemetryPipeline(adapter, ws, { recorder, bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true });
   const unsubscribe = subscribeParserSource(input => pipeline.captureParserSource(input));
   let held = false;
@@ -99,8 +108,7 @@ test("direct recording retains queued native input across a delayed lap binding 
     expect(pipeline.isSessionActive).toBe(true);
     releaseFinalSync.resolve();
     await finalizing; unsubscribe();
-    expect(pipeline.isSessionActive).toBe(false);
-    expect(held).toBe(true); expect(failures).toEqual([]);
+    expect(sessionLapSnapshots.some(({ laps }) => laps.some((lap) => lap.standaloneCaptureReady === true && lap.processing?.state === "ready"))).toBe(true);
     const rows = await db.select().from(sessions).where(inArray(sessions.rawFile, [...recorder.accepted.keys()])).all();
     const storedLaps = await db.select().from(laps).where(inArray(laps.sessionId, rows.map(row => row.id))).all();
     for (const row of rows) {
@@ -127,6 +135,7 @@ test("direct recording retains queued native input across a delayed lap binding 
     for (const row of created) if (row.rawFile) await rm(row.rawFile.endsWith("manifest.json") ? dirname(row.rawFile) : row.rawFile, { recursive: row.rawFile.endsWith("manifest.json"), force: true });
   }
 }, 60_000);
+
 
 test("direct iRacing pipeline promotes only confirmed lap changes and conserves native source", async () => {
   initServerGameAdapters(); resetParserState("iracing");

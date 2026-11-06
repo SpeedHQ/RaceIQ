@@ -361,7 +361,7 @@ describe("session cleanup edge cases", () => {
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
   });
 
-  test("serializes compression behind cleanup so cleaned capture is not restored", async () => {
+  test("rejects compression during cleanup without restoring cleaned capture", async () => {
     const path = capturePath("overlap.bin");
     writeFileSync(path, Buffer.from("overlap capture"));
     const sessionId = await createSession({ rawFile: path });
@@ -369,12 +369,14 @@ describe("session cleanup edge cases", () => {
     const gate = Promise.withResolvers<void>();
     const held = withSessionCaptureMaintenanceLock(() => gate.promise);
     const cleanup = executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
-    const compression = runUserCompressionNow();
+    const settledCleanup = Promise.allSettled([held, cleanup]);
+    const compressionError = await runUserCompressionNow().then(() => null, (error: unknown) => error);
     gate.resolve();
 
-    await held;
-    await cleanup;
-    await compression;
+    const [heldResult, cleanupResult] = await settledCleanup;
+    expect(heldResult.status).toBe("fulfilled");
+    expect(cleanupResult).toMatchObject({ status: "fulfilled", value: { cleanedSessionIds: [sessionId] } });
+    expect(compressionError).toMatchObject({ _tag: "RecordingMaintenanceBusyError", code: "MOVE_ACTIVE" });
 
     expect(existsSync(path)).toBe(false);
     expect(existsSync(`${path}.gz`)).toBe(false);
@@ -420,6 +422,34 @@ describe("session cleanup edge cases", () => {
     expect(await db.select({ captureManifestFile: sessions.captureManifestFile }).from(sessions).where(eq(sessions.id, sessionId)).get()).toEqual({ captureManifestFile: null });
     expect(await db.select({ captureChunkId: laps.captureChunkId }).from(laps).where(eq(laps.id, lapId)).get()).toEqual({ captureChunkId: null });
     expect(await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get()).toBeUndefined();
+  });
+  test("cleans direct raw-manifest path and all manifest members exactly once", async () => {
+    const directory = dirname(capturePath("raw-manifest.bin"));
+    const rawFile = join(directory, "raw-manifest.bin");
+    const chunkFile = join(directory, "lap.bin");
+    const chunkBytes = Buffer.from("lap capture");
+    writeFileSync(chunkFile, chunkBytes);
+    const manifest = JSON.stringify({
+      version: 3, gameId: "fm-2023", sourceRevision: "direct", sourceByteLength: 0, sourceRecordCount: 0,
+      chunks: [{
+        id: "lap-1", kind: "lap", path: "lap.bin", byteLength: chunkBytes.length, firstOrdinal: 0, recordCount: 1,
+        sourceStart: 0, sourceEnd: 0, sourceByteStart: 0, sourceByteEnd: 0,
+      }],
+    });
+    writeFileSync(rawFile, manifest);
+    const manifestBytes = Buffer.byteLength(manifest);
+    const sessionId = await createSession({ rawFile });
+    await db.update(sessions).set({ captureLayoutVersion: 3, captureManifestFile: rawFile }).where(eq(sessions.id, sessionId)).run();
+
+    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    expect(preview.fileCount).toBe(2);
+    expect(preview.reclaimableBytes).toBe(manifestBytes + chunkBytes.length);
+    const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+
+    expect(result.deletedFiles).toBe(2);
+    expect(result.freedBytes).toBe(manifestBytes + chunkBytes.length);
+    expect(existsSync(rawFile)).toBe(false);
+    expect(existsSync(chunkFile)).toBe(false);
   });
   test.each([false, true])("clears absent v4 source refs without deleting externally shared files; null source: %s", async (nullSource) => {
     const directory = dirname(capturePath("shared-v4.bin"));
@@ -504,6 +534,9 @@ describe("session cleanup edge cases", () => {
   });
 
   test("deletes eligible empty sessions without reacquiring maintenance lock and protects active captures and jobs", async () => {
+    // Earlier files share this test database and can leave eligible empty sessions.
+    // Establish the empty baseline before asserting exact deletion counts for our fixtures.
+    await deleteEmptySessions();
     const eligiblePath = capturePath("empty-eligible.bin");
     const activePath = capturePath("empty-active.bin");
     const jobPath = capturePath("empty-job.bin");

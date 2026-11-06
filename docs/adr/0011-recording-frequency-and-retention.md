@@ -13,4 +13,3 @@ One Effect managed runtime owns in-process maintenance and archival jobs. Compre
 
 This avoids source restarts, duplicated sample fabrication, unsafe in-place rewrites, overlapping maintenance and false cancellation guarantees.
 
-Plan: [Approved implementation plan](../plans/recording-frequency.md). Integration: [Shared contract](../plans/recording-frequency-contract.md).

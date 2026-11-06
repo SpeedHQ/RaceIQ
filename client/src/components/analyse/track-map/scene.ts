@@ -1,5 +1,5 @@
 import { DEFAULT_CANVAS_PIXEL_AREA, syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 interface Bounds {
   minX: number;
   minY: number;

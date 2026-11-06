@@ -126,7 +126,7 @@ export async function createDashboardFixture(options: DashboardFixtureOptions): 
   const requestScopes = REQUEST_SCOPES;
   const gameCountsById: Record<GameId, number> = {
     "fm-2023": gameCounts[0]!, "f1-2025": gameCounts[1]!, acc: gameCounts[2]!,
-    "ac-evo": gameCounts[3]!, iracing: gameCounts[4]!, lmu: gameCounts[5]!,
+    "ac-evo": gameCounts[3]!, iracing: gameCounts[4]!, lmu: gameCounts[5]!, ams2: 0,
   };
   return { options, expected: { laps: options.lapCount, mineLaps, sessions: options.sessionCount, ownershipExcludedLaps: options.lapCount - mineLaps },
     gameCounts: gameCountsById, identityCounts,
@@ -160,7 +160,7 @@ export async function createDashboardFinalizationFixture(): Promise<DashboardFix
   })) throw new Error("Failed to publish dashboard finalization fixture");
   const options: DashboardFixtureOptions = { lapCount: 2, sessionCount: 1, seed: 0, distribution: "standard", publish: true };
   const gameCounts: Record<GameId, number> = {
-    "fm-2023": 1, "f1-2025": 0, acc: 0, "ac-evo": 0, iracing: 0, lmu: 0,
+    "fm-2023": 1, "f1-2025": 0, acc: 0, "ac-evo": 0, iracing: 0, lmu: 0, ams2: 0,
   };
   return {
     options, expected: { laps: 2, mineLaps: 2, sessions: 1, ownershipExcludedLaps: 0 },

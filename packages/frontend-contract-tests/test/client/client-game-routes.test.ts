@@ -2,18 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import {
   gameIdForRoutePrefix,
-  parseOptionalIdentityKey,
-  parseOptionalNumber,
   routePrefixForGameId,
   setupEngineerGameIdForRoutePrefix,
   supportsGameFeature,
-  validateAnalyseSearch,
   validateCompareSearch,
-  validateSessionsSearch,
   validateTuneReviewSearch,
   validateTuneSearch,
 } from "client/src/lib/game-routes";
+import { parseOptionalIdentityKey } from "@raceiq/frontend-pure/route-search";
+import { validateAnalyseSearch } from "@raceiq/session-analyse/contracts";
 import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
+import { validateSessionsSearch } from "@raceiq/sessions-page/contracts";
 
 const developmentEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
@@ -51,7 +50,7 @@ describe("game route helpers", () => {
     expect(validateAnalyseSearch({ track: 12, car: 34 })).toMatchObject({ track: "12", car: "34" });
     expect(validateAnalyseSearch({ track: trackId, car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
     expect(validateAnalyseSearch({ track: JSON.parse(trackId), car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
-    expect(validateCompareSearch({ track: JSON.parse(trackId), carA: "McLaren 720S", carB: "McLaren 720S" })).toMatchObject({ track: trackId });
+    expect(validateCompareSearch({ track: JSON.parse(trackId), carA: "McLaren 720S", carB: "McLaren 720S" })).toMatchObject({ track: "Circuit Park", layout: "Grand Prix" });
     for (const value of [[], ["venue"], ["venue", ""], ["venue", 1], ["venue", "layout", "extra"]]) {
       expect(parseOptionalIdentityKey(value)).toBeUndefined();
     }
@@ -73,16 +72,13 @@ describe("game route helpers", () => {
     });
   });
 
-  test("validates comparison search values", () => {
-    expect(validateCompareSearch({ track: "12", carA: 34, carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1", ignored: "x" })).toEqual({
-      track: "12",
-      carA: "34",
-      carB: "35",
-      lapA: 8,
-      lapB: 9,
-      cursor: 15,
-      ai: 1,
+  test("Spectate view validation preserves lap identities and the aligned cursor contract", () => {
+    const selections = { track: "12", carA: "34", carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1" };
+    expect(validateCompareSearch({ ...selections, view: "spectate" })).toMatchObject({
+      track: "12", carA: "34", carB: "35", lapA: 8, lapB: 9, cursor: 15, ai: 1, view: "spectate",
     });
+    expect(validateCompareSearch({ ...selections, view: "compare" }).view).toBe("compare");
+    expect(validateCompareSearch({ ...selections, view: "unsupported" }).view).toBeUndefined();
   });
 
   test("maps legacy imported sessions tab to Mine", () => {
@@ -127,7 +123,7 @@ describe("game route helpers", () => {
   });
 
   test("keeps feature support explicit", () => {
-    expect(supportsGameFeature("iracing", "driver")).toBe(false);
+    expect(supportsGameFeature("iracing", "driver")).toBe(true);
     expect(supportsGameFeature("iracing", "experiments")).toBe(false);
     expect(supportsGameFeature("iracing", "raw")).toBe(true);
     expect(supportsGameFeature("ac-evo", "experiments")).toBe(true);
@@ -135,4 +131,14 @@ describe("game route helpers", () => {
     expect(setupEngineerGameIdForRoutePrefix("iracing")).toBeUndefined();
     expect(supportsGameFeature("unknown", "raw")).toBe(false);
   });
+});
+
+
+test("AMS2 has measured Driver profiles without advertising unsupported setup workflows", () => {
+  expect(supportsGameFeature("ams2", "driver")).toBe(true);
+  expect(supportsGameFeature("ams2", "raw")).toBe(true);
+  for (const game of ["ams2", "iracing"]) {
+    expect(supportsGameFeature(game, "setups")).toBe(false);
+    expect(supportsGameFeature(game, "experiments")).toBe(false);
+  }
 });

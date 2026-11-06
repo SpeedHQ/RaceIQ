@@ -1,7 +1,7 @@
 import { m } from "@/paraglide/messages";
 import { useMemo } from "react";
 import { useUnits } from "../../hooks/useUnits";
-import type { SemanticTuneSample } from "./semantic-tune";
+import type { SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { buildLiveRanges, CornerBars, tuneMetricsFor } from "./SectorRangeBreakdown";
 
 /**

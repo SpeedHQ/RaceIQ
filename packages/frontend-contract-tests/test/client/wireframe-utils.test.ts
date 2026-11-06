@@ -1,7 +1,7 @@
 import { SLIP_ANGLE_PEAK_RAD } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import { describe, test, expect } from "bun:test";
-import { buildTrackIndex, filterByDistance, filterByDistanceIndexed, makeWheelGeometries, resolveTrailLateralUtilization, visualWheelRotationSpeed, type FilteredTrackSegment } from "client/src/lib/wireframe-utils";
-import { tireStateFromUtilization } from "client/src/lib/vehicle-dynamics";
+import { buildTrackIndex, filterByDistance, filterByDistanceIndexed, makeWheelGeometries, resolveTrailLateralUtilization, visualWheelRotationSpeed, type FilteredTrackSegment } from "@raceiq/scene-3d/wireframe-utils"
+import { tireStateFromUtilization } from "@raceiq/scene-3d/vehicle-dynamics"
 
 test("wheel geometries expose ordered tread bands and smaller core", () => {
   const { surfaceBands, core } = makeWheelGeometries(0.34, 0.3);

@@ -57,6 +57,41 @@ describe("ordinal detector history baselines", () => {
     expect(engine.state.tireWearHistory.at(-1)?.end.fl).toBeCloseTo(0.59);
   });
 });
+describe("ordinal detector nonfinite lap numbers", () => {
+  test("defers lap ownership until the first finite lap number", async () => {
+    const { engine } = engineFixture();
+    await feed(engine, { LapNumber: Number.NaN, CurrentLap: 1 }, 1_000, 10);
+    expect(engine.state.lapNumber).toBe(-1);
+    expect(engine.state.lapBuffer).toHaveLength(0);
+
+    await feed(engine, { LapNumber: 1, CurrentLap: 1 }, 1_010, 11);
+    for (let index = 1; index <= 31; index++) {
+      await feed(engine, { LapNumber: 1, CurrentLap: 1 + index / 10 }, 1_010 + index * 10, 11 + index);
+    }
+    await feed(engine, { LapNumber: 2, CurrentLap: 0 }, 1_330, 43);
+
+    expect(engine.state.completedLapCount).toBe(1);
+    expect(engine.state.lapBuffer[0]?.LapNumber).toBe(2);
+    expect(engine.state.lapByteOffset).toBe(1_330);
+  });
+
+  test("ignores nonfinite lap numbers without poisoning the next valid transition", async () => {
+    const { engine, persisted } = engineFixture();
+    await feed(engine, { LapNumber: 1 }, 2_000, 20);
+    for (let index = 1; index <= 31; index++) {
+      await feed(engine, { LapNumber: 1, CurrentLap: 1 + index / 10 }, 2_000 + index * 10, 20 + index);
+    }
+    await feed(engine, { LapNumber: Number.NaN, CurrentLap: 0 }, 2_320, 52);
+    expect(engine.state.lapNumber).toBe(1);
+
+    await feed(engine, { LapNumber: 2, CurrentLap: 0 }, 2_330, 53);
+
+    expect(engine.state.completedLapCount).toBe(1);
+    expect(persisted).toEqual([{ offset: 2_000, count: 33 }]);
+    expect(engine.state.lapBuffer[0]?.LapNumber).toBe(2);
+  });
+});
+
 
 test("new ordinal session starts with isolated lap and telemetry baselines", async () => {
   let incompleteFinalizations = 0;

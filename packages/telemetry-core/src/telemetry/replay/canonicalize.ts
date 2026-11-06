@@ -89,6 +89,8 @@ export function canonicalizeTelemetryScalar(
   value: unknown,
   semanticId: string,
 ): CanonicalTelemetryScalar {
+  if (value === null || typeof value === "boolean" || typeof value === "string" ||
+      typeof value === "number" && Number.isFinite(value)) return value;
   return cloneCanonicalTelemetryScalar(value, semanticId, new Set());
 }
 

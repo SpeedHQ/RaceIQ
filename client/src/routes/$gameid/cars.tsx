@@ -1,17 +1,12 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { CarsPage } from "@/components/cars/CarsPage";
-import { AcEvoCars } from "../../components/ac-evo/AcEvoCars";
-import { AccCars } from "../../components/acc/AccCars";
-import { F1Cars } from "../../components/f1/cars/F1Cars";
-import { IRacingCars } from "../../components/iracing/IRacingCars";
-import { LMUCars } from "../../components/lmu/LMUCars";
+import { CarsPage, AcEvoCars, AccCars, F1Cars, IRacingCars, LMUCars } from "@raceiq/cars-catalogue/ui";
 
 type CarsSearch = { compare?: string };
 
 function CarsRoute() {
   const { gameid } = useParams({ from: "/$gameid/cars" });
   const page =
-    gameid === "ac-evo" ? <AcEvoCars /> : gameid === "acc" ? <AccCars /> : gameid === "f125" ? <F1Cars /> : gameid === "iracing" ? <IRacingCars /> : gameid === "lmu" ? <LMUCars /> : <CarsPage />;
+    gameid === "ac-evo" ? <AcEvoCars /> : gameid === "acc" ? <AccCars /> : gameid === "f125" ? <F1Cars /> : gameid === "iracing" ? <IRacingCars /> : gameid === "lmu" ? <LMUCars /> : gameid === "ams2" ? <IRacingCars gameId="ams2" /> : <CarsPage />;
   return page;
 }
 

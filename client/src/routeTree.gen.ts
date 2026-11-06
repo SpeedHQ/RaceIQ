@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GameidRouteImport } from './routes/$gameid'
 import { Route as AcEvoRouteImport } from './routes/ac-evo'
 import { Route as AccRouteImport } from './routes/acc'
+import { Route as Ams2RouteImport } from './routes/ams2'
 import { Route as DevRouteImport } from './routes/dev'
 import { Route as F125RouteImport } from './routes/f125'
 import { Route as Fm23RouteImport } from './routes/fm23'
@@ -34,6 +35,7 @@ import { Route as AcEvoIndexRouteImport } from './routes/ac-evo/index'
 import { Route as AcEvoSetupsRouteImport } from './routes/ac-evo/setups'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
 import { Route as AccSetupsRouteImport } from './routes/acc/setups'
+import { Route as Ams2IndexRouteImport } from './routes/ams2/index'
 import { Route as DevE2eRouteImport } from './routes/dev/e2e'
 import { Route as DevImportRouteImport } from './routes/dev/import'
 import { Route as DevSpeechRouteImport } from './routes/dev/speech'
@@ -45,6 +47,7 @@ import { Route as F125TunesRouteImport } from './routes/f125/tunes'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
+import { Route as LiveIndexRouteImport } from './routes/live.index'
 import { Route as LivePitRouteImport } from './routes/live.pit'
 import { Route as LmuIndexRouteImport } from './routes/lmu/index'
 import { Route as PortableIndexRouteImport } from './routes/portable.index'
@@ -97,6 +100,11 @@ const AcEvoRoute = AcEvoRouteImport.update({
 const AccRoute = AccRouteImport.update({
   id: '/acc',
   path: '/acc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Ams2Route = Ams2RouteImport.update({
+  id: '/ams2',
+  path: '/ams2',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevRoute = DevRouteImport.update({
@@ -204,6 +212,11 @@ const AccSetupsRoute = AccSetupsRouteImport.update({
   path: '/setups',
   getParentRoute: () => AccRoute,
 } as any)
+const Ams2IndexRoute = Ams2IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => Ams2Route,
+} as any)
 const DevE2eRoute = DevE2eRouteImport.update({
   id: '/e2e',
   path: '/e2e',
@@ -258,6 +271,11 @@ const IracingIndexRoute = IracingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => IracingRoute,
+} as any)
+const LiveIndexRoute = LiveIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LiveRoute,
 } as any)
 const LivePitRoute = LivePitRouteImport.update({
   id: '/pit',
@@ -435,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
+  '/ams2': typeof Ams2RouteWithChildren
   '/dev': typeof DevRouteWithChildren
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
@@ -467,9 +486,11 @@ export interface FileRoutesByFullPath {
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
+  '/ams2/': typeof Ams2IndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/live/': typeof LiveIndexRoute
   '/lmu/': typeof LmuIndexRoute
   '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
@@ -505,7 +526,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
   '/dev': typeof DevRouteWithChildren
-  '/live': typeof LiveRouteWithChildren
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/overlay': typeof OverlayRoute
@@ -524,9 +544,11 @@ export interface FileRoutesByTo {
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo': typeof AcEvoIndexRoute
   '/acc': typeof AccIndexRoute
+  '/ams2': typeof Ams2IndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/iracing': typeof IracingIndexRoute
+  '/live': typeof LiveIndexRoute
   '/lmu': typeof LmuIndexRoute
   '/portable': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
@@ -564,6 +586,7 @@ export interface FileRoutesById {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
+  '/ams2': typeof Ams2RouteWithChildren
   '/dev': typeof DevRouteWithChildren
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
@@ -596,9 +619,11 @@ export interface FileRoutesById {
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
+  '/ams2/': typeof Ams2IndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/live/': typeof LiveIndexRoute
   '/lmu/': typeof LmuIndexRoute
   '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
@@ -637,6 +662,7 @@ export interface FileRouteTypes {
     | '/$gameid'
     | '/ac-evo'
     | '/acc'
+    | '/ams2'
     | '/dev'
     | '/f125'
     | '/fm23'
@@ -669,9 +695,11 @@ export interface FileRouteTypes {
     | '/portable/combo-2'
     | '/ac-evo/'
     | '/acc/'
+    | '/ams2/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/live/'
     | '/lmu/'
     | '/portable/'
     | '/$gameid/experiments/$experimentId'
@@ -707,7 +735,6 @@ export interface FileRouteTypes {
     | '/'
     | '/$gameid'
     | '/dev'
-    | '/live'
     | '/login'
     | '/onboarding'
     | '/overlay'
@@ -726,9 +753,11 @@ export interface FileRouteTypes {
     | '/portable/combo-2'
     | '/ac-evo'
     | '/acc'
+    | '/ams2'
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/live'
     | '/lmu'
     | '/portable'
     | '/$gameid/experiments/$experimentId'
@@ -765,6 +794,7 @@ export interface FileRouteTypes {
     | '/$gameid'
     | '/ac-evo'
     | '/acc'
+    | '/ams2'
     | '/dev'
     | '/f125'
     | '/fm23'
@@ -797,9 +827,11 @@ export interface FileRouteTypes {
     | '/portable/combo-2'
     | '/ac-evo/'
     | '/acc/'
+    | '/ams2/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/live/'
     | '/lmu/'
     | '/portable/'
     | '/$gameid/experiments/$experimentId'
@@ -837,6 +869,7 @@ export interface RootRouteChildren {
   GameidRoute: typeof GameidRouteWithChildren
   AcEvoRoute: typeof AcEvoRouteWithChildren
   AccRoute: typeof AccRouteWithChildren
+  Ams2Route: typeof Ams2RouteWithChildren
   DevRoute: typeof DevRouteWithChildren
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
@@ -879,6 +912,13 @@ declare module '@tanstack/react-router' {
       path: '/acc'
       fullPath: '/acc'
       preLoaderRoute: typeof AccRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ams2': {
+      id: '/ams2'
+      path: '/ams2'
+      fullPath: '/ams2'
+      preLoaderRoute: typeof Ams2RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dev': {
@@ -1028,6 +1068,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsRouteImport
       parentRoute: typeof AccRoute
     }
+    '/ams2/': {
+      id: '/ams2/'
+      path: '/'
+      fullPath: '/ams2/'
+      preLoaderRoute: typeof Ams2IndexRouteImport
+      parentRoute: typeof Ams2Route
+    }
     '/dev/e2e': {
       id: '/dev/e2e'
       path: '/e2e'
@@ -1104,6 +1151,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/iracing/'
       preLoaderRoute: typeof IracingIndexRouteImport
       parentRoute: typeof IracingRoute
+    }
+    '/live/': {
+      id: '/live/'
+      path: '/'
+      fullPath: '/live/'
+      preLoaderRoute: typeof LiveIndexRouteImport
+      parentRoute: typeof LiveRoute
     }
     '/live/pit': {
       id: '/live/pit'
@@ -1475,6 +1529,16 @@ const AccRouteChildren: AccRouteChildren = {
 
 const AccRouteWithChildren = AccRoute._addFileChildren(AccRouteChildren)
 
+interface Ams2RouteChildren {
+  Ams2IndexRoute: typeof Ams2IndexRoute
+}
+
+const Ams2RouteChildren: Ams2RouteChildren = {
+  Ams2IndexRoute: Ams2IndexRoute,
+}
+
+const Ams2RouteWithChildren = Ams2Route._addFileChildren(Ams2RouteChildren)
+
 interface DevSpeechRouteChildren {
   DevSpeechEngineerReplayRoute: typeof DevSpeechEngineerReplayRoute
   DevSpeechRaceEngineerRoute: typeof DevSpeechRaceEngineerRoute
@@ -1592,10 +1656,12 @@ const IracingRouteWithChildren =
 
 interface LiveRouteChildren {
   LivePitRoute: typeof LivePitRoute
+  LiveIndexRoute: typeof LiveIndexRoute
 }
 
 const LiveRouteChildren: LiveRouteChildren = {
   LivePitRoute: LivePitRoute,
+  LiveIndexRoute: LiveIndexRoute,
 }
 
 const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)
@@ -1615,6 +1681,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameidRoute: GameidRouteWithChildren,
   AcEvoRoute: AcEvoRouteWithChildren,
   AccRoute: AccRouteWithChildren,
+  Ams2Route: Ams2RouteWithChildren,
   DevRoute: DevRouteWithChildren,
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,

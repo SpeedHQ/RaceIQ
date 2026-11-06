@@ -9,15 +9,19 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | `fresh-install` | `fresh-install/**/*.spec.ts` | Fresh compiled or dev app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
+| `lap-replay` | `packages/lap-replay/test/e2e/**/*.spec.ts`, excluding native GPU specs | Seeded app |
+| `lap-replay-webgpu` | Package-owned native Spectate camera and transition specs | Seeded app with a hardware WebGPU adapter |
 | `record-demo` | `recording/demo.spec.ts` | Seeded replay with GPU launch flags |
 
-`record-demo` waits for `seeded-routes`, `seeded-e2e`, and `seeded-imports` to finish before frame capture because all share seeded server state.
+`record-demo` waits for the seeded route/import suites and all feature projects to finish before frame capture because they share seeded server state.
 
 From the repository root, `bun run record:demo` builds the app and selects this suite's configuration and seeded server. For a short capture after building, run `E2E_SERVER_MODE=compiled PW_SERVER_SET=seeded DEMO_MAX_FRAMES=3 bunx playwright test --config=playwright/playwright.config.ts --project=seeded-setup --project=record-demo --no-deps --workers=1` from the root. This runs migration setup before capture without the ordinary seeded suites; the one-worker limit preserves their order.
 
 Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive captures use `responsive-screenshots.config.ts`. Both live outside E2E projects. PR CI runs responsive captures only for base-vs-PR visual comparison.
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
+
+The `lap-replay-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. It selects ANGLE Metal on macOS. On Windows it uses ANGLE D3D11 and the full Chromium channel, which bundles the DXIL shader libraries missing from the headless-shell distribution. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 
@@ -56,6 +60,8 @@ E2E_SERVER_MODE=dev PW_SERVER_SET=fresh bunx playwright test tests/fresh-install
 
 `bun run test:upgrade` builds an Ubuntu Playwright image and runs one smoke scenario inside Docker, with a twenty-minute test ceiling. It checks out the last published stable release tag, installs dependencies, and runs that version's `db:seed` with its default all-game fixtures: FM2023, F1 2025, ACC, AC Evo, iRacing, and LMU. Seeding has a ten-minute deadline; capture conversion and recording organization each allow up to five minutes for the full dataset. Playwright starts the released dev app and completes outstanding onboarding and capture-conversion dialogs before updating. It then checks out freshly fetched `origin/main`, reinstalls dependencies, and starts the new code against the same user-data directory. The caller's working tree and application data are never switched, reset, or mounted.
 
+The released checkout uses the exact Bun version declared in its `packageManager` field for its frozen install, seed, and application processes. The main checkout uses the launcher image's Bun version.
+
 Docker and Bun are required on the launcher host. `RACEIQ_UPGRADE_PREVIOUS_TAG` optionally pins the baseline; otherwise GitHub's latest published release is used. `RACEIQ_UPGRADE_REPOSITORY` optionally supplies an HTTPS clone URL; otherwise the current repository's origin is used, with GitHub SSH origins normalized to HTTPS. `GH_REPO` selects release metadata. `GH_TOKEN` or `GITHUB_TOKEN` authenticates GitHub; the launcher can reuse the host's `gh auth token` without mounting host credentials. Only diagnostics are bind-mounted out, to `RACEIQ_UPGRADE_ARTIFACTS_DIR` (default `playwright/test-results/source-upgrade`).
 
 The running container is named `raceiq-upgrade-smoke-<launcher-pid>` (printed by the launcher). Open its **Logs** tab in OrbStack, or use `docker logs -f <container-name>`, to follow checkout commands, resolved release/main SHAs, dependency installation, seed/database migrations, backend/client output, and `START`/`DONE` markers for browser-driven setup, conversion, organization, and data-preservation checks. Output is also saved in `docker-run.log` and timestamped source logs in the artifact directory. The container is removed when the run exits; use those files for completed-run diagnostics.
@@ -79,11 +85,13 @@ Track catalog checks cover the Debug tab in dev mode and assert its absence in c
 
 Launchers create configured E2E data directories and delete only their SQLite database files at startup. They preserve non-database fixture files and do not perform teardown cleanup. Seeded tests share one isolated server per shard; tests that mutate notes, imports, sessions, or settings must restore their own state. CI containers are disposable.
 
-Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for all five seeded games, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db` and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
+Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for every configured seeded game, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db`, chat memory, and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
 
 Linux compiled E2E jobs reuse the upstream Linux `raceiq-dist` artifact instead of rebuilding the client and server in every shard. Other platforms build their own binary; callers without an artifact still build locally. CI runs Bun with `BUN_OPTIONS=--smol` so replay allocations are collected sooner within the runner's memory budget.
 
 Seeded shards download that artifact and set `PW_SEEDED_DATABASE` to its database path, resolved relative to the repository root. Both launchers reset their private database, copy the artifact's database and referenced captures into the shard data directory, rebase capture paths, and skip fixture imports. `bun run test` prepares one local snapshot and reuses it for both seeded server sets; standalone local Playwright runs without this override still seed normally. Import and conversion tests continue exercising real imports. Generated `playwright/test-data-*` directories are ignored by Git.
+
+Capture restoration includes manifest-referenced chunks, opponent companions, and capture archives. Session and live-capture database references are rebased to each shard's private directory. Source assets and destination directories must remain inside their respective roots after symlink resolution. The local all-tests runner creates a unique temporary seed producer directory and removes it after the suites finish.
 
 Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
 

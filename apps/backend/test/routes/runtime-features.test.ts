@@ -6,6 +6,7 @@ describe("runtime feature route", () => {
     const features = {
       f1Experiments: true,
       iracingAdapter: false,
+      ams2Adapter: false,
       liveSpotterEngineer: true,
       liveSpotterEngineerGameIds: ["acc"] as const,
     };

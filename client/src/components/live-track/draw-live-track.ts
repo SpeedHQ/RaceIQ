@@ -2,8 +2,8 @@ import { m } from "@/paraglide/messages";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { MutableRefObject, RefObject } from "react";
 import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-sample";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 
 import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 export interface Point {

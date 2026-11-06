@@ -1,20 +1,23 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
+import type { Stats } from "node:fs";
 import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { clearSessionCaptureCache } from "./source-loader";
 import { getSessionCaptureSourceRevision } from "../db/session-queries";
 import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
-import { db } from "../db/index";
+import { db, readDb } from "../db/index";
+import { withDatabaseWrite } from "../db/write-coordination";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { loadSettings, saveSettings } from "../runtime/config/settings";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { reserveRecordingStorageOperation } from "./storage-activity";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { enqueueLmuOpponentIndex, invalidateLmuOpponentIndexUnderFence } from "./lmu-opponent-index-runtime";
 import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
@@ -215,7 +218,7 @@ async function enumerate(root: string, excluded?: string): Promise<string[]> {
       const path = resolve(directory, name);
       if (excluded && (path === excluded || isContained(excluded, path))) continue;
       const info = await lstat(path);
-      if (info.isDirectory()) await visit(path);
+      if (info.isDirectory() && !name.endsWith(".opponent-index")) await visit(path);
       else if (info.isFile() && (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))) found.push(path);
     }
   }
@@ -238,7 +241,17 @@ async function hasSymlinkDirectory(root: string, path: string): Promise<boolean>
   return false;
 }
 async function updateReferences(references: Journal["references"], pathKey: "oldPath" | "newPath"): Promise<void> {
-  await db.transaction(async (tx) => {
+  const sourceMetadata = new Map<string, Stats | null>();
+  for (const reference of references) {
+    if (reference.table !== "sessionCaptureSplitJobs" || reference.field !== "sourcePath") continue;
+    const sourcePath = reference[pathKey];
+    if (sourceMetadata.has(sourcePath)) continue;
+    sourceMetadata.set(sourcePath, await stat(sourcePath).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      return null;
+    }));
+  }
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     for (const rawReference of references) {
       const reference = { ...rawReference, table: rawReference.table ?? "sessions", field: rawReference.field ?? "rawFile" };
       if (reference.table === "sessions") {
@@ -248,10 +261,7 @@ async function updateReferences(references: Journal["references"], pathKey: "old
           .from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).get();
         if (reference.field === "sourcePath" && job?.status === "queued") {
           const sourcePath = reference[pathKey];
-          const source = await stat(sourcePath).catch((error) => {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-            return null;
-          });
+          const source = sourceMetadata.get(sourcePath);
           if (!source) {
             await tx.update(sessionCaptureSplitJobs).set({ sourcePath })
               .where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
@@ -280,10 +290,10 @@ async function updateReferences(references: Journal["references"], pathKey: "old
         await tx.update(liveCaptures).set({ [reference.field]: reference[pathKey] }).where(eq(liveCaptures.sessionId, reference.sessionId)).run();
       }
     }
-  });
+  }));
   clearSessionCaptureCache();
   for (const reference of references) {
-    const rows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all();
+    const rows = await readDb.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all();
     for (const row of rows) cacheDelete(row.id);
   }
 }
@@ -293,7 +303,32 @@ async function removeEmptySourceDirs(root: string, entries: Entry[]): Promise<vo
     try { await rmdir(dir); } catch (error) { const code = (error as NodeJS.ErrnoException).code; if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error; }
   }
 }
+async function invalidateRelocatedOpponentIndexes(journal: Journal): Promise<string[]> {
+  const references = journal.references.filter((reference) =>
+    (reference.table ?? "sessions") === "sessions" &&
+    ["rawFile", "captureManifestFile"].includes(reference.field ?? "rawFile"),
+  );
+  const sessionIds = [...new Set(references.map((reference) => reference.sessionId))];
+  if (!sessionIds.length) return [];
+  const rows = await readDb.select({ id: sessions.id, gameId: sessions.gameId })
+    .from(sessions).where(inArray(sessions.id, sessionIds)).all();
+  const lmuSessions = new Set(rows.filter((row) => row.gameId === "lmu").map((row) => row.id));
+  const paths = references.filter((reference) => lmuSessions.has(reference.sessionId))
+    .map(({ oldPath, newPath }) => ({ oldPath: resolve(oldPath), newPath: resolve(newPath) }));
+  const oldSources = new Set(paths.map(({ oldPath }) => oldPath));
+  const newSources = new Set(paths.map(({ newPath }) => newPath));
+  for (const sourcePath of oldSources) {
+    await invalidateLmuOpponentIndexUnderFence(sourcePath);
+    await rm(resolve(`${sourcePath}.opponent-index`), { recursive: true, force: true });
+  }
+  for (const sourcePath of newSources) {
+    if (!oldSources.has(sourcePath)) await invalidateLmuOpponentIndexUnderFence(sourcePath);
+  }
+  return [...newSources];
+}
+
 async function cleanupSources(journal: Journal, removeSource: typeof unlink = unlink): Promise<void> {
+  const relocatedOpponentSources = await invalidateRelocatedOpponentIndexes(journal);
   const residual: string[] = [];
   for (const entry of journal.entries) {
     try {
@@ -306,6 +341,7 @@ async function cleanupSources(journal: Journal, removeSource: typeof unlink = un
   }
   if (residual.length) throw Object.assign(new Error(`Unable to remove source recordings: ${residual.join(", ")}`), { code: "SOURCE_CLEANUP_FAILED" });
   await removeEmptySourceDirs(journal.oldDirectory, journal.entries);
+  for (const sourcePath of relocatedOpponentSources) enqueueLmuOpponentIndex(sourcePath);
   await rm(journalPath, { force: true });
 }
 async function cleanupOwnedTemporary(entry: Entry, operationId: string, root: string): Promise<void> {
@@ -327,14 +363,14 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   const oldDirectory = await realpath(rawOld).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(rawOld) : Promise.reject(error));
   const newDirectory = await validateDirectory(directory);
   const lexicalOldDirectory = resolve(rawOld);
-  const liveCapture = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+  const liveCapture = await readDb.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
     .where(sql`${liveCaptures.status} IN ('recording', 'finalizing', 'recovering')`).limit(1).get();
   if (liveCapture) throw Object.assign(new Error("Live capture storage is active or recovering"), { code: "RECORDING_ACTIVE" });
   if (oldDirectory === newDirectory) return;
   const [rows, jobs, captures] = await Promise.all([
-    db.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all(),
-    db.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath }).from(sessionCaptureSplitJobs).all(),
-    db.select({ sessionId: liveCaptures.sessionId, sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath }).from(liveCaptures).where(eq(liveCaptures.status, "sealed")).all(),
+    readDb.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all(),
+    readDb.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath }).from(sessionCaptureSplitJobs).all(),
+    readDb.select({ sessionId: liveCaptures.sessionId, sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath }).from(liveCaptures).where(eq(liveCaptures.status, "sealed")).all(),
   ]);
   const files = new Set(await enumerate(oldDirectory, newDirectory)); const references: Journal["references"] = [];
   const relocateReference = async (sessionId: number, table: "sessions" | "sessionCaptureSplitJobs" | "liveCaptures", field: ReferenceField, value: string | null) => {
@@ -350,12 +386,23 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       if (!isContained(oldDirectory, canonicalSource) || isContained(newDirectory, canonicalSource)) return;
       references.push({ sessionId, table, field, oldPath: value, newPath: resolve(newDirectory, relative(oldDirectory, canonicalSource)) });
       if (table === "sessions" && field === "captureManifestFile") {
-        const manifest = JSON.parse(await readFile(canonicalSource, "utf8")) as { archiveFile?: unknown; chunks?: Array<{ path?: unknown }> };
+        const manifest = JSON.parse(await readFile(canonicalSource, "utf8")) as {
+          archiveFile?: unknown;
+          opponentCompanion?: { file?: unknown };
+          chunks?: Array<{ path?: unknown }>;
+        };
         if (typeof manifest.archiveFile === "string") {
           const archivePath = resolve(dirname(canonicalSource), manifest.archiveFile);
           if (isContained(oldDirectory, archivePath) && !await hasSymlinkDirectory(oldDirectory, archivePath)) {
             try { if ((await lstat(archivePath)).isFile()) files.add(await realpath(archivePath)); }
             catch (archiveError) { if ((archiveError as NodeJS.ErrnoException).code !== "ENOENT") throw archiveError; }
+          }
+        }
+        if (typeof manifest.opponentCompanion?.file === "string" && basename(manifest.opponentCompanion.file) === manifest.opponentCompanion.file) {
+          const companionPath = resolve(dirname(canonicalSource), manifest.opponentCompanion.file);
+          if (isContained(oldDirectory, companionPath) && !await hasSymlinkDirectory(oldDirectory, companionPath)) {
+            try { if ((await lstat(companionPath)).isFile()) files.add(await realpath(companionPath)); }
+            catch (companionError) { if ((companionError as NodeJS.ErrnoException).code !== "ENOENT") throw companionError; }
           }
         }
         for (const chunk of manifest.chunks ?? []) {
@@ -496,7 +543,7 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
         const digest = await hashFile(entry.destination);
         if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Committed recording verification failed");
       }
-      await cleanupSources(pending, hooks.unlink);
+      await withSessionCaptureMaintenanceLock(() => cleanupSources(pending, hooks.unlink));
       status = { operationId: pending.operationId, state: "complete", phase: null, completedFiles: pending.entries.length, totalFiles: pending.entries.length, directory: current, code: null, error: null };
       release();
       active = false;

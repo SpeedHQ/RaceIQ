@@ -1,14 +1,13 @@
-import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
-import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { decodeLmuSparseFrame, isLmuSparseFrame, isLmuSparseSourceFrame } from "./lmu-sparse";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
+import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
 import { ACC_BROADCAST_CAPTURE_MAGIC, decodeAccBroadcastCaptureRecord, type AccBroadcastCaptureBatch } from "../acc/broadcast-capture";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
-  return frame.length === LMU_SOURCE_FRAME_V2_SIZE && frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+  return isLmuSparseSourceFrame(frame);
 }
 export const META_FRAME_MAGIC = 0xffffffff;
 const META_FRAME_PAYLOAD_BYTES = 4;
@@ -20,8 +19,8 @@ export const SEGMENT_CONTEXT_VERSION = 1;
 export const SEGMENT_CONTEXT_END_MAGIC = 0x454e4353;
 export const PARSER_BOOTSTRAP_MAGIC = 0x54425043;
 export const PARSER_BOOTSTRAP_VERSION = 1;
-export type ParserBootstrapGameId = "acc" | "ac-evo" | "f1-2025" | "fm-2023" | "iracing" | "lmu";
-const CAPTURE_GAME_IDS = ["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu"] as const;
+export type ParserBootstrapGameId = "acc" | "ac-evo" | "f1-2025" | "fm-2023" | "iracing" | "lmu" | "ams2";
+const CAPTURE_GAME_IDS = ["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu", "ams2"] as const;
 export const SPARSE_CAPTURE_FORMAT_MAGIC = 0x31505352;
 export const SPARSE_CAPTURE_FORMAT_VERSION = 1;
 export const SESSION_SEGMENT_BOUNDARY = Symbol("session-segment-boundary");

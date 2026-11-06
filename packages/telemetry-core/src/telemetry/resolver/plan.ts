@@ -13,11 +13,11 @@ export type Mapping = TelemetryVariableDefinition["games"][GameId];
 export type SourceFreshness = Exclude<Mapping, { kind: "unavailable" }>["freshness"];
 export interface SourceReading {
   value: unknown;
-  observation: SourceObservation;
+  observation?: SourceObservation;
   sourceChannel: string;
 }
 export interface ReaderContext {
-  observe(sourceChannel: string, value: unknown, freshness: SourceFreshness): SourceObservation;
+  observe(sourceChannel: string, value: unknown, freshness: SourceFreshness): SourceObservation | undefined;
 }
 export type Reader = (frame: NativeObject, context: ReaderContext) => SourceReading | undefined;
 

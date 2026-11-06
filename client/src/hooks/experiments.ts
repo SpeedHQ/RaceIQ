@@ -7,6 +7,7 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 
 import { queryKeys } from "./query-keys";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
 export interface Experiment {
   id: number;
   seq: number;
@@ -171,20 +172,6 @@ export function useExperimentArmComparison(sessionId: number | null | undefined,
   });
 }
 
-export interface CornerLineSpread {
-  corner: string;
-  lateralSpreadM: number;
-  lowTrust: boolean;
-}
-export interface LineSpreadTrace {
-  fracs: number[];
-  spreadM: number[];
-  perCorner: CornerLineSpread[];
-  lowTrust: boolean;
-  consistencyScore: number;
-  overallSpreadM: number;
-  lapCount: number;
-}
 
 export function useLineSpread(sessionId: number | null | undefined) {
   return useQuery({

@@ -88,7 +88,7 @@ export function classifyLapCategory(
     const sessionType = first.gameId === "ac-evo" ? first.acc?.acEvo?.sessionType : first.acc?.sessionType;
     const knownNonRace = sessionType !== undefined && sessionType !== "unknown" && sessionType !== "race";
     if (knownNonRace && completeAccSignals) return "pace";
-  } else if (first.gameId === "fm-2023" || first.gameId === "iracing" || first.gameId === "lmu") {
+  } else if (first.gameId === "fm-2023" || first.gameId === "iracing" || first.gameId === "lmu" || first.gameId === "ams2") {
     // These sources do not provide the complete start/caution signals required above.
     // A quality-valid lap without detected non-pace evidence remains ordinary pace.
     return "pace";

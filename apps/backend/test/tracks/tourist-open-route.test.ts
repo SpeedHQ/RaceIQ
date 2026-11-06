@@ -6,9 +6,9 @@ import { registerAcEvoTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { deleteRecordedOutlineById, getRecordedOutlineById, recordOpenLapTraceById, recordLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { initServerGameAdapters } from "../../src/games/init";
-import { trackOutlineRoutes } from "../../src/routes/tracks/outline-routes";
-import { trackGeometryRoutes } from "../../src/routes/tracks/geometry-routes";
-import { trackSectorBoundaryRoutes, trackSegmentRoutes } from "../../src/routes/tracks/segments-routes";
+import { trackOutlineRoutes } from "@raceiq/tracks-catalogue/server"
+import { trackGeometryRoutes } from "@raceiq/tracks-catalogue/server"
+import { trackSectorBoundaryRoutes, trackSegmentRoutes } from "@raceiq/tracks-catalogue/server"
 
 initGameAdapters();
 initServerGameAdapters();

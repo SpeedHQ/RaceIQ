@@ -9,10 +9,16 @@ export type TelemetryTimestamp =
   | { readonly domain: "session"; readonly milliseconds: number }
   | { readonly domain: "monotonic"; readonly nanoseconds: bigint };
 
+export type SourceTimestampReader<NativeFrame = TelemetryPacket> = (
+  native: NativeFrame,
+  sourceChannel: string,
+) => TelemetryTimestamp | null | undefined;
+
 export interface SourceObservation {
   readonly timestamp: TelemetryTimestamp;
   readonly updateSequence: bigint;
 }
+
 
 export type FreshnessState = "fresh" | "stale" | "unknown";
 export type ResolutionState = "ok" | "missing" | "stale" | "invalid" | "not-applicable" | "error";
@@ -52,6 +58,9 @@ export interface ResolvedValue<T> {
   limitations: readonly string[];
 }
 
+/** Replay/display fields without per-sample provenance and confidence allocations. */
+export type ResolvedTelemetrySample = Pick<ResolvedValue<unknown>, "semanticId" | "value" | "unit" | "state" | "freshness">;
+
 export interface RequestedSemantic {
   semanticId: string;
   required?: boolean;
@@ -77,6 +86,7 @@ export interface TelemetryFrameView<NativeFrame = TelemetryPacket> {
   resolveValue<T>(slot: SemanticSlot): ResolvedValue<T>;
   resolveNumber(slot: SemanticSlot): ResolvedValue<number>;
   resolveBoolean(slot: SemanticSlot): ResolvedValue<boolean>;
+  resolveSample(slot: SemanticSlot): ResolvedTelemetrySample;
   resolveMany(slots: readonly SemanticSlot[], target?: ResolvedValue<unknown>[]): readonly ResolvedValue<unknown>[];
 }
 
@@ -89,5 +99,5 @@ export interface CompiledTelemetryResolver<NativeFrame = TelemetryPacket> {
   readonly resolverVersion: string;
   readonly derivationVersion: string;
   slot(semanticId: string): SemanticSlot;
-  createFrameView(native: NativeFrame, observation: SourceObservation, reuse?: TelemetryFrameView<NativeFrame>): TelemetryFrameView<NativeFrame>;
+  createFrameView(native: NativeFrame, observation: SourceObservation, reuse?: TelemetryFrameView<NativeFrame>, sourceTimestampReader?: SourceTimestampReader<NativeFrame>): TelemetryFrameView<NativeFrame>;
 }

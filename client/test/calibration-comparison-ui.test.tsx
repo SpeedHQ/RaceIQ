@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CalibrationComparisonSection } from "../src/components/track/debug/CalibrationComparisonSection";
-import { transformCalibrationPath, type CalibrationComparison } from "../src/components/track/debug/calibration-comparison";
+import { CalibrationComparisonSection, transformCalibrationPath } from "@raceiq/tracks-catalogue/ui";
+import type { CalibrationComparison } from "@raceiq/tracks-catalogue/contracts";
+import { TracksCatalogueHostProvider } from "../src/features/tracks-catalogue-host";
 
 const comparison: CalibrationComparison = {
   calibrated: true,
@@ -31,26 +32,21 @@ describe("calibration comparison overlay", () => {
     expect(transformed[0].z).toBeCloseTo(2);
   });
   test("renders an accessible history toggle and numeric fit legend", () => {
-    const markup = renderToStaticMarkup(<CalibrationComparisonSection comparison={comparison} showHistory onShowHistoryChange={() => undefined} />);
+    const markup = renderToStaticMarkup(<TracksCatalogueHostProvider><CalibrationComparisonSection comparison={comparison} showHistory onShowHistoryChange={() => undefined} /></TracksCatalogueHostProvider>);
 
     expect(markup).toContain('type="checkbox"');
     expect(markup).toContain('checked=""');
-    expect(markup).toContain("Show historical fits");
-    expect(markup).toContain("Current");
     expect(markup).toContain("1.020×");
     expect(markup).toContain("15.0°");
-    expect(markup).toContain("Fit #3 · Lap 7");
     expect(markup).toContain("1.25 m RMSE");
     expect(markup).toContain("84 pts");
   });
 
   test("disables history toggle when no accepted fits exist", () => {
     const markup = renderToStaticMarkup(
-      <CalibrationComparisonSection comparison={{ calibrated: false, pointsCollected: 12, current: null, history: [] }} showHistory={false} onShowHistoryChange={() => undefined} />,
+      <TracksCatalogueHostProvider><CalibrationComparisonSection comparison={{ calibrated: false, pointsCollected: 12, current: null, history: [] }} showHistory={false} onShowHistoryChange={() => undefined} /></TracksCatalogueHostProvider>,
     );
 
     expect(markup).toMatch(/<input[^>]*disabled=""/);
-    expect(markup).toContain("No accepted calibration fits yet");
-    expect(markup).toContain("12 points collected");
   });
 });

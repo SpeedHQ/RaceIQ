@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { client } from "@/lib/rpc";
 import { rpcJson } from "@/lib/rpc-json";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
-import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
+import { SessionTypeBadge } from "@/components/SessionTypeBadge";
 import type { TuneRow } from "./types";
 
 // Resolve at render time — calling m.*() at module scope would freeze the locale.

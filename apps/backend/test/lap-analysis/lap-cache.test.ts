@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterAll } from "bun:test";
-import { _telemetryCacheForTest as cache } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { _telemetryCacheForTest as cache, alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function stub(id: number, count = 100): TelemetryPacket[] {
@@ -162,6 +162,20 @@ describe("lap telemetry cache (byte-budget LRU)", () => {
     expect(cache.comparisonGet(2, 3)).toBeUndefined();
     expect(cache.comparisonGet(3, 4)).toBe("c");
   });
+  test("retains reusable lap-set alignment and its byte budget when caching the base response", () => {
+    const ids = [3, 1];
+    const index = { referenceLapId: 3, nominalSpanMeters: 2, distancesByLapId: new Map([[3, [0, 1, 2]], [1, [0, 2]]]) };
+    lapSetAlignmentIndexCacheSet(ids, index);
+    alignedTelemetryCacheSet(ids, "payload");
+    expect(lapSetAlignmentIndexCacheGet(ids)).toBe(index);
+    expect(alignedTelemetryCacheGet(ids)).toBe("payload");
+    expect(cache.bytesUsed()).toBe(Buffer.byteLength("payload") + 5 * 8);
+    cache.delete(1);
+    expect(lapSetAlignmentIndexCacheGet(ids)).toBeUndefined();
+    expect(alignedTelemetryCacheGet(ids)).toBeUndefined();
+    expect(cache.bytesUsed()).toBe(0);
+  });
+
   test("stores alignment index independently and preserves both fields", () => {
     const index = { distancesA: [0, 1, 2], distancesB: [0, 2], nominalSpan: 2 };
     const body = "body";

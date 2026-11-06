@@ -3,7 +3,7 @@ import "../src/index.css";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 
 // Storybook exercises every registered simulator regardless of release gating.
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
 
 // Match the app shell's dark shadcn mode in the Storybook iframe.
 document.documentElement.classList.add("dark");

@@ -1,5 +1,5 @@
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
-import { severityRangeColor } from "@/lib/colors";
+import { severityRangeColor } from "@raceiq/scene-3d/colors";
 
 export function damageColor(value: number | undefined): string {
   return value === undefined ? "var(--status-unavailable)" : severityRangeColor(value, [1, 30, 60]);

@@ -5,7 +5,7 @@ import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";
 import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../lib/live-telemetry-view";
-import { controlInputPercent } from "../lib/vehicle-dynamics";
+import { controlInputPercent } from "@raceiq/scene-3d/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
@@ -64,6 +64,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
     return {
       tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
       wear: view.tires.wear?.[corner] ?? 0,
+      ...(view.tires.pressurePsi?.[corner] != null ? { pressure: view.tires.pressurePsi[corner] } : {}),
       ...(view.tires.coreTemperatureC?.[corner] != null ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
       ...(view.tires.carcassAverageTemperatureC?.[corner] != null ? { carcassTempC: view.tires.carcassAverageTemperatureC[corner] } : {}),
       ...(hasSurfaceBands ? { temperatureBandsC: { inner: surface.inner, middle: surface.middle, outer: surface.outer } } : {}),

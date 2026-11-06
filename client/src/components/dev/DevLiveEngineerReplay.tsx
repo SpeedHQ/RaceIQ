@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, CircleStop, Clock3, Gauge, He
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getAllGames } from "@raceiq/shared/games/registry";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type {
   LiveEngineerAvailabilityTransitionV1,
   LiveEngineerCalloutSystemV1,
@@ -18,9 +19,9 @@ import { useLiveEngineerReplayAudio } from "../../hooks/useLiveEngineerReplayAud
 import { useLiveEngineerReplayPlayback, type ReplayFrameRange } from "../../hooks/useLiveEngineerReplayPlayback";
 import { ReplayAudioTimeline } from "./ReplayAudioTimeline";
 import { AnalyseTrackMap } from "../analyse/AnalyseTrackMap";
-import { AnalyseDataPanel } from "../analyse/AnalyseDataPanel";
+import { AnalyseDataContent } from "../analyse/AnalyseDataPanel";
 import { useUnits } from "../../hooks/useUnits";
-import type { Point, SemanticAnalysisFrame } from "../analyse/track-map/types";
+import type { Point } from "../analyse/track-map/types";
 import { F1CarDamageSection } from "../f1/F1CarDamageSection";
 import { Badge, type BadgeProps } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -606,7 +607,7 @@ export function DevLiveEngineerReplay() {
               </Tabs>
             </Card>
               <div className="rounded border border-app-border bg-app-surface/50">
-                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={playback.frame} packetNumber={playback.frame.sourceSequence} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} detectorCoverage={[]} onJumpToFrame={seekTo} />}
+                {playback.frame && <AnalyseDataContent currentFrame={playback.frame} packetNumber={playback.frame.sourceSequence} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} />}
               {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
               {playback.frame && gameId !== "acc" && <OpponentDataPanel frame={playback.frame} gameId={gameId} />}
               </div>

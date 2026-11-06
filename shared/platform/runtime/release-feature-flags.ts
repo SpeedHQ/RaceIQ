@@ -5,6 +5,7 @@ export interface ReleaseFeatureFlags {
   readonly iracingAdapter: boolean;
   readonly liveSpotterEngineer: boolean;
   readonly liveSpotterEngineerGameIds: readonly GameId[];
+  readonly ams2Adapter: boolean;
 }
 
 export interface ReleaseFeatureFlagEnvironment {
@@ -12,6 +13,7 @@ export interface ReleaseFeatureFlagEnvironment {
   readonly RACEIQ_FEATURE_IRACING_ADAPTER: string | undefined;
   readonly RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER?: string | undefined;
   readonly RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS?: string | undefined;
+  readonly RACEIQ_FEATURE_AMS2_ADAPTER?: string | undefined;
 }
 
 function booleanFlag(name: keyof ReleaseFeatureFlagEnvironment, value: string | undefined): boolean {
@@ -40,6 +42,7 @@ export function releaseFeatureFlags(env: ReleaseFeatureFlagEnvironment): Release
     iracingAdapter: booleanFlag("RACEIQ_FEATURE_IRACING_ADAPTER", env.RACEIQ_FEATURE_IRACING_ADAPTER),
     liveSpotterEngineer: booleanFlag("RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER", env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER),
     liveSpotterEngineerGameIds: gameIdsFlag(env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS),
+    ams2Adapter: booleanFlag("RACEIQ_FEATURE_AMS2_ADAPTER", env.RACEIQ_FEATURE_AMS2_ADAPTER),
   };
 }
 

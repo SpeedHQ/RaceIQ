@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+import { encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import { TanStackStoreDevtoolsPanel } from "../src/devtools/TanStackStoreDevtoolsPanel";
+import { DevStateContent } from "../src/components/DevStateViewer";
 import { handleWebSocketMessage } from "../src/lib/websocket-messages";
 import { devTelemetryStore, useDevTelemetryStore } from "../src/stores/dev-telemetry";
 import { telemetryStore, useTelemetryStore } from "../src/stores/telemetry";
@@ -20,6 +25,15 @@ const schema = {
 } as const;
 const packet = { gameId: "acc", TimestampMS: 1 } as unknown as TelemetryPacket;
 describe("websocket message router", () => {
+  it("surfaces opponent recording failures without failing player recording", () => {
+    telemetryStore.actions.setOpponentRecordingError(null);
+    telemetryStore.actions.setLiveCaptureLifecycle({ sessionId: 42, gameId: "lmu", captureEpoch: "epoch", phase: "recording" });
+    handleWebSocketMessage({ type: "opponent-recording-failed", error: "Disk unavailable" });
+    expect(telemetryStore.get().opponentRecordingError).toBe("Disk unavailable");
+    expect(telemetryStore.get().liveCaptureError).toBeNull();
+    expect(telemetryStore.get().liveCaptureLifecycles[42]?.phase).toBe("recording");
+    telemetryStore.actions.setOpponentRecordingError(null);
+  });
   it("routes canonical schema/frame to production store", () => {
     telemetryStore.actions.clearTelemetry();
     handleWebSocketMessage(schema);
@@ -31,6 +45,20 @@ describe("websocket message router", () => {
     expect(handleWebSocketMessage({ type: "telemetry-frame", protocolVersion: 1, schemaId: "s", streamId: "x", sessionId: null, sequence: 2, observedAt: { domain: "session", milliseconds: 2 }, receivedAtMs: 2, values: [], context: {} })).toBe(true);
     expect(telemetryStore.get().sectors).toBeNull();
     expect(telemetryStore.get().telemetryFrame?.sequence).toBe(2);
+  });
+  it("routes scoring-only LMU context without synthesizing a telemetry frame", () => {
+    telemetryStore.actions.clearTelemetry();
+    const context = {
+      schemaVersion: 1,
+      key: { sessionKey: "scoring-only", captureSequence: "2", frameTime: { domain: "session", milliseconds: 2000 } },
+      playerVehicleId: null,
+      status: "active",
+      supplemental: [],
+      competitors: [{ vehicleId: 42, incarnation: 0, isPlayer: false, channels: {} }],
+    } as const;
+    expect(handleWebSocketMessage({ type: "lmu-context", lmu: context })).toBe(false);
+    expect(telemetryStore.get().lmuLiveContext?.competitors?.[0]?.vehicleId).toBe(42);
+    expect(telemetryStore.get().telemetryFrame).toBeNull();
   });
   it("keeps current live view when server repeats its schema", () => {
     telemetryStore.actions.clearTelemetry();
@@ -50,6 +78,57 @@ describe("websocket message router", () => {
     handleWebSocketMessage({ type: "dev-telemetry", protocolVersion: 1, packet });
     expect(devTelemetryStore.get().packet).toEqual(packet);
     expect(telemetryStore.get().telemetryFrame).toBeNull();
+  });
+  it("renders LMU developer snapshots without losing bigint observation precision", () => {
+    const sequence = 9_007_199_254_740_993n;
+    const lmuPacket: TelemetryPacket = {
+      ...packet,
+      gameId: "lmu",
+      lmuContext: {
+        schemaVersion: 1,
+        key: { sessionKey: "render-regression", captureSequence: "1", frameTime: { domain: "session", milliseconds: 1000 } },
+        status: "active",
+        playerVehicleId: 42,
+        supplemental: [{
+          semanticId: "lmu.rest.condition.aero",
+          endpoint: "/rest/garage/UIScreen/RepairAndRefuel",
+          method: "GET",
+          sessionKey: "render-regression",
+          vehicleId: 42,
+          applicability: "player-vehicle",
+          acquiredAt: { domain: "wall-clock", milliseconds: 1000 },
+          responseVersion: null,
+          observation: {
+            semanticId: "lmu.rest.condition.aero", value: 0, unit: null,
+            mappingStatus: "direct", state: "ok", freshness: "unknown", confidence: null,
+            confidenceComponents: { semanticFidelity: 1, freshness: null, inputCompleteness: 1 },
+            provenance: {
+              simulator: "lmu", parserId: "lmu-rest", parserVersion: "1", resolverVersion: "1",
+              catalogVersion: "1", catalogHash: "test", observedAt: { domain: "wall-clock", milliseconds: 1000 },
+              sourceObservation: { timestamp: { domain: "wall-clock", milliseconds: 1000 }, updateSequence: sequence },
+            },
+            schemaVersion: "1", limitations: [],
+          },
+        }],
+      },
+    };
+    try {
+      handleWebSocketMessage(JSON.parse(JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet: encodeLmuPacket(lmuPacket) })));
+      expect(devTelemetryStore.get().packet?.lmuContext?.supplemental[0]?.observation.provenance.sourceObservation?.updateSequence).toBe(sequence);
+      const descriptor = { name: "Developer telemetry", store: devTelemetryStore };
+      const panel = renderToStaticMarkup(createElement(TanStackStoreDevtoolsPanel, {
+        telemetry: descriptor, game: descriptor, ui: descriptor, devTelemetry: descriptor,
+      }));
+      const state = renderToStaticMarkup(createElement(DevStateContent, {
+        server: null, stores: { telemetry: null, game: null, ui: null, devTelemetry: devTelemetryStore.get() },
+        paused: false, onTogglePause: () => {},
+      }));
+      expect(panel).toContain(sequence.toString());
+      expect(state).toContain(sequence.toString());
+      expect(devTelemetryStore.get().packet?.lmuContext?.supplemental[0]?.observation.value).toBe(0);
+    } finally {
+      devTelemetryStore.actions.clear();
+    }
   });
   it("does not let dev-state acknowledgments change raw telemetry subscription", () => {
     devTelemetryStore.actions.clear();

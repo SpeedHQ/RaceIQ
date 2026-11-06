@@ -3,7 +3,7 @@
  * telemetry and curated track geometry; persistence lives in metrics-store.ts.
  */
 
-import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
+import { resolveLapAnalysisContext, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
@@ -318,9 +318,7 @@ export function computeLapMetrics(
 ): LapMetrics {
   if (!insights) {
     const processed = processLap(packets, gameId);
-    insights = analyzeLap(processed.packets, gameId, {
-      racingLine: resolveRacingLineReference(gameId, trackId),
-    });
+    insights = analyzeLap(processed.packets, gameId, resolveLapAnalysisContext(gameId, trackId, processed.packets));
     restoreFrameIndices(insights, processed.sourceIndices);
   }
   return {

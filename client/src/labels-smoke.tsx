@@ -1,0 +1,12 @@
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SpectateInputs, createSpectateController } from '@raceiq/lap-replay/ui';
+import type { SpectatePair } from '@raceiq/lap-replay/contracts';
+import { LapReplayHostProvider } from './features/lap-replay-host';
+import './index.css';
+const reading = (speed: number, steer: number) => ({ time: 0, distance: 0, run: 0, values: { 'motion.speed': speed, 'inputs.steer': steer, 'inputs.gear': 7, 'inputs.brake': 0, 'inputs.accel': 255 } });
+const lap = (speed: number, steer: number) => ({ samples: [reading(speed, steer), { ...reading(speed, steer), time: 2, distance: 100 }], duration: 2, distance: 100, hasProgress: true, replay: { requestedIds: [] } });
+const pair = { gameId: 'fm-2023', a: lap(72, -3), b: lap(70, -1), comparison: { traces: { distance: [0,100], elapsedTimeA: [0,2], elapsedTimeB: [0,2] }, timeDelta: [0,0] } } as unknown as SpectatePair;
+const controller = createSpectateController(pair.a, pair.b);
+const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } });
+createRoot(document.getElementById('smoke')!).render(<QueryClientProvider client={client}><LapReplayHostProvider><div style={{position:'relative',height:300}}><SpectateInputs pair={pair} controller={controller}/></div></LapReplayHostProvider></QueryClientProvider>);

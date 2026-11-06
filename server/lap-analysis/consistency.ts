@@ -22,28 +22,27 @@ export interface LapConsistencyDelta {
   overall: { lateralSpreadM: number; brakeVar: number; throttleVar: number; lowTrust: boolean };
 }
 
-/** Per-corner trimmed (10th-90th percentile) racing-line spread, plus the
- *  full per-bin trace for charting. */
+/** Per-corner racing-line spread: full width for two laps, otherwise p10–p90,
+ *  plus the full per-bin trace for charting. */
 export interface CornerLineSpread {
   corner: string; // Corner.label
-  lateralSpreadM: number; // trimmed (p90-p10) racing-line spread, metres
+  lateralSpreadM: number; // racing-line bundle width, metres
   lowTrust: boolean;
 }
 
 export interface LineSpreadTrace {
   /** Lap-distance fraction (0..1) for each bin, RESAMPLE_BINS entries. */
   fracs: number[];
-  /** Trimmed (p90-p10) lateral spread in metres at each bin. */
+  /** Lateral spread in metres: full width for two laps, otherwise p10–p90. */
   spreadM: number[];
   perCorner: CornerLineSpread[];
-  /** True when the overall trimmed spread (or any corner) exceeds LINE_SPREAD_THRESHOLD_M. */
+  /** True when the overall spread (or any corner) exceeds LINE_SPREAD_THRESHOLD_M. */
   lowTrust: boolean;
   /** 0-100 racing-line consistency: how repeatable the driven line is across
    *  the pool. 100 = laps trace the same line; falls linearly with the mean
    *  lateral spread, reaching 0 at LINE_SPREAD_FULL_SCALE_M. */
   consistencyScore: number;
-  /** Mean trimmed lateral spread across the lap (metres) — the raw figure the
-   *  score is derived from. */
+  /** Mean lateral spread across the lap (metres), from which the score is derived. */
   overallSpreadM: number;
   /** Number of laps that fed the trace (after resampling). */
   lapCount: number;
@@ -139,14 +138,15 @@ function round3(v: number): number {
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
-/** Shortest distance from point P to segment AB. */
-function pointSegmentDistance(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+/** Distance from point P to segment AB, optionally signed by travel direction. */
+function pointSegmentDistance(px: number, pz: number, ax: number, az: number, bx: number, bz: number, signed: boolean): number {
   const dx = bx - ax;
   const dz = bz - az;
   const l2 = dx * dx + dz * dz;
   let t = l2 > 0 ? ((px - ax) * dx + (pz - az) * dz) / l2 : 0;
   t = t < 0 ? 0 : t > 1 ? 1 : t;
-  return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+  const distance = Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+  return signed && dx * (pz - az) - dz * (px - ax) < 0 ? -distance : distance;
 }
 
 /** Half-window (in bins) searched for each lap's nearest point to a mean-line
@@ -167,9 +167,10 @@ const NEAREST_WINDOW = RESAMPLE_BINS / 10;
  * polyline instead cancels the longitudinal component entirely, leaving the
  * true lateral (racing-line) deviation — which is what this metric is about.
  *
- * Returns `distances[bin]` = one unsigned metre value per lap.
+ * Signed offsets preserve opposite sides of the mean line when measuring bundle
+ * width. Unsigned distances remain available for mean-deviation consumers.
  */
-function lateralDistancesPerBin(resampled: ResampledLap[]): number[][] {
+function lateralDistancesPerBin(resampled: ResampledLap[], signed = false): number[][] {
   const meanX = new Array<number>(RESAMPLE_BINS);
   const meanZ = new Array<number>(RESAMPLE_BINS);
   for (let i = 0; i < RESAMPLE_BINS; i++) {
@@ -187,8 +188,8 @@ function lateralDistancesPerBin(resampled: ResampledLap[]): number[][] {
       resampled.map((r) => {
         let best = Number.POSITIVE_INFINITY;
         for (let k = lo; k < hi; k++) {
-          const d = pointSegmentDistance(px, pz, r.x[k], r.z[k], r.x[k + 1], r.z[k + 1]);
-          if (d < best) best = d;
+          const d = pointSegmentDistance(px, pz, r.x[k], r.z[k], r.x[k + 1], r.z[k + 1], signed);
+          if (Math.abs(d) < Math.abs(best)) best = d;
         }
         return best;
       }),
@@ -218,15 +219,15 @@ export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number
   const resampled = laps.map((packets, i) => resampleLap(packets, lapIds[i])).filter((r): r is ResampledLap => r !== null);
   if (resampled.length < MIN_LINE_SPREAD_LAPS) return null;
 
-  const offsets = lateralDistancesPerBin(resampled);
+  const offsets = lateralDistancesPerBin(resampled, true);
   const fracs: number[] = [];
   const spreadM: number[] = [];
   for (let i = 0; i < RESAMPLE_BINS; i++) {
     fracs.push(i / (RESAMPLE_BINS - 1));
-    // Trimmed p90-p10 range of the per-lap lateral distances = the width of the
-    // racing-line bundle at this point, with one blunder lap suppressed.
+    // Preserve the signed bundle width; unsigned distances cancel symmetric
+    // lines. Two laps have no outliers to trim, so retain their full separation.
     const dev = offsets[i].slice().sort((a, b) => a - b);
-    spreadM.push(percentile(dev, 0.9) - percentile(dev, 0.1));
+    spreadM.push(dev.length === 2 ? dev[1] - dev[0] : percentile(dev, 0.9) - percentile(dev, 0.1));
   }
 
   // Median lap length keeps corner fractions aligned to resampled bins.

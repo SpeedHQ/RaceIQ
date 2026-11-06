@@ -6,7 +6,7 @@ import { useImportableLaps, useImportLaps } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 function fmtLapTime(ms: number | null | undefined): string {
   if (ms == null || ms <= 0) return "—";
   const totalSec = ms / 1000;

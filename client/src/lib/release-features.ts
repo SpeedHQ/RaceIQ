@@ -4,6 +4,7 @@ import type { ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/releas
 const resolvedClientReleaseFeatures = {
   f1Experiments: false,
   iracingAdapter: false,
+  ams2Adapter: false,
   liveSpotterEngineer: false,
   liveSpotterEngineerGameIds: [] as GameId[],
 };
@@ -16,6 +17,7 @@ function isReleaseFeatureFlags(value: unknown): value is ReleaseFeatureFlags {
   return (
     typeof flags.f1Experiments === "boolean" &&
     typeof flags.iracingAdapter === "boolean" &&
+    typeof flags.ams2Adapter === "boolean" &&
     typeof flags.liveSpotterEngineer === "boolean" &&
     Array.isArray(flags.liveSpotterEngineerGameIds) &&
     flags.liveSpotterEngineerGameIds.every((gameId) => typeof gameId === "string")
@@ -23,17 +25,15 @@ function isReleaseFeatureFlags(value: unknown): value is ReleaseFeatureFlags {
 }
 
 export async function loadClientReleaseFeatures(fetcher: typeof fetch = fetch): Promise<ReleaseFeatureFlags> {
-  try {
-    const response = await fetcher("/api/runtime/features");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const value: unknown = await response.json();
-    if (!isReleaseFeatureFlags(value)) throw new Error("invalid response shape");
-    resolvedClientReleaseFeatures.f1Experiments = value.f1Experiments;
-    resolvedClientReleaseFeatures.iracingAdapter = value.iracingAdapter;
-    resolvedClientReleaseFeatures.liveSpotterEngineer = value.liveSpotterEngineer;
-    resolvedClientReleaseFeatures.liveSpotterEngineerGameIds = [...value.liveSpotterEngineerGameIds];
-  } catch (error) {
-    console.error("Failed to bootstrap runtime feature flags:", error);
-  }
+  const response = await fetcher("/api/auth/status");
+  if (!response.ok) throw new Error(`Failed to load runtime feature flags (${response.status})`);
+  const status: unknown = await response.json();
+  const value = status && typeof status === "object" ? (status as Record<string, unknown>).features : undefined;
+  if (!isReleaseFeatureFlags(value)) throw new Error("Runtime feature flags response has invalid shape");
+  resolvedClientReleaseFeatures.f1Experiments = value.f1Experiments;
+  resolvedClientReleaseFeatures.iracingAdapter = value.iracingAdapter;
+  resolvedClientReleaseFeatures.ams2Adapter = value.ams2Adapter;
+  resolvedClientReleaseFeatures.liveSpotterEngineer = value.liveSpotterEngineer;
+  resolvedClientReleaseFeatures.liveSpotterEngineerGameIds = [...value.liveSpotterEngineerGameIds];
   return resolvedClientReleaseFeatures;
 }

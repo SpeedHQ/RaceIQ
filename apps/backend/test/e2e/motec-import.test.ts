@@ -8,8 +8,7 @@ import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
-import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
-import { initServerGameAdapters } from "../../src/games/init";
+import "../support/setup-app";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
 import { parseLdxBeacons } from "@raceiq/backend-core/motec/ldx";
 import { db } from "@raceiq/backend-core/db/index";
@@ -39,8 +38,6 @@ function loadAccFixture(): AccFixture {
 }
 
 
-initGameAdapters();
-initServerGameAdapters();
 async function waitForRecordingMove(): Promise<void> {
   for (let attempt = 0; attempt < 200; attempt++) {
     const status = getRecordingDirectoryMoveStatus();

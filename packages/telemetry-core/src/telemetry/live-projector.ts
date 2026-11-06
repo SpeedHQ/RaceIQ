@@ -8,7 +8,9 @@ import { RACE_ENGINEER_CALLOUT_SEMANTIC_IDS } from "@raceiq/shared/telemetry/liv
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import { lmuSourceTimestamp, lmuTelemetryTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 import { encodeLiveFrame, encodeLiveSchema } from "./live-wire";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
 export interface LiveResolvedSemanticFrame {
   simulator: GameId;
@@ -46,11 +48,16 @@ export class LiveTelemetryProjector {
     const sessionId = input.sessionId ?? null;
     if (this.gameId !== gameId || this.sessionId !== sessionId || !this.resolver) this.startStream(gameId, sessionId);
     const resolver = this.resolver!;
-    const observedMs = Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
+    const nativeTimestamp = gameId === "lmu" ? lmuTelemetryTimestamp(input.packet) : undefined;
+    const observedMs = nativeTimestamp?.domain === "session"
+      ? nativeTimestamp.milliseconds
+      : gameId === "lmu" && input.packet.lmuContext?.key.frameTime.domain === "session"
+        ? input.packet.lmuContext.key.frameTime.milliseconds
+        : Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
     const timestampDomain = gameId === "acc" || gameId === "ac-evo" ? "wall-clock" as const : "session" as const;
     const observedAt = { domain: timestampDomain, milliseconds: observedMs } as const;
     const observation = { timestamp: observedAt, updateSequence: BigInt(this.sequence + 1) };
-    this.view = resolver.createFrameView(input.packet, observation, this.view);
+    this.view = resolver.createFrameView(input.packet, observation, this.view, gameId === "lmu" ? lmuSourceTimestamp : undefined);
     const engineerEnabled = (this.options.allowUnsupportedGame || isEngineerSupportedGameId(gameId)) && (this.options.engineerSemanticIds !== undefined || (typeof this.options.engineerEnabled === "function" ? this.options.engineerEnabled(gameId) : this.options.engineerEnabled ?? true));
     const engineerResolved = engineerEnabled ? this.view.resolveMany(this.engineerSlots, this.engineerValues) : [];
     const publicResolved = this.view.resolveMany(this.publicSlots, this.publicValues);
@@ -67,7 +74,7 @@ export class LiveTelemetryProjector {
     const sequence = this.sequence + 1;
     this.sequence = sequence;
     const opponentSource = gameId === "acc" ? input.packet.acc?.broadcastSource ?? { source: "acc-broadcast" as const, state: "unavailable" as const, reasonCode: "not-connected" } : undefined;
-    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence, observedAt, receivedAtMs: input.receivedAtMs, values: publicResolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}), ...(opponentSource ? { opponentSource } : {}) } });
+    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence, observedAt, receivedAtMs: input.receivedAtMs, values: publicResolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}), ...(opponentSource ? { opponentSource } : {}) }, ...(gameId === "lmu" && input.packet.lmuContext ? { lmu: encodeLmuContext(input.packet.lmuContext) } : {}) });
     return {
       ...(sequence === 0 ? { schema: this.schema } : {}),
       frame,

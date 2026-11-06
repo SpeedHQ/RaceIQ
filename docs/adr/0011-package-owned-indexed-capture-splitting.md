@@ -33,8 +33,6 @@ Implementation follows this proposed contract. Exact encoded offsets and strict 
 
 Status remains proposed: this records the architecture contract and its implementation, not formal ADR acceptance.
 
-Plan: [Correction phases and acceptance criteria](../plans/lossless-per-lap-capture-correction.md)
 
-Physical-file cutover plan: [Storage, migration, and verification](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase).
 
 Related: [Lossless sparse canonical recordings](0001-lossless-sparse-canonical-recordings.md)

@@ -17,8 +17,9 @@
     "fflate": "^0.8.3"
   },
   "scripts": {
-    "lint": "bun ../../client/node_modules/oxlint/bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "build": "cd ../.. && bun packages/tooling-build/src/build/build.ts",
+    "build:e2e": "cd ../.. && bun scripts/build-browser.ts",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-build",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/tooling-build",

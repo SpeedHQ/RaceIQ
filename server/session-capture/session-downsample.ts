@@ -7,7 +7,7 @@ import type { SessionDownsamplePreview, SessionDownsampleRequest, SessionDownsam
 import type { DownsampleLapIndex, DownsampleRecordingInput, DownsampleRecordingInspection } from "@raceiq/capture-downsampling";
 import { DownsampleRecordingError, inspectDownsampleRecording, rewriteDownsampleRecording, validateDownsampleRecording } from "@raceiq/capture-downsampling";
 import { getServerGame } from "../games/registry";
-import { db } from "../db/index";
+import { readDb } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource } from "./source-loader";
@@ -31,6 +31,8 @@ import {
   type RecordingMaintenanceController,
 } from "./maintenance-runtime";
 import { reserveRecordingStorageOperation } from "./storage-activity";
+import { inventoryLmuOpponentIndex } from "../lap-analysis/lmu-opponent-index";
+import { enqueueLmuOpponentIndex, invalidateLmuOpponentIndexUnderFence } from "./lmu-opponent-index-runtime";
 
 let downsampleStatus = emptySessionDownsampleStatus();
 function snapshotDownsampleStatus(status: SessionDownsampleStatus): SessionDownsampleStatus {
@@ -248,6 +250,7 @@ export type SessionDownsampleRow = {
   gameId: GameId;
   source: string | null;
   rawFile: string | null;
+  captureManifestFile: string | null;
   createdAt: string;
   isFavorite: boolean;
   downsampledFrequencyHz: number | null;
@@ -283,30 +286,29 @@ async function fileSize(path: string): Promise<number | null> {
 }
 
 export async function buildSessionDownsamplePlan(request: SessionDownsampleRequest, options: { onlyPath?: string } = {}): Promise<SessionDownsamplePlan> {
-  const rows = (await db
-    .select({
-      id: sessions.id,
-      gameId: sessions.gameId,
-      source: sessions.source,
-      rawFile: sessions.rawFile,
-      createdAt: sessions.createdAt,
-      isFavorite: sessions.isFavorite,
-      downsampledFrequencyHz: sessions.downsampledFrequencyHz,
-      carId: sessions.carId,
-      trackId: sessions.trackId,
-    })
+  const rows = (await readDb.select({
+    id: sessions.id,
+    gameId: sessions.gameId,
+    source: sessions.source,
+    rawFile: sessions.rawFile,
+    captureManifestFile: sessions.captureManifestFile,
+    createdAt: sessions.createdAt,
+    isFavorite: sessions.isFavorite,
+    downsampledFrequencyHz: sessions.downsampledFrequencyHz,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+  })
     .from(sessions)
     .all()) as SessionDownsampleRow[];
-  const lapIndexes = await db
-    .select({
-      lapId: laps.id,
-      sessionId: laps.sessionId,
-      rawByteOffset: laps.rawByteOffset,
-      rawFrameCount: laps.rawFrameCount,
-    })
+  const lapIndexes = await readDb.select({
+    lapId: laps.id,
+    sessionId: laps.sessionId,
+    rawByteOffset: laps.rawByteOffset,
+    rawFrameCount: laps.rawFrameCount,
+  })
     .from(laps)
     .all();
-  const favoriteLaps = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.isFavorite, true)).all();
+  const favoriteLaps = await readDb.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.isFavorite, true)).all();
   const favorites = new Set(rows.filter((row) => row.isFavorite).map((row) => row.id));
   for (const lap of favoriteLaps) favorites.add(lap.sessionId);
   const cutoff = request.mode === "older-than" ? Date.now() - request.olderThanDays * DAY_MS : null;
@@ -314,7 +316,7 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
   const skipped: SessionDownsampleSkip[] = [];
   const candidates: SessionDownsampleGroup[] = [];
 
-  const eligibleForAge = (row: SessionDownsampleRow) => cutoff === null || Date.parse(row.createdAt) < cutoff;
+  const eligibleForAge = (row: (typeof rows)[number]) => cutoff === null || Date.parse(row.createdAt) < cutoff;
   for (const row of rows) {
     if (row.rawFile === null && eligibleForAge(row)) skipped.push(skip([row], "missing"));
     if (!row.rawFile) continue;
@@ -347,6 +349,11 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
     // Manifest-backed captures are published as JSON, but stream as canonical
     // records through the source loader just like their legacy raw-file source.
     if (!(path.endsWith(".bin") || path.endsWith(".bin.gz") || path.endsWith("capture-manifest.json"))) {
+      skipped.push(skip(refs, "unsupported-format"));
+      continue;
+    }
+    if (refs[0]!.gameId === "lmu" &&
+        (refs.some((row) => row.captureManifestFile !== null) || path.endsWith("capture-manifest.json"))) {
       skipped.push(skip(refs, "unsupported-format"));
       continue;
     }
@@ -489,6 +496,7 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
     const newPath = join(dirname(group.path), `${group.source.gameId}.downsample-${randomUUID()}.bin${gzip ? ".gz" : ""}`);
     let outputCreated = false;
     let committed = false;
+    let derivedFreedBytes = 0;
     let captureBundles: DownsampleCaptureBundle[] = [];
     const sourceFiles = await downsampleSourceFiles(group.path, sessionIds);
     try {
@@ -552,7 +560,16 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         lapIndexes: result.lapIndexes,
       });
       committed = true;
-      const affectedLaps = await db.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, sessionIds)).all();
+      const indexInventory = await inventoryLmuOpponentIndex(resolve(`${group.path}.opponent-index`));
+      await invalidateLmuOpponentIndexUnderFence(group.path);
+      await rm(resolve(`${group.path}.opponent-index`), { recursive: true, force: true });
+      derivedFreedBytes = indexInventory.totalBytes;
+      const updatedSources = await readDb.select({ gameId: sessions.gameId, rawFile: sessions.rawFile })
+        .from(sessions).where(inArray(sessions.id, sessionIds)).all();
+      for (const sourcePath of new Set(updatedSources.flatMap((row) =>
+        row.gameId === "lmu" && row.rawFile ? [resolve(row.rawFile)] : [],
+      ))) enqueueLmuOpponentIndex(sourcePath);
+      const affectedLaps = await readDb.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, sessionIds)).all();
       for (const lap of affectedLaps) cacheDelete(lap.id);
       for (const path of new Set([group.path, newPath, ...group.rows.flatMap((row) => (row.rawFile ? [row.rawFile] : []))])) {
         clearSessionCaptureCache(path);
@@ -570,22 +587,22 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         }
       }
       return {
-        kind: "converted", sessionIds, freedBytes: Math.max(0, freedBytes - outputBytes),
+        kind: "converted", sessionIds, freedBytes: Math.max(0, freedBytes - outputBytes) + derivedFreedBytes,
         warning: warnings.length ? `Replacement committed; original files could not be removed: ${warnings.join("; ")}` : null,
       };
     } catch (error) {
       if (committed) {
-        return { kind: "converted", sessionIds, freedBytes: 0, warning: `Replacement committed; finalization failed: ${error instanceof Error ? error.message : String(error)}` };
+        return { kind: "converted", sessionIds, freedBytes: derivedFreedBytes, warning: `Replacement committed; finalization failed: ${error instanceof Error ? error.message : String(error)}` };
       }
       if (outputCreated) {
         // A transport error can be ambiguous after commit. Never delete a referenced replacement.
-        const refs = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
+        const refs = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
         if (!refs.some((row) => row.rawFile !== null && resolve(row.rawFile) === newPath)) {
           await unlink(newPath).catch((cleanupError: unknown) => {
             console.error("[Downsample] Failed to remove uncommitted output", newPath, cleanupError);
           });
         }
-        const manifestRefs = await db.select({ path: sessions.captureManifestFile }).from(sessions).all();
+        const manifestRefs = await readDb.select({ path: sessions.captureManifestFile }).from(sessions).all();
         for (const bundle of captureBundles) {
           if (!manifestRefs.some((row) => row.path !== null && resolve(row.path) === resolve(bundle.manifestPath))) {
             await rm(dirname(bundle.manifestPath), { recursive: true, force: true });
@@ -602,7 +619,7 @@ export async function cleanupInterruptedSessionDownsampleFiles(): Promise<number
   return withSessionCaptureMaintenanceLock(async () => {
     await assertDownsampleQuiescent();
     const dirs = new Set((await listSessionCaptureFiles()).map(dirname));
-    const refs = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
+    const refs = await readDb.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
     for (const row of refs) if (row.rawFile !== null && isOwnedSessionRawFile(row.rawFile)) dirs.add(dirname(resolve(row.rawFile)));
     const tempName = /\.downsample-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.bin(?:\.gz)?(?:\.raw)?\.tmp$/i;
     let removed = 0;

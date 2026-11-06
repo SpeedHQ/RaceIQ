@@ -6,9 +6,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { processTelemetryBatch, type TelemetryBatchFrame, type TelemetryBatchInput } from "../src/batch";
 import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { ACEVO_PACKED_MAGIC, ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_CAR_LOCATION } from "@raceiq/capture-formats/ac-evo/structs";
 import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
-import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
 import { F1_HEADER_SIZE, F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
 function standingStartFrames(options: { startEvidence?: boolean; distanceScale?: number; duration?: number } = {}): TelemetryBatchInput[] {
@@ -162,11 +162,59 @@ describe("processTelemetryBatch", () => {
     expect(result.laps.map(({ lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount }) => ({
       lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount,
     }))).toEqual([
-      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: null, byteOffset: 17_100, frameCount: 6_865 },
+      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: "track limits", byteOffset: 17_100, frameCount: 6_865 },
       { lapNumber: 2, lapTime: 101.358, complete: true, invalidReason: "track limits", byteOffset: 703_500, frameCount: 6_435 },
       { lapNumber: 3, lapTime: 109.441, complete: false, invalidReason: "incomplete at end of input", byteOffset: 1_346_900, frameCount: 6_938 },
     ]);
-    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
+    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: false, invalidReason: "track limits" });
+  });
+
+  test.each([
+    [true, "clean", true],
+    [true, "cut", false],
+    [true, "flicker", true],
+    [false, "clean", true],
+    [false, "cut", false],
+    [false, "flicker", true],
+    [false, "inherited", true],
+  ] as const)("AC Evo native pitAtStart=%s validity=%s remains valid=%s", async (pitAtStart, validity, valid) => {
+    const frames: TelemetryBatchFrame[] = [];
+    const physics = Buffer.alloc(EVO_PHYSICS.SIZE);
+    const stat = Buffer.alloc(STATIC_EVO.SIZE);
+    for (let second = 0; second <= 91; second++) {
+      const boundary = second === 91;
+      const inPit = pitAtStart ? second < 20 : second >= 70;
+      const nativeInvalid = !boundary && (
+        validity === "inherited" ||
+        validity === "cut" && second >= 45 ||
+        validity === "flicker" && second === 45
+      );
+      const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);
+      graphics.writeInt32LE(2, GRAPHICS_EVO.status.offset);
+      graphics.writeInt32LE(boundary ? 1 : 0, GRAPHICS_EVO.total_lap_count.offset);
+      graphics.writeInt32LE(boundary ? 0 : second * 1000, GRAPHICS_EVO.current_lap_time_ms.offset);
+      graphics.writeInt32LE(boundary ? 90_000 : 0, GRAPHICS_EVO.last_laptime_ms.offset);
+      graphics.writeFloatLE(second * 0.05, GRAPHICS_EVO.current_km.offset);
+      graphics.writeUInt8(inPit ? 1 : 0, GRAPHICS_EVO.is_in_pit_lane.offset);
+      graphics.writeInt32LE(
+        inPit ? ACEVO_CAR_LOCATION.ACEVO_PITLANE : ACEVO_CAR_LOCATION.ACEVO_TRACK,
+        GRAPHICS_EVO.car_location.offset,
+      );
+      graphics.writeUInt8(nativeInvalid ? 0 : 1, GRAPHICS_EVO.is_valid_lap.offset);
+      frames.push({
+        data: packTriplet(ACEVO_PACKED_MAGIC, 1, 1, physics, graphics, stat),
+        timestampMs: second * 1000,
+      });
+    }
+    const result = await processTelemetryBatch("ac-evo", frames);
+    expect(result.laps).toHaveLength(1);
+    const { complete, valid: actualValid, invalidReason, classification } = result.laps[0]!;
+    expect({ complete, valid: actualValid, invalidReason, classification }).toEqual({
+      complete: true,
+      valid,
+      invalidReason: valid ? null : "track limits",
+      classification: pitAtStart ? "out_lap" : "in_lap",
+    });
   });
   test("finalizes incomplete ordinal lap at EOF and preserves absent offsets", async () => {
     const withOffsets = await processTelemetryBatch("fm-2023", lapFrames().slice(0, 35));
@@ -250,17 +298,6 @@ describe("processTelemetryBatch", () => {
       { sessionKey: 2, lapNumber: 1, lapTime: 81.535, valid: false, invalidReason: "start/end positions too far apart", frameCount: 27_312, complete: true, byteOffset: 1_833_094, sectors: [32.099, 29.003, 20.433] },
       { sessionKey: 2, lapNumber: 2, lapTime: 79.328, valid: true, invalidReason: null, frameCount: 26_508, complete: true, byteOffset: 32_468_053, sectors: [29.751, 29.382, 20.194999999999997] },
     ]);
-  });
-  test("retains LMU parser-provided identity in session metadata", async () => {
-    const path = resolve(import.meta.dir, "../../../test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz");
-    const frames = readLMUFrames(path).map((data, index) => ({ data, rawByteOffset: index }));
-    expect(frames.length).toBeGreaterThan(0);
-    const result = await processTelemetryBatch("lmu", frames);
-    expect(result.sessions).toHaveLength(1);
-    expect(result.sessions[0]).toMatchObject({
-      gameId: "lmu", sessionUID: expect.stringContaining("porsche_911rsr-19_2023"),
-      carId: "porsche_911rsr-19_2023", trackId: "Circuit de Spa-Francorchamps",
-    });
   });
   test("context primes parser without emitting telemetry; segment boundary resets lifecycle", async () => {
     const frames = lapFrames();

@@ -1,4 +1,4 @@
-import { severityRangeColor } from "@/lib/colors";
+import { severityRangeColor } from "@raceiq/scene-3d/colors";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 export interface F1CarDamageLabels {

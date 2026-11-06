@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/experiments";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 /**
  * The experiment's focus ledger, oldest first — what the driver was working on,

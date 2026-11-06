@@ -1,7 +1,81 @@
+import { realpathSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
+
+function canonicalPath(path: string): string {
+  const absolute = resolve(path);
+  const missing: string[] = [];
+  let ancestor = absolute;
+  while (true) {
+    try {
+      return resolve(realpathSync(ancestor), ...missing.reverse());
+    } catch {
+      const parent = dirname(ancestor);
+      if (parent === ancestor) return absolute;
+      missing.push(basename(ancestor));
+      ancestor = parent;
+    }
+  }
+}
+
+const activeLmuOpponentSources = new Map<string, { live: number; import: number }>();
+
+export function getActiveLmuOpponentSourcePaths(): string[] {
+  return [...activeLmuOpponentSources.keys()];
+}
+
+export function registerActiveLmuOpponentSource(path: string, kind: "live" | "import" = "live"): () => void {
+  const key = canonicalPath(path);
+  const counts = activeLmuOpponentSources.get(key) ?? { live: 0, import: 0 };
+  counts[kind]++;
+  activeLmuOpponentSources.set(key, counts);
+  let registered = true;
+  return () => {
+    if (!registered) return;
+    registered = false;
+    const current = activeLmuOpponentSources.get(key);
+    if (!current) return;
+    current[kind]--;
+    if (current.live + current.import === 0) activeLmuOpponentSources.delete(key);
+  };
+}
+
+export function isActiveLmuOpponentSource(path: string): boolean {
+  return activeLmuOpponentSources.has(canonicalPath(path));
+}
+
+export function getActiveLmuOpponentSourceKind(path: string): "live" | "import" | null {
+  const counts = activeLmuOpponentSources.get(canonicalPath(path));
+  if (!counts) return null;
+  return counts.import > 0 ? "import" : "live";
+}
+
 let imports = 0;
-type StorageOperation = "layout-migration" | "directory-move" | "downsample";
+type StorageOperation = "layout-migration" | "directory-move" | "downsample" | "opponent-index";
 let reservedOperation: { kind: StorageOperation; token: object } | null = null;
 let relocating = false;
+const reservationWaiters = new Set<() => void>();
+function notifyReservationWaiters(): void {
+  for (const resolve of reservationWaiters) resolve();
+}
+
+function waitForStorageActivityChange(signal?: AbortSignal): Promise<void> {
+  const { promise, resolve: resolveWait, reject: rejectWait } = Promise.withResolvers<void>();
+  const resolve = () => {
+    reservationWaiters.delete(resolve);
+    signal?.removeEventListener("abort", abort);
+    resolveWait();
+  };
+  const abort = () => {
+    reservationWaiters.delete(resolve);
+    signal?.removeEventListener("abort", abort);
+    rejectWait(signal!.reason);
+  };
+  reservationWaiters.add(resolve);
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  else if (!imports && !reservedOperation && !relocating) resolve();
+  return promise;
+}
 
 export class RecordingStorageBusyError extends Error {
   readonly code: "IMPORT_ACTIVE" | "MOVE_ACTIVE";
@@ -21,7 +95,20 @@ export function reserveRecordingStorageOperation(kind: StorageOperation): () => 
     if (reservedOperation?.token !== reservation.token) return;
     reservedOperation = null;
     relocating = false;
+    notifyReservationWaiters();
   };
+}
+
+export async function reserveRecordingStorageOperationWhenIdle(kind: StorageOperation, signal?: AbortSignal): Promise<() => void> {
+  while (true) {
+    signal?.throwIfAborted();
+    try {
+      return reserveRecordingStorageOperation(kind);
+    } catch (error) {
+      if (!(error instanceof RecordingStorageBusyError)) throw error;
+      await waitForStorageActivityChange(signal);
+    }
+  }
 }
 
 export function beginRecordingStorageImport(): () => void {
@@ -32,6 +119,7 @@ export function beginRecordingStorageImport(): () => void {
     if (!released) {
       released = true;
       imports--;
+      notifyReservationWaiters();
     }
   };
 }

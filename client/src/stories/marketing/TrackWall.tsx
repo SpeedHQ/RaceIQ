@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { TRACK_CARD_SHELL_CLASS, TrackCardVisual } from "../../components/track/TrackCard";
-import type { TrackInfo } from "../../components/track/types";
+import { TRACK_CARD_SHELL_CLASS, TrackCardVisual } from "@raceiq/tracks-catalogue/ui"
+import type { TrackInfo } from "@raceiq/tracks-catalogue/contracts"
 import fixture from "./track-wall.generated.json" with { type: "json" };
+import { TracksCatalogueHostProvider } from "../../features/tracks-catalogue-host";
 
 type WallTrack = (typeof fixture.tracks)[number];
 
@@ -47,6 +48,7 @@ function mapFor(track: WallTrack): ReactNode {
 
 export function TrackWall() {
   return (
+    <TracksCatalogueHostProvider>
     <main
       data-marketing-track-wall
       data-track-count={wallTracks.length}
@@ -68,5 +70,6 @@ export function TrackWall() {
         </div>
       </div>
     </main>
+    </TracksCatalogueHostProvider>
   );
 }

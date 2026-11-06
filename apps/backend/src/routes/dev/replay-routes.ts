@@ -119,6 +119,7 @@ export const replayRoutes = new Hono()
           receivedAtMs: timestampMilliseconds(envelope.receivedAt),
           values: envelope.values,
           context: {},
+          ...(envelope.lmu ? { lmu: envelope.lmu } : {}),
         }),
       );
       return c.json({ schema, frames });

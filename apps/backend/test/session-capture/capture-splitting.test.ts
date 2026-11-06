@@ -110,6 +110,7 @@ test("a lap artifact begins with full sparse checkpoint even when source window 
   const header = encodeMetaFrame(2);
   const first = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
   LMU_SOURCE_FRAME_MAGIC.copy(first);
+  first.writeUInt16LE(2, 8);
   const second = Buffer.from(first);
   second[second.length - 1] = 1;
   const sourceEncoder = new SparseCaptureEncoder("lmu");

@@ -4,6 +4,7 @@
  * binary body, so we hand it to the browser as a download.
  */
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { OpponentComparisonRequest } from "@raceiq/lap-replay/contracts";
 import { formatLapTime } from "./format";
 import { authenticatedFetch, client } from "./rpc";
 
@@ -58,14 +59,18 @@ export async function downloadResponse(res: DownloadResponse, fallbackName: stri
  * Download the given laps and/or whole sessions as a single .zip.
  * Throws with the server's error message so callers can surface it.
  */
-export async function exportLapsZip(sel: { lapIds?: number[]; sessionIds?: number[] }): Promise<void> {
+export async function exportLapsZip(sel: { lapIds?: number[]; sessionIds?: number[]; opponent?: Pick<OpponentComparisonRequest, "opponentLapId" | "sourceRevision"> }): Promise<void> {
   const lapIds = sel.lapIds ?? [];
   const sessionIds = sel.sessionIds ?? [];
   if (lapIds.length === 0 && sessionIds.length === 0) return;
 
   const res = await client.api.laps["export-zip"].$get({
-    query: { ids: lapIds.join(","), sessionIds: sessionIds.join(",") },
-  });
+    query: {
+      ids: lapIds.join(","),
+      ...(sessionIds.length ? { sessionIds: sessionIds.join(",") } : {}),
+      ...(sel.opponent ? { opponentLap: sel.opponent.opponentLapId, opponentRevision: sel.opponent.sourceRevision } : {}),
+    },
+  }, sel.opponent ? { headers: { "X-Game-Id": "lmu" } } : undefined);
   if (!res.ok) {
     const err = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(err?.error ?? `Export failed (${res.status})`);

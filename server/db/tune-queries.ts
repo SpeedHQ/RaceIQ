@@ -1,7 +1,9 @@
 import { paceLapCondition } from "./lap-eligibility";
 import { eq, and, desc, sql, asc } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
 import { tunes, tuneAssignments, laps, sessions } from "./schema";
+import { withDatabaseWrite } from "./write-coordination";
+
 
 interface InsertTuneData {
   gameId: string;
@@ -22,35 +24,37 @@ interface InsertTuneData {
 }
 
 export async function insertTune(data: InsertTuneData): Promise<number> {
-  const result = await db.insert(tunes).values({
-    gameId: data.gameId,
-    name: data.name,
-    author: data.author,
-    carId: data.carId,
-    category: data.category,
-    trackId: data.trackId ?? null,
-    description: data.description,
-    strengths: data.strengths ?? null,
-    weaknesses: data.weaknesses ?? null,
-    bestTracks: data.bestTracks ?? null,
-    strategies: data.strategies ?? null,
-    settings: data.settings,
-    unitSystem: data.unitSystem ?? "metric",
-    source: data.source ?? "user",
-    catalogId: data.catalogId ?? null,
-  }).returning({ id: tunes.id }).get();
-  return result.id;
+  return await withDatabaseWrite(async () => {
+    const result = await db.insert(tunes).values({
+      gameId: data.gameId,
+      name: data.name,
+      author: data.author,
+      carId: data.carId,
+      category: data.category,
+      trackId: data.trackId ?? null,
+      description: data.description,
+      strengths: data.strengths ?? null,
+      weaknesses: data.weaknesses ?? null,
+      bestTracks: data.bestTracks ?? null,
+      strategies: data.strategies ?? null,
+      settings: data.settings,
+      unitSystem: data.unitSystem ?? "metric",
+      source: data.source ?? "user",
+      catalogId: data.catalogId ?? null,
+    }).returning({ id: tunes.id }).get();
+    return result.id;
+  });
 }
 
 export async function getTunes(filters: { gameId?: string; carId?: string } = {}) {
   const conds = [];
   if (filters.gameId != null) conds.push(eq(tunes.gameId, filters.gameId));
   if (filters.carId != null) conds.push(eq(tunes.carId, filters.carId));
-  const query = db.select().from(tunes).orderBy(desc(tunes.id));
+  const query = readDb.select().from(tunes).orderBy(desc(tunes.id));
   const rows = conds.length > 0 ? await query.where(and(...conds)).all() : await query.all();
   if (rows.length === 0) return [];
 
-  const bestLaps = await db.select({
+  const bestLaps = await readDb.select({
     tuneId: laps.tuneId,
     bestLapTime: sql<number>`MIN(${laps.lapTime})`,
   }).from(laps)
@@ -72,7 +76,7 @@ export async function getTunes(filters: { gameId?: string; carId?: string } = {}
 }
 
 export async function getTuneById(id: number) {
-  return (await db.select().from(tunes).where(eq(tunes.id, id)).get()) ?? null;
+  return (await readDb.select().from(tunes).where(eq(tunes.id, id)).get()) ?? null;
 }
 
 export async function updateTune(id: number, data: Partial<Omit<InsertTuneData, "gameId">>): Promise<boolean> {
@@ -89,14 +93,16 @@ export async function updateTune(id: number, data: Partial<Omit<InsertTuneData, 
   if (data.strategies !== undefined) sets.strategies = data.strategies;
   if (data.settings !== undefined) sets.settings = data.settings;
   if (data.unitSystem !== undefined) sets.unitSystem = data.unitSystem;
-  const result = await db.update(tunes).set(sets).where(eq(tunes.id, id)).returning().all();
-  return result.length > 0;
+  return await withDatabaseWrite(async () => {
+    const result = await db.update(tunes).set(sets).where(eq(tunes.id, id)).returning().all();
+    return result.length > 0;
+  });
 }
 
 export async function getTuneUsage(id: number) {
-  const [tune] = await db.select({ id: tunes.id }).from(tunes).where(eq(tunes.id, id)).limit(1);
+  const [tune] = await readDb.select({ id: tunes.id }).from(tunes).where(eq(tunes.id, id)).limit(1);
   if (!tune) return null;
-  const rows = await db.select({
+  const rows = await readDb.select({
     sessionId: sessions.id, gameId: sessions.gameId, createdAt: sessions.createdAt,
     carId: sessions.carId, trackId: sessions.trackId, lapId: laps.id, lapNumber: laps.lapNumber,
   }).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -113,27 +119,31 @@ export async function getTuneUsage(id: number) {
     }
     session.laps.push({ id: row.lapId, lapNumber: row.lapNumber });
   }
-  const assignments = await db.select({
+  const assignments = await readDb.select({
     gameId: tuneAssignments.gameId, carId: tuneAssignments.carId, trackId: tuneAssignments.trackId,
   }).from(tuneAssignments).where(eq(tuneAssignments.tuneId, id)).orderBy(asc(tuneAssignments.gameId), asc(tuneAssignments.carId), asc(tuneAssignments.trackId)).all();
   return { sessions: [...grouped.values()], assignments };
 }
 export async function deleteTune(id: number): Promise<boolean> {
-  const result = await db.delete(tunes).where(eq(tunes.id, id)).returning().all();
-  return result.length > 0;
+  return await withDatabaseWrite(async () => {
+    const result = await db.delete(tunes).where(eq(tunes.id, id)).returning().all();
+    return result.length > 0;
+  });
 }
 
 export async function setTuneAssignment(gameId: string, carId: string, trackId: string, tuneId: number): Promise<void> {
-  await db.insert(tuneAssignments).values({ gameId, carId, trackId, tuneId })
-    .onConflictDoUpdate({
-      target: [tuneAssignments.gameId, tuneAssignments.carId, tuneAssignments.trackId],
-      targetWhere: sql`${tuneAssignments.carId} != '' AND ${tuneAssignments.trackId} != ''`,
-      set: { tuneId },
-    }).run();
+  await withDatabaseWrite(async () => {
+    await db.insert(tuneAssignments).values({ gameId, carId, trackId, tuneId })
+      .onConflictDoUpdate({
+        target: [tuneAssignments.gameId, tuneAssignments.carId, tuneAssignments.trackId],
+        targetWhere: sql`${tuneAssignments.carId} != '' AND ${tuneAssignments.trackId} != ''`,
+        set: { tuneId },
+      }).run();
+  });
 }
 
 export async function getTuneAssignment(gameId: string, carId: string, trackId: string) {
-  const row = await db.select({
+  const row = await readDb.select({
     carId: tuneAssignments.carId, trackId: tuneAssignments.trackId, tuneId: tuneAssignments.tuneId, tuneName: tunes.name,
   }).from(tuneAssignments).innerJoin(tunes, eq(tuneAssignments.tuneId, tunes.id))
     .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId))).get();
@@ -144,26 +154,30 @@ export async function getTuneAssignments(filters: { gameId?: string; carId?: str
   const conds = [];
   if (filters.gameId != null) conds.push(eq(tuneAssignments.gameId, filters.gameId));
   if (filters.carId != null) conds.push(eq(tuneAssignments.carId, filters.carId));
-  const query = db.select({
+  const query = readDb.select({
     carId: tuneAssignments.carId, trackId: tuneAssignments.trackId, tuneId: tuneAssignments.tuneId, tuneName: tunes.name,
   }).from(tuneAssignments).innerJoin(tunes, eq(tuneAssignments.tuneId, tunes.id));
   return conds.length > 0 ? await query.where(and(...conds)).all() : await query.all();
 }
 
 export async function deleteTuneAssignment(gameId: string, carId: string, trackId: string): Promise<boolean> {
-  const result = await db.delete(tuneAssignments)
-    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId)))
-    .returning().all();
-  return result.length > 0;
+  return await withDatabaseWrite(async () => {
+    const result = await db.delete(tuneAssignments)
+      .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId)))
+      .returning().all();
+    return result.length > 0;
+  });
 }
 
 
 export async function updateLapTune(lapId: number, tuneId: number | null): Promise<boolean> {
-  const result = await db
-    .update(laps)
-    .set({ tuneId })
-    .where(eq(laps.id, lapId))
-    .returning()
-    .all();
-  return result.length > 0;
+  return await withDatabaseWrite(async () => {
+    const result = await db
+      .update(laps)
+      .set({ tuneId })
+      .where(eq(laps.id, lapId))
+      .returning()
+      .all();
+    return result.length > 0;
+  });
 }

@@ -1,7 +1,7 @@
 import { useId } from "react";
 import type { WheelState } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
-import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
-import { brakeTempColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
+import type { TireTemperatureReading } from "@raceiq/scene-3d/tire-temperature-profile"
+import { brakeTempColor, tireState, tireTempColor } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 
 /**
@@ -29,6 +29,7 @@ export function WheelCard({
   tempCaption,
   healthCaption,
   healthAvailable,
+  readable = false,
 }: {
   label: string;
   temperatureReadings: TireTemperatureReading[];
@@ -48,6 +49,7 @@ export function WheelCard({
   tempCaption: string;
   healthCaption: string;
   healthAvailable: boolean;
+  readable?: boolean;
 }) {
   const carcassMaskId = useId();
   const surfaceTemp = temperatureReadings.find(({ kind }) => kind === "surface")?.value ?? temperatureReadings.find(({ kind }) => kind === "middle")?.value ?? temperatureReadings.find(({ kind }) => kind === "inner" || kind === "outer")?.value ?? null;
@@ -58,12 +60,14 @@ export function WheelCard({
   const hasProfile = surfaceBands.length > 0;
   const singleSurface = !hasProfile && surfaceTemp != null && coreTemp == null && carcassTemp == null && !hasCarcassBands;
   const singleTemperature = singleSurface ? surfaceTemp : !hasProfile && surfaceTemp == null ? carcassTemp : null;
-  const cardWidth = hasProfile ? 128 : brakeTemp != null ? 140 : 80;
+  const cardWidth = hasProfile ? 128 : readable || brakeTemp != null ? 140 : 80;
   const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
   const interiorReadings = temperatureReadings.filter(({ kind }) => kind === "carcass" || kind === "core");
   const tempRows = hasProfile ? 1 + interiorReadings.length : temperatureReadings.length;
-  const healthY = 93 + tempRows * 12;
-  const stateY = healthY + 12;
+  const readingsY = 93;
+  const readingStep = readable ? 22 : 12;
+  const healthY = readingsY + tempRows * readingStep;
+  const stateY = healthY + readingStep;
   const curbY = onRumble ? stateY + 10 : null;
   const wetY = puddleDepth > 0 ? (curbY ?? stateY) + 9 : null;
   const svgHeight = Math.max(145, (wetY ?? curbY ?? stateY) + 8);
@@ -151,9 +155,9 @@ export function WheelCard({
 
         {hasProfile && (
           <>
-            <text x={2} y={94} fill="var(--app-text-muted)" fontSize={8} fontFamily="var(--font-mono)">{m.label_surface()}</text>
+            <text x={readable ? cx : 2} y={readable ? readingsY : 94} textAnchor={readable ? "middle" : undefined} fill="var(--app-text-muted)" fontSize={readable ? 9 : 8} fontFamily="var(--font-mono)">{m.label_surface()}</text>
             {surfaceBands.map(({ kind, value }, index) => (
-              <text key={kind} x={54 + index * 30} y={94} textAnchor="middle" fill={value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds)} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+              <text key={kind} x={readable ? cx + (index - 1) * 26 : 54 + index * 30} y={readable ? readingsY + 12 : 94} textAnchor="middle" fill={value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds)} fontSize={readable ? 10 : 9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
                 {value == null ? "—" : `${tempFn(value).toFixed(0)}°${tempUnit}`}
               </text>
             ))}
@@ -161,10 +165,15 @@ export function WheelCard({
         )}
         {(hasProfile ? interiorReadings : temperatureReadings).map(({ kind, value }, index) => {
           const labelText = kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : tempCaption;
-          const y = 93 + (hasProfile ? index + 1 : index) * 12;
+          const y = readingsY + (hasProfile ? index + 1 : index) * readingStep;
           const color = value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds);
           const display = value == null ? "—" : `${tempFn(value).toFixed(0)}°${tempUnit}`;
-          return hasProfile ? (
+          return readable ? (
+            <g key={kind} textAnchor="middle" fontFamily="var(--font-mono)">
+              <text x={cx} y={y} fill="var(--app-text-muted)" fontSize={9}>{labelText}</text>
+              <text x={cx} y={y + 12} fill={color} fontSize={12} fontWeight="var(--font-weight-bold)">{display}</text>
+            </g>
+          ) : hasProfile ? (
             <g key={kind} fontSize={8} fontFamily="var(--font-mono)">
               <text x={2} y={y} fill="var(--app-text-muted)">{labelText}</text>
               <text x={84} y={y} textAnchor="middle" fill={color} fontWeight="var(--font-weight-bold)">{display}</text>
@@ -175,9 +184,12 @@ export function WheelCard({
             </text>
           );
         })}
-        <text x={cx} y={healthY} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontFamily="var(--font-mono)">
+        {readable ? <g textAnchor="middle" fill="var(--app-text-muted)" fontFamily="var(--font-mono)">
+          <text x={cx} y={healthY} fontSize={9}>{healthCaption}</text>
+          <text x={cx} y={healthY + 12} fontSize={12}>{healthAvailable ? `${((1 - wearPct) * 100).toFixed(0)}%` : "—"}</text>
+        </g> : <text x={cx} y={healthY} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontFamily="var(--font-mono)">
           {healthCaption} {healthAvailable ? `${((1 - wearPct) * 100).toFixed(0)}%` : "—"}
-        </text>
+        </text>}
         {showWheelState ? (
           <text x={cx} y={stateY} textAnchor="middle" fill={visualState.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             {visualState.label}
@@ -192,9 +204,12 @@ export function WheelCard({
         {brakeTemp != null && (
           <g fill={brakeTempColor(brakeTemp, label.startsWith("R"))}>
             <rect x={brakeBarX} y={cy - 16} width={7} height={32} />
-            <text x={outerSide === "left" ? brakeBarX + 11 : brakeBarX - 4} y={cy + 3} textAnchor={outerSide === "left" ? "start" : "end"} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+            {readable ? <g textAnchor={outerSide === "left" ? "start" : "end"} fontFamily="var(--font-mono)">
+              <text x={outerSide === "left" ? brakeBarX + 11 : brakeBarX - 4} y={cy - 5} fontSize={9}>BRK</text>
+              <text x={outerSide === "left" ? brakeBarX + 11 : brakeBarX - 4} y={cy + 8} fontSize={12} fontWeight="var(--font-weight-bold)">{tempFn(brakeTemp).toFixed(0)}°{tempUnit}</text>
+            </g> : <text x={outerSide === "left" ? brakeBarX + 11 : brakeBarX - 4} y={cy + 3} textAnchor={outerSide === "left" ? "start" : "end"} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
               BRK {tempFn(brakeTemp).toFixed(0)}°{tempUnit}
-            </text>
+            </text>}
           </g>
         )}
 

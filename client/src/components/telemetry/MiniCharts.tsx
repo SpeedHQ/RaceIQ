@@ -1,5 +1,5 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { WHEEL_COLOR_VARS } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
+import { WHEEL_COLOR_VARS } from "@raceiq/scene-3d/colors";
 import { useEffect, useRef, useState } from "react";
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
 
@@ -16,13 +16,11 @@ export function FourLineChart({
   data,
   label,
   maxY,
-  unit,
   height = 50,
 }: {
   data: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
   label: string;
   maxY?: number;
-  unit?: string;
   height?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -59,13 +57,6 @@ export function FourLineChart({
     const computedMin = maxY != null ? 0 : Math.min(...allVals) * 0.9;
     const yRange = computedMax - computedMin || 1;
     const maxLen = GRIP_MAX_SAMPLES;
-
-    // Y axis: min/max labels
-    ctx.font = "var(--text-app-glyph) var(--font-mono)";
-    ctx.fillStyle = "var(--app-text-dim)";
-    ctx.textAlign = "left";
-    ctx.fillText(`${computedMax.toFixed(0)}${unit ?? ""}`, 1, 8);
-    ctx.fillText(`${computedMin.toFixed(0)}${unit ?? ""}`, 1, height - 2);
 
     // Draw each tire line
     for (let t = 0; t < 4; t++) {

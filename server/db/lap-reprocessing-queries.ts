@@ -5,10 +5,11 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { clearSessionCaptureCache, loadCaptureManifest } from "../session-capture/source-loader";
 import type { DownsampleCaptureBundle } from "../session-capture/downsample-bundles";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index";
 import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import { withDatabaseWrite } from "./write-coordination";
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 
 type DownsampleLapIndex = {
@@ -81,7 +82,7 @@ export async function commitSessionDownsample(input: {
       if (!info.isFile() || info.size !== chunk.byteLength) throw new Error("Downsample publication chunk changed");
     }
   }
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
     const rewriteById = new Map(input.lapIndexes.map((index) => [index.lapId, index]));
     if (rewriteById.size !== input.lapIndexes.length ||
@@ -160,7 +161,7 @@ export async function commitSessionDownsample(input: {
     }
     await tx.update(dashboardSummaryState).set({ captureDirty: 1, captureReady: 1 })
       .where(inArray(dashboardSummaryState.sessionId, checked.sessionIds));
-  });
+  }));
 }
 
 export async function commitSessionDownsampleCap(input: {
@@ -169,14 +170,14 @@ export async function commitSessionDownsampleCap(input: {
   targetHz: RecordingFrequencyHz;
   lapIndexes: ReadonlyArray<DownsampleLapIndex>;
 }): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withDatabaseWrite(() => db.transaction(async (tx) => {
     const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
     for (const id of checked.sessionIds) {
       await tx.update(sessions).set({
         downsampledFrequencyHz: sql`CASE WHEN ${sessions.downsampledFrequencyHz} IS NULL OR ${sessions.downsampledFrequencyHz} > ${input.targetHz} THEN ${input.targetHz} ELSE ${sessions.downsampledFrequencyHz} END`,
       }).where(eq(sessions.id, id));
     }
-  });
+  }));
 }
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -185,7 +186,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
   rawByteOffset: number | null; rawFrameCount: number | null;
   sectorTimes: number[] | null;
 }>> {
-  const rows = await db
+  const rows = await readDb
     .select({
       id: laps.id,
       lapNumber: laps.lapNumber,
@@ -218,7 +219,7 @@ export async function updateLapRawIndex(
   classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
-  await db.update(laps).set({
+  await withDatabaseWrite(() => db.update(laps).set({
     rawByteOffset,
     rawFrameCount,
     lapTime,
@@ -227,7 +228,7 @@ export async function updateLapRawIndex(
     sectorTimes: sectors,
     classification,
     ...versionIdentity,
-  }).where(eq(laps.id, lapId));
+  }).where(eq(laps.id, lapId)));
   cacheDelete(lapId);
 }
 
@@ -251,7 +252,7 @@ export async function replaceLapsForSession(
   }>,
   sessionIdentity?: { carId: string; trackId: string },
 ): Promise<void> {
-  const invalidatedIds = await db.transaction(async (tx) => {
+  const invalidatedIds = await withDatabaseWrite(() => db.transaction(async (tx) => {
     const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
     const rows = await tx.select({
       id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
@@ -329,7 +330,7 @@ export async function replaceLapsForSession(
       await tx.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId));
     }
     return { deleted, invalidated, ownershipChanged };
-  });
+  }));
   for (const id of invalidatedIds.deleted) cacheDelete(id);
   for (const id of invalidatedIds.invalidated) cacheDelete(id);
   if (invalidatedIds.ownershipChanged) clearSessionCaptureCache();

@@ -3,7 +3,7 @@ import type { RaceResult } from "@raceiq/shared/racing/results/types";
 import { and, eq, sql } from "drizzle-orm";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { RaceResultAggregate } from "@raceiq/shared/racing/results/types";
-import { db } from "../db/index";
+import { readDb as db } from "../db/index";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
 
 // Results are materialized when a session completes or through explicit

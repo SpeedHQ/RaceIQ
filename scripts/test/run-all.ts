@@ -1,7 +1,8 @@
 import { createSocket } from "node:dgram";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-
 async function availableTcpPort(): Promise<string> {
   const server = createServer();
   const { promise, resolve, reject } = Promise.withResolvers<void>();
@@ -52,8 +53,8 @@ async function playwrightPortEnv(): Promise<Record<string, string>> {
   return env;
 }
 
-const root = new URL("../..", import.meta.url).pathname;
-const seededDataDir = resolve(root, "playwright/test-data-seed-producer");
+const root = resolve(import.meta.dir, "../..");
+const seededDataDir = mkdtempSync(resolve(tmpdir(), "raceiq-test-data-seed-producer-"));
 const seededDatabase = resolve(seededDataDir, "app.db");
 const suites = [
   { name: "release build", args: ["run", "build"] },
@@ -78,6 +79,7 @@ for (const suite of suites) {
   });
   if (result.exitCode !== 0) failures.push(`${suite.name} (exit ${result.exitCode ?? "signal"})`);
 }
+rmSync(seededDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
 if (failures.length > 0) {
   console.error(`\nFailed test suites: ${failures.join(", ")}`);

@@ -26,10 +26,10 @@ function lap(id: number, dayOffset: number, sessionId: number, lapTime: number, 
   const date = new Date("2026-09-30T12:00:00Z");
   date.setUTCDate(date.getUTCDate() - dayOffset);
   date.setUTCHours(16, id % 60, 0, 0);
-  return { id, sessionId, lapNumber: id, lapTime, isValid, classification: null, createdAt: date.toISOString(), gameId: game, carId: "201", trackId: "1641", ownership: "mine", invalidReason: undefined };
+  return { id, sessionId, lapNumber: id, lapTime, isValid, classification: null, createdAt: date.toISOString(), gameId: game, carId: "201", trackId: "1641", ownership: "mine", invalidReason: undefined, processing: { state: "ready", stage: null, error: null } };
 }
 function session(id: number, game: typeof gameId | typeof otherGameId, position: number, type = "Race"): SessionMeta {
-  return { id, carId: String(200 + id), trackId: String(1600 + id), createdAt: "2026-09-29T12:00:00Z", lapCount: 0, bestLapTime: null, sessionType: type, elapsedSeconds: id === 106 ? null : 1800 + id * 60, resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: position, gameId: game, ownership: "mine" };
+  return { id, carId: String(200 + id), trackId: String(1600 + id), createdAt: "2026-09-29T12:00:00Z", lapCount: 0, bestLapTime: null, sessionType: type, elapsedSeconds: id === 106 ? null : 1800 + id * 60, resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: position, gameId: game, ownership: "mine", processing: { state: "ready", stage: null, error: null } };
 }
 const sessions = [session(100, gameId, 1), session(101, gameId, 2), session(102, gameId, 3), session(103, gameId, 4), session(104, gameId, 4), session(105, gameId, 7), session(106, gameId, 12), session(107, gameId, 1, "Practice"), session(108, gameId, 1, "Qualifying"), session(109, otherGameId, 1)];
 const mixedLaps: LapMeta[] = [lap(1, 5, 100, 102.432), lap(2, 5, 100, 101.907), lap(3, 4, 103, 99.2), lap(4, 4, 104, 100.1), lap(5, 3, 105, 105.3), lap(6, 3, 107, 110), lap(7, 2, 108, 111), lap(8, 1, 109, 95, otherGameId)];
