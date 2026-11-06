@@ -24,6 +24,9 @@ export function contextWindowFor(provider: string, model: string, localContext?:
     case "claude-cli":
     case "anthropic":
       return 200_000;
+    case "deepseek":
+      // Both current DeepSeek models have a 1M-token context window.
+      return 1_000_000;
     case "openai-compatible":
       return localContext && localContext > 0 ? localContext : undefined;
     default:

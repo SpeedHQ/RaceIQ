@@ -1,3 +1,4 @@
+import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
@@ -5,7 +6,7 @@ import { Hono, type TypedResponse } from "hono";
 
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
-import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
+import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
@@ -166,11 +167,13 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "anthropic" ? "claude-haiku-5-5" : chatProvider === "openai-compatible" ? "local-model" : "gemini-flash-latest");
+      || (defaultModelFor(chatProvider));
 
-    const visionCapability = resolveChatVisionCapability(chatProvider, chatModelLabel);
-    if (chatRequestHasImage(messages) && visionCapability !== "supported") {
-      const error = visionCapability === "unsupported"
+    // Gate on the stored model, never on the defaulted label: an empty
+    // chatModel must not resolve to an image-capable model implicitly.
+    const imageGate = gateChatImages(chatProvider, settings.chatModel, messages);
+    if (!imageGate.allowed) {
+      const error = imageGate.capability === "unsupported"
         ? "This chat model does not support images. Remove the image or choose a verified image-capable chat model."
         : "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.";
       return c.json({ error }, 400);

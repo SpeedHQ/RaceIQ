@@ -1,10 +1,12 @@
 ## Unreleased
 
 ### Features
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
 
 ### Internal
+- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 

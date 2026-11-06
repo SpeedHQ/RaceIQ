@@ -41,9 +41,10 @@ import {
   type ScoreResult,
 } from "../../../src/mastra/evals/index";
 
-const HAS_API_KEY =
-  Boolean(process.env.GEMINI_API_KEY) ||
-  Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+const HAS_API_KEY = (process.env.EVALS_PROVIDER ?? "gemini") === "deepseek"
+  ? Boolean(process.env.DEEPSEEK_API_KEY)
+  : Boolean(process.env.GEMINI_API_KEY) ||
+    Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
 const describeIf = HAS_API_KEY ? describe : describe.skip;
 
