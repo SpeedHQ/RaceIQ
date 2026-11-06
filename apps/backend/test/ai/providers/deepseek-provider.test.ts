@@ -104,6 +104,28 @@ describe("DeepSeek provider", () => {
     }
   });
 
+  test("surfaces DeepSeek's own failures instead of OpenAI's", async () => {
+    const originalFetch = globalThis.fetch;
+    const respond = (status: number, payload: unknown) => {
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify(payload), { status, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
+    };
+    try {
+      respond(402, { error: { message: "Insufficient Balance", type: "unknown_error" } });
+      const balance = await adapter().generateText({ prompt: "ping" }).catch((error) => error);
+      expect(balance.message).toContain("insufficient account balance");
+      expect(balance.provider).toBe("deepseek");
+      expect(balance.statusCode).toBe(402);
+
+      respond(429, { error: { message: "Rate limit reached", type: "rate_limit_exceeded" } });
+      const rateLimited = await adapter().generateText({ prompt: "ping" }).catch((error) => error);
+      expect(rateLimited.message).toBe("DeepSeek API error: 429");
+      expect(rateLimited.isRetryable).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test("structured requests ask for json_object and carry the schema in the prompt", async () => {
     const requests: CapturedRequest[] = [];
     const restore = installFetchStub(requests, completion);

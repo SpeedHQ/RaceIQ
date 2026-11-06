@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   defaultModelFor,
   defaultReasoningEffortFor,
+  describeCompatibleApiFailure,
   isDeepSeekEndpoint,
   isSupportedAiProvider,
   mapDeepSeekModels,
@@ -103,5 +104,28 @@ describe("responseFormatFor", () => {
     expect(responseFormatFor("https://api.openai.com/v1")).toBe("json_schema");
     expect(responseFormatFor("http://localhost:1234/v1")).toBe("json_schema");
     expect(responseFormatFor(undefined)).toBe("json_schema");
+  });
+});
+
+describe("describeCompatibleApiFailure", () => {
+  test("names DeepSeek instead of reporting an OpenAI failure", () => {
+    expect(describeCompatibleApiFailure("deepseek", 500)).toBe("DeepSeek API error: 500");
+    expect(describeCompatibleApiFailure("deepseek", 500)).not.toContain("OpenAI");
+  });
+
+  test("explains DeepSeek's insufficient balance", () => {
+    expect(describeCompatibleApiFailure("deepseek", 402)).toContain("insufficient account balance");
+    expect(describeCompatibleApiFailure("deepseek", 402)).toContain("platform.deepseek.com");
+  });
+
+  test("keeps the key hint for 401 on every provider", () => {
+    expect(describeCompatibleApiFailure("deepseek", 401)).toBe("Invalid API key. Check your key in Settings.");
+    expect(describeCompatibleApiFailure("openai", 401)).toBe("Invalid API key. Check your key in Settings.");
+  });
+
+  test("keeps provider-specific labels for the other endpoints", () => {
+    expect(describeCompatibleApiFailure("openai", 500)).toBe("OpenAI API error: 500");
+    expect(describeCompatibleApiFailure("anthropic", 500)).toBe("Anthropic API error: 500");
+    expect(describeCompatibleApiFailure("openai-compatible", 500)).toBe("OpenAI-compatible API error: 500");
   });
 });

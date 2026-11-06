@@ -97,3 +97,25 @@ export type StructuredResponseFormat = "json_schema" | "json_object";
 export function responseFormatFor(endpoint?: string | null): StructuredResponseFormat {
   return isDeepSeekEndpoint(endpoint) ? "json_object" : "json_schema";
 }
+
+/**
+ * User-facing text for a failed OpenAI-compatible request.
+ *
+ * The transport used to hardcode "OpenAI API error", so a DeepSeek account with
+ * no balance — or a rate-limited key on any provider — was reported as an
+ * OpenAI problem. The endpoint already identifies the provider; say its name.
+ */
+export function describeCompatibleApiFailure(provider: string, status: number): string {
+  if (status === 401) return "Invalid API key. Check your key in Settings.";
+  if (provider === "deepseek" && status === 402) {
+    return "DeepSeek rejected the request for insufficient account balance. Top up at platform.deepseek.com and retry.";
+  }
+  const label = provider === "deepseek"
+    ? "DeepSeek"
+    : provider === "anthropic"
+      ? "Anthropic"
+      : provider === "openai"
+        ? "OpenAI"
+        : "OpenAI-compatible";
+  return `${label} API error: ${status}`;
+}
