@@ -494,6 +494,14 @@ export async function getLapById(
           return [] as TelemetryPacket[];
         })
         : [];
+      // A published chunk can begin mid-segment, so it may carry no LMU context
+      // sidecar even though it covers exactly the same frames. Reading the lap
+      // without that context silently drops opponents from the replay, so treat
+      // a context-less LMU chunk read as a failed chunk read and take the raw
+      // capture, which always includes the context records.
+      if (telemetry.length > 0 && row.gameId === "lmu" && !telemetry.some((packet) => packet.lmuContext?.competitors?.length)) {
+        telemetry = [];
+      }
       if (telemetry.length === 0) {
         telemetry = companionComplete
           ? await parseRawLapFrames(
