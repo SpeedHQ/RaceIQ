@@ -72,7 +72,7 @@ describe("affected verification selector", () => {
   }, 120_000);
 
   test("missing and invalid ranges fall back to full with diagnostics", () => {
-    for (const args of [["--mode", "affected"], ["--mode", "affected", "--base", "not-a-ref", "--head", "HEAD"]]) {
+    for (const args of [["--mode", "affected"], ["--mode", "affected", "--base", "not-a-ref", "--head", "HEAD"], ["--mode", "affected", "--base", "HEAD", "--head", "HEAD"]]) {
       const process = run(...args);
       expect(process.exitCode).toBe(0);
       expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
@@ -100,35 +100,49 @@ describe("affected verification selector", () => {
     }
   });
 
-  test("selects feature and unseeded server states without unrelated projects", () => {
-    const process = runWithQuery(queryResult([
-      impact("e2e:impact", "@raceiq/tracks-catalogue"),
-      impact("browser:fresh:impact", "raceiq-e2e"),
-      impact("browser:tunes:impact", "raceiq-e2e"),
-    ]));
-    expect(process.exitCode).toBe(0);
-    const selection = JSON.parse(process.stdout.toString());
-    expect(selection.mode).toBe("affected");
-    expect(selection.browserMatrix.map((row: { projects: string[] }) => row.projects)).toEqual([
-      ["fresh-install"], ["tunes"], ["tracks-catalogue"],
-    ]);
-    expect(selection.seedDatabase).toBe(true);
-    expect(selection.nativeWebgpu).toBe(false);
-  });
-
-  test("empty and fresh/tunes-only selections do not require seed database", () => {
-    for (const items of [[], [impact("browser:fresh:impact", "raceiq-e2e"), impact("browser:tunes:impact", "raceiq-e2e")]]) {
+  test("any browser impact selects the complete browser matrix", () => {
+    for (const items of [
+      [impact("e2e:impact", "@raceiq/tracks-catalogue")],
+      [impact("browser:fresh:impact", "raceiq-e2e")],
+      [impact("browser:tunes:impact", "raceiq-e2e")],
+    ]) {
       const process = runWithQuery(queryResult(items));
       expect(process.exitCode).toBe(0);
       const selection = JSON.parse(process.stdout.toString());
+      const full = JSON.parse(run("--mode", "full").stdout.toString());
       expect(selection.mode).toBe("affected");
-      expect(selection.browserMatrix).toHaveLength(items.length);
-      expect(selection.seedDatabase).toBe(false);
-      expect(selection.nativeWebgpu).toBe(false);
+      expect(selection.browserMatrix).toEqual(full.browserMatrix);
+      expect(selection.seedDatabase).toBe(true);
+      expect(selection.nativeWebgpu).toBe(true);
       expect(selection.responsive).toBe(false);
       expect(selection.storybook).toBe(false);
     }
   });
+
+  test("a proven empty selection skips every category", () => {
+    const process = runWithQuery(queryResult([]));
+    expect(process.exitCode).toBe(0);
+    const selection = JSON.parse(process.stdout.toString());
+    expect(selection.mode).toBe("affected");
+    expect(selection.browserMatrix).toHaveLength(0);
+    expect(selection.seedDatabase || selection.nativeWebgpu || selection.responsive || selection.storybook).toBe(false);
+  });
+  test("visual impacts select only their complete categories", () => {
+    for (const [task, responsive, storybook] of [
+      ["visual:responsive:impact", true, false],
+      ["visual:storybook:impact", false, true],
+    ] as const) {
+      const process = runWithQuery(queryResult([impact(task, "raceiq-e2e")]));
+      expect(process.exitCode).toBe(0);
+      const selection = JSON.parse(process.stdout.toString());
+      expect(selection.mode).toBe("affected");
+      expect(selection.browserMatrix).toEqual([]);
+      expect(selection.seedDatabase || selection.nativeWebgpu).toBe(false);
+      expect(selection.responsive).toBe(responsive);
+      expect(selection.storybook).toBe(storybook);
+    }
+  });
+
   test("ignores inherited impact nodes without a consumer task", () => {
     const process = runWithQuery(queryResult([
       impact("e2e:impact", "@raceiq/analysis-core"),
@@ -137,7 +151,7 @@ describe("affected verification selector", () => {
     expect(process.exitCode).toBe(0);
     const selection = JSON.parse(process.stdout.toString());
     expect(selection.mode).toBe("affected");
-    expect(selection.browserMatrix.map((row: { projects: string[] }) => row.projects)).toEqual([["tracks-catalogue"]]);
+    expect(selection.browserMatrix).toEqual(JSON.parse(run("--mode", "full").stdout.toString()).browserMatrix);
   });
 
 
@@ -258,7 +272,7 @@ describe("affected verification selector", () => {
       const feature = select("packages/tracks-catalogue/ui/track/TrackCard.tsx");
       expect(feature.mode).toBe("affected");
       expect(projects(feature).has("tracks-catalogue")).toBe(true);
-      expect(projects(feature).has("cars-catalogue")).toBe(false);
+      expect(projects(feature).has("cars-catalogue")).toBe(true);
       const setup = select("playwright/tests/setup/sparse-split-migration.spec.ts");
       expect(setup.mode).toBe("affected");
       expect(projects(setup).has("seeded-e2e")).toBe(true);
@@ -273,7 +287,7 @@ describe("affected verification selector", () => {
       const fresh = select("playwright/tests/fresh-install/fresh-install.spec.ts");
       expect(fresh.mode).toBe("affected");
       expect(projects(fresh).has("fresh-install")).toBe(true);
-      expect(fresh.seedDatabase).toBe(false);
+      expect(fresh.seedDatabase).toBe(true);
       const unknown = resolve(fixture, "unknown-input.xyz");
       const featurePath = resolve(fixture, "packages/tracks-catalogue/ui/track/TrackCard.tsx");
       const originalFeature = readFileSync(featurePath);

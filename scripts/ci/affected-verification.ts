@@ -41,6 +41,8 @@ console.log(JSON.stringify(createProjects(runtime).map((project) => project.name
       projects.length !== known.length || new Set(projects).size !== known.length || known.some((name) => !projects.includes(name))) {
     throw new Error("Playwright project inventory does not match selector");
   }
+}
+function validateImpactTasks() {
   const rootTasks = (JSON.parse(readFileSync(join(root, "turbo.json"), "utf8")) as { tasks: Record<string, unknown> }).tasks;
   const browserTasks = (JSON.parse(readFileSync(join(root, "playwright/turbo.json"), "utf8")) as { tasks: Record<string, unknown> }).tasks;
   const packages = workspaceNames();
@@ -51,18 +53,19 @@ console.log(JSON.stringify(createProjects(runtime).map((project) => project.name
     if (!rootTasks[task] || !browserTasks[task]) throw new Error(`missing impact task configuration: ${task}`);
   }
 }
-function result(mode: "full" | "affected", reason: string, selected: Set<string>, nativeWebgpu: boolean, responsive: boolean, storybook: boolean) {
+function result(mode: "full" | "affected", reason: string, browser: boolean, responsive: boolean, storybook: boolean) {
   const browserMatrix: Row[] = [];
-  for (const [project, serverSet] of [["fresh-install", "fresh"], ["tunes", "tunes"], ["tunes-unseeded", "tunes-unseeded"]] as const) {
-    if (selected.has(project)) browserMatrix.push({ name: serverSet, serverSet, projects: [project], shard: null });
+  if (browser) {
+    for (const [project, serverSet] of [["fresh-install", "fresh"], ["tunes", "tunes"], ["tunes-unseeded", "tunes-unseeded"]] as const) {
+      browserMatrix.push({ name: serverSet, serverSet, projects: [project], shard: null });
+    }
+    const projects = [...seededLegacy, ...features];
+    for (let i = 1; i <= 7; i++) browserMatrix.push({ name: `seeded-shard-${i}`, serverSet: "seeded", projects, shard: `${i}/7` });
   }
-  const seeded = [...seededLegacy, ...features].filter((name) => selected.has(name));
-  const count = Math.min(7, seeded.length);
-  for (let i = 1; i <= count; i++) browserMatrix.push({ name: `seeded-shard-${i}`, serverSet: "seeded", projects: seeded, shard: `${i}/${count}` });
-  return { mode, reason, browserMatrix, seedDatabase: seeded.length > 0 || nativeWebgpu, nativeWebgpu, responsive, storybook };
+  return { mode, reason, browserMatrix, seedDatabase: browser, nativeWebgpu: browser, responsive, storybook };
 }
 function full(reason: string) {
-  return result("full", reason, new Set(["fresh-install", "tunes", "tunes-unseeded", ...seededLegacy, ...features]), true, true, true);
+  return result("full", reason, true, true, true);
 }
 function command(args: string[]) {
   const process = Bun.spawnSync(args, { cwd: root, stdout: "pipe", stderr: "pipe" });
@@ -116,6 +119,7 @@ function validateCoverage(base: string, head: string) {
 }
 function select(base: string | undefined, head: string | undefined) {
   try {
+    validateImpactTasks();
     if (!base || !head) throw new Error("affected mode requires both refs");
     const resolve = (ref: string) => command(["git", "rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`]).trim();
     const baseCommit = resolve(base);
@@ -126,7 +130,7 @@ function select(base: string | undefined, head: string | undefined) {
     const raw = command(["bunx", "--no-install", "turbo", "query", "affected", "--tasks", ...taskNames, "--base", baseCommit, "--head", headCommit]);
     const data = JSON.parse(raw)?.data?.affectedTasks;
     if (!data || !Array.isArray(data.items) || data.length !== data.items.length) throw new Error("malformed Turbo query response");
-    const selected = new Set<string>();
+    let browser = false;
     let responsive = false;
     const packages = workspaceNames();
     let storybook = false;
@@ -137,14 +141,11 @@ function select(base: string | undefined, head: string | undefined) {
       if (item.name === "e2e:impact" && item.package.name.startsWith("@raceiq/")) {
         const feature = item.package.name.slice("@raceiq/".length);
         if (features.includes(feature as typeof features[number])) {
-          selected.add(feature);
+          browser = true;
           continue;
         }
       } else if (item.package.name === "raceiq-e2e") {
-        if (item.name === "browser:fresh:impact") selected.add("fresh-install");
-        else if (item.name === "browser:tunes:impact") selected.add("tunes");
-        else if (item.name === "browser:tunes-unseeded:impact") selected.add("tunes-unseeded");
-        else if (item.name === "browser:seeded:impact") for (const project of seededLegacy) selected.add(project);
+        if (item.name.startsWith("browser:")) browser = true;
         else if (item.name === "visual:responsive:impact") responsive = true;
         else if (item.name === "visual:storybook:impact") storybook = true;
         else throw new Error(`unknown impact task owner: ${item.fullName}`);
@@ -152,10 +153,10 @@ function select(base: string | undefined, head: string | undefined) {
       }
       throw new Error(`unknown impact task owner: ${item.fullName}`);
     }
-    if (hasVerificationInputs && selected.size === 0 && !responsive && !storybook) {
+    if (hasVerificationInputs && !browser && !responsive && !storybook) {
       throw new Error("changed verification inputs produced no mapped tasks");
     }
-    return result("affected", "validated affected task query", selected, selected.has("lap-replay"), responsive, storybook);
+    return result("affected", "validated affected task query", browser, responsive, storybook);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error(`Affected verification: ${reason}; selecting full inventory`);
