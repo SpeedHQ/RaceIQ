@@ -21,6 +21,18 @@ on:
         required: false
         type: string
         default: ""
+      verification-mode:
+        type: string
+        required: false
+        default: full
+      base-ref:
+        type: string
+        required: false
+        default: ""
+    outputs:
+      selected:
+        description: Whether responsive captures executed
+        value: ${{ jobs.collect.outputs.selected }}
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -109,19 +121,38 @@ jobs:
           SHARD: ${{ matrix.shard }}
           RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
           RACEIQ_FEATURE_IRACING_ADAPTER: "true"
-        run: bun scripts/ci/workflow-ops.ts screenshot-current
+          CI_VERIFICATION_MODE: ${{ inputs.verification-mode }}
+          TURBO_SCM_BASE: ${{ inputs.base-ref }}
+          TURBO_SCM_HEAD: ${{ inputs.head-ref }}
+        run: bun scripts/ci/run-affected-browser.ts ci:responsive-current
 
       - name: Capture base responsive screenshots with current tests
         id: base-responsive
+        if: steps.current-responsive.outputs.selected != 'false'
         continue-on-error: true
         timeout-minutes: 15
         env:
           SHARD: ${{ matrix.shard }}
           RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
           RACEIQ_FEATURE_IRACING_ADAPTER: "true"
-        run: bun scripts/ci/workflow-ops.ts screenshot-base
+          CI_VERIFICATION_MODE: full
+          TURBO_SCM_BASE: ${{ inputs.base-ref }}
+          TURBO_SCM_HEAD: ${{ inputs.head-ref }}
+        run: bun scripts/ci/run-affected-browser.ts ci:responsive-base
+      - name: Record shard selection
+        env:
+          SELECTED: ${{ steps.current-responsive.outputs.selected }}
+          SHARD: ${{ matrix.shard }}
+        run: printf '%s\n' "$SELECTED" > "$RUNNER_TEMP/selection-$SHARD"
+      - name: Upload shard selection
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-screenshot-selection-${{ matrix.shard }}
+          path: ${{ runner.temp }}/selection-${{ matrix.shard }}
+          if-no-files-found: error
+          retention-days: 1
       - name: Save shard render outputs
-        if: always()
+        if: always() && steps.current-responsive.outputs.selected != 'false'
         env:
           SHARD: ${{ matrix.shard }}
           CURRENT_STATUS: ${{ steps.current-responsive.outcome }}
@@ -131,7 +162,7 @@ jobs:
         run: bun scripts/ci/workflow-ops.ts save-render
 
       - name: Upload shard render outputs
-        if: always()
+        if: always() && steps.current-responsive.outputs.selected != 'false'
         uses: actions/upload-artifact@v7
         with:
           name: pr-screenshot-render-${{ matrix.shard }}
@@ -140,7 +171,7 @@ jobs:
 
 
       - name: Fail incomplete render shard
-        if: always()
+        if: always() && steps.current-responsive.outputs.selected != 'false'
         env:
           CURRENT_STATUS: ${{ steps.current-responsive.outcome }}
           BASE_STATUS: ${{ steps.base-responsive.outcome }}
@@ -149,6 +180,8 @@ jobs:
     name: Collect
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
+    outputs:
+      selected: ${{ steps.selection.outputs.selected }}
     runs-on:
       - mars-ubuntu-2vcpu-6g
       - mars-retry-3
@@ -164,7 +197,24 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Download shard selections
+        uses: actions/download-artifact@v7
+        with:
+          pattern: pr-screenshot-selection-*
+          path: ${{ runner.temp }}/screenshot-selections
+          merge-multiple: true
+      - name: Validate shard selections
+        id: selection
+        run: |
+          selected=$(cat "$RUNNER_TEMP/screenshot-selections/selection-1")
+          case "$selected" in true|false) ;; *) exit 1;; esac
+          for shard in 2 3 4; do
+            test "$(cat "$RUNNER_TEMP/screenshot-selections/selection-$shard")" = "$selected" || exit 1
+          done
+          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+
       - name: Download shard render outputs
+        if: steps.selection.outputs.selected == 'true'
         uses: actions/download-artifact@v7
         with:
           pattern: pr-screenshot-render-*
@@ -172,10 +222,11 @@ jobs:
           merge-multiple: false
 
       - name: Collect responsive diffs
+        if: steps.selection.outputs.selected == 'true'
         run: bun scripts/ci/workflow-ops.ts collect-screenshots
 
       - name: Upload responsive preview artifact
-        if: always()
+        if: always() && steps.selection.outputs.selected == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: pr-visual-responsive-preview

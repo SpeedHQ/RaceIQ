@@ -120,6 +120,7 @@ function validateCoverage(base: string, head: string) {
 function select(base: string | undefined, head: string | undefined) {
   try {
     validateImpactTasks();
+    if (command(["git", "rev-parse", "--is-shallow-repository"]).trim() !== "false") throw new Error("shallow repository");
     if (!base || !head) throw new Error("affected mode requires both refs");
     const resolve = (ref: string) => command(["git", "rev-parse", "--verify", "--end-of-options", `${ref}^{commit}`]).trim();
     const baseCommit = resolve(base);

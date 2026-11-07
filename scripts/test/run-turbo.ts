@@ -29,11 +29,15 @@ if (args.includes("--affected")) {
     return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
   });
   const [base, head] = resolved;
+  const shallow = Bun.spawnSync(
+    ["git", "rev-parse", "--is-shallow-repository"],
+    { cwd: root, stdout: "pipe", stderr: "ignore" },
+  );
   const commonHistory = base && head && Bun.spawnSync(
     ["git", "merge-base", base, head],
     { cwd: root, stdout: "ignore", stderr: "ignore" },
   ).exitCode === 0;
-  if (!commonHistory || (explicit && base === head)) {
+  if (shallow.exitCode !== 0 || shallow.stdout.toString().trim() !== "false" || !commonHistory || (explicit && base === head)) {
     console.error("Affected SCM range unavailable or empty; running full task selection.");
     args = args.filter((arg) => arg !== "--affected");
     delete env.TURBO_SCM_BASE;

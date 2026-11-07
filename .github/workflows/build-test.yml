@@ -78,10 +78,11 @@ jobs:
       BUN_TEST_WORKERS: "1"
       TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && (github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'origin/main')) || inputs.base_ref }}
       TURBO_SCM_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'push' && github.sha) || inputs.head_ref }}
+      CI_VERIFICATION_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.verification_mode != 'affected' && 'full' || 'affected' }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || inputs.head_ref || github.ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.target_ref || inputs.head_ref || github.ref }}
           fetch-depth: 0
       - name: Validate manual affected checkout
         if: github.event_name == 'workflow_dispatch' && inputs.verification_mode == 'affected'
@@ -115,10 +116,10 @@ jobs:
             turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-turbo-2.11.7-
 
       - name: Check test shard coverage
-        run: bun run test:shards
+        run: bun scripts/ci/run-affected-browser.ts ci:check-shards
 
       - name: Check locale message keys
-        run: bun run i18n:check-keys
+        run: bun scripts/ci/run-affected-browser.ts ci:check-locales
 
       - name: Lint server, shared, scripts, tests, and client
         run: |
@@ -143,11 +144,11 @@ jobs:
         if: github.event_name == 'pull_request' && !github.event.pull_request.draft
         env:
           UPGRADE_DATA_DIR: ${{ runner.temp }}/raceiq-upgrade-data
-        run: bun scripts/ci/check-db-upgrade.ts
+        run: bun scripts/ci/run-affected-browser.ts ci:check-db-upgrade
 
 
       - name: Check generated telemetry catalog
-        run: bun scripts/ci/check-telemetry-catalog.ts
+        run: bun scripts/ci/run-affected-browser.ts ci:check-telemetry
       - name: Run affected unit tests
         env:
           TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
@@ -203,7 +204,7 @@ jobs:
   # Playwright runners span architectures; build the compiled server on each runner
   # instead of sharing a dist artifact built for an arbitrary build-runner architecture.
   playwright-e2e:
-    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')) || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
       - build
       - test
@@ -211,9 +212,9 @@ jobs:
     with:
       target-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (inputs.target_ref || inputs.head_ref || github.ref) }}
       paraglide-artifact: ${{ github.event_name == 'pull_request' && 'raceiq-paraglide' || '' }}
-      verification-mode: ${{ github.event_name == 'pull_request' && 'affected' || (inputs.verification_mode || 'full') }}
-      base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.base_ref }}
-      head-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.head_ref }}
+      verification-mode: affected
+      base-ref: ${{ github.event.pull_request.base.sha }}
+      head-ref: ${{ github.event.pull_request.head.sha }}
 
   visual-regression:
     name: visual-regression/compare

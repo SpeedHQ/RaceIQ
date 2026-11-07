@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { generateTurboInputs } from "../turbo-inputs";
@@ -18,6 +18,15 @@ function copyFixtureFile(source: string, destination: string) {
   mkdirSync(dirname(destination), { recursive: true });
   if (stat.isSymbolicLink()) symlinkSync(readlinkSync(source), destination);
   else copyFileSync(source, destination);
+}
+
+function countSuiteExecutions(root: string, packagePath: string) {
+  const manifest = resolve(root, packagePath, "package.json");
+  const data = JSON.parse(readFileSync(manifest, "utf8")) as { scripts: Record<string, string> };
+  data.scripts["test:unit"] += ` && node -e 'require("node:fs").appendFileSync("../../.git/cache-executions", "x")'`;
+  writeFileSync(manifest, JSON.stringify(data));
+  const marker = resolve(root, ".git/cache-executions");
+  return () => existsSync(marker) ? readFileSync(marker, "utf8").length : 0;
 }
 
 test("fixture copying preserves dangling symlinks without following them", () => {
@@ -244,11 +253,13 @@ test("invalid and equal ranges select full", () => {
   } finally { f.cleanup(); }
 });
 
-test("shallow history selects affected when range is available and full when missing", () => {
+test("shallow history selects full even when the range is available", () => {
   const f = fixture();
   try {
     f.put(".git/shallow", `${f.base}\n`);
-    expect(f.selected({ TURBO_SCM_BASE: f.base, TURBO_SCM_HEAD: f.head }).packages).toEqual(["leaf"]);
+    const available = f.selected({ TURBO_SCM_BASE: f.base, TURBO_SCM_HEAD: f.head });
+    expect(available.packages).toEqual(["client", "consumer", "downstream", "leaf", "unrelated"]);
+    expect(available.result.stderr.toString()).toContain("running full task selection");
     f.put(".git/shallow", `${f.head}\n`);
     const shallow = f.selected({ TURBO_SCM_BASE: f.base, TURBO_SCM_HEAD: f.head });
     expect(shallow.packages).toEqual(["client", "consumer", "downstream", "leaf", "unrelated"]);
@@ -285,24 +296,26 @@ test("test helpers stay local while production changes reach transitive consumer
 test("deterministic suite cache hits and invalidates on relevant input", () => {
   const f = fixture();
   try {
-    const run = (value = "one") => f.run(["--filter=leaf"], { FIXTURE_VALUE: value });
+    const executions = countSuiteExecutions(f.root, "packages/leaf");
+    const run = (value = "one") => f.run(["--filter=leaf", "--cache=local:rw", "--cache-dir=.git/turbo-cache"], { FIXTURE_VALUE: value });
     const first = run();
     expect(first.exitCode, first.stderr.toString()).toBe(0);
+    expect(executions()).toBe(1);
     const second = run();
     expect(second.exitCode, second.stderr.toString()).toBe(0);
-    expect(second.stdout.toString()).toMatch(/leaf:test:unit: cache hit/);
+    expect(executions()).toBe(1);
     f.put("packages/leaf/test/shared-helper.js", "export const helper = false;\n");
     const changed = run();
     expect(changed.exitCode, changed.stderr.toString()).toBe(0);
-    expect(changed.stdout.toString()).toMatch(/leaf:test:unit: cache miss/);
+    expect(executions()).toBe(2);
     expect(changed.stdout.toString()).toContain("suite executed");
     f.put("packages/unrelated/test/unit.test.ts", "// unrelated change\n");
     const unrelated = run();
     expect(unrelated.exitCode, unrelated.stderr.toString()).toBe(0);
-    expect(unrelated.stdout.toString()).toMatch(/leaf:test:unit: cache hit/);
+    expect(executions()).toBe(2);
     const environment = run("two");
     expect(environment.exitCode, environment.stderr.toString()).toBe(0);
-    expect(environment.stdout.toString()).toMatch(/leaf:test:unit: cache miss/);
+    expect(executions()).toBe(3);
     expect(environment.stdout.toString()).toContain("suite executed");
   } finally { f.cleanup(); }
 });
@@ -403,24 +416,26 @@ test("real owner suites retain selection, helper, fixture, and cache boundaries"
     }
     rmSync(resolve(root, renamedFixture));
     put(fixture, fixtureContent);
-    const cacheArgs = ["test:unit", "--filter=@raceiq/tooling-build", "--output-logs=full"];
+    const executions = countSuiteExecutions(root, "packages/tooling-build");
+    const cacheArgs = ["test:unit", "--filter=@raceiq/tooling-build", "--cache=local:rw", "--cache-dir=.git/turbo-cache"];
     const first = run(...cacheArgs);
     expect(first.exitCode, first.stderr.toString()).toBe(0);
+    expect(executions()).toBe(1);
     const second = run(...cacheArgs);
     expect(second.exitCode, second.stderr.toString()).toBe(0);
-    expect(second.stdout.toString()).toMatch(/@raceiq\/tooling-build:test:unit: cache hit/);
+    expect(executions()).toBe(1);
     const testFile = "packages/tooling-build/test/copy-duckdb-runtime.test.ts";
     const original = readFileSync(resolve(root, testFile), "utf8");
     put(testFile, `${original}\n// cache probe\n`);
     const changed = run(...cacheArgs);
     expect(changed.exitCode, changed.stderr.toString()).toBe(0);
-    expect(changed.stdout.toString()).toMatch(/@raceiq\/tooling-build:test:unit: cache miss/);
+    expect(executions()).toBe(2);
     const unrelated = "packages/frontend-contract-tests/test/client/websocket-url.test.ts";
     const unrelatedContent = readFileSync(resolve(root, unrelated), "utf8");
     put(unrelated, `${unrelatedContent}\n// unrelated cache probe\n`);
     const unaffected = run(...cacheArgs);
     expect(unaffected.exitCode, unaffected.stderr.toString()).toBe(0);
-    expect(unaffected.stdout.toString()).toMatch(/@raceiq\/tooling-build:test:unit: cache hit/);
+    expect(executions()).toBe(2);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

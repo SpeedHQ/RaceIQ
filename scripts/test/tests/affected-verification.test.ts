@@ -18,14 +18,16 @@ function impact(name: string, owner: string) {
   return { name, fullName: `${owner}#${name}`, package: { name: owner } };
 }
 
-function runWithQuery(output: string) {
+function runWithQuery(output: string, args = ["--mode", "affected", "--base", "base", "--head", "head"], fail = false, git = "#!/bin/sh\ncase \"$*\" in *--is-shallow-repository*) echo false;; *not-a-ref*) echo 'invalid ref' >&2; exit 1;; *) case \"$1\" in diff) printf 'docs/example.md\\0';; *) case \"$*\" in *base*) echo a;; *) echo b;; esac;; esac;; esac\n") {
   const directory = mkdtempSync(resolve(tmpdir(), "raceiq-selector-query-"));
   try {
-    writeFileSync(resolve(directory, "git"), "#!/bin/sh\ncase \"$1\" in diff) printf 'docs/example.md\\0';; *) case \"$*\" in *base*) echo a;; *) echo b;; esac;; esac\n");
-    writeFileSync(resolve(directory, "bunx"), "#!/bin/sh\nprintf '%s' \"$SELECTOR_QUERY\"\n");
+    writeFileSync(resolve(directory, "git"), git);
+    writeFileSync(resolve(directory, "bunx"), fail
+      ? "#!/bin/sh\nprintf 'injected query failure\\n' >&2\nexit 1\n"
+      : "#!/bin/sh\nprintf '%s' \"$SELECTOR_QUERY\"\n");
     chmodSync(resolve(directory, "git"), 0o755);
     chmodSync(resolve(directory, "bunx"), 0o755);
-    return Bun.spawnSync(["bun", selector, "--mode", "affected", "--base", "base", "--head", "head"], {
+    return Bun.spawnSync(["bun", selector, ...args], {
       cwd: root,
       env: { ...Bun.env, PATH: `${directory}:${Bun.env.PATH ?? ""}`, SELECTOR_QUERY: output },
       stdout: "pipe",
@@ -35,6 +37,75 @@ function runWithQuery(output: string) {
     rmSync(directory, { recursive: true, force: true });
   }
 }
+function runBrowserWrapper(selection: string, dryRun: string, shallow = "false", task = "ci:browser") {
+  const directory = mkdtempSync(resolve(tmpdir(), "raceiq-browser-wrapper-"));
+  try {
+    mkdirSync(resolve(directory, "scripts/ci"), { recursive: true });
+    copyFileSync(resolve(root, "scripts/ci/run-affected-browser.ts"), resolve(directory, "scripts/ci/run-affected-browser.ts"));
+    const bin = resolve(directory, "bin");
+    mkdirSync(bin);
+    writeFileSync(resolve(bin, "git"), "#!/bin/sh\nprintf '%s\\n' \"$SHALLOW\"\n");
+    writeFileSync(resolve(bin, "bun"), "#!/bin/sh\nprintf '%s\\n' \"$SELECTION\"\n");
+    writeFileSync(resolve(bin, "bunx"), "#!/bin/sh\ncase \"$*\" in *--dry=json*) printf '%s\\n' \"$DRY_RUN\";; *) printf '%s\\n' \"$*\" > \"$COMMAND_LOG\";; esac\n");
+    for (const name of ["git", "bun", "bunx"]) chmodSync(resolve(bin, name), 0o755);
+    const log = resolve(directory, "command");
+    const result = Bun.spawnSync([process.execPath, resolve(directory, "scripts/ci/run-affected-browser.ts"), task, "--shard=2/7"], {
+      cwd: directory,
+      env: { ...Bun.env, PATH: `${bin}:${Bun.env.PATH ?? ""}`, CI_VERIFICATION_MODE: "affected", TURBO_SCM_BASE: "base", TURBO_SCM_HEAD: "head", SHALLOW: shallow, SELECTION: selection, DRY_RUN: dryRun, COMMAND_LOG: log, GITHUB_OUTPUT: resolve(directory, "output") },
+      stdout: "pipe", stderr: "pipe",
+    });
+    return { result, command: readFileSync(log, "utf8"), output: readFileSync(resolve(directory, "output"), "utf8") };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+describe("CI browser Turbo execution", () => {
+  test("passes affected selection and the original shard to Turbo", () => {
+    const { result, command } = runBrowserWrapper('{"mode":"affected","browserMatrix":[{}],"responsive":false,"storybook":false}', '{"tasks":[{"taskId":"raceiq-e2e#ci:browser"}]}');
+    expect(result.exitCode).toBe(0);
+    expect(command).toContain("--affected");
+    expect(command).toContain("--shard=2/7");
+  });
+
+  test("uncertain selection, missing task, and shallow history run the full task", () => {
+    for (const [selection, dry, shallow] of [
+      ["invalid", "{}", "false"],
+      ['{"mode":"affected","browserMatrix":[{}],"responsive":false,"storybook":false}', '{"tasks":[]}', "false"],
+      ['{"mode":"affected","browserMatrix":[],"responsive":false,"storybook":false}', '{"tasks":[]}', "true"],
+    ]) {
+      const { result, command } = runBrowserWrapper(selection, dry, shallow);
+      expect(result.exitCode).toBe(0);
+      expect(command).not.toContain("--affected");
+      expect(result.stderr.toString()).toContain("running full browser task");
+    }
+  });
+
+  test("utility tasks fall back to full when affected inventory omits changed verification inputs", () => {
+    const { result, command } = runBrowserWrapper(
+      '{"mode":"affected","browserMatrix":[],"responsive":true,"storybook":false}',
+      '{"tasks":[]}',
+      "false",
+      "ci:check-locales",
+    );
+    expect(result.exitCode).toBe(0);
+    expect(command).not.toContain("--affected");
+    expect(command).toContain("ci:check-locales");
+  });
+
+  test("unaffected visual tasks expose a skipped selection for artifact handling", () => {
+    const { result, command, output } = runBrowserWrapper(
+      '{"mode":"affected","browserMatrix":[],"responsive":false,"storybook":false}',
+      '{"tasks":[]}',
+      "false",
+      "ci:responsive-current",
+    );
+    expect(result.exitCode).toBe(0);
+    expect(command).toContain("--affected");
+    expect(output).toContain("selected=false");
+  });
+});
+
 
 describe("affected verification selector", () => {
   test("full mode preserves the browser and visual inventory", () => {
@@ -72,12 +143,23 @@ describe("affected verification selector", () => {
   }, 120_000);
 
   test("missing and invalid ranges fall back to full with diagnostics", () => {
-    for (const args of [["--mode", "affected"], ["--mode", "affected", "--base", "not-a-ref", "--head", "HEAD"], ["--mode", "affected", "--base", "HEAD", "--head", "HEAD"]]) {
-      const process = run(...args);
+    for (const [args, reason] of [
+      [["--mode", "affected"], "affected mode requires both refs"],
+      [["--mode", "affected", "--base", "not-a-ref", "--head", "HEAD"], "invalid ref"],
+      [["--mode", "affected", "--base", "HEAD", "--head", "HEAD"], "equal refs"],
+    ] as const) {
+      const process = runWithQuery("", [...args]);
       expect(process.exitCode).toBe(0);
       expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
-      expect(process.stderr.toString()).toContain("selecting full inventory");
+      expect(process.stderr.toString()).toContain(`${reason}; selecting full inventory`);
     }
+  });
+
+  test("shallow repositories fall back to full with a diagnostic", () => {
+    const process = runWithQuery("", undefined, false, "#!/bin/sh\necho true\n");
+    expect(process.exitCode).toBe(0);
+    expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
+    expect(process.stderr.toString()).toContain("shallow repository; selecting full inventory");
   });
 
   test("explicitly empty refs fall back to the full inventory", () => {
@@ -86,7 +168,7 @@ describe("affected verification selector", () => {
       ["--mode", "affected", "--base", "", "--head", "HEAD"],
       ["--mode", "affected", "--base", "HEAD", "--head", ""],
     ]) {
-      const process = run(...args);
+      const process = runWithQuery("", args);
       expect(process.exitCode).toBe(0);
       const selection = JSON.parse(process.stdout.toString());
       expect(selection.mode).toBe("full");
@@ -100,23 +182,10 @@ describe("affected verification selector", () => {
   });
 
   test("a failed Turbo query falls back to full instead of reporting no work", () => {
-    const previous = Bun.spawnSync(["git", "rev-parse", "--verify", "HEAD^"], { cwd: root, stdout: "pipe", stderr: "pipe" });
-    expect(previous.exitCode).toBe(0);
-    const directory = mkdtempSync(resolve(tmpdir(), "raceiq-turbo-failure-"));
-    try {
-      const executable = resolve(directory, "bunx");
-      writeFileSync(executable, "#!/bin/sh\nprintf 'injected query failure\\n' >&2\nexit 1\n");
-      chmodSync(executable, 0o755);
-      const process = Bun.spawnSync(
-        ["bun", selector, "--mode", "affected", "--base", previous.stdout.toString().trim(), "--head", "HEAD"],
-        { cwd: root, env: { ...Bun.env, PATH: `${directory}:${Bun.env.PATH ?? ""}` }, stdout: "pipe", stderr: "pipe" },
-      );
-      expect(process.exitCode).toBe(0);
-      expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
-      expect(process.stderr.toString()).toContain("injected query failure");
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
+    const process = runWithQuery("", ["--mode", "affected", "--base", "base", "--head", "head"], true);
+    expect(process.exitCode).toBe(0);
+    expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
+    expect(process.stderr.toString()).toContain("injected query failure");
   });
 
   test("any browser impact selects the complete browser matrix", () => {
@@ -190,11 +259,15 @@ describe("affected verification selector", () => {
   test("malformed or incomplete Turbo task inventories fail closed", () => {
     const directory = mkdtempSync(resolve(tmpdir(), "raceiq-selector-inventory-"));
     try {
-      writeFileSync(resolve(directory, "git"), "#!/bin/sh\ncase \"$1\" in diff) printf 'src/input.ts\\0';; *) case \"$*\" in *base*) echo a;; *) echo b;; esac;; esac\n");
+      writeFileSync(resolve(directory, "git"), "#!/bin/sh\ncase \"$*\" in *--is-shallow-repository*) echo false;; *) case \"$1\" in diff) printf 'src/input.ts\\0';; *) case \"$*\" in *base*) echo a;; *) echo b;; esac;; esac;; esac\n");
       writeFileSync(resolve(directory, "bunx"), "#!/bin/sh\nprintf '%s' \"$SELECTOR_INVENTORY\"\n");
       chmodSync(resolve(directory, "git"), 0o755);
       chmodSync(resolve(directory, "bunx"), 0o755);
-      for (const inventory of ["not json", JSON.stringify({ tasks: [] }), JSON.stringify({ tasks: [{ taskId: "invalid", directory: ".", inputs: [], dependencies: [] }] })]) {
+      for (const [inventory, reason] of [
+        ["not json", "JSON"],
+        [JSON.stringify({ tasks: [] }), "missing Turbo task inventory:"],
+        [JSON.stringify({ tasks: [{ taskId: "invalid", directory: ".", inputs: [], dependencies: [] }] }), "malformed Turbo task inventory"],
+      ]) {
         const process = Bun.spawnSync(["bun", selector, "--mode", "affected", "--base", "base", "--head", "head"], {
           cwd: root,
           env: { ...Bun.env, PATH: `${directory}:${Bun.env.PATH ?? ""}`, SELECTOR_INVENTORY: inventory },
@@ -203,6 +276,7 @@ describe("affected verification selector", () => {
         });
         expect(process.exitCode).toBe(0);
         expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
+        expect(process.stderr.toString()).toContain(reason);
         expect(process.stderr.toString()).toContain("selecting full inventory");
       }
     } finally {

@@ -27,114 +27,26 @@ on:
         type: boolean
         default: true
       verification-mode:
-        description: "Verification selection mode"
-        required: false
         type: string
+        required: false
         default: full
       base-ref:
-        required: false
         type: string
+        required: false
         default: ""
       head-ref:
+        type: string
         required: false
-        type: string
         default: ""
-
-  workflow_dispatch:
-    inputs:
-      verification-mode:
-        description: "Verification selection mode"
-        type: choice
-        options: [full, affected]
-        default: full
-      target-ref:
-        description: "Ref to test"
-        type: string
-      base-ref:
-        description: "Base ref for affected mode"
-        type: string
-      head-ref:
-        description: "Head ref for affected mode"
-        type: string
-      hardware-webgpu:
-        description: "Run native WebGPU"
-        type: boolean
-        default: true
-      runner-labels:
-        description: "JSON runner labels"
-        type: string
-        default: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
-      dist-artifact:
-        type: string
-      paraglide-artifact:
-        type: string
-
 
 jobs:
-  selection:
-    name: Select verification
-    runs-on: ${{ fromJSON(inputs.runner-labels || '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]')[0] }}
-    outputs:
-      fresh: ${{ steps.select.outputs.fresh }}
-      seeded: ${{ steps.select.outputs.seeded }}
-      fresh-count: ${{ steps.select.outputs.fresh-count }}
-      seeded-count: ${{ steps.select.outputs.seeded-count }}
-      seed: ${{ steps.select.outputs.seed }}
-      native: ${{ steps.select.outputs.native }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.target-ref || inputs.head-ref || github.ref }}
-          fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - name: Install workspace dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
-      - name: Select browser gates
-        id: select
-        env:
-          MODE: ${{ inputs.verification-mode || 'full' }}
-          BASE: ${{ inputs.base-ref }}
-          HEAD: ${{ inputs.head-ref }}
-          HARDWARE: ${{ inputs.hardware-webgpu }}
-        run: |
-          bun -e '
-            let mode = process.env.MODE;
-            if (mode === "affected" && process.env.HEAD) {
-              const requested = Bun.spawnSync(["git", "rev-parse", "--verify", "--end-of-options", `${process.env.HEAD}^{commit}`], { stdout: "pipe", stderr: "ignore" });
-              const checkedOut = Bun.spawnSync(["git", "rev-parse", "HEAD"], { stdout: "pipe", stderr: "ignore" });
-              if (requested.exitCode !== 0 || checkedOut.exitCode !== 0 || requested.stdout.toString().trim() !== checkedOut.stdout.toString().trim()) {
-                console.error("Affected head differs from checkout; selecting full inventory.");
-                mode = "full";
-              }
-            }
-            const args = ["bun", "scripts/ci/affected-verification.ts", "--mode", mode];
-            if (process.env.BASE) args.push("--base", process.env.BASE);
-            if (process.env.HEAD) args.push("--head", process.env.HEAD);
-            const child = Bun.spawnSync(args, { stdout: "pipe", stderr: "inherit" });
-            if (child.exitCode !== 0) process.exit(child.exitCode || 1);
-            const result = JSON.parse(child.stdout.toString());
-            const fresh = result.browserMatrix.filter(row => row.serverSet !== "seeded");
-            const seeded = result.browserMatrix.filter(row => row.serverSet === "seeded");
-            const native = result.nativeWebgpu && process.env.HARDWARE === "true";
-            console.log(`Selection: ${result.mode}: ${result.reason}`);
-            await Bun.write(process.env.GITHUB_OUTPUT, [
-              `fresh=${JSON.stringify(fresh)}`, `seeded=${JSON.stringify(seeded)}`,
-              `fresh-count=${fresh.length}`, `seeded-count=${seeded.length}`,
-              `seed=${seeded.length > 0 || native}`, `native=${native}`
-            ].join("\n") + "\n");
-          '
-
   seed-database:
-    needs: selection
-    if: needs.selection.outputs.seed == 'true'
     name: Seed database
     runs-on: ${{ fromJSON(inputs.runner-labels)[0] }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target-ref || inputs.head-ref || github.ref }}
+          ref: ${{ inputs.target-ref || github.ref }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -159,53 +71,71 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  playwright-unseeded:
-    name: E2E unseeded matrix
-    needs: selection
-    if: needs.selection.outputs.fresh-count != '0'
+  playwright:
+    name: E2E matrix
+    needs: seed-database
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.selection.outputs.fresh) }}
+        include:
+          - name: fresh
+            server_set: fresh
+            projects: --project=fresh-install
+          - name: tunes
+            server_set: tunes
+            projects: --project=tunes
+          - name: tunes-unseeded
+            server_set: tunes-unseeded
+            projects: --project=tunes-unseeded
+          - name: seeded-shard-1
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 1/7
+          - name: seeded-shard-2
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 2/7
+          - name: seeded-shard-3
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 3/7
+          - name: seeded-shard-4
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 4/7
+          - name: seeded-shard-5
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 5/7
+          - name: seeded-shard-6
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 6/7
+          - name: seeded-shard-7
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
+            shard: 7/7
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: ${{ matrix.serverSet }}
-      projects: ${{ format('--project={0}', join(matrix.projects, ' --project=')) }}
-      shard: ${{ matrix.shard || '' }}
-      runs-on: ${{ inputs.runner-labels }}
-      artifact-name: playwright-${{ matrix.name }}
-      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
-      target-ref: ${{ inputs.target-ref || inputs.head-ref }}
-      paraglide-artifact: ${{ inputs.paraglide-artifact }}
-      dist-artifact: ${{ inputs.dist-artifact }}
-
-  playwright-seeded:
-    name: E2E seeded matrix
-    needs: [selection, seed-database]
-    if: needs.selection.outputs.seeded-count != '0'
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.selection.outputs.seeded) }}
-    uses: ./.github/workflows/playwright.yml
-    with:
-      server-mode: compiled
-      server-set: seeded
-      projects: ${{ format('--project={0}', join(matrix.projects, ' --project=')) }}
+      server-set: ${{ matrix.server_set }}
+      projects: ${{ matrix.projects }}
       shard: ${{ matrix.shard }}
       runs-on: ${{ inputs.runner-labels }}
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
-      target-ref: ${{ inputs.target-ref || inputs.head-ref }}
-      seed-database-artifact: playwright-seeded-database
+      target-ref: ${{ inputs.target-ref }}
+      seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
       dist-artifact: ${{ inputs.dist-artifact }}
+      verification-mode: ${{ inputs.verification-mode }}
+      base-ref: ${{ inputs.base-ref }}
+      head-ref: ${{ inputs.head-ref }}
 
   playwright-webgpu:
     name: Native WebGPU
-    if: needs.selection.outputs.native == 'true'
-    needs: [selection, seed-database]
+    if: inputs.hardware-webgpu
+    needs: seed-database
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
@@ -214,31 +144,10 @@ jobs:
       runs-on: ${{ inputs.runner-labels }}
       artifact-name: playwright-lap-replay-webgpu
       diagnostic-artifact-name: server-diagnostics-lap-replay-webgpu
-      target-ref: ${{ inputs.target-ref || inputs.head-ref }}
+      target-ref: ${{ inputs.target-ref }}
       seed-database-artifact: playwright-seeded-database
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
       dist-artifact: ${{ inputs.dist-artifact }}
-
-  verification:
-    name: Browser verification
-    if: always()
-    needs: [selection, seed-database, playwright-unseeded, playwright-seeded, playwright-webgpu]
-    runs-on: ${{ fromJSON(inputs.runner-labels || '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]')[0] }}
-    steps:
-      - name: Check required gates
-        env:
-          SELECTION: ${{ needs.selection.result }}
-          SEED_REQUIRED: ${{ needs.selection.outputs.seed }}
-          SEED: ${{ needs.seed-database.result }}
-          FRESH_COUNT: ${{ needs.selection.outputs.fresh-count }}
-          FRESH: ${{ needs.playwright-unseeded.result }}
-          SEEDED_COUNT: ${{ needs.selection.outputs.seeded-count }}
-          SEEDED: ${{ needs.playwright-seeded.result }}
-          NATIVE_REQUIRED: ${{ needs.selection.outputs.native }}
-          NATIVE: ${{ needs.playwright-webgpu.result }}
-        run: |
-          test "$SELECTION" = success
-          if [ "$SEED_REQUIRED" = true ]; then test "$SEED" = success; else test "$SEED" = skipped; fi
-          if [ "$FRESH_COUNT" != 0 ]; then test "$FRESH" = success; else test "$FRESH" = skipped; fi
-          if [ "$SEEDED_COUNT" != 0 ]; then test "$SEEDED" = success; else test "$SEEDED" = skipped; fi
-          if [ "$NATIVE_REQUIRED" = true ]; then test "$NATIVE" = success; else test "$NATIVE" = skipped; fi
+      verification-mode: ${{ inputs.verification-mode }}
+      base-ref: ${{ inputs.base-ref }}
+      head-ref: ${{ inputs.head-ref }}

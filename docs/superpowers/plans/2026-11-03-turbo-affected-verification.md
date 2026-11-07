@@ -32,6 +32,8 @@ One implementation owner restores and adapts existing CI workflows, Turbo task d
 
 Use existing suites and deterministic isolated fixtures. Local mock or query-only checks supplement but cannot replace the actual workflow and application integration. Record outcomes below; unavailable hosted CI or hardware remains blocked, not passed.
 
+Verification: `bun test scripts/test/tests/affected-verification.test.ts scripts/test/tests/run-turbo.test.ts` passed 25 tests. Independent checks confirmed the base workflow graph and ten browser rows, an unaffected docs-only Turbo run, shard argument forwarding, and failure propagation. `CI_VERIFICATION_MODE=full bun scripts/ci/run-affected-browser.ts ci:check-shards` passed with 480 tests assigned once. The same wrapper executed the compiled fresh-install onboarding journey successfully with `ci:browser --grep 'user steps through wizard and lands on home page'`; Turbo reported zero cached tasks. An affected browser fixture did not complete because its dependency links were incomplete. Hosted workflow and artifact behavior, cancellation, native WebGPU, and a successful affected-mode browser journey remain unverified; BG-E1–BG-E6 are not complete.
+
 
 ## Revision: coarse affected gates
 

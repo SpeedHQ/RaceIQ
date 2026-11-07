@@ -27,6 +27,18 @@ on:
         required: false
         type: string
         default: ""
+      verification-mode:
+        type: string
+        required: false
+        default: full
+      base-ref:
+        type: string
+        required: false
+        default: ""
+    outputs:
+      selected:
+        description: Whether Storybook captures executed
+        value: ${{ jobs.render.outputs.selected }}
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -47,6 +59,8 @@ jobs:
   render:
     name: Render
     timeout-minutes: 30
+    outputs:
+      selected: ${{ steps.base-storybook-render.outputs.selected == 'false' && 'false' || steps.storybook-render.outputs.selected }}
     runs-on:
       - mars-ubuntu-2vcpu-6g
       - mars-retry-3
@@ -197,21 +211,28 @@ jobs:
           RACEIQ_STORYBOOK_PREBUILT: "1"
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
-        run: bunx playwright test --update-snapshots --reporter=line --grep-invert "covered stories render without API requests"
+          CI_VERIFICATION_MODE: ${{ inputs.verification-mode }}
+          TURBO_SCM_BASE: ${{ inputs.base-ref }}
+          TURBO_SCM_HEAD: ${{ inputs.head-ref }}
+        run: bun ../scripts/ci/run-affected-browser.ts ci:storybook-base
         # Missing base screenshots remain reviewable as additions.
         continue-on-error: true
       - name: Render PR snapshots
-        if: steps.pr-storybook-build.outcome == 'success'
+        if: steps.pr-storybook-build.outcome == 'success' && steps.base-storybook-render.outputs.selected != 'false'
         id: storybook-render
         working-directory: client
         env:
           RACEIQ_STORYBOOK_PREBUILT: "1"
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/pr-snapshots
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/pr-snapshot-results
-        run: bunx playwright test --update-snapshots --reporter=line
+          CI_VERIFICATION_MODE: ${{ steps.base-storybook-render.outputs.selected == 'true' && 'full' || inputs.verification-mode }}
+          TURBO_SCM_BASE: ${{ inputs.base-ref }}
+          TURBO_SCM_HEAD: ${{ inputs.head-ref }}
+        run: bun ../scripts/ci/run-affected-browser.ts ci:storybook-current
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
       - name: Prepare PR snapshot preview
+        if: steps.storybook-render.outputs.selected != 'false' && steps.base-storybook-render.outputs.selected != 'false'
         env:
           PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
           PR_SNAPSHOT_BASE_RENDER_DIR: ${{ runner.temp }}/base-snapshots
@@ -223,11 +244,12 @@ jobs:
 
       - name: Upload Storybook preview artifact
         uses: actions/upload-artifact@v7
+        if: steps.storybook-render.outputs.selected != 'false' && steps.base-storybook-render.outputs.selected != 'false'
         with:
           name: pr-visual-storybook-preview
           path: pr-preview/
           retention-days: 14
 
       - name: Warn about incomplete Storybook renders
-        if: steps.base-storybook-build.outcome == 'failure' || steps.pr-storybook-build.outcome == 'failure' || steps.base-storybook-render.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
+        if: steps.base-storybook-render.outputs.selected != 'false' && steps.storybook-render.outputs.selected != 'false' && (steps.base-storybook-build.outcome == 'failure' || steps.pr-storybook-build.outcome == 'failure' || steps.base-storybook-render.outcome == 'failure' || steps.storybook-render.outcome == 'failure')
         run: bun packages/tooling-ui/src/ui/report-snapshot-failure.ts pr-preview

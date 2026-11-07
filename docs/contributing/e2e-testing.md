@@ -130,11 +130,11 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-The compiled E2E workflow gates the entire existing browser category by impact.
-When selected, it runs fresh install, tunes, unseeded tunes, and all seeded
-legacy and feature projects across the existing seven seeded shards. The native
-WebGPU gate runs when hardware coverage is enabled. `record-demo` remains outside
-the default gate. Selected browser runs prepare the seeded database.
+The compiled E2E workflow retains the existing jobs and shard layout, including
+fresh install, tunes, unseeded tunes, seven seeded shards, and optional native
+WebGPU. Each shard runs its existing command through an uncached Turbo task.
+Unaffected tasks skip their command; their jobs and prerequisites still run.
+`record-demo` remains outside the default gate.
 
 PR workflows use affected selection with the PR base and head. Manual
 dispatch and reusable workflow calls default to full mode; manual affected
@@ -156,8 +156,9 @@ bun scripts/ci/affected-verification.ts --mode affected --base <base-ref> --head
 The selector writes one JSON object to stdout and diagnostics to stderr. It
 reports the mode and reason, browser matrix, seed requirement, native WebGPU,
 responsive capture, and Storybook capture flags. It queries Turbo impact tasks,
-not a file-to-test map. Any browser impact selects the complete browser matrix;
-responsive and Storybook captures are independent whole-category gates.
+not a file-to-test map. CI uses the selector to validate Turbo task selection;
+responsive and Storybook renders execute through separate uncached tasks.
+The comparison job combines only previews produced by selected renders.
 Docs-only changes under `docs/` can produce an empty selection; deleted,
 renamed, uncovered, or otherwise uncertain inputs conservatively select full
 verification. Full browser selection does not prove hosted jobs ran.
