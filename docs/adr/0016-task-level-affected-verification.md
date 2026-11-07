@@ -13,9 +13,9 @@ The existing feature-package contract requires conservative coverage for unknown
 
 1. Preserve Turbo-native comparison for ordinary local calls without explicit SCM overrides. Preserve full manual/default verification and conservative fallback for untrustworthy ranges.
 2. Scope suite inputs to real production, test, fixture, runner, configuration, and dependency consumers. Keep transitive propagation and environment-sensitive cache invalidation; do not hide genuine graph edges.
-3. Reuse feature `e2e:impact` tasks and add bounded impact tasks for existing residual browser and visual groups. Query impact separately from execution/build prerequisites using the pinned Turbo CLI.
-4. Use one validated selector to produce allowlisted project/server-state matrices and visual/seed decisions before expensive CI provisioning. Unknown impact selects full coverage; invalid ownership or selection configuration fails visibly.
-5. Keep existing full entry points, spec ownership, real compiled-app verification, required status checks, and uncached E2E/build policies. Prove positive and negative selection, fallbacks, inventory parity, cache correctness, and actual hosted job provisioning before claiming completion.
+3. Use Turbo task inputs and dependencies to determine whether each existing verification category is affected. Run its complete existing shard matrix when selected rather than constructing per-project matrices.
+4. Skip an entire category only after a trustworthy query proves it unaffected. Invalid ranges, incomplete ownership, and query failures select full verification with a diagnostic.
+5. Keep existing full entry points, spec ownership, seeded and hardware prerequisites, required aggregate status checks, and uncached E2E/build policies. Verify selected, unaffected, fallback, failure, and hosted provisioning paths before claiming completion.
 
 ## Rationale and consequences
 

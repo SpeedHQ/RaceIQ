@@ -6,6 +6,35 @@ Planned against commit `900faf29b`, 2026-11-03. Installed toolchain: Bun 1.4.4, 
 
 ADR: [Use task-level impact selection before verification provisioning](../../adr/0016-task-level-affected-verification.md).
 
+## Revision: coarse affected gates
+
+This revision supersedes conflicting browser/visual selection requirements and tasks below, including AC06–AC09 and E2E cases that require feature-specific matrix selection. Preserve the ordinary test, cache, replay, and full-coverage requirements. Keep existing shards and execute the full existing matrix whenever its verification category is affected.
+
+### Acceptance criteria
+
+- CG01: A trustworthy Turbo affected query selects each existing test category as a whole. An affected category executes its complete existing shard matrix; a proven unaffected category does not provision its test jobs.
+- CG02: A stable required aggregate passes only after successful selection and either an unaffected result or successful completion of every required shard. Failed, cancelled, or unexpectedly skipped required jobs fail the aggregate.
+- CG03: Invalid, missing, equal, or unavailable refs, incomplete ownership, malformed output, or selector/query failure select full verification with a diagnostic. Manual execution defaults to full.
+- CG04: Existing browser projects, visual checks, seeded prerequisites, and native WebGPU coverage remain intact; no E2E or build caching is enabled. Turbo task dependencies and inputs must conservatively cover their consumers.
+
+### Implementation and verification
+
+One implementation owner updates CI workflows, Turbo selection and its tests, and affected documentation. Retain existing reusable workflows and shard definitions; remove obsolete per-project selection machinery where no longer needed. The coordinator owns integration and verification; an independent checker exercises the final entry points.
+
+Use isolated Git workspaces and the real Turbo and selector entry points. Record results here before claiming completion:
+
+| Scenario | Setup, action, expected result | Criteria |
+|---|---|---|
+| CG-E1 | Change an owned test or production input; invoke affected selection and the existing test entry point; category selected and its complete existing matrix runs. | CG01, CG04 |
+| CG-E2 | Change only a non-verification document; invoke affected selection; no test jobs selected and aggregate succeeds. | CG01, CG02 |
+| CG-E3 | Use missing, equal, invalid, or unavailable refs; induce malformed/query failure and unknown ownership; selector reports full verification. Manual default also selects full. | CG02, CG03 |
+| CG-E4 | Exercise failed, cancelled, and unexpectedly skipped required shards in the workflow integration; aggregate fails. Successful shards and valid empty selection pass. | CG02 |
+| CG-E5 | Compare actual Playwright discovery and visual/hardware gates with the prior full inventory; run representative compiled application journeys and selected existing shards. | CG01, CG04 |
+| CG-E6 | Run actual hosted workflows for affected, unaffected, and fallback changes; observe provisioning and required status. Exercise native WebGPU on its authorized runner. | CG01–CG04 |
+
+Reuse existing CI and Playwright suites. Local workflow simulations or mocks supplement, but do not replace, hosted execution. Hosted CI, branch protection, and hardware evidence remain blocked until available; record all outcomes and do not claim completion for unexecuted scenarios.
+
+
 ## Goal and boundaries
 
 Run only verification tasks affected by a trustworthy change range, plus their required execution prerequisites. Skip unnecessary browser and visual job provisioning. Preserve conservative full coverage when impact cannot be established.
