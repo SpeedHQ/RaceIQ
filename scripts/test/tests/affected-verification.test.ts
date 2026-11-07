@@ -80,6 +80,25 @@ describe("affected verification selector", () => {
     }
   });
 
+  test("explicitly empty refs fall back to the full inventory", () => {
+    const fullSelection = JSON.parse(run("--mode", "full").stdout.toString());
+    for (const args of [
+      ["--mode", "affected", "--base", "", "--head", "HEAD"],
+      ["--mode", "affected", "--base", "HEAD", "--head", ""],
+    ]) {
+      const process = run(...args);
+      expect(process.exitCode).toBe(0);
+      const selection = JSON.parse(process.stdout.toString());
+      expect(selection.mode).toBe("full");
+      expect(selection.browserMatrix).toEqual(fullSelection.browserMatrix);
+      expect(selection.seedDatabase).toBe(fullSelection.seedDatabase);
+      expect(selection.nativeWebgpu).toBe(fullSelection.nativeWebgpu);
+      expect(selection.responsive).toBe(fullSelection.responsive);
+      expect(selection.storybook).toBe(fullSelection.storybook);
+      expect(process.stderr.toString()).toContain("affected mode requires both refs; selecting full inventory");
+    }
+  });
+
   test("a failed Turbo query falls back to full instead of reporting no work", () => {
     const previous = Bun.spawnSync(["git", "rev-parse", "--verify", "HEAD^"], { cwd: root, stdout: "pipe", stderr: "pipe" });
     expect(previous.exitCode).toBe(0);
@@ -318,8 +337,15 @@ describe("affected verification selector", () => {
   }, 180_000);
 
   test("rejects invalid options", () => {
-    const process = run("--mode", "unknown");
-    expect(process.exitCode).not.toBe(0);
-    expect(process.stdout.toString()).toBe("");
+    for (const args of [
+      ["--mode", "unknown"],
+      ["--mode", "affected", "--base"],
+      ["--mode", "affected", "--base", "--head", "HEAD"],
+      ["--mode", "affected", "--unknown", ""],
+    ]) {
+      const process = run(...args);
+      expect(process.exitCode).not.toBe(0);
+      expect(process.stdout.toString()).toBe("");
+    }
   });
 });

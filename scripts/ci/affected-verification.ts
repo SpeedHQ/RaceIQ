@@ -168,7 +168,7 @@ try {
   const args = process.argv.slice(2);
   const options = new Map<string, string>();
   for (let i = 0; i < args.length; i += 2) {
-    if (!args[i]?.startsWith("--") || !args[i + 1] || options.has(args[i])) throw new Error("Expected --mode <full|affected> [--base <ref> --head <ref>]");
+    if (!args[i]?.startsWith("--") || args[i + 1] === undefined || args[i + 1]?.startsWith("--") || options.has(args[i])) throw new Error("Expected --mode <full|affected> [--base <ref> --head <ref>]");
     options.set(args[i]!, args[i + 1]!);
   }
   if ([...options.keys()].some((key) => !["--mode", "--base", "--head"].includes(key))) throw new Error("Unknown selector option");

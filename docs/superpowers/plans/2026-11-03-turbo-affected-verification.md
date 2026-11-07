@@ -34,6 +34,8 @@ Use isolated Git workspaces and the real Turbo and selector entry points. Record
 
 Reuse existing CI and Playwright suites. Local workflow simulations or mocks supplement, but do not replace, hosted execution. Hosted CI, branch protection, and hardware evidence remain blocked until available; record all outcomes and do not claim completion for unexecuted scenarios.
 
+Revision verification: `bun test scripts/test/tests/affected-verification.test.ts` passed 13 tests and 130 assertions. Independent selector checks covered affected, docs-only, unknown input, equal and invalid refs, malformed/query failures, and inventory parity. Local aggregate shell simulation rejected failed, cancelled, and unexpectedly skipped required shards. Actual full shard execution, hosted workflow provisioning and aggregate statuses, branch protection, and native WebGPU remain unverified; these local results do not satisfy CG-E1–CG-E6 in full.
+
 
 ## Goal and boundaries
 
