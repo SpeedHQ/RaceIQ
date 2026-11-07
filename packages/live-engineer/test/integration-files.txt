@@ -1,0 +1,6 @@
+packages/live-engineer/test/live-engineer-replay.test.ts
+packages/live-engineer/test/race-engineer-triggers/car-health-conditions-triggers.test.ts
+packages/live-engineer/test/race-engineer-triggers/catalog.test.ts
+packages/live-engineer/test/race-engineer-triggers/race-control-strategy-triggers.test.ts
+packages/live-engineer/test/race-engineer-triggers/session-triggers.test.ts
+packages/live-engineer/test/race-engineer-triggers/timing-opponent-triggers.test.ts

@@ -1,3 +1,4 @@
+import { accBroadcastClient } from "@raceiq/game-acc/broadcast-client";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
 import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
@@ -41,9 +42,16 @@ export function startNativeSourceSupervisor(
       () => pendingStops.delete(stop),
     );
   };
-
+  let wasAccRunning = false;
   if (IS_WINDOWS) console.log(`[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu${serverReleaseFeatures.ams2Adapter ? ", ams2" : ""}) — 2s poll`);
   const pollTimer = IS_WINDOWS ? setInterval(() => {
+    const accRunning = isGameRunning("acc");
+    if (accRunning) {
+      void accBroadcastClient.start().catch((error) => console.error("[ACC Broadcast] Start failed:", error));
+    } else if (wasAccRunning) {
+      void accBroadcastClient.stop().catch((error) => console.error("[ACC Broadcast] Stop failed:", error));
+    }
+    wasAccRunning = accRunning;
     trackStop(superviseSource(
       isGameRunning("acc") || (dumpMode && recordingGameId === "acc"),
       "ACC",
@@ -97,6 +105,7 @@ export function startNativeSourceSupervisor(
       setAccReader(null);
       setAcEvoReader(null);
       setIracingSource(null);
+      trackStop(accBroadcastClient.stop());
       setLmuSource(null);
       setAms2Source(null);
       const stopped = await Promise.allSettled([

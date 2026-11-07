@@ -8,7 +8,7 @@ import { createSuspensionSpringResource, disposeSuspensionSpringResource } from 
 import { createAnalysisWheels } from "@raceiq/scene-3d/wireframe/AnalysisWheels";
 import { disposeWheelResource } from "@raceiq/scene-3d/wireframe/Wheel";
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: true, liveSpotterEngineer: false, liveSpotterEngineerGameIds: [] });
 
 test("replay suspension moves each body with its own lap range and keeps native normalization", () => {
   const a = new Group(), b = new Group();

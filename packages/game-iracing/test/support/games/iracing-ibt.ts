@@ -11,7 +11,8 @@ import {
 } from "@raceiq/capture-formats/iracing/variable-table";
 
 export const DISK_HEADER_SIZE = 144;
-export const ROW_LENGTH = 44;
+
+export const ROW_LENGTH = 56;
 
 export interface SyntheticRow {
   sessionTime: number;
@@ -22,7 +23,11 @@ export interface SyntheticRow {
   lastLapTime?: number;
   currentLapTime?: number;
   brakeLinePressure?: number;
+  engineWarnings?: number;
+  pitRepairLeft?: number;
+  pitOptRepairLeft?: number;
 }
+
 
 export interface SyntheticIdentity {
   trackId: number;
@@ -80,6 +85,9 @@ function telemetryRow(row: SyntheticRow): Buffer {
   buffer.writeFloatLE(row.lastLapTime ?? 0, 32);
   buffer.writeFloatLE(row.currentLapTime ?? row.sessionTime, 36);
   buffer.writeFloatLE(row.brakeLinePressure ?? 1200.25, 40);
+  buffer.writeUInt32LE(row.engineWarnings ?? 0xf0000001, 44);
+  buffer.writeFloatLE(row.pitRepairLeft ?? 12.375, 48);
+  buffer.writeFloatLE(row.pitOptRepairLeft ?? 3.625, 52);
   return buffer;
 }
 
@@ -130,6 +138,9 @@ export function writeSyntheticIbt(
     descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
     descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
     descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
+    descriptor(IRSDKVariableType.BitField, 44, "EngineWarnings"),
+    descriptor(IRSDKVariableType.Float, 48, "PitRepairLeft"),
+    descriptor(IRSDKVariableType.Float, 52, "PitOptRepairLeft"),
   ]);
   const sessionInfo = Buffer.from(
     `${syntheticSessionInfo(identity)}\0`,

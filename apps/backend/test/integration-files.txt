@@ -216,4 +216,8 @@ apps/backend/test/session-capture/live-worker-catchup.test.ts
 apps/backend/test/session-capture/preopened-file-writer.test.ts
 apps/backend/test/session-capture/direct-recorder.test.ts
 apps/backend/test/session-capture/direct-recording-ingress.test.ts
+apps/backend/test/live-strategy/acc-opponent-replay.test.ts
+apps/backend/test/live-strategy/live-engineer-audio-catalog.test.ts
+apps/backend/test/telemetry/live-pipeline-capture-prefix.test.ts
+apps/backend/test/routes/live-engineer-voice-pack.test.ts
 apps/backend/test/session-capture/classification-status.test.ts

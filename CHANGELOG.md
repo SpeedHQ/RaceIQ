@@ -1,10 +1,32 @@
 ## Unreleased
 
+### Breaking
+- Download and install the Race Engineer voice pack separately; voice audio is no longer included with the app. Text callouts remain available without the pack.
+
 ### Features
+- Install the optional Live Engineer voice package during setup or manage installed, required, and available versions in Settings → Live Engineer. Check compatible updates automatically when Radio audio is enabled, with an update prompt and retryable installation that preserves existing audio.
+- Show download or update requirements in Radio before enabling voice audio, with independently versioned voice packs and explicit engine/catalog/language compatibility.
+- Use Race Engineer naming throughout internal subsystem identifiers, paths, and user-facing labels.
+- Announce source-backed component damage and faults: named F1 25 components and engine failures, ACC/AC Evo bodywork, iRacing native warnings and repair requirements, and LMU flat tyres/detached wheels. Preserve three-second debounce, independent escalation, and repair rearming; exclude wear and inferred diagnoses.
+- Replace vague damage audio with 56 matching Qwen component/fault clips. LMU enablement remains damage-only; Forza damage stays unavailable.
+- Add source-backed race engineer announcements for ACC and AC Evo, plus position changes for Forza Motorsport. Replay distinguishes unsupported systems from telemetry missing in older recordings.
+- Inspect replayed engineer audio in a moving 10-second DAW timeline with individual, duration-scaled clip waveforms and inserted pauses.
+- Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
+- Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
+- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
+- Keep native recording write/close/replay working on Windows without calling unsupported directory `fsync`; preserve file flushes, POSIX directory syncing, and genuine filesystem errors.
+- Keep recording layout migration progress polling from racing atomic journal replacement on Windows; preserve collision checks and resumable cutover.
+- Keep ACC laps readable and exportable when recordings include opponent data, and hide stale opponent standings until the source recovers.
+- Restore source-backed iRacing opponent pace announcements for sparse grids.
+- Recognize F1 25 race sessions correctly when evaluating opponent pace.
+- Keep ACC tyre-temperature warnings suppressed during warm-up, pit visits, and earlier sectors.
+- Keep Engineer Replay focused on the actual player, preserve source-loss history, and stop queued audio after mute, seek, or session changes.
+- Chain completed-lap time and pace announcements with a natural pause and without repeating "Your lap was."
 
 ### Internal
+- Preserve race-engineer announcements, ACC Broadcast capture metadata, and replay/export behavior across the workspace and string-identity migrations.
 
 ## v0.21.1 - 2026-11-03
 
@@ -580,6 +602,7 @@
 - Keep overlapping lap-insight computations from overwriting explicitly rerun results.
 
 ### Internal
+- Show ordered v3 lap-time chunks, individual audio previews, source sentences, and join timings in the developer speech comparison.
 - Bind development UDP telemetry to Forza's default port `5301`, configurable with `RACEIQ_DEV_UDP_PORT`.
 - Keep seeded sessions' source metadata consistent with live recordings so conversion eligibility no longer needs a seed exception.
 - Verify seeded database upgrades against migrations pending from PR base.
@@ -596,6 +619,7 @@
 - Fail PR screenshot-render jobs on Storybook test errors after uploading visual artifacts; wait for note-modal interaction readiness in snapshots.
 - Align seeded Analyse and landing browser tests with session-scoped review/replay routes, session empty/error states, lap-only selection, and simulator-specific tire labels; exercise responsive Analyse against seeded replay data.
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
+- Replay multiple synthetic race-engineer scenarios across complete multi-lap sessions, including fuel escalation and pit-entry sequences.
 - Cache versioned static lap insights for reuse, stale backfill, and explicit reruns
 - Reuse per-frame wheel dynamics across static insight detectors
 - Avoid per-frame wheel-speed sorting during effective-radius calculation
@@ -704,6 +728,7 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Add opt-in Race Engineer opponent-pace and Spotter announcements; opponent pace is available from source-backed F1 25 and iRacing telemetry, while ACC, AC Evo, and Forza remain unavailable where feeds do not expose required competitor facts.
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment

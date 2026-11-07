@@ -6,14 +6,13 @@ import {
   type IRacingSourceFrame,
   type IRacingValue,
 } from "@raceiq/capture-formats/iracing/source-frame";
-import { parseIRacingFuelCapacity } from "@raceiq/capture-formats/iracing/session-info";
+import { parseIRacingDrivers, type IRacingDriverSnapshot, parseIRacingFuelCapacity, parseIRacingSessionType } from "@raceiq/capture-formats/iracing/session-info";
+import type { IRacingCompetitor } from "@raceiq/shared/telemetry/iracing";
 import {
   startsAtIRacingSectorOrigin,
   warnInvalidIRacingSectorLayout,
 } from "./sector-layout";
-
 const KPA_TO_PSI = 0.1450377377;
-
 export interface IRacingParserState {
   source: IRacingSourceDecoderState;
   sessionKey: string | null;
@@ -21,6 +20,11 @@ export interface IRacingParserState {
   lapStartSessionTime: number;
   fuelCapacitySessionInfo: string | null;
   fuelCapacityL: number | undefined;
+  sessionInfo: string | null;
+  sessionTypeSessionInfo: string | null;
+  sessionTypeSessionNum: number | null;
+  sessionType: string;
+  drivers: readonly IRacingDriverSnapshot[];
 }
 
 export function createIRacingParserState(): IRacingParserState {
@@ -31,6 +35,11 @@ export function createIRacingParserState(): IRacingParserState {
     lapStartSessionTime: 0,
     fuelCapacitySessionInfo: null,
     fuelCapacityL: undefined,
+    sessionInfo: null,
+    sessionTypeSessionInfo: null,
+    sessionTypeSessionNum: null,
+    sessionType: "unknown",
+    drivers: [],
   };
 }
 
@@ -46,6 +55,11 @@ export function captureIRacingParserCheckpoint(state: IRacingParserState): Uint8
     format: "raceiq:iracing-parser",
     version: 1,
     state: {
+      sessionInfo: state.sessionInfo,
+      sessionTypeSessionInfo: state.sessionTypeSessionInfo,
+      sessionTypeSessionNum: state.sessionTypeSessionNum,
+      sessionType: state.sessionType,
+      drivers: state.drivers,
       sessionKey: state.sessionKey,
       rawLap: state.rawLap,
       lapStartSessionTime: state.lapStartSessionTime,
@@ -118,6 +132,7 @@ export function restoreIRacingParserCheckpoint(bytes: Uint8Array): IRacingParser
     }
   }
   return {
+    ...createIRacingParserState(),
     sessionKey: state.sessionKey,
     rawLap: state.rawLap,
     lapStartSessionTime: state.lapStartSessionTime,
@@ -146,10 +161,64 @@ function scalar(
   if (typeof value === "boolean") return value ? 1 : 0;
   return fallback;
 }
+function numberArray(values: Record<string, IRacingValue>, name: string): number[] | undefined {
+  const value = values[name];
+  if (!Array.isArray(value)) return undefined;
+  const output = value.map((entry) => typeof entry === "number" && Number.isFinite(entry) ? entry : Number.NaN);
+  return output.some(Number.isNaN) ? undefined : output;
+}
+function booleanArray(values: Record<string, IRacingValue>, name: string): boolean[] | undefined {
+  const value = values[name];
+  if (!Array.isArray(value)) return undefined;
+  if (value.some((entry) => typeof entry !== "boolean" && entry !== 0 && entry !== 1)) return undefined;
+  return value.map((entry) => entry === true || (typeof entry === "number" && entry !== 0));
+}
 
 function bool(values: Record<string, IRacingValue>, name: string): boolean {
   const value = values[name];
   return value === true || (typeof value === "number" && value !== 0);
+}
+const TRACK_LOCATIONS: Readonly<Record<number, IRacingCompetitor["trackLocationName"]>> = {
+  [-1]: "not-in-world",
+  0: "off-track",
+  1: "pit-stall",
+  2: "approaching-pits",
+  3: "track",
+};
+
+function buildCompetitors(
+  values: Record<string, IRacingValue>,
+  drivers: readonly IRacingDriverSnapshot[],
+): readonly IRacingCompetitor[] {
+  const positions = numberArray(values, "CarIdxPosition");
+  const classPositions = numberArray(values, "CarIdxClassPosition");
+  const laps = numberArray(values, "CarIdxLapCompleted");
+  const pits = booleanArray(values, "CarIdxOnPitRoad");
+  const lastLaps = numberArray(values, "CarIdxLastLapTime");
+  const bestLaps = numberArray(values, "CarIdxBestLapTime");
+  const locations = numberArray(values, "CarIdxTrackSurface");
+  if (!positions || !classPositions || !laps || !pits || !lastLaps || !bestLaps || !locations) return [];
+  if (drivers.length > 64 || new Set(drivers.map((driver) => driver.carIndex)).size !== drivers.length) return [];
+  const rows: IRacingCompetitor[] = [];
+  for (const driver of drivers) {
+    if (driver.isSpectator || driver.carIsPaceCar || driver.carClassId === undefined || driver.userId === undefined || !driver.displayName || !driver.carClassShortName) continue;
+    const i = driver.carIndex;
+    const row = { position: positions[i], classPosition: classPositions[i], lapsComplete: laps[i], onPitRoad: pits[i], lastLapTime: lastLaps[i], bestLapTime: bestLaps[i], trackLocation: locations[i] };
+    if (![row.position, row.classPosition, row.lapsComplete, row.lastLapTime, row.bestLapTime, row.trackLocation].every((value) => typeof value === "number" && Number.isFinite(value)) || row.onPitRoad === undefined) continue;
+    const trackLocationName = TRACK_LOCATIONS[row.trackLocation!];
+    if (!trackLocationName) continue;
+    rows.push({
+      ...driver,
+      ...row,
+      driverId: String(driver.userId),
+      driverName: driver.displayName,
+      carClassIdString: String(driver.carClassId),
+      carClassName: driver.carClassShortName,
+      pitStatus: row.onPitRoad ? "in_pit" : "out",
+      trackLocationName,
+    });
+  }
+  return rows.sort((a, b) => a.carIndex - b.carIndex);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -297,7 +366,47 @@ export function normalizeIRacingFrame(
       fuelCapacityL = state.fuelCapacityL;
     }
   }
-  const currentLapTime = updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
+  let sessionType = "unknown";
+  if ("sessionInfo" in frame) {
+    if (!state) {
+      sessionType = parseIRacingSessionType(frame.sessionInfo, session.sessionNum);
+    } else {
+      if (state.sessionTypeSessionInfo !== frame.sessionInfo || state.sessionTypeSessionNum !== session.sessionNum) {
+        state.sessionTypeSessionInfo = frame.sessionInfo;
+        state.sessionTypeSessionNum = session.sessionNum;
+        state.sessionType = parseIRacingSessionType(frame.sessionInfo, session.sessionNum);
+      }
+      sessionType = state.sessionType;
+    }
+  } else if (state) {
+    sessionType = state.sessionType;
+  }
+  let drivers: readonly IRacingDriverSnapshot[] = state?.drivers ?? [];
+  if ("sessionInfo" in frame && state) {
+    if (state.sessionInfo !== frame.sessionInfo) {
+      state.sessionInfo = frame.sessionInfo;
+      state.drivers = parseIRacingDrivers(frame.sessionInfo);
+    }
+    drivers = state.drivers;
+  } else if ("sessionInfo" in frame) {
+    drivers = parseIRacingDrivers(frame.sessionInfo);
+  }
+  const competitors = buildCompetitors(values, drivers);
+  let currentLapTime = sdkCurrentLapTime;
+  if (state) {
+    if (state.sessionKey !== sessionKey || state.rawLap === null) {
+      state.sessionKey = sessionKey;
+      state.rawLap = rawLap;
+      state.lapStartSessionTime = sessionTime - sdkCurrentLapTime;
+    } else if (state.rawLap !== rawLap) {
+      // iRacing's Lap changes at the physical start/finish line, while
+      // LapCurrentLapTime rolls over roughly two seconds later. SessionTime is
+      // monotonic, so anchor elapsed time at the immediate Lap transition.
+      state.rawLap = rawLap;
+      state.lapStartSessionTime = sessionTime;
+    }
+    currentLapTime = Math.max(0, sessionTime - state.lapStartSessionTime);
+  }
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
@@ -332,14 +441,37 @@ export function normalizeIRacingFrame(
     iracing: {
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)),
       sessionNum: session.sessionNum,
+      sessionType,
       driverCarIdx: session.driverCarIdx,
+      playerCarClassId: session.carClassId >= 0 ? String(session.carClassId) : undefined,
       trackLengthM,
       lapDistanceM,
       lapDistancePct,
       sdkCurrentLapTime,
+      sessionFlags: Math.trunc(scalar(values, "SessionFlags", 0)),
+      sessionState: Math.trunc(scalar(values, "SessionState", 0)),
+      ...(typeof values.EngineWarnings === "number" ? { engineWarnings: values.EngineWarnings } : {}),
+      ...(typeof values.PitRepairLeft === "number" ? { pitRepairLeft: values.PitRepairLeft } : {}),
+      ...(typeof values.PitOptRepairLeft === "number" ? { pitOptRepairLeft: values.PitOptRepairLeft } : {}),
+      sessionTimeRemain: scalar(values, "SessionTimeRemain", 0),
+      carIdxPosition: numberArray(values, "CarIdxPosition"),
+      carIdxClassPosition: numberArray(values, "CarIdxClassPosition"),
+      competitors,
+      competitorCarIndex: competitors.map((competitor) => competitor.carIndex),
+      competitorDriverId: competitors.map((competitor) => competitor.driverId),
+      competitorDriverName: competitors.map((competitor) => competitor.driverName),
+      competitorCarClassIdString: competitors.map((competitor) => competitor.carClassIdString),
+      competitorCarClassName: competitors.map((competitor) => competitor.carClassName),
+      competitorPitStatus: competitors.map((competitor) => competitor.pitStatus),
+      competitorTrackLocationName: competitors.map((competitor) => competitor.trackLocationName),
+      competitorLapsComplete: competitors.map((competitor) => competitor.lapsComplete),
+      competitorLastLapTime: competitors.map((competitor) => competitor.lastLapTime),
       sectorStarts,
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
+      carLeftRight: Math.trunc(scalar(values, "CarLeftRight", 0)),
+      carIdxLap: numberArray(values, "CarIdxLap"),
+      carIdxBestLapTime: numberArray(values, "CarIdxBestLapTime"),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
       pitTireTemperatureAvailable,
@@ -519,6 +651,7 @@ export function projectIRacingLapIndex(frame: IRacingSourceFrame, state?: IRacin
     RacePosition: Math.max(0, Math.trunc(scalar(values, "PlayerCarPosition", 0))),
     WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0,
     iracing: {
+      sessionType: parseIRacingSessionType("sessionInfo" in frame ? frame.sessionInfo : "", session.sessionNum),
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)), sessionNum: session.sessionNum,
       driverCarIdx: session.driverCarIdx, trackLengthM, lapDistanceM,
       lapDistancePct: clamp(scalar(values, "LapDistPct", 0), 0, 1), sdkCurrentLapTime,

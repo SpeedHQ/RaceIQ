@@ -50,7 +50,6 @@ const PENALTY_TYPE_NAMES: Record<number, string> = {
   22: "disqualified-wrong-way",
 };
 
-
 /**
  * Parse the three ACC shared memory buffers into a unified TelemetryPacket.
  * Returns null if the buffers are too small.
@@ -370,6 +369,16 @@ export function parseAccBuffers(
     drsEnabled: false,
     pitStatus,
     isValidLap,
+    sessionTimeRemainingSeconds: graphicsBuf.readFloatLE(GRAPHICS.sessionTimeLeft.offset) / 1000,
+    penaltyCode: graphicsBuf.readInt32LE(GRAPHICS.penalty.offset),
+    waterTempC: physicsBuf.readFloatLE(PHYSICS.waterTemp.offset),
+    ...(graphicsBuf.length >= GRAPHICS.rainIntensity.offset + 4
+      ? { rainIntensityCode: graphicsBuf.readInt32LE(GRAPHICS.rainIntensity.offset) } : {}),
+    ...(graphicsBuf.length >= GRAPHICS.gapBehind.offset + 4
+      ? {
+          gapAheadMs: graphicsBuf.readInt32LE(GRAPHICS.gapAhead.offset),
+          gapBehindMs: graphicsBuf.readInt32LE(GRAPHICS.gapBehind.offset),
+        } : {}),
     fuelPerLap,
     currentSectorIndex,
     lastSectorTime,

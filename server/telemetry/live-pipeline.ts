@@ -1,6 +1,11 @@
 import { getLapProcessingByIds } from "../db/lap-read-queries";
 import { registerActiveSessionQuery } from "../session-capture/session-activity";
-export type PacketSourceReference = Buffer | { rawOffset: number };
+export type PacketSourceReference = Buffer | { rawOffset: number } | {
+  frame: Buffer;
+  capturePrefixRecords: () => readonly Buffer[];
+  captureSessionContextRecords?: () => readonly Buffer[];
+  acknowledgeRecorded: () => void;
+};
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -25,6 +30,17 @@ import { encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentContextEndF
 import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
+import type { LiveEngineerVoiceRequestV3, LiveEngineerDeliveryStatusV3 } from "@raceiq/shared/racing/live/engineer-contracts";
+import { isLiveEngineerEnabled, releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
+
+const LIVE_ENGINEER_FLAGS = releaseFeatureFlags({
+  RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+  RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
+  RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+});
 import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { materializeParserInitializationPlan, subscribeParserSource, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
 import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
@@ -53,11 +69,15 @@ export class LiveTelemetryPipeline {
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
-  private projector = new LiveTelemetryProjector();
+  private readonly _engineerEnabled: boolean | ((gameId: GameId) => boolean);
+  private projector: LiveTelemetryProjector;
   private _sessionLaps: LapMeta[] = [];
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
   private _liveIssuesEnabled = false;
+  private _timelineEpoch = 0;
+  private _voiceEngine: LiveEngineerVoiceEngine;
+  private _triggerCatalog = new RaceEngineerTriggerCatalog();
   private _recordingSession: RecordingSession | null = null;
   private _dashboardCaptureObservations = new Map<number, CaptureObservationEntry>();
   private _continuingSegment = false;
@@ -82,6 +102,9 @@ export class LiveTelemetryPipeline {
   private readonly _retiringCaptures = new Set<Promise<void>>();
   private _processingNativeFrame: Buffer | null = null;
   private _processingTimestamp: number | undefined;
+  private _processingCaptureSource: Extract<PacketSourceReference, { frame: Buffer }> | null = null;
+  private _processingCapturePrefixes: readonly Buffer[] | undefined;
+  private _processingCaptureRecorded = false;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -116,11 +139,14 @@ export class LiveTelemetryPipeline {
       bypassPacketRateFilter?: boolean;
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
+      engineerEnabled?: boolean | ((gameId: GameId) => boolean);
       recorder?: SessionRecorderAdapter;
       enqueueSessionCaptureSplits?: boolean;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
     },
   ) {
+    this._engineerEnabled = options?.engineerEnabled ?? false;
+    this.projector = new LiveTelemetryProjector({ engineerEnabled: this._engineerEnabled });
     this.db = db;
     this.ws = ws;
     this.recorder = options?.recorder ?? (db instanceof RealDbAdapter
@@ -131,6 +157,9 @@ export class LiveTelemetryPipeline {
     this._skipDevState = options?.skipDevState ?? false;
     this._enqueueSessionCaptureSplits = options?.enqueueSessionCaptureSplits ?? true;
     this._onSessionFinalized = options?.onSessionFinalized;
+    this._voiceEngine = new LiveEngineerVoiceEngine({
+      emit: (message) => this.ws.broadcastNotification(message as unknown as Record<string, unknown>),
+    });
     if (db instanceof RealDbAdapter) {
       db.subscribeLapBindings((binding) => {
         if (binding.sessionId === this._recordingSession?.sessionId) this._recordingSession.directCapture?.bindLap(binding);
@@ -156,6 +185,7 @@ export class LiveTelemetryPipeline {
   captureParserSource(input: ParserSourceInput): void {
     const reference: CapturedParserSource = { parserSequence: input.sequence, epoch: this.recorder.epoch, locator: input.locator };
     this._parserSourceFrames.set(input.frame, reference);
+    if (input.deferCapture) return;
     if (this.recorder instanceof DirectSessionRecorderAdapter && this.recorder.active && !this._recordingSession?.directCapture?.hasFailed) {
       const bytes = input.frame.byteLength + (input.locator?.byteCost ?? 0) + 128;
       if (this._pendingDirectBytes + bytes > 8 * 1024 * 1024 || this._pendingDirectSources.length - this._pendingDirectHead >= 1024) {
@@ -322,11 +352,13 @@ export class LiveTelemetryPipeline {
     }
   }
 
-  private _writeProcessingTrigger(): void {
+  private _writeProcessingTrigger(updateLapStart = true): void {
     const frame = this._processingNativeFrame;
     if (!frame || !this.recorder.active) return;
     const captured = this._parserSourceFrames.get(frame);
     if (captured?.epoch === this.recorder.epoch && captured.rawOffset !== undefined) return;
+    const captureSource = this._processingCaptureSource;
+    const initialCapture = this.recorder instanceof SparseSessionRecorderAdapter && this.recorder.sourceOrdinal === undefined;
     for (const context of this._pendingSessionContextFrames) this.recorder.writeRawCaptureBytes(context);
     this._pendingSessionContextFrames = [];
     if (captured?.locator && this.recorder instanceof SparseSessionRecorderAdapter && this.recorder.sourceOrdinal === undefined) {
@@ -347,14 +379,27 @@ export class LiveTelemetryPipeline {
     const reference: CapturedParserSource = captured ?? { parserSequence: -1, epoch: this.recorder.epoch, locator: null };
     if (this.recorder instanceof DirectSessionRecorderAdapter) this._discardDirectSourcesThrough(reference);
     reference.epoch = this.recorder.epoch;
-    reference.rawOffset = this.recorder.getCurrentByteOffset();
-    this.recorder.writeRecord(frame, this._processingTimestamp);
+    const sourceContext = initialCapture ? captureSource?.captureSessionContextRecords?.() : undefined;
+    if (sourceContext?.length) {
+      this.recorder.writeRawCaptureBytes(encodeSegmentContextFrame());
+      for (const record of sourceContext) this.recorder.writeRawCaptureBytes(record);
+      this.recorder.writeRawCaptureBytes(encodeSegmentContextEndFrame());
+    }
+    const prefixes = captureSource ? this._processingCapturePrefixes ??= captureSource.capturePrefixRecords() : undefined;
+    if (prefixes && this.recorder instanceof DirectSessionRecorderAdapter) {
+      reference.rawOffset = this.recorder.writePrefixedRecord(frame, this._processingTimestamp, prefixes, captureSource?.captureSessionContextRecords);
+    } else {
+      reference.rawOffset = this.recorder.getCurrentByteOffset();
+      if (prefixes) for (const prefix of prefixes) this.recorder.writeRawCaptureBytes(prefix);
+      this.recorder.writeRecord(frame, this._processingTimestamp);
+    }
+    if (captureSource) this._processingCaptureRecorded = true;
     reference.rawEndOffset = this.recorder.getCurrentByteOffset();
     if (this.recorder instanceof SparseSessionRecorderAdapter) reference.rawOrdinal = this.recorder.sourceOrdinal;
     this._parserSourceFrames.set(frame, reference);
     this._processingSource = reference;
     this._latestSource = reference;
-    this._lapDetector?.setCurrentLapByteOffset?.(reference.rawOffset, reference.rawOrdinal);
+    if (updateLapStart) this._lapDetector?.setCurrentLapByteOffset?.(reference.rawOffset, reference.rawOrdinal);
     if (reference.rawOrdinal !== undefined) this._lapDetector?.observeSourceRecord?.(reference.rawOffset, reference.rawEndOffset, reference.rawOrdinal);
   }
 
@@ -375,7 +420,7 @@ export class LiveTelemetryPipeline {
   ): void {
     if (sessionId === undefined) return;
     const entry = this._dashboardCaptureObservations.get(sessionId);
-    if (entry) entry.observation.observe(packet, source, frameTimeMs);
+    if (entry) entry.observation.observe(packet, source && !Buffer.isBuffer(source) && "frame" in source ? source.frame : source, frameTimeMs);
   }
 
   /** Persist packet-pass facts only after raw capture is closed and source revision checkpointed. */
@@ -424,6 +469,10 @@ export class LiveTelemetryPipeline {
       if (!complete) await markDashboardCaptureCheckpoint(checkpointId, true);
       for (const id of ids) this._dashboardCaptureObservations.delete(id);
     }
+  }
+
+  handleLiveEngineerMessage(message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3) {
+    return this._voiceEngine.handle(message);
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {
@@ -530,6 +579,9 @@ export class LiveTelemetryPipeline {
         await this.sectorTracker.reset(trackIdentity, session.gameId, carIdentity);
         this.pitTracker.reset();
         const adapter = getServerGame(session.gameId);
+        this._timelineEpoch += 1;
+        this._voiceEngine.reset();
+        this._triggerCatalog.reset();
         this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
         this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
         if (!this._skipHistorySeeding) {
@@ -702,6 +754,9 @@ export class LiveTelemetryPipeline {
         this._processingNativeFrame = null;
         this._processingSource = null;
         this._processingTimestamp = undefined;
+        this._processingCaptureSource = null;
+        this._processingCapturePrefixes = undefined;
+        this._processingCaptureRecorded = false;
         this._queuedPacketBytes -= reservedBytes;
         release();
       }
@@ -724,9 +779,10 @@ export class LiveTelemetryPipeline {
       this._drainOwnership();
     }
     const detector = this._getOrCreateDetector(packet.gameId);
-    this._processingNativeFrame = Buffer.isBuffer(source) ? source : null;
+    this._processingCaptureSource = source && !Buffer.isBuffer(source) && "frame" in source ? source : null;
+    this._processingNativeFrame = Buffer.isBuffer(source) ? source : this._processingCaptureSource?.frame ?? null;
     this._processingTimestamp = frameTimeMs;
-    this._processingSource = Buffer.isBuffer(source) ? this._parserSourceFrames.get(source) ?? null : null;
+    this._processingSource = this._processingNativeFrame ? this._parserSourceFrames.get(this._processingNativeFrame) ?? null : null;
     if (this._processingSource) this._flushDirectSourcesThrough(this._processingSource);
 
     let rawByteOffset: number | undefined;
@@ -753,6 +809,9 @@ export class LiveTelemetryPipeline {
             if (ordinal !== undefined) detector.observeSourceRecord?.(rawByteOffset, this.recorder.getCurrentByteOffset(), ordinal);
           }
         }
+      } else if ("frame" in source) {
+        this._writeProcessingTrigger(false);
+        rawByteOffset = this._processingSource?.rawOffset;
       } else {
         rawByteOffset = source.rawOffset;
       }
@@ -765,8 +824,8 @@ export class LiveTelemetryPipeline {
 
     normalizeTelemetryPacket(packet, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
 
-    const rawOrdinal = !this._recordingSession?.directCapture?.hasFailed && Buffer.isBuffer(source)
-      ? this._parserSourceFrames.get(source)?.rawOrdinal
+    const rawOrdinal = !this._recordingSession?.directCapture?.hasFailed && this._processingNativeFrame
+      ? this._parserSourceFrames.get(this._processingNativeFrame)?.rawOrdinal
         ?? (this.recorder instanceof SparseSessionRecorderAdapter ? this.recorder.sourceOrdinal : undefined)
       : undefined;
     if (rawByteOffset !== undefined && rawOrdinal !== undefined) {
@@ -776,16 +835,12 @@ export class LiveTelemetryPipeline {
     }
     await detector.feed(packet, rawByteOffset, rawOrdinal);
 
-    // If feed rotates the session, write the triggering source into the new recorder
-    // and patch the detector offset to the canonical source position.
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
-      if (Buffer.isBuffer(source)) {
-        this._writeProcessingTrigger();
-      } else {
-        detector.setCurrentLapByteOffset?.(source.rawOffset);
-      }
+      if (this._processingNativeFrame) this._writeProcessingTrigger();
+      else if ("rawOffset" in source) detector.setCurrentLapByteOffset?.(source.rawOffset);
     }
     this._drainOwnership();
+    if (this._processingCaptureRecorded) this._processingCaptureSource?.acknowledgeRecorded();
 
     this._observeDashboardPacket(detector.session?.sessionId, packet, source, frameTimeMs);
     const sectors = this.sectorTracker.feed(packet);
@@ -828,6 +883,13 @@ export class LiveTelemetryPipeline {
       receivedAtMs: Date.now(),
     });
     this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
+    const engineerEnabled =
+      typeof this._engineerEnabled === "function"
+        ? this._engineerEnabled(packet.gameId as GameId)
+        : this._engineerEnabled;
+    if (engineerEnabled) {
+      this._voiceEngine.consume(this._triggerCatalog.consume(projection.semanticFrame));
+    }
 
     if (!this._skipDevState && this.ws.wantsDevState) {
       this.ws.broadcastDevState({
@@ -845,9 +907,10 @@ export class LiveTelemetryPipeline {
   async processLapIndexPacket(packet: LapIndexPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
     this._totalProcessed++;
     const detector = this._getOrCreateDetector(packet.gameId);
-    this._processingNativeFrame = Buffer.isBuffer(source) ? source : null;
+    this._processingCaptureSource = source && !Buffer.isBuffer(source) && "frame" in source ? source : null;
+    this._processingNativeFrame = Buffer.isBuffer(source) ? source : this._processingCaptureSource?.frame ?? null;
     this._processingTimestamp = frameTimeMs;
-    this._processingSource = Buffer.isBuffer(source) ? this._parserSourceFrames.get(source) ?? null : null;
+    this._processingSource = this._processingNativeFrame ? this._parserSourceFrames.get(this._processingNativeFrame) ?? null : null;
     try {
       let rawByteOffset: number | undefined;
       const epochBefore = this.recorder.epoch;
@@ -860,6 +923,9 @@ export class LiveTelemetryPipeline {
             rawByteOffset = this.recorder.getCurrentByteOffset();
             this.recorder.writeRecord(source, frameTimeMs);
           }
+        } else if ("frame" in source) {
+          this._writeProcessingTrigger(false);
+          rawByteOffset = this._processingSource?.rawOffset;
         } else rawByteOffset = source.rawOffset;
       }
       const adapter = getServerGame(packet.gameId);
@@ -868,23 +934,27 @@ export class LiveTelemetryPipeline {
       const currentOrdinal = this.recorder instanceof SparseSessionRecorderAdapter ? this.recorder.sourceOrdinal : undefined;
       // Source-less import completion context is stored outside the owned window.
       // Its boundary is one native record beyond the last owned record, not that record's ordinal.
-      const rawOrdinal = Buffer.isBuffer(source)
-        ? this._parserSourceFrames.get(source)?.rawOrdinal ?? currentOrdinal
+      const rawOrdinal = this._processingNativeFrame
+        ? this._parserSourceFrames.get(this._processingNativeFrame)?.rawOrdinal ?? currentOrdinal
         : source === undefined && currentOrdinal !== undefined ? currentOrdinal + 1 : undefined;
       if (rawByteOffset !== undefined && rawOrdinal !== undefined) {
         detector.observeSourceRecord?.(rawByteOffset, this.recorder.getCurrentByteOffset(), rawOrdinal);
       }
       await detector.feed(telemetryPacket, rawByteOffset, rawOrdinal);
       if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
-        if (Buffer.isBuffer(source)) this._writeProcessingTrigger();
-        else detector.setCurrentLapByteOffset?.(source.rawOffset);
+        if (this._processingNativeFrame) this._writeProcessingTrigger();
+        else if ("rawOffset" in source) detector.setCurrentLapByteOffset?.(source.rawOffset);
       }
       this._drainOwnership();
       this._observeDashboardPacket(detector.session?.sessionId, telemetryPacket, source, frameTimeMs);
+      if (this._processingCaptureRecorded) this._processingCaptureSource?.acknowledgeRecorded();
     } finally {
       this._processingNativeFrame = null;
       this._processingSource = null;
       this._processingTimestamp = undefined;
+      this._processingCaptureSource = null;
+      this._processingCapturePrefixes = undefined;
+      this._processingCaptureRecorded = false;
     }
   }
 
@@ -900,13 +970,16 @@ export class LiveTelemetryPipeline {
    * telemetry values through the lap detector.
    */
   recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false, frameTimeMs?: number): void {
+    this.recordSessionContextRecords([encodeFrameLength(sourceFrame.length, frameTimeMs), sourceFrame], completeLapStart);
+  }
+  recordSessionContextRecords(records: readonly Buffer[], completeLapStart = false): void {
     this._expectCompleteLapStart ||= completeLapStart;
-    const contextRecord = Buffer.concat([encodeSegmentContextFrame(), encodeFrameLength(sourceFrame.length, frameTimeMs), sourceFrame, encodeSegmentContextEndFrame()]);
+    const context = [encodeSegmentContextFrame(), ...records, encodeSegmentContextEndFrame()];
     if (this.recorder.active) {
-      this.recorder.writeRawCaptureBytes(contextRecord);
-      return;
+      for (const record of context) this.recorder.writeRawCaptureBytes(record);
+    } else {
+      this._pendingSessionContextFrames.push(...context);
     }
-    this._pendingSessionContextFrames.push(contextRecord);
   }
   recordParserBootstrap(gameId: GameId, payload: Buffer, completeLapStart = false): void {
     this._expectCompleteLapStart ||= completeLapStart;
@@ -1007,6 +1080,7 @@ const _defaultWs: WsAdapter = {
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
+  engineerEnabled: (gameId: GameId) => isLiveEngineerEnabled(LIVE_ENGINEER_FLAGS, gameId),
   onSessionFinalized: async (sessionId, gameId) => {
     try {
       await reconcileSessionResult(sessionId, gameId);
@@ -1020,6 +1094,7 @@ subscribeParserSource((input) => { if (!dumpOnlyTelemetry) _default.captureParse
 
 // Wire session laps provider so WS manager can send laps on client connect
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
+wsManager.setLiveEngineerMessageHandler((message) => _default.handleLiveEngineerMessage(message));
 let dumpOnlyTelemetry = false;
 export function setDumpOnlyTelemetryRouting(enabled: boolean): void { dumpOnlyTelemetry = enabled; }
 export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number) =>

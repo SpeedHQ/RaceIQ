@@ -95,7 +95,6 @@ export function buildAnalyseClipboardJson({ frame, packetNumber }: { frame: Sema
     freshness: frame.freshness,
   }, null, 2);
 }
-
 export function AnalyseDataContent({ currentFrame, packetNumber, startFuel, gameId, units, wearRate, estimatedSlipAngles, angleDisclosure }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {

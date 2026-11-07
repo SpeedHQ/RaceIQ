@@ -53,7 +53,7 @@ function toReplayRecord(record: SessionCaptureRecord, sequence: number): ReplayR
   const common = { sequence, offset: record.offset, endOffset: record.endOffset, sourceOffset: record.offset, sourceEndOffset: record.endOffset };
   if (record.kind === "frame") return { ...common, kind: "frame", bytes: Buffer.from(record.frame), ...(record.frameTimeMs === undefined ? {} : { frameTimeMs: record.frameTimeMs }) };
   if (record.kind === "segment-boundary") return { ...common, kind: "segment-boundary", bytes: new Uint8Array() };
-  const bytes = record.kind === "segment-context" ? encodeSegmentContextFrame()
+  const bytes = "bytes" in record ? record.bytes : record.kind === "segment-context" ? encodeSegmentContextFrame()
     : record.kind === "segment-context-end" ? encodeSegmentContextEndFrame()
       : encodeParserBootstrapFrame(record.gameId, record.payload);
   return { ...common, kind: "raw", bytes };

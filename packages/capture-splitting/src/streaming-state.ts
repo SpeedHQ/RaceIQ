@@ -378,11 +378,11 @@ export class StreamingCaptureSplitter {
       if (!context) active.frames++;
     } else {
       if (context) throw new Error("Completion context must be a native frame");
-      const bytes = record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
+      const bytes = "bytes" in record ? record.bytes : record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
         : record.kind === "segment-context" ? encodeSegmentContextFrame()
         : record.kind === "segment-context-end" ? encodeSegmentContextEndFrame() : encodeParserBootstrapFrame(record.gameId, record.payload);
       await active.stage.append(bytes); active.bytes += bytes.length;
-      if (record.kind !== "segment-context") active.encoder.reset();
+      if (record.kind !== "segment-context" && !("bytes" in record)) active.encoder.reset();
     }
     updateNativeRecordDigest(context ? active.trailingDigest : active.digest, record);
     if (context) active.trailing++;

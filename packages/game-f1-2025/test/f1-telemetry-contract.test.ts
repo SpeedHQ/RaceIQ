@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decompressIfGzipSync, encodeFrameLength, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { inspectDownsampleRecording, rewriteDownsampleRecording } from "@raceiq/capture-downsampling";
-import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { decodeF1SessionHistory } from "../src/f1-packet-decoders";
 import { f1Parser } from "../src/game-parser";
 import { registerGame } from "@raceiq/shared/games/registry";
 import { f1ServerAdapter } from "../src/index";
@@ -13,9 +13,13 @@ import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/
 import { processLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import { RaceEngineerTriggerCatalog } from "@raceiq/live-engineer/race-engineer-triggers/catalog";
+import { LiveEngineerVoiceEngine } from "@raceiq/live-engineer/live-engineer-voice-engine";
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,
+  parseF1Header,
   type F1Header,
 } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
@@ -81,6 +85,76 @@ function parseNative(
 ): TelemetryPacket | null {
   return f1Parser.tryParse(nativePacket(header(packetId, sessionTime, sessionUID), data), state);
 }
+
+test("F1 damage packet retains player engine failure flags and leaves flags unavailable before damage", () => {
+  const state = nativeAccumulator();
+  const beforeDamage = parseNative(state, F1_PACKET_IDS.MOTION, Buffer.alloc(60), 1)!;
+  expect(beforeDamage.f1?.engineBlown).toBeUndefined();
+  expect(beforeDamage.f1?.engineSeized).toBeUndefined();
+
+  const damage = Buffer.alloc(22 * 46);
+  // Populate neighboring car records and player record with distinct values at target byte offsets.
+  damage[44] = 0;
+  damage[45] = 1;
+  damage[46 + 44] = 1;
+  damage[46 + 45] = 0;
+  damage[21 * 46 + 44] = 0;
+  damage[21 * 46 + 45] = 1;
+  const packet = parseNative(state, F1_PACKET_IDS.CAR_DAMAGE, damage, 2)!;
+  expect(packet.f1?.engineBlown).toBe(false);
+  expect(packet.f1?.engineSeized).toBe(true);
+  const checkpoint = state.captureCheckpoint();
+  const restored = new F1StateAccumulator();
+  restored.restoreCheckpoint(checkpoint);
+  const replayed = parseNative(restored, F1_PACKET_IDS.MOTION, Buffer.alloc(60), 3)!;
+  expect(replayed.f1?.engineBlown).toBe(false);
+  expect(replayed.f1?.engineSeized).toBe(true);
+  const oldCheckpoint = JSON.parse(Buffer.from(checkpoint).toString("utf8"));
+  delete oldCheckpoint.carDamage!.engineBlown;
+  delete oldCheckpoint.carDamage!.engineSeized;
+  const oldRecording = new F1StateAccumulator();
+  oldRecording.restoreCheckpoint(Buffer.from(JSON.stringify(oldCheckpoint)));
+  const oldPacket = parseNative(oldRecording, F1_PACKET_IDS.MOTION, Buffer.alloc(60), 4)!;
+  expect(oldPacket.f1?.engineBlown).toBeUndefined();
+  expect(oldPacket.f1?.engineSeized).toBeUndefined();
+  damage[44] = 2;
+  damage[45] = 255;
+  damage[28] = 20;
+  const invalidFlags = parseNative(state, F1_PACKET_IDS.CAR_DAMAGE, damage, 5)!;
+  expect(invalidFlags.f1?.engineBlown).toBeUndefined();
+  expect(invalidFlags.f1?.engineSeized).toBeUndefined();
+  expect(invalidFlags.f1?.frontLeftWingDamage).toBe(20);
+});
+
+test("F1 native engine failure reaches component voice through telemetry projection", () => {
+  const state = nativeAccumulator();
+  const projector = new LiveTelemetryProjector({ engineerEnabled: true });
+  const catalog = new RaceEngineerTriggerCatalog();
+  const emitted: unknown[] = [];
+  const voice = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const damage = Buffer.alloc(22 * 46);
+  damage[44] = 1;
+  damage[45] = 1;
+  const consumeNativeDamage = (seconds: number) => {
+    const packet = parseNative(state, F1_PACKET_IDS.CAR_DAMAGE, damage, seconds)!;
+    const projection = projector.project({ packet, sessionId: 1, receivedAtMs: seconds * 1000 });
+    voice.consume(catalog.consume(projection.semanticFrame));
+    const segments: string[] = [];
+    for (const message of emitted) {
+      if (!message || typeof message !== "object" || !("type" in message) || message.type !== "live-engineer-voice-line") continue;
+      if (!("segmentIds" in message) || !Array.isArray(message.segmentIds)) continue;
+      segments.push(...message.segmentIds.filter((segment): segment is string => typeof segment === "string"));
+    }
+    return segments;
+  };
+
+  expect(consumeNativeDamage(10)).toEqual([]);
+  expect(consumeNativeDamage(13)).toEqual(["race-engineer.damage-engine-blown"]);
+  expect(consumeNativeDamage(13.01)).toEqual([
+    "race-engineer.damage-engine-blown",
+    "race-engineer.damage-engine-seized",
+  ]);
+});
 
 test("native session packet decodes current F1 25 session IDs and preserves unknown values", () => {
   const sessionType = (code: number): string => {
@@ -440,6 +514,18 @@ describe("F1 telemetry contract", () => {
     expect(packet?.f1?.resultStatus).toBe(5);
     expect(packet?.f1?.resultReason).toBe(6);
     expect(packet?.f1?.resultSource).toBe("final-classification");
+  });
+  test("reads Session History lap validity from official byte 13", () => {
+    const data = Buffer.alloc(7 + 14);
+    data.writeUInt8(0, 0);
+    data.writeUInt8(1, 1);
+    data.writeUInt8(1, 6);
+    data.writeUInt32LE(90_000, 7);
+    data.writeUInt8(7, 7 + 12);
+    data.writeUInt8(1, 7 + 13);
+    const decoded = decodeF1SessionHistory(data);
+    expect(decoded?.history.lastLapValidBitFlags).toBe(1);
+    expect(decoded?.lapSectors[0]?.lapValidBitFlags).toBe(1);
   });
   test("primes parser state without emitting a packet", () => {
     const accumulator = new F1StateAccumulator();

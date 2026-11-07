@@ -4,13 +4,18 @@ import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { LiveEngineerReplaySourceProfileV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
 import { getServerGame } from "../games/registry";
+import { parseAccBroadcastMessage } from "@raceiq/capture-formats/acc/broadcast-protocol";
+import { AccBroadcastState, attachAccBroadcastSnapshot } from "@raceiq/capture-formats/acc/broadcast-state";
+import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { GRAPHICS } from "@raceiq/capture-formats/acc/structs";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import type { LapSetAlignmentIndex } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { loadSessionSource, iterateSessionCaptureRecordsFromSource, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
-import { iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
+import { loadSessionSource, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { iterateSessionCaptureRecords, readFramePrefix } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
@@ -348,6 +353,168 @@ export async function getSessionRawFile(sessionId: number, gameId: GameId): Prom
  * Stream every parsed packet from a completed session, including the session
  * tail where authoritative finish packets may arrive after the final lap.
  */
+export async function getSessionTelemetry(sessionId: number, gameId: GameId): Promise<TelemetryPacket[]> {
+  return (await getSessionTelemetryReplaySource(sessionId, gameId)).packets;
+}
+export interface SessionTelemetryReplaySource {
+  packets: TelemetryPacket[];
+  sourceProfile: LiveEngineerReplaySourceProfileV1;
+}
+
+export async function getSessionTelemetryReplaySource(sessionId: number, gameId: GameId): Promise<SessionTelemetryReplaySource> {
+  const session = await db.select({
+    rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
+    carId: sessions.carId, trackId: sessions.trackId, captureFormatVersion: sessions.captureFormatVersion,
+  }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
+  const rawFile = session?.rawFile ?? "";
+  const packets: TelemetryPacket[] = [];
+  let validBroadcastRecords = 0;
+  let malformedBroadcastRecords = 0;
+  let missingBroadcastFrame = false;
+  let segmentCount = 0;
+  let capturedClockFrames = 0;
+  let skippedMalformedFrames = 0;
+  if (session?.rawFile) {
+    const loaded = await loadSessionSource({
+      rawFile: session.rawFile, source: session.source, gameId,
+      carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion,
+    });
+    const serverGame = getServerGame(gameId);
+    if (loaded.kind === "packets") {
+      for (const sourcePacket of loaded.packets) {
+        const packet = freshReplayPacket(sourcePacket);
+        normalizeReplayPacket(packet, serverGame);
+        packets.push(packet);
+      }
+      segmentCount = 1;
+    } else {
+      let state = serverGame.createParserState?.() ?? null;
+      let replayClock = 0;
+      let frameClock: number | null = null;
+      let previousSequence: number | null = null;
+      let sawBroadcastInSegment = false;
+      const replayBroadcast = gameId === "acc" ? new AccBroadcastState({ now: () => replayClock }) : null;
+      let inContext = false;
+      for (const record of iterateSessionCaptureRecords(loaded.buffer)) {
+        if (record.kind === "segment-boundary") {
+          segmentCount++;
+          state = serverGame.createParserState?.() ?? null;
+          replayBroadcast?.reset();
+          replayClock = 0;
+          frameClock = null;
+          previousSequence = null;
+          sawBroadcastInSegment = false;
+          inContext = false;
+          continue;
+        }
+        if (record.kind === "segment-context") {
+          inContext = true;
+          continue;
+        }
+        if (record.kind === "segment-context-end") {
+          inContext = false;
+          previousSequence = null;
+          frameClock = null;
+          continue;
+        }
+        if (record.kind === "acc-broadcast") {
+          validBroadcastRecords++;
+          sawBroadcastInSegment = true;
+          for (const event of record.batch.events) {
+            replayClock = event.receivedAtMs;
+            if (previousSequence !== null) {
+              const distance = (event.sequence - previousSequence) >>> 0;
+              if (inContext ? distance === 0 || distance >= 0x80000000 : distance !== 1) {
+                replayBroadcast?.markMalformed("sequence-gap");
+              }
+            }
+            previousSequence = event.sequence;
+            if (event.kind === "datagram") {
+              const message = parseAccBroadcastMessage(event.payload);
+              if (message) replayBroadcast?.apply(message, event.receivedAtMs);
+              else replayBroadcast?.markMalformed("malformed-datagram");
+            } else if (event.kind === "socket-open") replayBroadcast?.setSocketConnected(true);
+            else if (event.kind === "socket-close" || event.kind === "socket-error") replayBroadcast?.setSocketConnected(false);
+            else if (event.kind === "explicit-reset") replayBroadcast?.reset();
+            else if (event.kind === "queue-overflow") replayBroadcast?.markMalformed("capture-overflow");
+          }
+          replayClock = record.batch.frameReceivedAtMs;
+          frameClock = replayClock;
+          continue;
+        }
+        if (record.kind === "acc-broadcast-malformed") {
+          malformedBroadcastRecords++;
+          sawBroadcastInSegment = true;
+          replayBroadcast?.markMalformed("malformed-capture-record");
+          frameClock = null;
+          previousSequence = null;
+          continue;
+        }
+        if (record.kind !== "frame") continue;
+        if (segmentCount === 0) segmentCount = 1;
+        const capturedFrameClock = frameClock;
+        frameClock = null;
+        if (!inContext && replayBroadcast && sawBroadcastInSegment && capturedFrameClock === null) {
+          replayBroadcast.markMalformed("malformed-capture-record");
+          missingBroadcastFrame = true;
+        }
+        try {
+          const packet = serverGame.tryParse(record.frame, state);
+          if (!packet) continue;
+          if (replayBroadcast) {
+            const triplet = unpackTriplet(record.frame);
+            const playerCarIndex = triplet && triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4
+              ? triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset) : -1;
+            replayBroadcast.setPlayerCarIndex(playerCarIndex);
+            attachAccBroadcastSnapshot(packet, playerCarIndex, replayBroadcast.snapshot());
+            if (capturedFrameClock !== null) packet.TimestampMS = capturedFrameClock;
+          }
+          if (!inContext) {
+            if (replayBroadcast && capturedFrameClock !== null) capturedClockFrames++;
+            packets.push(packet);
+          }
+        } catch {
+          skippedMalformedFrames++;
+          // One malformed native frame must not discard the session.
+        }
+      }
+    }
+  }
+  const captureKind = rawFile.endsWith(".motec.zip") ? "motec-packets" : rawFile.endsWith(".gz") ? "compressed-capture" : "capture";
+  const sourceClockCaptured = gameId === "iracing" || gameId === "f1-2025" || (gameId === "acc" && packets.length > 0 && capturedClockFrames === packets.length);
+  const opponentSourceCapture = gameId === "acc" ? {
+    source: "acc-broadcast" as const,
+    status: malformedBroadcastRecords > 0 || missingBroadcastFrame ? "malformed" as const : validBroadcastRecords > 0 ? "captured" as const : "unavailable" as const,
+    recordCount: validBroadcastRecords,
+  } : null;
+  return {
+    packets,
+    sourceProfile: {
+      gameId,
+      captureKind,
+      limitations: gameId === "fm-2023"
+        ? ["player-only-telemetry", "source-clock-not-captured"]
+        : gameId === "acc"
+          ? [
+            ...(validBroadcastRecords === 0 ? ["persisted-source-not-captured:broadcast"] : []),
+            ...(sourceClockCaptured ? ["source-clock-captured:acc-broadcast"] : ["source-clock-not-captured"]),
+            ...(malformedBroadcastRecords > 0 || missingBroadcastFrame ? ["malformed-source-record:acc-broadcast"] : []),
+          ]
+          : gameId === "ac-evo"
+            ? ["persisted-source-not-captured:broadcast", "source-clock-not-captured", "inherited-acc-broadcast-mappings-excluded"]
+            : gameId === "f1-2025"
+              ? ["no-game-branch:spotter"]
+              : ["native-spotter-requires-captured-car-left-right", "v2-and-ibt-session-info-limitations"],
+      sourceClockCaptured,
+      opponentSourceCapture,
+      segmentCount,
+      skippedMalformedFrames,
+      nativeSessionInfo: gameId === "iracing",
+      retainedPrefix: rawFile.length > 0,
+    },
+  };
+}
+
 export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId): AsyncGenerator<TelemetryPacket> {
   const session = await db.select({
     rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
@@ -378,14 +545,8 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
       inContext = false;
       continue;
     }
-    if (record.kind === "segment-context") {
-      inContext = true;
-      continue;
-    }
-    if (record.kind === "segment-context-end") {
-      inContext = false;
-      continue;
-    }
+if (record.kind === "segment-context") { inContext = true; continue; }
+    if (record.kind === "segment-context-end") { inContext = false; continue; }
     if (record.kind === "parser-bootstrap") {
       if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
         throw new Error("Parser bootstrap does not match replay game");
@@ -398,13 +559,13 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     if (record.kind !== "frame") continue;
     let packet: TelemetryPacket | null;
     try {
+      countFullPacketMaterialized();
       packet = serverGame.tryParse(record.frame, state);
       if (packet) {
         applyFrameTime(packet, record.frameTimeMs);
         normalizeReplayPacket(packet, serverGame);
       }
     } catch {
-      // Match lap replay: one malformed native frame does not discard session.
       continue;
     }
     if (packet && !inContext) yield packet;
@@ -439,10 +600,10 @@ async function parseRawLapFramesFromSource(
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
-  let trailingPacket: TelemetryPacket | null = null;
+let trailingPacket: TelemetryPacket | null = null;
   let windowComplete = false;
   for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: source.artifact !== undefined })) {
-    // Drain the selected member to EOF so CRC/size validation completes before returning.
+    // Drain selected member to EOF so CRC/size validation completes before returning.
     if (windowComplete) continue;
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
@@ -458,15 +619,10 @@ async function parseRawLapFramesFromSource(
       inContext = false;
       continue;
     }
-    if (record.kind === "segment-context") {
-      inContext = true;
-      continue;
-    }
-    if (record.kind === "segment-context-end") {
-      inContext = false;
-      continue;
-    }
-    const { offset, frame, frameTimeMs } = record;
+    if (record.kind === "segment-context") { inContext = true; continue; }
+    if (record.kind === "segment-context-end") { inContext = false; continue; }
+    if (record.kind !== "frame") continue;
+    const { offset, prefixOffset, frame, frameTimeMs } = record;
     fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {
       if (offset < rawByteOffset) {
@@ -477,7 +633,7 @@ async function parseRawLapFramesFromSource(
         }
         continue;
       }
-      if (offset !== rawByteOffset) {
+      if (offset !== rawByteOffset && prefixOffset !== rawByteOffset) {
         throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is not aligned to a capture frame in ${source.rawFile}`, {
           rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "truncated-frame",
         });
@@ -538,35 +694,39 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
     });
   }
 
-  const packets: TelemetryPacket[] = [];
-  let found = false;
-  let targetCount = 0;
-  let trailingPacket: TelemetryPacket | null = null;
-  for (const { offset, frame, frameTimeMs } of iterateSessionFrameRecords(buf, state == null ? rawByteOffset : undefined)) {
-    if (!found) {
-      if (offset < rawByteOffset) {
-        if (state != null && serverGame.primeParserState) {
-          try { countParserStatePrime(); serverGame.primeParserState(frame, state); } catch {}
-        }
-        continue;
-      }
-      if (offset !== rawByteOffset) {
-        throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is not aligned to a capture frame in ${rawFile}`, {
-          rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "truncated-frame",
-        });
-      }
-      found = true;
-    }
-    const packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
-    if (targetCount < rawFrameCount) {
-      if (packet) packets.push(packet);
-      targetCount++;
-      continue;
-    }
-    trailingPacket = packet;
-    break;
+  const frameIndex = indexCaptureFrames(buf);
+  const startRecord = frameIndex.byOffset.get(rawByteOffset);
+  const warmupRecords = startRecord
+    ? frameIndex.records.slice(0, startRecord.frameIndex)
+    : frameIndex.records.filter((record) => record.offset < rawByteOffset);
+  if (state != null) for (const record of warmupRecords) {
+    const prefix = readFramePrefix(buf, record.offset);
+    if (!prefix) continue;
+    const wBuf = buf.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
+    try {
+      countParserStatePrime();
+      serverGame.primeParserState(wBuf, state);
+    } catch { /* warmup best-effort */ }
   }
-  if (!found || targetCount < rawFrameCount) {
+  if (!startRecord) {
+    throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is not aligned to a capture frame in ${rawFile}`, {
+      rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "truncated-frame",
+    });
+  }
+  const packets: TelemetryPacket[] = [];
+  let framesRead = 0;
+  for (let i = startRecord.frameIndex; i < frameIndex.records.length && framesRead <= rawFrameCount; i++) {
+    const record = frameIndex.records[i]!;
+    const prefix = readFramePrefix(buf, record.offset);
+    const packet = parseReplayFrame(record.frame, serverGame, state, prefix?.frameTimeMs);
+    if (framesRead < rawFrameCount) {
+      if (packet) packets.push(packet);
+    } else {
+      appendDelayedFinishPacket(packets, packet, serverGame);
+    }
+    framesRead++;
+  }
+  if (framesRead < rawFrameCount) {
     throw new LapParseError(`Capture ended before ${rawFrameCount} lap frames were read`, {
       rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame",
     });
@@ -577,7 +737,6 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
     });
   }
   trimRunningStartPackets(packets);
-  appendDelayedFinishPacket(packets, trailingPacket, serverGame);
   return packets;
 }
 
@@ -715,20 +874,14 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   const active: Array<{ meta: (typeof lapMetas)[number]; packets: TelemetryPacket[]; end: number }> = [];
   let nextMeta = 0;
   let frameIndex = 0;
-  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: source.artifact !== undefined })) {
+for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: source.artifact !== undefined })) {
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
       inContext = false;
       continue;
     }
-    if (record.kind === "segment-context") {
-      inContext = true;
-      continue;
-    }
-    if (record.kind === "segment-context-end") {
-      inContext = false;
-      continue;
-    }
+    if (record.kind === "segment-context") { inContext = true; continue; }
+    if (record.kind === "segment-context-end") { inContext = false; continue; }
     if (record.kind === "parser-bootstrap") {
       if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION ||
           !serverGame.restoreParserCheckpoint) {
@@ -739,10 +892,13 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
       continue;
     }
     if (record.kind !== "frame") continue;
-    const { offset, frame, frameTimeMs } = record;
+    const { offset, prefixOffset, frame, frameTimeMs } = record;
     countSourceFrameScanned();
-    while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset < offset) nextMeta++;
-    while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset === offset) {
+    while (nextMeta < metas.length &&
+      metas[nextMeta]!.rawByteOffset < offset &&
+      metas[nextMeta]!.rawByteOffset !== prefixOffset) nextMeta++;
+    while (nextMeta < metas.length &&
+      (metas[nextMeta]!.rawByteOffset === prefixOffset || metas[nextMeta]!.rawByteOffset === offset)) {
       const meta = metas[nextMeta++]!;
       active.push({ meta, packets: [], end: frameIndex + meta.rawFrameCount });
     }
@@ -761,7 +917,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
         state = serverGame.createParserState?.() ?? null;
       }
       if (needsFull) {
-        packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
+packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
       } else {
         countParserStatePrime();
         serverGame.primeParserState(frame, state);
