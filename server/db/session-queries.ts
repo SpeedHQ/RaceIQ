@@ -392,6 +392,12 @@ export async function updateSession(
   await withDatabaseWrite(() => db.update(sessions).set(updates).where(eq(sessions.id, id)).run());
 }
 
+export async function fillUnknownAcEvoSessionType(sessionId: number, sessionType: string): Promise<void> {
+  await withDatabaseWrite(() => db.update(sessions).set({ sessionType })
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, "ac-evo"),
+      or(isNull(sessions.sessionType), eq(sessions.sessionType, "unknown")))).run());
+}
+
 export async function updateSessionCarTrack(
   sessionId: number,
   carId: string,

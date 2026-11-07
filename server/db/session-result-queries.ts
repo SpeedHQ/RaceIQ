@@ -88,11 +88,19 @@ async function markPitCycleLaps(sessionId: number, events: readonly PitEventInpu
       .set({ classification: "in_lap" })
       .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), inLapEligibleCategory, notIncomplete))
       .run();
+    // A pit event linked to an observed out-lap is already accounted for.
+    const observedOutLaps = await tx.select({ lapNumber: laps.lapNumber }).from(laps)
+      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), eq(laps.classification, "out_lap")))
+      .all();
+    const observedOutLapNumbers = new Set(observedOutLaps.map(lap => lap.lapNumber));
+    const inferredOutLapNumbers = inlapNumbers.filter(lapNumber => !observedOutLapNumbers.has(lapNumber))
+      .map(lapNumber => lapNumber + 1);
+    if (inferredOutLapNumbers.length === 0) return;
     const outLapEligibleCategory = or(isNull(laps.classification), inArray(laps.classification, ["pace", "caution"]));
     await tx
       .update(laps)
       .set({ classification: "out_lap" })
-      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1)), outLapEligibleCategory, notIncomplete))
+      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inferredOutLapNumbers), outLapEligibleCategory, notIncomplete))
       .run();
   }));
 }
