@@ -146,10 +146,9 @@ export const tuneChatRoutes = new Hono()
           }, 409);
         }
       }
-
       const gameId = session.gameId as GameId;
-      if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "f1-2025") {
-        return c.json({ error: "The setup engineer only supports ACC, AC-EVO and F1 2025" }, 400);
+      if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "lmu" && gameId !== "f1-2025") {
+        return c.json({ error: "The setup engineer only supports ACC, AC-EVO, LMU and F1 2025" }, 400);
       }
 
       // Which specialist answers is decided by the experiment's focus column —

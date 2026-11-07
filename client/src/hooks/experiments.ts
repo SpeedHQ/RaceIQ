@@ -36,7 +36,7 @@ export interface ExperimentFocusEvent {
   createdAt: string;
 }
 
-export type ExperimentGameId = "acc" | "ac-evo" | "f1-2025";
+export type ExperimentGameId = "acc" | "ac-evo" | "f1-2025" | "lmu";
 
 export function useExperiments(gameId: ExperimentGameId) {
   return useQuery({

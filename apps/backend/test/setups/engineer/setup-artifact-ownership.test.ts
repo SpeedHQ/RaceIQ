@@ -54,7 +54,7 @@ test("manual setup save preserves a competing file created at the write boundary
   }
 });
 
-test("binary setup save preserves a competing file created at the write boundary", () => {
+test("binary setup save preserves a competing file created at the write boundary", async () => {
   const dir = fs.mkdtempSync(resolve(tmpdir(), "raceiq-binary-owner-"));
   const source = resolve(dir, "base.carsetup");
   const collision = resolve(dir, "owned.carsetup");
@@ -68,7 +68,7 @@ test("binary setup save preserves a competing file created at the write boundary
     return realWrite(file, data, options);
   });
   try {
-    const written = setupIo.writeAppliedSetup("ac-evo", { baseDir: dir, realPath: source, setup: knobs, stem: "owned" });
+    const written = await setupIo.writeAppliedSetup("ac-evo", { baseDir: dir, realPath: source, setup: knobs, stem: "owned" });
     expect(fs.readFileSync(collision, "utf8")).toBe(userBytes);
     expect(written.setupPath).not.toBeNull();
     expect(written.setupPath).not.toBe(collision);
@@ -106,8 +106,8 @@ test("checkout after physical apply write removes only its artifact and creates 
   let physicalWriteObserved = false;
   const preserved = resolve(dir, "user.json");
   fs.writeFileSync(preserved, "user-owned file");
-  const write = spyOn(setupIo, "writeAppliedSetup").mockImplementation((gameId, params) => {
-    const result = realWrite(gameId, params);
+  const write = spyOn(setupIo, "writeAppliedSetup").mockImplementation(async (gameId, params) => {
+    const result = await realWrite(gameId, params);
     artifact = result.setupPath;
     physicalWriteObserved = artifact !== null && fs.existsSync(artifact);
     db.update(experiments).set({ headVersionId: sibling }).where(eq(experiments.id, sid)).run();

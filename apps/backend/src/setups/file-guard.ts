@@ -8,8 +8,10 @@ import { resolve, sep } from "node:path";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
 import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
+import { getLMUSetupContent } from "./lmu";
+import { parseSVM, type SvmDocument } from "@raceiq/game-lmu-metadata/setups/svm";
 
-export type AccGameId = "acc" | "ac-evo";
+export type AccGameId = "acc" | "ac-evo" | "lmu";
 
 /** Whether a resolved path is inside a resolved setup root. */
 export function isPathWithinSetupsFolder(
@@ -74,9 +76,11 @@ export type GuardedSetup =
       baseDir: string;
       realPath: string;
       setup: any;
+      relativePath?: string;
       /** True when source is binary `.carsetup`; `setup` contains decoded knob values. */
       readOnly?: true;
     }
+  | { ok: true; baseDir: null; realPath: string; setup: SvmDocument; readOnly?: true; relativePath?: string }
   | { ok: false; status: 400 | 404 | 409 | 500; error: string };
 
 /**
@@ -85,6 +89,13 @@ export type GuardedSetup =
  * uses.
  */
 export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: string): Promise<GuardedSetup> {
+  if (gameId === "lmu") {
+    const result = await getLMUSetupContent(filePath);
+    if (!result.ok) return result;
+    const parsed = parseSVM(Buffer.from(result.value.contentBase64, "base64"));
+    if (!parsed.ok) return { ok: false, status: 400, error: `Invalid SVM${parsed.line === null ? "" : ` at line ${parsed.line}`}: ${parsed.error}` };
+    return { ok: true, baseDir: null, realPath: filePath, setup: parsed.document, relativePath: filePath };
+  }
   const baseDir = await getSetupsBaseDir(gameId);
   if (!baseDir) return { ok: false, status: 404, error: "Setups folder not found" };
 

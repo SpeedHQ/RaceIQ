@@ -1,3 +1,4 @@
+packages/game-lmu/test/setup-directory.test.ts
 packages/game-lmu/test/e2e/backend/duckdb-import-security.test.ts
 packages/game-lmu/test/e2e/backend/lmu-adapter.test.ts
 packages/game-lmu/test/e2e/backend/phase1.test.ts

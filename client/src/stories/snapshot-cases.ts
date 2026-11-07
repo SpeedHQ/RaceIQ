@@ -196,6 +196,25 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     outputName: "snapshot-AnalyseTrackPanel.png",
     viewport: { width: 1080, height: 800 },
   },
+  {
+    name: "AnalyseDataPanelLMUTireTemperatures",
+    id: "screens-analysedatapanelparity--lmu-tire-temperatures",
+    outputName: "snapshot-AnalyseDataPanelLMUTireTemperatures.png",
+    viewport: { width: 1080, height: 800 },
+    screenshotTarget: "body",
+  },
+  {
+    name: "AnalyseVizPanelLMUSurfaceCarcass2D",
+    id: "screens-analysevizpanel--two-d-profile-bands-lmu",
+    outputName: "snapshot-AnalyseVizPanelLMUSurfaceCarcass2D.png",
+    viewport: { width: 1080, height: 800 },
+  },
+  {
+    name: "AnalyseVizPanelLMUSurfaceCarcass3D",
+    id: "screens-analysevizpanel--three-d-profile-bands-lmu",
+    outputName: "snapshot-AnalyseVizPanelLMUSurfaceCarcass3D.png",
+    viewport: { width: 1080, height: 800 },
+  },
 ];
 export const CORE_STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...DASHBOARD_SNAPSHOT_CASES, THEME_SNAPSHOT_CASE];
 export const STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...CORE_STORYBOOK_SNAPSHOT_CASES, ...REUSABLE_UI_SNAPSHOT_CASES];

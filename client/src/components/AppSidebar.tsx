@@ -3,6 +3,7 @@ import { getAllGames } from "@raceiq/shared/games/registry"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Binary,
+  BookOpen,
   Car,
   Check,
   Code2,
@@ -315,8 +316,9 @@ export function AppSidebar({
           <div className="min-h-0 flex-1 overflow-y-auto py-2">
             <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_dashboard()} to={`/${activeGame.routePrefix}`} onClick={onClose} />
             {visibleFeatures.map((feature) => (
-              <SidebarLink key={feature.segment} collapsed={showCollapsed} icon={feature.icon} label={feature.label()} to={`/${activeGame.routePrefix}/${feature.segment}`} onClick={onClose} />
+              <SidebarLink key={feature.segment} collapsed={showCollapsed} exact={feature.segment === "setups" && activeGame.id === "lmu"} icon={feature.icon} label={feature.label()} to={`/${activeGame.routePrefix}/${feature.segment}`} onClick={onClose} />
             ))}
+            {activeGame.id === "lmu" && <SidebarLink collapsed={showCollapsed} icon={BookOpen} label={m.lmu_guide_title()} to="/lmu/setups/guides" onClick={onClose} />}
           </div>
         )}
 
