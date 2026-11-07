@@ -6,6 +6,33 @@ Planned against commit `900faf29b`, 2026-11-03. Installed toolchain: Bun 1.4.4, 
 
 ADR: [Use task-level impact selection before verification provisioning](../../adr/0016-task-level-affected-verification.md).
 
+## Revision: base CI graph with affected Turbo tasks
+
+This revision supersedes the coarse-gate revision and conflicting earlier implementation requirements. Restore the `origin/main` CI dependency graph and existing shard layout; execute existing verification steps and shards through Turbo affected tasks instead of introducing a separate matrix selection graph. Preserve existing replay fixes. Use affected selection, not caching, for browser shards.
+
+### Acceptance criteria
+
+- BG01: CI retains the base workflow dependency graph, job identities, shard layout, prerequisites, and full test inventory. Each affected verification step or shard executes its existing command through a Turbo task; an unaffected task does not execute its test command.
+- BG02: Turbo task inputs and dependency edges include all actual source, test, fixture, runner, configuration, and transitive dependencies. Unknown ownership or untrustworthy selection cannot silently skip verification.
+- BG03: Missing, equal, invalid, or unavailable refs and selection failures visibly fall back to full execution. Manual workflows default to full.
+- BG04: Browser, visual, hardware, and build results are not newly cached. Existing required job failure and cancellation behavior is preserved; successful unaffected tasks do not falsely hide failures.
+
+### Tasks and end-to-end verification
+
+One implementation owner restores and adapts existing CI workflows, Turbo task definitions, callers, tests, and documentation. Preserve unrelated changes and do not alter product code. The coordinator runs checks and an independent checker exercises the implementation.
+
+| Scenario | Setup, action, observable result | Criteria |
+|---|---|---|
+| BG-E1 | In an isolated Git workspace, change an owned test and invoke its actual CI/Turbo entry point. The affected task executes the original command, including its existing shard identity. | BG01, BG02 |
+| BG-E2 | Change an unrelated document and invoke the same entry point. Turbo reports the verification task unaffected and its test command does not run; the CI job succeeds. | BG01, BG02, BG04 |
+| BG-E3 | Change shared production, fixture, or configuration inputs. Invoke affected selection and confirm every real consumer runs, including required browser shards. | BG01, BG02 |
+| BG-E4 | Supply missing, equal, invalid, or unavailable refs; simulate selector failure or unknown ownership. Confirm diagnostic and full execution. Manual default executes full. | BG02, BG03 |
+| BG-E5 | Inject a failing or cancelled required task and observe that its CI job fails or cancels; confirm selected browser shards execute again rather than returning cached results. | BG04 |
+| BG-E6 | Compare the base and revised workflow graphs and Playwright discovery inventories. Execute representative compiled browser journeys and original shard commands, then exercise affected, unaffected, fallback, and failure paths in actual hosted CI and native WebGPU on its runner. | BG01–BG04 |
+
+Use existing suites and deterministic isolated fixtures. Local mock or query-only checks supplement but cannot replace the actual workflow and application integration. Record outcomes below; unavailable hosted CI or hardware remains blocked, not passed.
+
+
 ## Revision: coarse affected gates
 
 This revision supersedes conflicting browser/visual selection requirements and tasks below, including AC06–AC09 and E2E cases that require feature-specific matrix selection. Preserve the ordinary test, cache, replay, and full-coverage requirements. Keep existing shards and execute the full existing matrix whenever its verification category is affected.
