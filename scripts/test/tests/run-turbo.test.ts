@@ -88,5 +88,16 @@ test("distinct valid SCM refs retain raw Turbo affected selection", () => {
     const selection = JSON.parse(output) as { tasks: Array<{ task: string; package: string }> };
     return selection.tasks.map(({ task, package: packageName }) => `${packageName}#${task}`).sort();
   };
-  expect(tasks(runner.stdout.toString())).toEqual(tasks(raw.stdout.toString()));
+  const shallow = Bun.spawnSync(["git", "rev-parse", "--is-shallow-repository"], { cwd, stdout: "pipe" });
+  const commonHistory = Bun.spawnSync(["git", "merge-base", base!, head!], { cwd, stdout: "ignore", stderr: "ignore" }).exitCode === 0;
+  if (shallow.stdout.toString().trim() !== "false" || !commonHistory) {
+    expect(runner.stderr.toString()).toContain("running full task selection");
+    const full = Bun.spawnSync([
+      process.execPath, resolve(cwd, "node_modules/turbo/bin/turbo"), "run", "lint", "typecheck", "--dry=json",
+    ], { cwd, env, stdout: "pipe", stderr: "pipe" });
+    expect(full.exitCode, full.stderr.toString()).toBe(0);
+    expect(tasks(runner.stdout.toString())).toEqual(tasks(full.stdout.toString()));
+  } else {
+    expect(tasks(runner.stdout.toString())).toEqual(tasks(raw.stdout.toString()));
+  }
 });
