@@ -117,7 +117,7 @@ async function failDriverProfileRun(
 }
 
 async function providerConfiguration(): Promise<
-  | { ok: true; provider: "gemini" | "openai" | "anthropic" | "openai-compatible"; model: string; thinkingBudget: number | null }
+  | { ok: true; provider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible"; model: string; thinkingBudget: number | null }
   | { ok: false; reason: string }
 > {
   const settings = loadSettings();
@@ -130,7 +130,15 @@ async function providerConfiguration(): Promise<
     provider,
     model:
       settings.driverProfileModel ||
-      (provider === "openai" ? "gpt-4o-mini" : provider === "anthropic" ? "claude-haiku-5-5" : provider === "openai-compatible" ? "local-model" : "gemini-flash-latest"),
+      (provider === "openai"
+        ? "gpt-4o-mini"
+        : provider === "anthropic"
+          ? "claude-haiku-5-5"
+          : provider === "deepseek"
+            ? "deepseek-flash"
+            : provider === "openai-compatible"
+              ? "local-model"
+              : "gemini-flash-latest"),
     thinkingBudget: settings.driverProfileThinkingBudget,
   };
 }

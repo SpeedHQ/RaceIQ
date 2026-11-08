@@ -14,13 +14,13 @@ export interface DisplaySettings {
   recordLmuOpponents: boolean;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
-  aiProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
+  aiProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   aiModel: string;
   aiThinkingBudget: number | null;
-  chatProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
+  chatProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   chatModel: string;
   chatThinkingBudget: number | null;
-  autoTuneProvider: "gemini" | "openai" | "anthropic" | "openai-compatible";
+  autoTuneProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
@@ -40,6 +40,8 @@ export interface DisplaySettings {
   hudHostname?: string;
   /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
+  /** Server-injected: whether a DeepSeek API key is stored */
+  deepseekApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI-compatible API key is stored */
