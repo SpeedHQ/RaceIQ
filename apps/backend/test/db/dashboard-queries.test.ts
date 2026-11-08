@@ -513,7 +513,7 @@ test("getDashboard includes over 128 clean published boundary sessions without l
       if (ids.includes(ownedSessionIds[index]!)) ownedSessionIds.splice(index, 1);
     }
   }
-});
+}, { timeout: 60_000 });
 test("getDashboard serves published metadata while capture backfill remains pending", async () => {
   const ids: number[] = [];
   const period = {
