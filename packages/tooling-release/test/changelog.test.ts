@@ -142,15 +142,7 @@ describe("changelog parser", () => {
 `,
         { version: "0.14.0", date: "2026-08-05" },
       ),
-    ).toBe(`## Unreleased
-
-### Features
-
-### Fixes
-
-### Internal
-
-## v0.14.0 - 2026-08-05
+    ).toBe(`## v0.14.0 - 2026-08-05
 
 ### Features
 - New feature

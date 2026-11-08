@@ -10,9 +10,12 @@ if (!rawVersion || !publishedAt) {
 const version = rawVersion.startsWith("v") ? rawVersion.slice(1) : rawVersion;
 
 const changelogPath = join(process.cwd(), "CHANGELOG.md");
+const unreleasedPath = join(process.cwd(), "UNRELEASED.md");
+const unreleased = readFileSync(unreleasedPath, "utf8");
 const changelog = readFileSync(changelogPath, "utf8");
 const date = formatReleaseDate(publishedAt);
-const rolledChangelog = rolloverChangelog(changelog, { version, date });
+const rolledChangelog = rolloverChangelog(`${unreleased.trim()}\n\n${changelog}`, { version, date });
 
 writeFileSync(changelogPath, `${rolledChangelog}\n`);
+writeFileSync(unreleasedPath, "## Unreleased\n\n### Features\n\n### Fixes\n\n### Internal\n");
 console.log(`Rolled CHANGELOG.md for v${version}`);

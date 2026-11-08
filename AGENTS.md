@@ -261,7 +261,7 @@ ran v39 before the `car`/`driver` rename.
 - Use one user-visible change per bullet. Lead with outcome and avoid vague verbs such as `improve`, `enhance`, or `handle`.
 - Keep `Internal` for non-user-facing work; technical detail and implementation context are acceptable there.
 - Keep section categories accurate. Do not claim behavior broader than shipped.
-- Preserve `### Fixes` and `### Internal` headings in `## Unreleased`, even when empty.
+- Preserve `### Fixes` and `### Internal` headings in `UNRELEASED.md` under `## Unreleased`, even when empty.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
 ### Branch and PR targeting
@@ -408,11 +408,13 @@ When creating or updating a pull request:
 
 Read and follow the [update-release-notes skill](.agents/skills/update-release-notes/SKILL.md) before writing or updating PR changelog entries.
 
-Classify each change before editing `CHANGELOG.md`:
-- **Customer-facing behavior** — add concise user-facing bullet under `## Unreleased` in `### Breaking`, `### Features`, or `### Fixes`.
-- **Internal-only CI, tooling, maintenance, tests, or developer workflow** — add concise note under `## Unreleased` → `### Internal`, not under customer-facing sections.
+Classify each change before editing `UNRELEASED.md`:
+- **Customer-facing behavior** — add a concise user-facing bullet under `## Unreleased` in `### Breaking`, `### Features`, or `### Fixes`.
+- **Internal-only CI, tooling, maintenance, tests, or developer workflow** — add a concise note under `## Unreleased` → `### Internal`, not under customer-facing sections.
 
-Never put internal mechanics in customer-facing release notes. Run `bun test test/changelog.test.ts --timeout 60000` only when changing `CHANGELOG.md`.
+Keep ongoing changes in `UNRELEASED.md`, not `CHANGELOG.md`. The release finalization workflow moves those notes into a versioned `CHANGELOG.md` entry and resets `UNRELEASED.md`.
+
+Never put internal mechanics in customer-facing release notes. Run `bun test packages/tooling-release/test/changelog.test.ts --timeout 60000` when changing release notes or release tooling.
 
 ### AI Evaluators
 

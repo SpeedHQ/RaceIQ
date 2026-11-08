@@ -4,8 +4,6 @@ import {
   type ChangelogEntry,
 } from "./sections";
 
-const EMPTY_UNRELEASED = "## Unreleased\n\n### Features\n\n### Fixes\n\n### Internal";
-
 export function formatReleaseDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) throw new Error("Invalid release date");
@@ -84,5 +82,5 @@ export function rolloverChangelog(markdown: string, release: { version: string; 
   const body = markdown.slice(start, end).trim();
   const released = `## v${release.version} - ${release.date}${body ? `\n\n${body}` : ""}`;
   const history = markdown.slice(end).trim();
-  return `${EMPTY_UNRELEASED}\n\n${released}${history ? `\n\n${history}` : ""}`;
+  return `${released}${history ? `\n\n${history}` : ""}`;
 }
