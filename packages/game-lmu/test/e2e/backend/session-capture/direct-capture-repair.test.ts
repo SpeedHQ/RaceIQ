@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -95,6 +96,48 @@ async function verifyReplay(source: RepairRecording) {
 }
 
 describe("direct capture repair through recording maintenance", () => {
+  test("restores a lap after the recorded driving prefix in a legacy AMS2 capture", async () => {
+    saveSettings({ ...loadSettings(), sessionCleanupEnabled: false, sessionDownsampleEnabled: false });
+    const directory = join(resolveRecordingDirectory(), "ams2", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+    directories.push(directory);
+    await mkdir(directory, { recursive: true });
+    const path = join(directory, "capture-manifest.json");
+    const session = await db.insert(sessions).values({
+      gameId: "ams2", carId: "fixture-car", trackId: "fixture-track", rawFile: path, captureFormatVersion: 1,
+    }).returning().get();
+    sessionIds.push(session.id);
+    const lap = await db.insert(laps).values({
+      sessionId: session.id, lapNumber: 1, lapTime: 52.990020751953125, isValid: true,
+      rawByteOffset: 223699588, rawFrameCount: 4157,
+    }).returning().get();
+    const bytes = gunzipSync(await readFile(fixturePath("sessions/ams2-legacy-owned-offset.bin.gz")));
+    const chunkId = crypto.randomUUID();
+    const chunkPath = join(directory, "lap.bin");
+    // Native coordinates come from the original manifest. The stored offset reflects redaction.
+    const manifest: Manifest = {
+      version: 3, gameId: "ams2", sourceRevision: crypto.randomUUID(),
+      sourceByteLength: 325978416, sourceRecordCount: 13249, sourceCoordinates: "native-wire-v1",
+      chunks: [{
+        id: chunkId, kind: "lap", lapId: String(lap.id), lapNumber: 1, path: "lap.bin",
+        byteLength: bytes.length, firstOrdinal: 0, recordCount: 13249, sourceStart: 0,
+        sourceEnd: 13249, sourceByteStart: 12, sourceByteEnd: 325978416, sourceRecordByteOffset: 28,
+        firstTimestamp: 1792901330632, ownedFrameByteOffset: 8599036, ownedFrameCount: 4157,
+        trailingContextFrameCount: 0,
+      }],
+    };
+    await writeFile(chunkPath, bytes);
+    await writeFile(path, JSON.stringify(manifest));
+    expect(lap.captureChunkId).toBeNull();
+
+    await runSessionCaptureMaintenanceNow();
+    const expected = { ...lap, captureChunkId: chunkId, sourceFrameStart: 9092, sourceFrameCount: 4157 };
+    expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(expected);
+    expect(await readFile(chunkPath)).toEqual(bytes);
+
+    await runSessionCaptureMaintenanceNow();
+    expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(expected);
+  });
+
   for (const damage of ["missing", "malformed", "invalid-schema"] as const) {
     test(`restores ${damage} manifest, publication and exact replay without changing saved lap`, async () => {
       const source = await recording();
