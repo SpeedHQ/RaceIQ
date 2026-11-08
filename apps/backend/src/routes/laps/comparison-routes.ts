@@ -1,13 +1,15 @@
+import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "@raceiq/shared/games/ids";
-import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
+import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { extractJson } from "@raceiq/backend-core/ai/extract-json";
 import { compareLaps } from "@raceiq/backend-core/lap-analysis/comparison";
 import { getOrComputeLapInsightsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
@@ -182,7 +184,11 @@ export const comparisonRoutes = new Hono()
         // a thinking model such as qwen3.5 could reason unboundedly and push the
         // request past Bun.serve's 255s idleTimeout — surfacing to the client as
         // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        modelSettings: {
+          // Leave enough output budget for the full structured comparison.
+          maxOutputTokens: settings.aiProvider === "deepseek" ? 16384 : 8192,
+          temperature: 0,
+        },
         providerOptions: {
           openai: { reasoningEffort: "medium" },
           google: buildGoogleThinkingProviderOptions(
@@ -193,7 +199,28 @@ export const comparisonRoutes = new Hono()
       });
       const durationMs = Math.round(performance.now() - start);
 
-      const object = (result as any).object;
+      let object = (result as any).object;
+      if (!object) {
+        // Providers that receive the schema as prompt text (DeepSeek, Anthropic,
+        // local servers) may answer with valid JSON wrapped in prose or fences.
+        // Parse that instead of failing the whole comparison.
+        const raw = typeof (result as any).text === "string" ? (result as any).text : "";
+        if (raw.trim()) {
+          try {
+            object = InputsCompareSchema.parse(JSON.parse(extractJson(raw)));
+          } catch (parseError) {
+            console.warn(
+              "[InputsCompare] structured output fallback failed:",
+              parseError instanceof Error ? parseError.message.slice(0, 200) : String(parseError).slice(0, 200),
+              "| raw:",
+              raw.slice(0, 400),
+            );
+            object = undefined;
+          }
+        } else {
+          console.warn("[InputsCompare] structured output missing and text channel was empty");
+        }
+      }
       if (!object) {
         throw new Error(
           settings.aiProvider === "openai-compatible"
@@ -334,14 +361,11 @@ export const comparisonRoutes = new Hono()
     }
 
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "anthropic"
-          ? "claude-haiku-5-5"
-          : chatProvider === "openai-compatible"
-          ? "local-model"
-          : "gemini-flash-latest");
-    if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
+      || (defaultModelFor(chatProvider));
+    // Gate on the stored model, never on the defaulted label: an empty
+    // chatModel must not resolve to an image-capable model implicitly.
+    const imageGate = gateChatImages(chatProvider, settings.chatModel, messages);
+    if (!imageGate.allowed) {
       return c.json({ error: "This chat model has no verified image support. Remove the image or choose an image-capable chat model." }, 400);
     }
     await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");

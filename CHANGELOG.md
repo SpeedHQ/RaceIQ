@@ -8,6 +8,7 @@
 - Keep iRacing replay incident markers alongside the shared replay visualization and telemetry panels.
 - Render iRacing comparison laps in Focus View, Spectate and circuit overviews from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable, using replay's map handedness, forward car headings, and official turn labels without treating projected positions as measured racing lines.
 - Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
 - Preserve iRacing automatic capture and import original IBT recordings from exported or mixed-format ZIP archives.
@@ -45,6 +46,7 @@
 - Align seeded E2E capability and dialog checks with production behavior, isolate native game discovery, and use release-pinned Bun for historical upgrade fixtures.
 - Remove the stale tire-pressure capability snapshot assertion; retain parser/resolver coverage that prevents iRacing cold setup pressures from appearing as live readings.
 - Run workspace lint through the installed Oxlint CLI and isolate native database test fixtures in subprocesses to keep Windows pre-commit checks reliable.
+- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 
