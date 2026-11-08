@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
 - Keep Replay and Compare → Spectate zoom transitions moving to their intended endpoint when playback is paused.
@@ -8,6 +9,10 @@
 
 ### Internal
 - Run existing CI browser shards, visual captures, and verification checks through affected Turbo tasks, preserving full fallback for uncertain ranges or coverage without caching browser results.
+- Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+
+### Internal
+- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 

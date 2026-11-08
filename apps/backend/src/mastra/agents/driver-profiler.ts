@@ -7,6 +7,7 @@
 import { Agent } from "@mastra/core/agent";
 import { getModel } from "../../ai/model-provider";
 import { renderDriverProfileSummarySchemaForPrompt } from "@raceiq/shared/integrations/ai/driver-profile-summary";
+import { DEEPSEEK_AGENT_DEFAULTS } from "../model";
 
 const DRIVER_PROFILER_INSTRUCTIONS = `You are a concise driver trend analyst. The prompt contains a deterministic global trend for the selected game, including window counts, normalized relative pace, consistency, spread, clean rate, directions, and deterministic advice.
 
@@ -16,6 +17,7 @@ Return JSON only — no markdown fences, no prose outside the object — matchin
 ${renderDriverProfileSummarySchemaForPrompt()}`;
 
 export const driverProfilerAgent = new Agent({
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   id: "driver-profiler",
   name: "Driver Profiler",
   instructions: DRIVER_PROFILER_INSTRUCTIONS,

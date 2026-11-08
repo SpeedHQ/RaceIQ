@@ -27,6 +27,9 @@ const OPENAI_VISION_MODELS = [
   "o4-mini",
 ];
 
+const DEEPSEEK_VISION_MODELS = ["deepseek-flash"];
+const DEEPSEEK_TEXT_ONLY_MODELS = ["deepseek-v4-pro"];
+
 const GEMINI_TEXT_ONLY_MODELS = ["gemini-embedding-001"];
 const OPENAI_TEXT_ONLY_MODELS = [
   "o1-mini",
@@ -63,7 +66,35 @@ export function resolveChatVisionCapability(provider: string | undefined, model:
   }
   // Every Claude model on the Anthropic API accepts image input.
   if (provider === "anthropic") return normalized.startsWith("claude-") ? "supported" : "unknown";
+  // DeepSeek docs (2026-11): deepseek-flash accepts image input, v4-pro does not.
+  // Manual list: DeepSeek publishes no stable model catalog, so verify before extending.
+  if (provider === "deepseek") {
+    if (DEEPSEEK_TEXT_ONLY_MODELS.some((id) => normalized === id || normalized.startsWith(`${id}-`))) return "unsupported";
+    return supportsVerifiedModel(normalized, DEEPSEEK_VISION_MODELS) ? "supported" : "unknown";
+  }
   return "unknown";
+}
+
+export type ChatImageGate =
+  | { allowed: true }
+  | { allowed: false; capability: "unsupported" | "unknown" };
+
+/**
+ * Single decision for every image-bearing chat turn.
+ *
+ * The model is read exactly as passed. An empty or missing model resolves to
+ * "unknown" and is blocked; this function must never substitute a default or
+ * otherwise image-capable model. Callers pass the stored selection with no
+ * fallback so an unset chat model cannot silently reach a vision model.
+ */
+export function gateChatImages(
+  provider: string | undefined,
+  model: string | undefined,
+  messages: unknown[],
+): ChatImageGate {
+  if (!chatRequestHasImage(messages)) return { allowed: true };
+  const capability = resolveChatVisionCapability(provider, model);
+  return capability === "supported" ? { allowed: true } : { allowed: false, capability };
 }
 
 export function chatRequestHasImage(messages: unknown[]): boolean {

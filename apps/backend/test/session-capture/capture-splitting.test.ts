@@ -1,19 +1,24 @@
 import { Readable } from "node:stream";
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
+import { ams2ServerAdapter } from "@raceiq/game-ams2";
+import { registerServerGame } from "@raceiq/backend-core/games/registry";
+import { Effect } from "effect";
 import { openCaptureArchive } from "@raceiq/capture-splitting";
 import type { PublishedManifest } from "@raceiq/capture-splitting";
 import { afterEach, expect, test } from "bun:test";
 import { createReadStream, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
 import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
-import { runSplitWorker, splitCapturePromise } from "@raceiq/capture-splitting";
+import { runSplitWorker, splitCapturePromise, verifyManifest } from "@raceiq/capture-splitting";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import { prepareLapWindowsForSplit } from "../../src/session-capture/split-windows";
+import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
 
 const directories: string[] = [];
 
@@ -218,6 +223,80 @@ test("writes versioned game parser checkpoint before first lap frame", async () 
   }
   expect(chunk.parserBootstrapHash).toMatch(/^[0-9a-f]{64}$/);
   expect(records.find((record) => record.kind === "frame")?.offset).toBe(chunk.ownedFrameByteOffset);
+});
+
+test("splits and replays AMS2 fixture with its parser checkpoint", async () => {
+  const root = directory();
+  const sourcePath = join(root, "ams2.bin");
+  const outputDirectory = join(root, "staged");
+  const fixture = resolve(import.meta.dir, "../../../../test/artifacts/sessions/ams2-time-trial.bin.gz");
+  const frames: Buffer[] = [];
+  const probeState = ams2ServerAdapter.createParserState();
+  let firstPacketIndex = -1;
+  let packetCount = 0;
+  for await (const frame of readAMS2DumpFrames(fixture)) {
+    frames.push(Buffer.from(frame));
+    if (ams2ServerAdapter.tryParse(frame, probeState)) {
+      if (firstPacketIndex < 0) firstPacketIndex = frames.length - 1;
+      if (++packetCount === 101) break;
+    }
+  }
+  expect(packetCount).toBeGreaterThan(1);
+  const splitIndex = firstPacketIndex + 1;
+  const header = Buffer.concat([encodeMetaFrame(frames.length), encodeSparseCaptureFormatFrame()]);
+  const encoder = new SparseCaptureEncoder("ams2");
+  let offset = header.length;
+  const offsets: number[] = [];
+  const encodedFrames = frames.map((frame) => {
+    offsets.push(offset);
+    const record = encodeRecord(encoder.encode(frame, offset));
+    offset += record.length;
+    return record;
+  });
+  writeFileSync(sourcePath, Buffer.concat([header, ...encodedFrames]));
+  const source = { rawFile: sourcePath, source: null, gameId: "ams2" as const, carId: "", trackId: "", captureFormatVersion: 1 };
+  const window = { lapId: "lap-1", lapNumber: 1, startByteOffset: offsets[splitIndex]!, frameCount: frames.length - splitIndex };
+  const [prepared] = await prepareLapWindowsForSplit(source, [window], ams2ServerAdapter);
+  expect(prepared?.parserCheckpoint?.byteLength).toBeGreaterThan(0);
+
+  const options = { sourcePath, outputDirectory, gameId: "ams2" as const, sourceRevision: "ams2-fixture", lapWindows: [prepared!] };
+  await expect(splitCapturePromise({ ...options, outputDirectory: join(root, "missing"), lapWindows: [window] }))
+    .rejects.toThrow("parser checkpoint required");
+  await expect(splitCapturePromise({ ...options, outputDirectory: join(root, "empty"), lapWindows: [{ ...window, parserCheckpoint: new Uint8Array() }] }))
+    .rejects.toThrow("invalid parser checkpoint");
+  const manifest = await splitCapturePromise(options);
+  const chunk = manifest.chunks.find(({ lapId }) => lapId === window.lapId)!;
+  const records = await readChunkRecords(manifest, outputDirectory, chunk);
+  expect(records[0]?.kind).toBe("parser-bootstrap");
+  if (records[0]?.kind !== "parser-bootstrap") throw new Error("Missing AMS2 bootstrap");
+  expect(records[0].gameId).toBe("ams2");
+  expect(records[0].payload).toEqual(Buffer.from(prepared!.parserCheckpoint!));
+  expect(chunk.parserBootstrapHash).toMatch(/^[0-9a-f]{64}$/);
+  await expect(Effect.runPromise(verifyManifest(sourcePath, outputDirectory, manifest))).resolves.toBeDefined();
+  const corrupt = { ...manifest, chunks: manifest.chunks.map((entry) =>
+    entry.lapId === window.lapId ? { ...entry, parserBootstrapHash: "0".repeat(64) } : entry) };
+  await expect(Effect.runPromise(verifyManifest(sourcePath, outputDirectory, corrupt))).rejects.toThrow();
+  const missing = { ...manifest, chunks: manifest.chunks.map((entry) =>
+    entry.lapId === window.lapId ? { ...entry, parserBootstrapHash: undefined } : entry) };
+  await expect(Effect.runPromise(verifyManifest(sourcePath, outputDirectory, missing))).rejects.toThrow();
+
+  const state = ams2ServerAdapter.createParserState();
+  const expected = frames.flatMap((frame, index) => {
+    const packet = ams2ServerAdapter.tryParse(frame, state);
+    return index >= splitIndex && packet ? [packet] : [];
+  });
+  expect(expected.length).toBeGreaterThan(0);
+  const archive = manifest.version === 4 ? await openCaptureArchive(join(outputDirectory, manifest.archiveFile), manifest) : null;
+  const lapPath = join(root, "lap.bin");
+  if (archive && "entryName" in chunk) {
+    writeFileSync(lapPath, await archive.readEntryBuffer(chunk.entryName, chunk.byteLength + 1024));
+  } else if ("path" in chunk) {
+    writeFileSync(lapPath, await Bun.file(join(outputDirectory, chunk.path)).arrayBuffer().then(Buffer.from));
+  } else {
+    throw new Error("Missing AMS2 lap artifact");
+  }
+  registerServerGame(ams2ServerAdapter);
+  expect(readRecordedTelemetry("ams2", lapPath).packets).toEqual(expected);
 });
 
 test("does not claim context frames outside the next detector-owned window", async () => {

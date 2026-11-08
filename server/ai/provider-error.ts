@@ -4,7 +4,13 @@ export type AiProviderErrorCode =
   | "unsupported-provider"
   | "missing-api-key"
   | "upstream"
-  | "unsupported-operation";
+  | "unsupported-operation"
+  /** No response headers inside the deadline (connect + time-to-first-byte). */
+  | "timeout"
+  /** Connection-level failure: reset, DNS, TLS, socket refused. */
+  | "network"
+  /** Breaker open after consecutive transport failures; failing fast by design. */
+  | "circuit-open";
 
 type UpstreamError = {
   code?: number;

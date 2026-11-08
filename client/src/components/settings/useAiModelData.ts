@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
 
-type ProviderId = "gemini" | "openai" | "anthropic" | "openai-compatible";
+type ProviderId = "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
 export type ModelInfo = { id: string; name: string; contextLength?: number };
 export type ModelsResponse = {
   gemini: ModelInfo[];
   openai: ModelInfo[];
   anthropic?: ModelInfo[];
+  deepseek?: ModelInfo[];
   "openai-compatible": ModelInfo[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
@@ -21,7 +22,7 @@ export type AiModelData = {
 };
 
 export function isAiProvider(value: string): value is ProviderId {
-  return value === "gemini" || value === "openai" || value === "anthropic" || value === "openai-compatible";
+  return value === "gemini" || value === "openai" || value === "anthropic" || value === "deepseek" || value === "openai-compatible";
 }
 
 export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Record<string, boolean>): AiModelData {

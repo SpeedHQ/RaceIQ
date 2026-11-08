@@ -1,4 +1,4 @@
-type AiProvider = "" | "gemini" | "openai" | "anthropic" | "openai-compatible";
+type AiProvider = "" | "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
@@ -6,6 +6,7 @@ export interface AiConfigSettings {
   aiModel?: string;
   openaiApiKeySet?: boolean;
   anthropicApiKeySet?: boolean;
+  deepseekApiKeySet?: boolean;
   chatProvider?: AiProvider;
   chatModel?: string;
 }
@@ -14,6 +15,7 @@ function isProviderConfigured(provider: AiProvider, settings: AiConfigSettings):
   if (provider === "openai-compatible") return true;
   if (provider === "openai") return !!settings.openaiApiKeySet;
   if (provider === "anthropic") return !!settings.anthropicApiKeySet;
+  if (provider === "deepseek") return !!settings.deepseekApiKeySet;
   if (provider === "gemini") return !!settings.geminiApiKeySet;
   return false;
 }

@@ -15,7 +15,9 @@ import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { getCompareAnalysisTool } from "../tools/compare-analysis";
 import { setupEngineerTools } from "../tools/setup-engineer";
+import { DEEPSEEK_AGENT_DEFAULTS } from "../model";
 export const compareEngineerAgent = new Agent({
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   id: "compare-engineer",
   name: "Compare Engineer",
   instructions: () => {
