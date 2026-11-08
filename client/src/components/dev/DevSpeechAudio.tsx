@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { LiveEngineerAudioPlayer, type LiveEngineerAudioOptions } from "../../lib/live-engineer-audio";
+import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "@raceiq/shared/racing/live/engineer-contracts";
+
+export const DEV_QWEN_CATALOG = { url: "/api/dev/live-engineer/audio/manifest.json", version: LIVE_ENGINEER_AUDIO_CATALOG_VERSION };
 
 export type SpeechClip = { segmentId: string; spokenText: string; path: string; durationMs: number; sha256: string };
 export type SpeechQwenClip = SpeechClip & { url: string };
@@ -75,7 +78,7 @@ export function useDevSpeechAudio(spotter: boolean): DevSpeechAudio {
       disposeRef.current = dispose;
       player = new LiveEngineerAudioPlayer({
         audioContext: context,
-        catalog: source,
+        catalog: source ?? DEV_QWEN_CATALOG,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
       });
       // Resume during the click gesture, before catalog/network preparation.

@@ -1,41 +1,63 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { USER_VOICE_PACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import fullLineCatalog from "@raceiq/shared/racing/live/full-lines.json";
 import { createLiveEngineerVoiceLine, isOpponentPaceRenderParametersV1, isLiveEngineerCalloutMessageV3, LIVE_ENGINEER_AUDIO_CATALOG_VERSION, type OpponentPaceTextKeyV1, type SpotterTextKeyV1 } from "@raceiq/shared/racing/live/engineer-contracts";
 import { isSpotterStateV1 } from "@raceiq/shared/racing/live/spotter-contracts";
 import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderPreviewLine, renderSpotter } from "@raceiq/live-engineer/live-engineer-renderer";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 
-const qwenAudioRoot = resolve(USER_VOICE_PACKS_DIR, "live-engineer/qwen-v3");
-const qwenManifestPath = resolve(qwenAudioRoot, "manifest.json");
+const sourceAudioRoot = fileURLToPath(new URL("../../../../../assets/live-engineer/qwen-v3", import.meta.url));
+const audioUrl = "/api/dev/live-engineer/audio/";
 interface CatalogFullLine { lineId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
 interface CatalogQwenClip { segmentId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
 const previewLineIds: Record<string, true> = Object.fromEntries(fullLineCatalog.filter((line) => line.kind === "preview-line").map((line) => [line.lineId, true]));
-export const liveEngineerRoutes = new Hono();
+export function createLiveEngineerRoutes(qwenAudioRoot = sourceAudioRoot) {
+const liveEngineerRoutes = new Hono();
+const sourceFile = (relative: string): string | null => {
+  if (typeof relative !== "string" || !relative || relative.split("/").some((part) => !part || part === "." || part === ".." || part.includes("\\"))) return null;
+  try {
+    const root = realpathSync(qwenAudioRoot);
+    const file = realpathSync(resolve(root, relative));
+    return file.startsWith(root + sep) && statSync(file).isFile() ? file : null;
+  } catch {
+    return null;
+  }
+};
+
+liveEngineerRoutes.get("/api/dev/live-engineer/audio/*", (c) => {
+  if (process.env.NODE_ENV === "production") return c.notFound();
+  const file = sourceFile(c.req.path.slice(audioUrl.length));
+  return file ? new Response(Bun.file(file)) : c.notFound();
+});
 
 liveEngineerRoutes.get("/api/dev/live-engineer/catalog", (c) => {
-  const qwenManifest = existsSync(qwenManifestPath) ? JSON.parse(readFileSync(qwenManifestPath, "utf8")) : null;
-  const fullLines = (qwenManifest?.fullLines ?? []).map((line: CatalogFullLine) => ({ ...line, url: `/audio/live-engineer/qwen-v3/${line.path}` }));
-  const qwenClips = (qwenManifest?.clips ?? []).map((clip: CatalogQwenClip) => ({ ...clip, url: `/audio/live-engineer/qwen-v3/${clip.path}` }));
+  if (process.env.NODE_ENV === "production") return c.notFound();
+  const manifestPath = sourceFile("manifest.json");
+  if (!manifestPath) return c.json({ error: "Qwen audio catalog missing" }, 404);
+  const qwenManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const fullLines = (qwenManifest?.fullLines ?? []).map((line: CatalogFullLine) => ({ ...line, url: `${audioUrl}${line.path}` }));
+  const qwenClips = (qwenManifest?.clips ?? []).map((clip: CatalogQwenClip) => ({ ...clip, url: `${audioUrl}${clip.path}` }));
   return c.json({ catalogVersion: qwenManifest?.catalogVersion ?? LIVE_ENGINEER_AUDIO_CATALOG_VERSION, model: qwenManifest?.model ?? null, validation: Boolean(qwenManifest), fullLineValidation: qwenManifest?.fullLineValidation ?? null, fullLines, qwenClips });
 });
 
 liveEngineerRoutes.post("/api/dev/live-engineer/catalog-check", async (c) => {
+  if (process.env.NODE_ENV === "production") return c.notFound();
   const failures: string[] = [];
-  const qwenManifest = existsSync(qwenManifestPath) ? JSON.parse(readFileSync(qwenManifestPath, "utf8")) : null;
-  if (!qwenManifest) failures.push("missing Qwen manifest");
+  const manifestPath = sourceFile("manifest.json");
+  if (!manifestPath) return c.json({ passed: false, failures: ["missing Qwen manifest"] }, 404);
+  const qwenManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   for (const line of (qwenManifest?.fullLines ?? []) as CatalogFullLine[]) {
-    const file = resolve(qwenAudioRoot, line.path);
-    if (!existsSync(file)) { failures.push(`missing Qwen asset: ${line.lineId}`); continue; }
+    const file = sourceFile(line.path);
+    if (!file) { failures.push(`missing Qwen asset: ${line.lineId}`); continue; }
     const hash = createHash("sha256").update(readFileSync(file)).digest("hex");
     if (hash !== line.sha256) failures.push(`Qwen hash mismatch: ${line.lineId}`);
   }
   for (const clip of (qwenManifest?.clips ?? []) as CatalogQwenClip[]) {
-    const file = resolve(qwenAudioRoot, clip.path);
-    if (!existsSync(file)) { failures.push(`missing Qwen clip: ${clip.segmentId}`); continue; }
+    const file = sourceFile(clip.path);
+    if (!file) { failures.push(`missing Qwen clip: ${clip.segmentId}`); continue; }
     const hash = createHash("sha256").update(readFileSync(file)).digest("hex");
     if (hash !== clip.sha256) failures.push(`Qwen clip hash mismatch: ${clip.segmentId}`);
   }
@@ -92,3 +114,7 @@ liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
   wsManager.broadcastNotification(line as unknown as Record<string, unknown>);
   return c.json({ ...message, text: rendered.text, voiceLine: line });
 });
+return liveEngineerRoutes;
+}
+
+export const liveEngineerRoutes = createLiveEngineerRoutes();

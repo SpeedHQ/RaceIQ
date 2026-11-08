@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { renderLapTime } from "@raceiq/live-engineer/live-engineer-renderer";
 import { Button } from "../ui/button";
-import type { DevSpeechAudio } from "./DevSpeechAudio";
-
-import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "@raceiq/shared/racing/live/engineer-contracts";
-const v3Catalog = { url: "/audio/live-engineer/qwen-v3/manifest.json", version: LIVE_ENGINEER_AUDIO_CATALOG_VERSION };
+import { DEV_QWEN_CATALOG as v3Catalog, type DevSpeechAudio } from "./DevSpeechAudio";
+const installedCatalog = { url: "/audio/live-engineer/qwen-v3/manifest.json", version: v3Catalog.version };
 type Sample = {
   id: string;
   label: string;
@@ -18,7 +16,7 @@ type Sample = {
 type ComparisonRecipe = {
   approvalId: string;
   mode: "automatic" | "exact-response";
-  text: string;
+  text?: string;
   segmentIds: string[];
   oracleId?: string;
   status?: string;
@@ -28,6 +26,7 @@ type ComparisonCatalog = {
   model: string;
   samples?: Sample[];
   recipes?: ComparisonRecipe[];
+  approvals?: { recipes?: ComparisonRecipe[] };
   clips: { segmentId: string; spokenText: string; durationMs: number; sourceTranscript: string }[];
   oracles?: { oracleId: string; text: string; durationMs: number }[];
   fullLines: {
@@ -55,12 +54,14 @@ export function DevLapTimeComparison({ audio }: { audio: DevSpeechAudio }) {
         const response = await fetch(v3Catalog.url, { signal: controller.signal });
         if (!response.ok) throw new Error(`Experimental v3 catalog unavailable (HTTP ${response.status}). Generate the comparison assets first.`);
         const manifest = await response.json() as ComparisonCatalog;
-        if (manifest.catalogVersion !== v3Catalog.version || (!Array.isArray(manifest.samples) && !Array.isArray(manifest.recipes)) || !Array.isArray(manifest.fullLines) || !Array.isArray(manifest.clips)) {
+        if (manifest.catalogVersion !== v3Catalog.version || (!Array.isArray(manifest.samples) && !Array.isArray(manifest.recipes) && !Array.isArray(manifest.approvals?.recipes)) || !Array.isArray(manifest.fullLines) || !Array.isArray(manifest.clips)) {
           throw new Error("Experimental v3 catalog does not match the comparison format.");
         }
+        manifest.recipes ??= manifest.approvals?.recipes;
         for (const recipe of manifest.recipes ?? []) {
-          if (!recipe.approvalId || !recipe.text || !Array.isArray(recipe.segmentIds) || !recipe.segmentIds.length
-            || !recipe.segmentIds.every((id) => manifest.clips.some((clip) => clip.segmentId === id && clip.durationMs > 0))) {
+          if (!recipe.approvalId || !Array.isArray(recipe.segmentIds) || (!recipe.segmentIds.length && !recipe.oracleId)
+            || !recipe.segmentIds.every((id) => manifest.clips.some((clip) => clip.segmentId === id && clip.durationMs > 0))
+            || (recipe.oracleId && !manifest.oracles?.some((oracle) => oracle.oracleId === recipe.oracleId && oracle.durationMs > 0))) {
             throw new Error("Experimental v3 catalog has an incomplete approval recipe.");
           }
         }
@@ -68,6 +69,11 @@ export function DevLapTimeComparison({ audio }: { audio: DevSpeechAudio }) {
           if (!sample.id || !sample.label || !sample.text || !Number.isInteger(sample.lapTimeMs)
             || ![sample.chunkedLineId, sample.fullLineId].every((id) => manifest.fullLines.some((line) => line.lineId === id && line.spokenText === sample.text && line.durationMs > 0))) {
             throw new Error("Experimental v3 catalog has an incomplete sample or missing comparison audio.");
+          }
+          const chunked = manifest.fullLines.find((line) => line.lineId === sample.chunkedLineId);
+          if (!chunked || !Array.isArray(chunked.segmentIds) || !Array.isArray(chunked.joinTimesMs)
+            || !chunked.segmentIds.every((id) => manifest.clips.some((clip) => clip.segmentId === id && clip.durationMs > 0))) {
+            throw new Error("Experimental v3 catalog has incomplete comparison chunks.");
           }
         }
         if (!controller.signal.aborted) setCatalog(manifest);
@@ -116,11 +122,11 @@ export function DevLapTimeComparison({ audio }: { audio: DevSpeechAudio }) {
               <p className="text-sm">V3: {sample.text}</p>
               <p className="text-xs text-app-text-muted">V2: {v2.text}</p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="app-outline" size="app-sm" onClick={() => void audio.playSegments(`lap-comparison-${sample.id}-v2`, v2.segmentIds)}>Current v2</Button>
+                <Button variant="app-outline" size="app-sm" onClick={() => void audio.playSegments(`lap-comparison-${sample.id}-v2`, v2.segmentIds, installedCatalog)}>Current v2</Button>
                 <Button variant="app-outline" size="app-sm" onClick={() => void audio.playFullLine(`lap-comparison-${sample.id}-v3-chunks`, sample.chunkedLineId, v3Catalog)}>V3 chunks</Button>
                 <Button variant="app-outline" size="app-sm" onClick={() => void audio.playFullLine(`lap-comparison-${sample.id}-v3-whole`, sample.fullLineId, v3Catalog)}>V3 whole sentence</Button>
                 {sample.lapTimeMs !== sample.spokenLapTimeMs && (
-                  <Button variant="app-outline" size="app-sm" onClick={() => void audio.playSegments(`lap-comparison-${sample.id}-v2-same-value`, renderLapTime(sample.spokenLapTimeMs).segmentIds)}>V2 at rounded value</Button>
+                  <Button variant="app-outline" size="app-sm" onClick={() => void audio.playSegments(`lap-comparison-${sample.id}-v2-same-value`, renderLapTime(sample.spokenLapTimeMs).segmentIds, installedCatalog)}>V2 at rounded value</Button>
                 )}
               </div>
               <div className="flex flex-col gap-2">
@@ -157,7 +163,7 @@ export function DevLapTimeComparison({ audio }: { audio: DevSpeechAudio }) {
           {catalog.recipes.map((recipe) => (
             <div key={recipe.approvalId} className="flex flex-wrap items-center gap-2 text-sm">
               <span>{recipe.approvalId} · {recipe.mode} · {recipe.status ?? "not-listened"}</span>
-              <Button variant="app-outline" size="app-sm" onClick={() => void audio.playSegments(`recipe-${recipe.approvalId}`, recipe.segmentIds, v3Catalog)}>Play chunks</Button>
+              {!!recipe.segmentIds.length && <Button variant="app-outline" size="app-sm" onClick={() => void audio.playSegments(`recipe-${recipe.approvalId}`, recipe.segmentIds, v3Catalog)}>Play chunks</Button>}
               {recipe.oracleId && <Button variant="app-outline" size="app-sm" onClick={() => void audio.playOracle(`oracle-${recipe.approvalId}`, recipe.oracleId!, v3Catalog)}>Play oracle</Button>}
             </div>
           ))}

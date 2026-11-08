@@ -105,6 +105,7 @@ apps/backend/test/routes/recording-directory.test.ts
 apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
+apps/backend/test/runtime/live-engineer-audio-proxy.test.ts
 apps/backend/test/runtime/dashboard-auth.test.ts
 apps/backend/test/runtime/dump-only.test.ts
 apps/backend/test/runtime/http-access-compiled.test.ts
