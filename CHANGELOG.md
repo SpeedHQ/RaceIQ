@@ -9,6 +9,7 @@
 
 ### Internal
 - Run existing CI browser shards, visual captures, and verification checks through affected Turbo tasks, preserving full fallback for uncertain ranges or coverage without caching browser results.
+- Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
 - Verify affected Turbo task selection against full selection when CI history is shallow.
 
 ### Internal
