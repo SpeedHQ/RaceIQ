@@ -17,7 +17,7 @@ const evidence: LiveParserReplayEvidence = {
   orderedTelemetryDigest: "pure-codec-test",
 };
 
-async function runScenario(configure: (splitter: StreamingCaptureSplitter, offsets: number[]) => void, payloads: number[]) {
+async function runScenario(configure: (splitter: StreamingCaptureSplitter, offsets: number[]) => void, payloads: number[], gameId: "fm-2023" | "ams2" = "fm-2023") {
   const root = mkdtempSync(join(tmpdir(), "raceiq-live-split-scenario-"));
   const archivePath = join(root, "capture.bin.gz");
   const descriptors: StreamingMemberDescriptor[] = [];
@@ -42,7 +42,7 @@ async function runScenario(configure: (splitter: StreamingCaptureSplitter, offse
       expect(frames).toHaveLength(lap.frameCount + (lap.trailingContextFrameCount ?? 0));
     },
   };
-  const splitter = new StreamingCaptureSplitter({ gameId: "fm-2023", host });
+  const splitter = new StreamingCaptureSplitter({ gameId, host });
   const records: SessionCaptureRecord[] = payloads.map((value, index) => ({
     kind: "frame", offset: index * 16, endOffset: (index + 1) * 16,
     frame: Buffer.from([value]), frameTimeMs: index * 10,
@@ -57,12 +57,28 @@ async function runScenario(configure: (splitter: StreamingCaptureSplitter, offse
   await splitter.close();
   const archiveRecords = [...iterateSessionCaptureRecords(gunzipSync(readFileSync(archivePath)), 0, { strict: true })];
   const archiveFrames = archiveRecords.filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
-  return { root, descriptors, archiveFrames };
+  return { root, descriptors, archiveFrames, archiveRecords };
 }
 
 function window(lapId: string, lapNumber: number, startByteOffset: number, frameCount: number): LapWindow {
   return { lapId, lapNumber, startByteOffset, frameCount };
 }
+
+test("AMS2 live candidates require and retain parser initialization", async () => {
+  const checkpoint = Uint8Array.of(1, 2, 3);
+  const result = await runScenario((splitter, offsets) => {
+    expect(() => splitter.startCandidate("empty", 1, offsets[0]!, new Uint8Array()))
+      .toThrow("Invalid streaming candidate initialization");
+    splitter.startCandidate("valid", 1, offsets[0]!, checkpoint);
+    splitter.bindCandidate("valid", "lap-valid");
+    splitter.finalizeCandidate("valid", window("lap-valid", 1, offsets[0]!, 1), 1);
+  }, [10], "ams2");
+  try {
+    expect(result.descriptors[0]?.lap?.parserCheckpoint).toEqual(checkpoint);
+    const bootstrap = result.archiveRecords.find((record) => record.kind === "parser-bootstrap");
+    expect(bootstrap?.kind === "parser-bootstrap" ? bootstrap.payload : null).toEqual(Buffer.from(checkpoint));
+  } finally { rmSync(result.root, { recursive: true, force: true }); }
+});
 
 test("live splitter publishes normal dynamic lap through real file host", async () => {
   const result = await runScenario((splitter, offsets) => {
