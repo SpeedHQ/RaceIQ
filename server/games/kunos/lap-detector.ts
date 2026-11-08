@@ -34,6 +34,7 @@ export class KunosLapDetector implements ILapDetector {
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
+  private needsAcEvoSessionType = false;
   private currentSession: SessionState | null = null;
   private lastAcEvoSourceIdentity: TelemetryPacket["acEvoIdentity"] | null = null;
 
@@ -49,7 +50,9 @@ export class KunosLapDetector implements ILapDetector {
         const identity = await this.resolveSessionIdentity(packet);
         const carId = identity?.carId ?? packet.carId;
         const trackId = identity?.trackId ?? packet.trackId;
-        const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType);
+        const sessionType = packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType;
+        const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, sessionType);
+        this.needsAcEvoSessionType = packet.gameId === "ac-evo" && (!sessionType || sessionType === "unknown");
         this.currentSession = { sessionId, carId, trackId, carPI: packet.CarPerformanceIndex, gameId: packet.gameId, sessionUID: packet.sessionUID, bestLapTime: 0 };
       },
       onSessionStarted: async () => { await this.onSessionStart?.(this.currentSession!); },
@@ -155,7 +158,13 @@ export class KunosLapDetector implements ILapDetector {
   protected async resolveSessionIdentity(_packet: TelemetryPacket): Promise<SessionIdentity | undefined> { return undefined; }
   protected async backfillSessionIdentifiers(packet: TelemetryPacket): Promise<void> {
     const session = this.currentSession;
-    if (!session || (session.carId && session.trackId)) return;
+    if (!session) return;
+    const sessionType = packet.acc?.acEvo?.sessionType;
+    if (this.needsAcEvoSessionType && packet.acc?.acEvo?.sessionName?.trim() && sessionType && sessionType !== "unknown") {
+      await this.db.fillUnknownAcEvoSessionType?.(session.sessionId, sessionType);
+      this.needsAcEvoSessionType = false;
+    }
+    if (session.carId && session.trackId) return;
     const identity = await this.resolveSessionIdentity(packet);
     if (!identity) return;
     await this.db.updateSessionCarTrack(session.sessionId, identity.carId, identity.trackId);

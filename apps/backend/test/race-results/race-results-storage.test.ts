@@ -24,6 +24,8 @@ describe("persisted race result metadata", () => {
       { sessionId, lapNumber: 6, lapTime: 102, isValid: true, invalidReason: null, classification: "grid_start" },
       { sessionId, lapNumber: 7, lapTime: 103, isValid: true, invalidReason: null, classification: "pit_lap" },
       { sessionId, lapNumber: 8, lapTime: 104, isValid: true, invalidReason: null, classification: "pace" },
+      { sessionId, lapNumber: 9, lapTime: 110, isValid: true, invalidReason: null, classification: "out_lap" },
+      { sessionId, lapNumber: 10, lapTime: 105, isValid: true, invalidReason: null, classification: "pace" },
     ]);
     const input: SessionResultInput = {
       sessionId,
@@ -50,10 +52,11 @@ describe("persisted race result metadata", () => {
       { sequence: 3, lapNumber: 5, elapsedSeconds: 90, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
       { sequence: 4, lapNumber: 6, elapsedSeconds: 100, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
       { sequence: 5, lapNumber: 7, elapsedSeconds: 110, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
+      { sequence: 6, lapNumber: 9, elapsedSeconds: 200, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
     ]);
     const result = await getSessionResult(sessionId, "f1-2025");
     expect(result?.id).toBe(first.id);
-    expect(result?.events.map((event) => event.sequence)).toEqual([1, 2, 3, 4, 5]);
+    expect(result?.events.map((event) => event.sequence)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(result?.events[1]?.fuelAdded).toBe(5);
     expect(result?.provenance).toEqual(provenance);
     const storedLaps = await db.select({
@@ -69,6 +72,8 @@ describe("persisted race result metadata", () => {
       { lapNumber: 6, isValid: true, invalidReason: null, classification: "grid_start" },
       { lapNumber: 7, isValid: true, invalidReason: null, classification: "pit_lap" },
       { lapNumber: 8, isValid: true, invalidReason: null, classification: "out_lap" },
+      { lapNumber: 9, isValid: true, invalidReason: null, classification: "out_lap" },
+      { lapNumber: 10, isValid: true, invalidReason: null, classification: "pace" },
     ]);
   });
   test("counts and lists only results from older processor versions", async () => {
