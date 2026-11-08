@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { RequestContext } from "@mastra/core/request-context";
 import type { ProcessLLMRequestArgs } from "@mastra/core/processors";
@@ -13,6 +13,8 @@ import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
 import { buildLapChatInstructions, lapChatGroundingProcessor, lapChatPrepareStep, requiresCornerMetricsLookup, requiresLapInsightsLookup } from "../../../src/mastra/agents/lap-chat";
 import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
 import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import { tuneChatRoutes } from "../../../src/routes/tune-chat-routes";
+import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -380,6 +382,85 @@ describe("lap chat route context and targeted removal", () => {
     expect((await postImage()).status).toBe(200);
     expect(providerConfigured).toBe(true);
     expect(streamCalled).toBe(true);
+  });
+
+  test("gates image turns on the stored chat model with no default fallback", async () => {
+    const streamedMessages: unknown[][] = [];
+    let chatModel = "";
+    const memory = makeMemory();
+    const app = createChatRoutes({
+      getLapById: async () => lap({ id: 41, lapNumber: 51, tuneId: 0 }) as never,
+      loadSettings: (() => ({ chatProvider: "deepseek", chatModel, unit: "metric", temperatureUnit: "celsius", language: "en", chatThinkingBudget: 0 })) as never,
+      resolveLapCorners: (async () => []) as never,
+      buildChatSystemPrompt: (() => "context") as never,
+      resolveActiveThread: (async (base: string) => base) as never,
+      ensureSystemPrompt: (async () => {}) as never,
+      getChatMemory: (() => memory) as never,
+      configureAiProviderEnvironment: (async () => {}) as never,
+      lapChatAgent: ({ stream: async (messages: unknown[]) => { streamedMessages.push(messages); return {}; } } as never),
+      streamAgentTurnResponse: (async () => new Response("ok")) as never,
+    });
+    const post = (parts: unknown[]) => app.request("/api/laps/41/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [{ id: "turn", role: "user", parts }] }),
+    });
+    const imagePart = { type: "file", mediaType: "image/png", url: "data:image/png;base64,AA==" };
+
+    // An empty stored model is fine for text; only image turns need a verified model.
+    expect((await post([{ type: "text", text: "Explain my braking" }])).status).toBe(200);
+
+    const unknown = await post([imagePart]);
+    expect(unknown.status).toBe(400);
+    expect(await unknown.json()).toEqual({
+      error: "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.",
+    });
+
+    chatModel = "deepseek-v4-pro";
+    const unsupported = await post([imagePart]);
+    expect(unsupported.status).toBe(400);
+    expect(await unsupported.json()).toEqual({
+      error: "This chat model does not support images. Remove the image or choose a verified image-capable chat model.",
+    });
+    // Neither blocked image turn reached the model.
+    expect(streamedMessages.filter((messages) => JSON.stringify(messages).includes("data:image/png"))).toHaveLength(0);
+
+    chatModel = "deepseek-flash";
+    expect((await post([imagePart])).status).toBe(200);
+    expect(streamedMessages.filter((messages) => JSON.stringify(messages).includes("data:image/png"))).toHaveLength(1);
+  });
+});
+
+describe("tune chat image gate", () => {
+  // The tune-chat route has no override seam, so the stored settings are
+  // replaced at the module the route reads from. An empty chatModel must fail
+  // before branch resolution (unknown experiment below proves nothing else ran).
+  test("rejects an image turn with no stored chat model before touching the experiment", async () => {
+    const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue({
+      ...settingsModule.loadSettings(),
+      chatProvider: "deepseek",
+      chatModel: "",
+    });
+    try {
+      const response = await tuneChatRoutes.request("/api/experiments/987654/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headVersionId: null,
+          messages: [{
+            id: "image-turn",
+            role: "user",
+            parts: [{ type: "file", mediaType: "image/png", url: "data:image/png;base64,AA==" }],
+          }],
+        }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.",
+      });
+    } finally {
+      settingsSpy.mockRestore();
+    }
   });
 });
 

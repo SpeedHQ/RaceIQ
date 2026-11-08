@@ -7,21 +7,23 @@
  * factories build one-off agents with a pinned model so fixture runs stay
  * deterministic-ish across CI and local runs.
  *
- * Reference provider: Gemini 3 Flash (`google/gemini-3-flash`). Override
- * via `EVALS_PROVIDER` + `EVALS_MODEL` if needed.
+ * Set EVALS_MODEL explicitly; EVALS_PROVIDER defaults to Gemini.
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer";
+import { DEEPSEEK_AGENT_DEFAULTS } from "../model";
 
-const DEFAULT_EVAL_MODEL = "google/gemini-flash-latest";
-
+/** Label used in baseline filenames and eval output. */
 export function resolveEvalModelId(): string {
   const provider = process.env.EVALS_PROVIDER ?? "gemini";
-  const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
+  const model = process.env.EVALS_MODEL?.trim();
+  if (!model) throw new Error("EVALS_MODEL must be set to run AI evaluations.");
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
-  return DEFAULT_EVAL_MODEL;
+  if (provider === "deepseek") return `deepseek/${model}`;
+  throw new Error(`Unsupported EVALS_PROVIDER: ${provider}`);
 }
+
 
 const EVAL_LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, and coaching.
 
@@ -34,6 +36,7 @@ export function buildEvalLapAnalystAgent(): Agent {
     name: "Eval Lap Analyst",
     instructions: EVAL_LAP_ANALYST_INSTRUCTIONS,
     model: () => modelId,
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   });
 }
 
@@ -44,5 +47,6 @@ export function buildEvalCompareEngineerAgent(unit: "metric" | "imperial" = "met
     name: "Eval Compare Engineer",
     instructions: compareEngineerPersona(unit),
     model: () => modelId,
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   });
 }
