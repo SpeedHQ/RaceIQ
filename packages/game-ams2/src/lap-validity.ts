@@ -7,7 +7,9 @@ export function classifyAMS2PitCycle(packets: readonly TelemetryPacket[], comple
   const first = packets[0];
   const capturedRaceStart = first?.ams2?.sessionType === "race"
     && first.LapNumber === 1 && first.CurrentLap <= 0;
-  return completedLapCount === 0 && !capturedRaceStart ? "outlap" : null;
+  const capturedTimedStart = first?.ams2 && first.CurrentLap >= 0 && first.CurrentLap < 1 &&
+    first.ams2.lapDistanceM >= 0 && first.ams2.lapDistanceM <= 30 && first.ams2.sessionType !== "race";
+  return completedLapCount === 0 && !capturedRaceStart && !capturedTimedStart ? "outlap" : null;
 }
 
 export function resolveAMS2InvalidReason(packets: readonly TelemetryPacket[]): string | null {

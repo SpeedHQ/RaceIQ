@@ -13,6 +13,7 @@ import { ams2ServerAdapter } from "../../src/index";
 import { AMS2TelemetrySource } from "../../src/source";
 import { AMS2_LAYOUT as L, AMS2_MEMORY_SIZE, PARTICIPANT_OFFSET as P, PARTICIPANT_SIZE } from "../../src/layout";
 import { decodeAMS2Frame, encodeAMS2Frame } from "../../src/frame";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 registerServerGame(ams2ServerAdapter);
 
 registerGame(ams2ServerAdapter);
@@ -35,7 +36,13 @@ async function replay(name: string) {
   };
   const gears = new Set<number>();
   const db = new CapturingDbAdapter();
-  const detector = ams2ServerAdapter.createLapDetector({ db });
+  let untimedPitExit: TelemetryPacket | undefined;
+  let firstTimedLap: readonly TelemetryPacket[] | undefined;
+  let wasInPits = false;
+  const detector = ams2ServerAdapter.createLapDetector({
+    db,
+    callbacks: { onLapComplete: ({ packets }) => { firstTimedLap ??= packets; } },
+  });
   const parserState = ams2ServerAdapter.createParserState();
   let memory: Buffer | null = null;
   let ended = 0;
@@ -54,6 +61,8 @@ async function replay(name: string) {
           channels[key].min = Math.min(channels[key].min, value);
           channels[key].max = Math.max(channels[key].max, value);
         }
+        if (wasInPits && packet.ams2?.inPits === false && packet.CurrentLap < 0) untimedPitExit ??= packet;
+        wasInPits = packet.ams2?.inPits === true;
         gears.add(packet.Gear);
         await detector.feed(packet);
       }
@@ -94,7 +103,7 @@ async function replay(name: string) {
       expect(lap.sessionId).toBeLessThanOrEqual(db.sessions.length);
       expect(lap.isValid).toBe(lap.invalidReason === null);
     }
-    return { db, diagnostics: source.getDiagnostics(), messages, channels, gears };
+    return { db, diagnostics: source.getDiagnostics(), messages, channels, gears, untimedPitExit, firstTimedLap };
   } finally {
     await source.stop();
     await detector.finalizeCurrentSession?.();
@@ -108,12 +117,20 @@ const completed = (db: CapturingDbAdapter, sessionId = 1) =>
   db.laps.filter(lap => lap.sessionId === sessionId && lap.invalidReason !== "incomplete");
 
 describe("AMS2 real raw-dump fixtures", () => {
-  test("Time Trial preserves timed laps and classifies both untimed crossings", async () => {
-    const { db, messages } = await replay("time-trial");
+  test("practice keeps the first full timed lap after an untimed pit exit eligible for pace", async () => {
+    const { db, messages, untimedPitExit, firstTimedLap } = await replay("time-trial");
+    expect(untimedPitExit?.ams2?.inPits).toBe(false);
+    expect(untimedPitExit?.CurrentLap).toBeLessThan(0);
+    const start = firstTimedLap?.[0];
+    expect(start?.TimestampMS).toBeGreaterThan(untimedPitExit!.TimestampMS);
+    expect(start?.CurrentLap).toBeGreaterThanOrEqual(0);
+    expect(start?.CurrentLap).toBeLessThan(1);
+    expect(start?.ams2?.lapDistanceM).toBeLessThan(30);
+    expect(firstTimedLap?.every(packet => packet.ams2?.inPits === false)).toBe(true);
     expect(db.sessions.map(s => s.sessionType)).toEqual(["practice"]);
     const laps = completed(db);
     expect(laps.map(lap => lap.lapNumber)).toEqual([1, 2, 3]);
-    expect(laps.map(l => l.classification)).toEqual(["out_lap", "pace", "pace"]);
+    expect(laps.map(l => l.classification)).toEqual(["pace", "pace", "pace"]);
     expect(laps.map(l => l.lapTime.toFixed(3))).toEqual(["50.460", "52.080", "51.300"]);
     expect(messages.filter(m => m.includes("Untimed start-line crossing"))).toHaveLength(2);
     expect(messages.filter(m => m.includes("Race restart detected"))).toHaveLength(0);
@@ -144,11 +161,11 @@ describe("AMS2 real raw-dump fixtures", () => {
     expect(db.laps.at(-1)?.invalidReason).toBe("incomplete");
   });
 
-  test("healthy qualifying retains three valid timed laps", async () => {
+  test("healthy qualifying retains four valid timed laps", async () => {
     const { db, diagnostics } = await replay("qualifying");
     expect(db.sessions.map(s => s.sessionType)).toEqual(["qualifying", "race"]);
     expect(completed(db).map(lap => lap.lapNumber)).toEqual([1, 2, 3, 4]);
-    expect(completed(db).map(l => l.classification)).toEqual(["out_lap", "pace", "pace", "pace"]);
+    expect(completed(db).map(l => l.classification)).toEqual(["pace", "pace", "pace", "pace"]);
     expect(completed(db).map(l => l.lapTime.toFixed(3))).toEqual(["65.396", "65.371", "65.738", "65.478"]);
     expect(diagnostics.staleTransition).toBe(1);
     expect(db.laps.at(-1)?.invalidReason).toBe("incomplete");

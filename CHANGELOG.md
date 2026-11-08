@@ -5,6 +5,8 @@
 
 ### Fixes
 
+- Save AMS2 inlaps when the game clears the lap timer at pit entry, and keep complete timed laps from being mislabeled as outlaps.
+
 ### Internal
 - Require an explicitly configured model for AI evaluation runs.
 
