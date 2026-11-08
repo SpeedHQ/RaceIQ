@@ -138,6 +138,40 @@ describe("direct capture repair through recording maintenance", () => {
     expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(expected);
   });
 
+  test("publishes a legacy EVO capture with a recorded inline parser bootstrap", async () => {
+    saveSettings({ ...loadSettings(), sessionCleanupEnabled: false, sessionDownsampleEnabled: false });
+    const directory = join(resolveRecordingDirectory(), "ac-evo", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+    directories.push(directory);
+    await mkdir(directory, { recursive: true });
+    const path = join(directory, "capture-manifest.json");
+    const session = await db.insert(sessions).values({
+      gameId: "ac-evo", carId: "fixture-car", trackId: "fixture-track", rawFile: path, captureFormatVersion: 1,
+    }).returning().get();
+    sessionIds.push(session.id);
+    const bytes = gunzipSync(await readFile(fixturePath("sessions/evo-inline-bootstrap.bin.gz")));
+    const chunkPath = join(directory, "auxiliary.bin");
+    const manifest: Manifest = {
+      version: 3, gameId: "ac-evo", sourceRevision: crypto.randomUUID(),
+      sourceByteLength: 934, sourceRecordCount: 1, sourceCoordinates: "native-wire-v1",
+      chunks: [{
+        id: crypto.randomUUID(), kind: "auxiliary", path: "auxiliary.bin", byteLength: bytes.length,
+        firstOrdinal: 0, recordCount: 1, sourceStart: 0, sourceEnd: 1,
+        sourceByteStart: 12, sourceByteEnd: 934, sourceRecordByteOffset: 28,
+        firstTimestamp: 1794105597066, lastTimestamp: 1794105597066, trailingContextFrameCount: 1,
+        parserBootstrapHash: "d789516d96571e9b1bad0e626c9874d1df0cb59d9b55ce44fba1fe2fa0f83029",
+      }],
+    };
+    await writeFile(chunkPath, bytes);
+    await writeFile(path, JSON.stringify(manifest));
+    expect(session.captureManifestFile).toBeNull();
+
+    await runSessionCaptureMaintenanceNow();
+    expect(await db.select().from(sessions).where(eq(sessions.id, session.id)).get())
+      .toEqual({ ...session, captureManifestFile: path, captureLayoutVersion: 1 });
+    expect(await readFile(chunkPath)).toEqual(bytes);
+    await runSessionCaptureMaintenanceNow();
+  });
+
   for (const damage of ["missing", "malformed", "invalid-schema"] as const) {
     test(`restores ${damage} manifest, publication and exact replay without changing saved lap`, async () => {
       const source = await recording();
