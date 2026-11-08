@@ -512,7 +512,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
     );
     const lapPackets = this.lapBuffer;
     const classification = classifyLapCategory(lapPackets, this.pitReasonForIncompleteLap(lapPackets), undefined, false);
-    await this.db.insertLap(
+    const pendingLap = this.db.insertLap(
       this.currentSession.sessionId,
       this.currentLapNumber,
       incompleteLapElapsed(lapPackets),
@@ -530,6 +530,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
     }).catch((err) => {
       console.error("[Lap] Failed to save incomplete lap:", err);
     });
+    if (this.currentSession.gameId === "ams2") await pendingLap;
   }
 
   /**

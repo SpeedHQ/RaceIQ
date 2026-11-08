@@ -244,7 +244,7 @@ export class DirectCaptureRecording {
           if (candidate) {
             const suffix = candidate.suffix;
             this.current.records -= suffix.length;
-            this.current.trailingContextFrameCount = suffix.length;
+            if (this.gameId === "ams2") this.current.trailingContextFrameCount = suffix.length;
             if (this.current.owner) {
               this.current.owner.trailing = Math.max(this.current.owner.trailing, 1);
               if (!this.current.owner.finalized) this.current.owner.count = Math.max(0, this.current.owner.count - suffix.length);
@@ -254,8 +254,9 @@ export class DirectCaptureRecording {
             this.rotate(window, candidate.locator, ordinal);
             for (let index = 1; index < suffix.length; index++) this.appendStoredFrame(suffix[index]!);
             this.pendingCandidate = null;
-          } else if (this.current.sourceStart < window.startOffset && this.current.records > 0) {
-            this.current.trailingContextFrameCount = 1;
+          } else if (this.current.records > 0 &&
+            (this.gameId === "ams2" ? this.current.sourceStart < window.startOffset : this.windows.size > 0)) {
+            if (this.gameId === "ams2") this.current.trailingContextFrameCount = 1;
             if (this.current.owner && !this.current.owner.abandoned) this.current.owner.trailing = 1;
             this.current.records--;
             this.current.sourceEnd = window.startOffset;
@@ -285,7 +286,9 @@ export class DirectCaptureRecording {
           const abandoned = this.windows.get(window.startOffset);
           for (const part of this.parts.values()) {
             if (!part.owner || part.owner.startOrdinal !== abandoned?.ordinal) continue;
-            part.trailingContextFrameCount = Math.max(part.trailingContextFrameCount ?? 0, part.owner.trailing);
+            if (this.gameId === "ams2") {
+              part.trailingContextFrameCount = Math.max(part.trailingContextFrameCount ?? 0, part.owner.trailing);
+            }
             part.owner.abandoned = true; part.owner = undefined; part.kind = "auxiliary";
             publishClosedPrefix ||= !!part.closed;
           }
@@ -555,7 +558,9 @@ export class DirectCaptureRecording {
         ...(part.firstTimestamp === undefined ? {} : { firstTimestamp: part.firstTimestamp }),
         ...(part.lastTimestamp === undefined ? {} : { lastTimestamp: part.lastTimestamp }),
         ...(binding && owner ? { ownedFrameByteOffset: owner.ownedByteOffset, ownedFrameCount: owner.count } : {}),
-        trailingContextFrameCount: Math.max(part.trailingContextFrameCount ?? 0, owner?.trailing ?? 0),
+        ...(this.gameId === "ams2"
+          ? { trailingContextFrameCount: Math.max(part.trailingContextFrameCount ?? 0, owner?.trailing ?? 0) }
+          : binding && owner ? { trailingContextFrameCount: owner.trailing } : {}),
         ...(part.bootstrapHash ? { parserBootstrapHash: part.bootstrapHash } : {}),
       });
       chunks.push(chunk);

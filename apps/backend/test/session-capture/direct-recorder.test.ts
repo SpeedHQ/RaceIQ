@@ -7,9 +7,10 @@ import { gunzipSync } from "node:zlib";
 import { join } from "node:path";
 import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { encodeFrameLength, encodeParserBootstrapFrame, iterateSessionCaptureRecords, iterateSessionFrames, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
-import { parsePacket, subscribeParserSource, type ParserReplayLocator } from "@raceiq/backend-core/games/packet-dispatch";
+import { parsePacket, resetParserState, subscribeParserSource, type ParserReplayLocator } from "@raceiq/backend-core/games/packet-dispatch";
 import type { DetectorOwnershipTransition, DetectorOwnershipWindow } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { DirectCaptureRecording } from "@raceiq/backend-core/session-capture/direct-recorder";
 import { initServerGameAdapters } from "../../src/games/init";
@@ -137,24 +138,29 @@ describe("DirectCaptureRecording", () => {
     expect(publishedLaps.every((lap) => lap.captureChunkId !== null && lap.sourceFrameCount === 1)).toBe(true);
     expect(publishedLaps.map((lap) => lap.sourceFrameStart)).toEqual([0, 1]);
   });
-  it("publishes a fresh lap after abandoning the only opening window", async () => {
-    initServerGameAdapters();
+  it("publishes a fresh AMS2 lap after abandoning the only opening window", async () => {
+    initServerGameAdapters({ ams2Adapter: true, iracingAdapter: false, f1Experiments: false });
+    resetParserState("ams2");
     const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-abandoned-opening-"));
     directories.push(directory);
-    const frames = fixtureFrames();
+    const frames: Buffer[] = [];
+    for await (const frame of readAMS2DumpFrames(join(ROOT_DIR, "test/artifacts/sessions/ams2-time-trial.bin.gz"))) {
+      frames.push(frame);
+      if (frames.length === 4) break;
+    }
     let locator: ParserReplayLocator | null = null;
     const unsubscribe = subscribeParserSource(input => { if (input.frame === frames[2]) locator = input.locator; });
     for (const [index, frame] of frames.entries()) parsePacket(frame, 100 + index);
     unsubscribe();
     expect(locator).not.toBeNull();
     const manifestPath = join(directory, "capture-manifest.json");
-    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track", rawFile: null }).returning({ id: sessions.id }).get();
+    const session = await db.insert(sessions).values({ gameId: "ams2", carId: "test-car", trackId: "test-track", rawFile: null }).returning({ id: sessions.id }).get();
     if (!session) throw new Error("Failed creating abandoned-opening session fixture");
     sessionIds.push(session.id);
     const boundaryOffset = META_FRAME_BYTES + frames.slice(0, 2).reduce((bytes, frame, index) => bytes + encodeFrameLength(frame.length, 100 + index).length + frame.length, 0);
     const lap = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 60, isValid: true, rawByteOffset: boundaryOffset, rawFrameCount: 2 }).returning({ id: laps.id }).get();
     if (!lap) throw new Error("Failed creating abandoned-opening lap fixture");
-    const capture = new DirectCaptureRecording("fm-2023", directory, manifestPath);
+    const capture = new DirectCaptureRecording("ams2", directory, manifestPath);
     captures.push(capture);
     await capture.ready;
     capture.attachSession(session.id, Promise.resolve(), () => {});
@@ -176,7 +182,7 @@ describe("DirectCaptureRecording", () => {
     expect(capture.rotationCount).toBe(1);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     expect(manifest.chunks).toHaveLength(2);
-    expect(manifest.chunks[0]).toMatchObject({ kind: "auxiliary", recordCount: 2, sourceByteStart: META_FRAME_BYTES, sourceByteEnd: boundaryOffset });
+    expect(manifest.chunks[0]).toMatchObject({ kind: "auxiliary", recordCount: 2, sourceByteStart: META_FRAME_BYTES, sourceByteEnd: boundaryOffset, trailingContextFrameCount: 1 });
     const chunk = manifest.chunks[1];
     expect(chunk).toMatchObject({ kind: "lap", lapId: String(lap.id), recordCount: 2, ownedFrameCount: 2, sourceByteStart: boundaryOffset, firstOrdinal: 2 });
     const records = [...iterateSessionCaptureRecords(await readFile(join(directory, chunk.path)), chunk.sourceRecordByteOffset, { strict: true })].filter(record => record.kind === "frame");
