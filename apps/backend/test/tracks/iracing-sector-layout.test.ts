@@ -5,6 +5,7 @@ import type { IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/sourc
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 
 initGameAdapters();
 
@@ -65,8 +66,8 @@ describe("iRacing native sector layouts", () => {
     expect(computeIRacingSectorTimeline(packets, 32)?.times).toEqual([16, 16]);
 
     const liveTracker = new SectorTracker();
-    await liveTracker.reset(99, "iracing", 42);
-    let live: ReturnType<SectorTracker["feed"]> = null;
+    await liveTracker.reset("99", "iracing", "42");
+    let live: LiveSectorData | null = null;
     for (const packet of packets) live = liveTracker.feed(packet);
     expect(live?.sectorCount).toBe(2);
     expect(live?.currentSector).toBe(1);
@@ -86,8 +87,8 @@ describe("iRacing native sector layouts", () => {
     expect(timeline!.times.reduce((sum, time) => sum + time, 0)).toBeCloseTo(32, 6);
 
     const liveTracker = new SectorTracker();
-    await liveTracker.reset(99, "iracing", 42);
-    let live: ReturnType<SectorTracker["feed"]> = null;
+    await liveTracker.reset("99", "iracing", "42");
+    let live: LiveSectorData | null = null;
     for (const packet of packets) live = liveTracker.feed(packet);
     expect(live?.sectorCount).toBe(6);
     expect(live?.currentTimes).toHaveLength(6);

@@ -1,3 +1,4 @@
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -10,6 +11,8 @@ import { udpListener } from "../runtime/udp-listener";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backend-core/runtime/config/settings";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
+import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
 import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "@raceiq/backend-core/runtime/platform/launch-on-login";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
@@ -19,12 +22,14 @@ import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/record
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
-import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
+import { getAnthropicModelsDetailed, getDeepSeekModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
 import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedOpenAiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedAnthropicModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedDeepseekModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
@@ -61,10 +66,8 @@ export const settingsRoutes = new Hono()
       currentSession: session
         ? {
             id: session.sessionId,
-            carOrdinal: session.carOrdinal,
-            trackOrdinal: session.trackOrdinal,
-            carId: session.carId ?? session.carOrdinal,
-            trackId: session.trackId ?? session.trackOrdinal,
+            carId: session.carId,
+            trackId: session.trackId,
             createdAt: "",
           }
         : null,
@@ -78,16 +81,20 @@ export const settingsRoutes = new Hono()
     let hasOpenaiKey = false;
     let hasAnthropicKey = false;
     let hasOpenAiCompatibleKey = false;
+    let hasDeepseekKey = false;
     if (shouldCheckCredentialStatus()) {
       hasGeminiKey = !!(await getSecret("gemini-api-key"));
       hasOpenaiKey = !!(await getSecret("openai-api-key"));
       hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
       hasOpenAiCompatibleKey = !!(await getLocalApiKey());
+      hasDeepseekKey = !!(await getSecret("deepseek-api-key"));
     }
     return c.json({
       ...settings,
+      resolvedRecordingDirectory: resolveRecordingDirectory(),
       udpPort: udpListener.port,
       openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,
+      deepseekApiKeySet: hasDeepseekKey,
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
@@ -108,7 +115,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "openai-compatible"),
+        .filter((p) => p === "gemini" || p === "openai" || p === "anthropic" || p === "deepseek" || p === "openai-compatible"),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -150,6 +157,36 @@ export const settingsRoutes = new Hono()
       console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
     }
 
+    const shouldFetchDeepSeek = useRequestedProviders
+      ? requestedProviders.has("deepseek")
+      : settings.aiProvider === "deepseek" || settings.chatProvider === "deepseek"
+        || settings.autoTuneProvider === "deepseek" || settings.driverProfileProvider === "deepseek";
+    // Static fallback keeps the picker usable before a successful fetch.
+    let deepseekModels: { id: string; name: string }[] = [
+      { id: "deepseek-flash", name: "DeepSeek Flash" },
+      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+    ];
+    let deepseekError: string | null = null;
+    if (shouldFetchDeepSeek) {
+      const deepseekKey = await getSecret("deepseek-api-key");
+      if (!deepseekKey) {
+        deepseekError = "DeepSeek API key not set.";
+        cachedDeepseekModels = null;
+      } else if (!forceRefresh && cachedDeepseekModels?.key === deepseekKey
+        && Date.now() - cachedDeepseekModels.at < MODELS_CACHE_TTL_MS) {
+        deepseekModels = cachedDeepseekModels.models;
+      } else {
+        const fetchedDeepSeek = await getDeepSeekModelsDetailed(deepseekKey);
+        deepseekError = fetchedDeepSeek.error;
+        if (fetchedDeepSeek.models.length > 0) {
+          deepseekModels = fetchedDeepSeek.models.map((m) => ({ id: m.id, name: m.name }));
+          cachedDeepseekModels = { key: deepseekKey, models: deepseekModels, at: Date.now() };
+        } else if (cachedDeepseekModels?.key === deepseekKey) {
+          deepseekModels = cachedDeepseekModels.models;
+        }
+      }
+    }
+
     const shouldFetchOpenAi = useRequestedProviders
       ? requestedProviders.has("openai")
       : settings.aiProvider === "openai" || settings.chatProvider === "openai";
@@ -171,6 +208,31 @@ export const settingsRoutes = new Hono()
           : cachedOpenAiModels?.key === openAiKey ? cachedOpenAiModels.models : [];
         if (fetchedOpenAi.models.length > 0) {
           cachedOpenAiModels = { key: openAiKey, models: openAiModels, at: Date.now() };
+        }
+      }
+    }
+
+    const shouldFetchAnthropic = useRequestedProviders
+      ? requestedProviders.has("anthropic")
+      : settings.aiProvider === "anthropic" || settings.chatProvider === "anthropic";
+    let anthropicModels: { id: string; name: string }[] = [];
+    let anthropicError: string | null = null;
+    if (shouldFetchAnthropic) {
+      const anthropicKey = await getAiProviderApiKey("anthropic");
+      if (!anthropicKey) {
+        anthropicError = "Anthropic API key not set.";
+        cachedAnthropicModels = null;
+      } else if (!forceRefresh && cachedAnthropicModels?.key === anthropicKey
+        && Date.now() - cachedAnthropicModels.at < MODELS_CACHE_TTL_MS) {
+        anthropicModels = cachedAnthropicModels.models;
+      } else {
+        const fetchedAnthropic = await getAnthropicModelsDetailed(anthropicKey);
+        anthropicError = fetchedAnthropic.error;
+        anthropicModels = fetchedAnthropic.models.length > 0
+          ? fetchedAnthropic.models
+          : cachedAnthropicModels?.key === anthropicKey ? cachedAnthropicModels.models : [];
+        if (fetchedAnthropic.models.length > 0) {
+          cachedAnthropicModels = { key: anthropicKey, models: anthropicModels, at: Date.now() };
         }
       }
     }
@@ -225,14 +287,17 @@ export const settingsRoutes = new Hono()
     return c.json({
       "gemini": geminiModels,
       "openai": openAiModels,
+      "anthropic": anthropicModels,
+      // Live catalogue when available, otherwise the built-in model list.
+      "deepseek": deepseekModels,
       "openai-compatible": localModels,
-      "_errors": { gemini: geminiError, openai: openAiError, "openai-compatible": localError },
+      "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError, deepseek: deepseekError },
     });
   })
 
   // PUT /api/ai-key — store or clear an AI provider API key
   .put("/api/ai-key", zValidator("json", z.object({
-    provider: z.enum(["gemini", "openai", "openai-compatible", "anthropic", "local"]),
+    provider: z.enum(["gemini", "openai", "deepseek", "openai-compatible", "anthropic", "local"]),
     apiKey: z.string().max(8192).refine((value) => !value.includes("\0")),
   }).strict()), async (c) => {
     const body = c.req.valid("json");
@@ -248,14 +313,25 @@ export const settingsRoutes = new Hono()
   // PUT /api/settings
   .put("/api/settings", async (c) => {
     const body = await c.req.json();
-    const parseResult = PartialSettingsSchema.parse(body);
+    const parsed = PartialSettingsSchema.safeParse(body);
+    if (!parsed.success) return c.json({error: "Invalid settings"}, 400);
+    const parseResult = parsed.data;
     const current = loadSettings();
+    if (Object.hasOwn(body, "recordingDirectory") && body.recordingDirectory !== current.recordingDirectory) {
+      return c.json({ error: "Use recording folder relocation", code: "RELOCATION_REQUIRED" }, 409);
+    }
     // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
     const provided: Record<string, unknown> = {};
     for (const key of Object.keys(body)) {
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
     const merged = { ...current, ...provided };
+    if (!isRecordingRetentionPolicyValid(merged)) {
+      return c.json({
+        code: "INVALID_RETENTION_POLICY",
+        error: "Automatic deletion must be scheduled after automatic downsampling.",
+      }, 400);
+    }
     const startedAt = performance.now();
 
     try {
@@ -276,12 +352,13 @@ export const settingsRoutes = new Hono()
         }
       }
       saveSettings(merged);
+      setRecordingFrequencyHz(merged.recordingFrequencyHz);
       if (provided.onboardingComplete) {
         wsManager.broadcastNotification({ type: "onboarding_complete" });
       }
       const durationMs = Math.round(performance.now() - startedAt);
       console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
-      return c.json(merged);
+      return c.json({ ...merged, resolvedRecordingDirectory: resolveRecordingDirectory() });
     } catch (err) {
       const durationMs = Math.round(performance.now() - startedAt);
       console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));

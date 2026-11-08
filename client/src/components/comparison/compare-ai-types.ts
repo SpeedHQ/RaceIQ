@@ -13,6 +13,7 @@ export interface CompareAiPanelProps {
   lapA: LapHeader;
   lapB: LapHeader;
   panelOpen?: boolean;
+  headerTarget?: HTMLDivElement | null;
   segments?: { name: string; startFrac: number; endFrac: number }[];
   onJumpToFrac?: (frac: number) => void;
 }

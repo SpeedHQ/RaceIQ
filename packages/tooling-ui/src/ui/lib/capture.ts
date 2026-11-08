@@ -18,22 +18,28 @@ export async function captureResponsive(
   const [serverPort, clientPort, udpPort] = await reservePorts(3);
   const dataDir = join(repoRoot, ".ui-diff", "runtime", `test-data-${serverPort}`);
   const playwrightCli = requirePlaywrightCli(repoRoot, "playwright");
-
   try {
+    await run(["bun", "run", "build"], {
+      cwd: revisionRoot,
+      env: { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" },
+    });
     await run(
-      [nodePath, playwrightCli, "test", "--project=mobile-screenshots"],
+      [nodePath, playwrightCli, "test", "--config=responsive-screenshots.config.ts"],
       {
-        cwd: join(repoRoot, "playwright"),
+        cwd: join(revisionRoot, "playwright"),
         env: {
-          E2E_SERVER_MODE: "dev",
+          E2E_SERVER_MODE: "compiled",
+          PW_SERVER_SET: "seeded",
           PW_SCREENSHOT_ONLY: "1",
           PW_SEED_SCREENSHOTS: "1",
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true",
           RACEIQ_APP_ROOT: revisionRoot,
           RACEIQ_SCREENSHOT_DIR: screenshotDir,
-          PW_FRESH_INSTALL_PORT: String(serverPort),
-          PW_FRESH_INSTALL_CLIENT_PORT: String(clientPort),
-          PW_FRESH_INSTALL_UDP_PORT: String(udpPort),
-          PW_FRESH_INSTALL_DATA_DIR: dataDir,
+          PW_SEEDED_E2E_PORT: String(serverPort),
+          PW_SEEDED_E2E_CLIENT_PORT: String(clientPort),
+          PW_SEEDED_E2E_UDP_PORT: String(udpPort),
+          PW_SEEDED_E2E_DATA_DIR: dataDir,
         },
       },
     );

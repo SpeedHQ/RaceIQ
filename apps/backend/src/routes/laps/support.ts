@@ -21,25 +21,12 @@ export const LapsQuerySchema = z.object({
   message: "gameId required with sessionId",
 });
 
-export const ReviewLapsQuerySchema = z.object({
+export const CompareLineSpreadQuerySchema = z.object({
   gameId: GameIdSchema,
-  sessionId: z.coerce.number().int().positive().optional(),
-  trackOrdinal: z.coerce.number().int().positive().optional(),
-  carOrdinal: z.coerce.number().int().positive().optional(),
-  trackId: z.string().min(1).optional(),
-  carId: z.string().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(20).default(5),
-}).refine((value) =>
-  value.sessionId != null
-  || (value.trackOrdinal != null && value.carOrdinal != null)
-  || (value.trackId != null && value.carId != null), {
-  message: "sessionId, trackOrdinal and carOrdinal, or trackId and carId required",
+  lapIds: z.string().min(1).transform((value) => value.split(",").map(Number))
+    .refine((ids) => ids.length === 2 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain exactly two unique positive IDs"),
 });
-export const ReviewLineSpreadQuerySchema = z.object({
-  gameId: GameIdSchema,
-  sessionId: z.coerce.number().int().positive(),
-  lapIds: z.string().min(1).transform((value) => value.split(",").map(Number)).refine((ids) => ids.length >= 1 && ids.length <= 5 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain 1–5 unique positive IDs"),
-});
+
 
 const AlignedLapIdsSchema = z.array(z.number().int().positive()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, "Lap IDs must be unique");
 export const AlignedTelemetryRequestSchema = z.union([
@@ -80,20 +67,18 @@ export const IbtImportTokenSchema = z.object({
 export const OwnershipSchema = z.enum(["mine", "others"]);
 export const IbtCommitSchema = IbtImportTokenSchema.extend({ ownership: OwnershipSchema });
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
-const IdListSchema = z
-  .string()
-  .optional()
-  .transform((v) =>
-    (v ?? "")
-      .split(",")
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n) && n > 0)
-  );
+const IdListSchema = z.string().optional().transform((value) => value === undefined ? undefined :
+  value.split(",").map((item) => Number(item.trim())).filter((id) => Number.isInteger(id) && id > 0));
 
 export const ExportZipQuerySchema = z.object({
   ids: IdListSchema,
   sessionIds: IdListSchema,
-});
+  opponentLap: z.string().min(1).max(512).refine((value) => new TextEncoder().encode(value).length <= 512).optional(),
+  opponentRevision: z.string().min(1).max(512).refine((value) => new TextEncoder().encode(value).length <= 512).optional(),
+}).refine((value) =>
+  (value.opponentLap === undefined && value.opponentRevision === undefined) ||
+  (value.opponentLap !== undefined && value.opponentRevision !== undefined && value.ids?.length === 1 && value.sessionIds === undefined),
+{ message: "Opponent export requires both opponent reference fields, one player lap ID, and no sessionIds." });
 
 export const ChatBodySchema = z.object({
   messages: z.array(z.any()),
@@ -105,15 +90,15 @@ export const ChatBodySchema = z.object({
  * `compare-f1-setup-to-catalog` tool returns, but inline so local models
  * (Gemma 4) can answer in one shot instead of looping tool calls.
  */
-export function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackOrdinal: number): string {
+export function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackId: string): string {
   const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
-  if (!setup || trackOrdinal < 0) return "";
+  if (!setup || !/^\d+$/.test(trackId)) return "";
   const current = normalizePacketSetup(setup as unknown as Record<string, unknown>);
-  const refs = topCatalogReferences(trackOrdinal, 5, current);
+  const refs = topCatalogReferences(trackId, 5, current);
   if (refs.length === 0) return "";
 
   const lines: string[] = [];
-  lines.push(`\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackOrdinal) ?? "this track"}) ---`);
+  lines.push(`\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackId) ?? "this track"}) ---`);
   lines.push("Use this data to populate setup[]. Cite rank/team/author per entry. Only propose steps within the step-cap rules.");
   lines.push("");
   lines.push("Current setup:");

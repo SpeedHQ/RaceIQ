@@ -17,13 +17,19 @@
  * replaced by a parse error that points nowhere.
  */
 type ErrorResponse = Pick<Response, "status" | "statusText" | "text">;
+type ResponseError = Error & { status?: number; code?: string };
 
-export async function errorFromResponse(res: ErrorResponse): Promise<Error> {
+export async function errorFromResponse(res: ErrorResponse): Promise<ResponseError> {
   const body = await res.text().catch(() => "");
   if (body.trimStart().startsWith("{")) {
     try {
       const parsed = JSON.parse(body);
-      if (typeof parsed?.error === "string" && parsed.error) return new Error(parsed.error);
+      if (typeof parsed?.error === "string" && parsed.error) {
+        return Object.assign(new Error(parsed.error), {
+          status: res.status,
+          ...(typeof parsed.code === "string" ? { code: parsed.code } : {}),
+        });
+      }
     } catch {
       /* fall through to the raw body */
     }
@@ -31,8 +37,8 @@ export async function errorFromResponse(res: ErrorResponse): Promise<Error> {
   // 404 usually means the server predates this build — say so, since "404 Not
   // Found" alone sends people looking in the wrong place.
   if (res.status === 404) {
-    return new Error(`${res.status} ${res.statusText} — endpoint missing; restart the server if it's running older code.`);
+    return Object.assign(new Error(`${res.status} ${res.statusText} — endpoint missing; restart the server if it's running older code.`), { status: res.status });
   }
   const detail = body.trim().slice(0, 200);
-  return new Error(detail ? `${res.status} ${res.statusText}: ${detail}` : `${res.status} ${res.statusText}`);
+  return Object.assign(new Error(detail ? `${res.status} ${res.statusText}: ${detail}` : `${res.status} ${res.statusText}`), { status: res.status });
 }

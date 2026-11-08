@@ -1,10 +1,12 @@
 import { classifyLMUPitCycle, resolveLMULapTime, resolveLMUInvalidReason } from "./kunos-policy";
 import { classifyPitCycleLap, type PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapResetResult } from "./boundaries";
 export interface LapDetectorPolicy {
+  resolveLapReset?(previous: TelemetryPacket, lastLastLap: number, packet: TelemetryPacket): LapResetResult;
   resolveLapTime(packets: readonly TelemetryPacket[], newLapFirstPacket: TelemetryPacket): number;
   classifyPitCycle(packets: readonly TelemetryPacket[], completedLapCount: number): PitCycleReason | null;
-  invalidReason?(packets: readonly TelemetryPacket[]): string | null;
+  invalidReason?(packets: readonly TelemetryPacket[], completedLapCount: number): string | null;
 }
 
 export interface LapQualityResult {
@@ -33,7 +35,12 @@ export function mergePitCycleReason(current: PitCycleReason | null, next: PitCyc
   return "pit lap";
 }
 
-export function assessLapRecording(packets: readonly TelemetryPacket[], lapTime: number): LapQualityResult {
+export function assessLapRecording(
+  packets: readonly TelemetryPacket[],
+  lapTime: number,
+  options: { closed?: boolean } = {},
+): LapQualityResult {
+  const closed = options.closed ?? true;
   if (packets.length < 30) return { valid: false, reason: "too few telemetry packets" };
   const first = packets[0]!;
   const last = packets[packets.length - 1]!;
@@ -45,10 +52,13 @@ export function assessLapRecording(packets: readonly TelemetryPacket[], lapTime:
   if (peakTelemetryLapTime > 0 && Math.abs(peakTelemetryLapTime - lapTime) > 2) {
     return { valid: false, reason: "telemetry lap time mismatch" };
   }
-  if (first.gameId === "acc" && first.LapNumber === 0 && lapTime < 30) {
-    return { valid: false, reason: "starting lap" };
-  }
-  if (first.gameId !== "acc") {
+const capturedAMS2RaceStart =
+  first.gameId === "ams2" &&
+  first.ams2?.sessionType === "race" &&
+  first.LapNumber === 1 &&
+  first.CurrentLap <= 0;
+
+if (closed && first.gameId !== "acc" && !capturedAMS2RaceStart) {
     const dx = last.PositionX - first.PositionX;
     const dz = last.PositionZ - first.PositionZ;
     if (Math.sqrt(dx * dx + dz * dz) > 20) {

@@ -15,6 +15,11 @@ Generator entrypoint is `packages/tooling-catalog/src/catalog/generate-telemetry
 
 `builder.ts` stores aggregate generator provenance once as `metadata.generator.sourceHash`. `metadata.sourceHashes` stores one hash per referenced mapping artifact; mappings carry only origin and artifact path, avoiding repeated hash churn in generated diffs.
 
+The required iRacing SessionInfo input is the checked-in privacy-safe manifest at
+`data/diagnostics/iracing-session-info/racinginsights-v1-6d9873a-paths.json`.
+It records leaf paths and upstream provenance without driver or session values.
+Only this manifest is allowed through `.gitignore`; local raw captures remain ignored.
+
 ## Dependency boundaries
 
 - `model.ts` owns public model types, game IDs, source paths, repository-root paths, and output paths.

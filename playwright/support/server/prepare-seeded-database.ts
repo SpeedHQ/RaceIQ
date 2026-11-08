@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { resetTestDatabase } from "./reset-test-database";
@@ -21,10 +21,10 @@ const { chatThreadId, compareChatThreadId, getChatMemory } = await import("@race
 
 const database = new Database(resolve(dataDir, "app.db"));
 try {
-  const chatSeed = database.query<{ id: number }, []>(`
+  const chatSeed = database.prepare(`
     SELECT l.id FROM laps l JOIN sessions s ON s.id = l.session_id
     WHERE s.game_id = 'fm-2023' AND l.is_valid = 1 ORDER BY l.id
-  `).all();
+  `).all() as { id: number }[];
   if (chatSeed.length < 2 || !chatSeed.at(-1) || !chatSeed[0]) throw new Error("Seeded FM chat laps are missing");
   const memory = getChatMemory();
   for (const threadId of [
@@ -37,31 +37,30 @@ try {
   }
   const chatDatabase = new Database(resolve(dataDir, "chat-memory.db"));
   try {
-    if (chatDatabase.query<{ integrity_check: string }, []>("PRAGMA integrity_check").get()?.integrity_check !== "ok") {
+    if ((chatDatabase.prepare("PRAGMA integrity_check").get() as { integrity_check: string } | undefined)?.integrity_check !== "ok") {
       throw new Error("Seeded chat-memory database integrity check failed");
     }
-    if (chatDatabase.query<{ busy: number }, []>("PRAGMA wal_checkpoint(TRUNCATE)").get()?.busy !== 0) {
+    if ((chatDatabase.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get() as { busy: number } | undefined)?.busy !== 0) {
       throw new Error("Seeded chat-memory WAL checkpoint failed");
     }
   } finally {
     chatDatabase.close();
   }
   // Verify generated captures before replacing producer-specific absolute paths.
-  const captures = database.query<{ raw_file: string; game_id: string; car_ordinal: number; track_ordinal: number; source: string | null }, []>(
-    "SELECT raw_file, game_id, car_ordinal, track_ordinal, source FROM sessions",
-  ).all();
+  const captures = database.prepare("SELECT raw_file, game_id, car_id, track_id, source FROM sessions")
+    .all() as { raw_file: string; game_id: string; car_id: string; track_id: string; source: string | null }[];
   for (const capture of captures) {
     let hasFrame = false;
     for await (const record of iterateSessionCaptureRecordsFromSource({
       rawFile: capture.raw_file, gameId: capture.game_id as GameId,
-      carOrdinal: capture.car_ordinal, trackOrdinal: capture.track_ordinal, source: capture.source,
+      carId: capture.car_id, trackId: capture.track_id, source: capture.source,
     }, { strict: true })) {
       if (record.kind === "frame") { hasFrame = true; break; }
     }
     if (!hasFrame) throw new Error(`Seeded capture has no telemetry: ${capture.raw_file}`);
   }
   normalizeSeededCapturePaths(database, dataDir);
-  const checkpoint = database.query<{ busy: number }, []>("PRAGMA wal_checkpoint(TRUNCATE)").get();
+  const checkpoint = database.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get() as { busy: number } | undefined;
   if (checkpoint?.busy !== 0) throw new Error("Seeded database WAL checkpoint failed");
   console.log(`[E2E Seed] Checked integrity, foreign keys, ${DEFAULT_GAMES.length} games and ${captures.length} capture references`);
 } finally {

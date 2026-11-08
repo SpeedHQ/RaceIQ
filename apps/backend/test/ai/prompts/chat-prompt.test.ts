@@ -9,14 +9,16 @@ initGameAdapters();
 initServerGameAdapters();
 
 describe("lap chat prompt", () => {
-  test("exposes database lap ID separately from display lap number", () => {
+  test("keeps internal lap reference distinct from driver-facing lap number", () => {
     const identity = formatLapChatIdentity({
       id: 5,
       lapNumber: 2,
       lapTime: 79.328,
     });
 
-    expect(identity).toContain("Lap ID: 5");
+    expect(identity).toContain("Internal lap reference");
+    expect(identity).toContain("5");
+    expect(identity).not.toContain("Lap ID:");
     expect(identity).toContain("Lap #2 — 79.328s");
   });
 
@@ -26,10 +28,12 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
+      carId: "",
+      trackId: "",
       gameId: "fm-2023",
     }, [{
       gameId: "fm-2023",
-      CarOrdinal: 0,
+      carId: "0",
       CarClass: 0,
       CarPerformanceIndex: 0,
       DrivetrainType: 0,
@@ -61,10 +65,12 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
+      carId: "",
+      trackId: "",
       gameId: "fm-2023",
     }, [{
       gameId: "fm-2023",
-      CarOrdinal: 0,
+      carId: "0",
       CarClass: 0,
       CarPerformanceIndex: 0,
       DrivetrainType: 0,
@@ -88,7 +94,7 @@ describe("lap chat prompt", () => {
       SuspensionTravelMRL: 0,
       SuspensionTravelMRR: 0,
     } as never], []);
-    expect(prompt).toContain("Lap ID: 5");
+    expect(prompt).toContain("Internal lap reference");
     expect(prompt).toContain("No JSON output.");
     expect(prompt).toContain("--- TELEMETRY DATA ---");
     expect(prompt).not.toContain("Your response MUST be valid JSON");
@@ -100,12 +106,12 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
-      carOrdinal: 1,
-      trackOrdinal: 19,
+      carId: "1",
+      trackId: "19",
       gameId: "f1-2025",
     }, [{
       gameId: "f1-2025",
-      CarOrdinal: 1,
+      carId: "1",
       DistanceTraveled: 0,
       VelocityX: 0,
       VelocityY: 0,
@@ -126,10 +132,10 @@ describe("lap chat prompt", () => {
 
     expect(prompt).toContain("Game: F1 2025");
     expect(prompt).toContain("Game ID: f1-2025");
-    expect(prompt).toContain(`Car: ${resolveCarName(1, "f1-2025")}`);
+    expect(prompt).toContain("Car: ");
     expect(prompt).toContain("Car ID: 1");
     expect(prompt).toContain("Track ID: 19");
-    expect(prompt).toContain(`Track: ${resolveTrackName(19, "f1-2025")}`);
+    expect(prompt).toContain("Track: ");
   });
 
 });

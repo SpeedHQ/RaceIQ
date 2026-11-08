@@ -19,9 +19,9 @@ afterEach(async () => {
 
 test("explicit profile request restores missing and stale detector evidence without computing during background refresh", async () => {
   initServerGameAdapters();
-  const sessionId = await insertSession(1, 2, "fm-2023");
+  const sessionId = await insertSession("1", "2", "fm-2023");
   sessions.push(sessionId);
-  const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
+  const lapId = await insertLap(sessionId, 1, 90, true, null, 0, null, null, null, null, null);
   cacheSet(lapId, Array.from({ length: 60 }, (_, i) => ({
     gameId: "fm-2023", TimestampMS: i * 1000 / 30, IsRaceOn: 1,
     Speed: 25, Steer: 0, Accel: 0, Brake: 0, Clutch: 0, HandBrake: 0,
@@ -47,9 +47,9 @@ test("explicit profile request restores missing and stale detector evidence with
 
 test("concurrent metric reads and forced insight reruns leave current evidence persisted", async () => {
   initServerGameAdapters();
-  const sessionId = await insertSession(1, 2, "fm-2023");
+  const sessionId = await insertSession("1", "2", "fm-2023");
   sessions.push(sessionId);
-  const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
+  const lapId = await insertLap(sessionId, 1, 90, true, null, 0, null, null, null, null, null);
   cacheSet(lapId, Array.from({ length: 60 }, (_, i) => ({
     gameId: "fm-2023", TimestampMS: i * 1000 / 30, IsRaceOn: 1,
     Speed: 25, Steer: 0, Accel: 0, Brake: 0, Clutch: 0, HandBrake: 0,
@@ -69,4 +69,19 @@ test("concurrent metric reads and forced insight reruns leave current evidence p
   const row = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
   expect(row?.insightVersion).toBe(STATIC_LAP_ANALYSIS_VERSION);
   expect(JSON.parse(row!.insights).some((item: { id: string }) => item.id === "driving-coasting")).toBe(true);
+});
+
+
+test("AMS2 and iRacing Driver requests retain their game scope and recorded lap totals", async () => {
+  initServerGameAdapters();
+  for (const gameId of ["ams2", "iracing"] as const) {
+    const sessionId = await insertSession("101", "202", gameId);
+    sessions.push(sessionId);
+    await insertLap(sessionId, 1, 90, true, null, 0, null, null, null, null, null);
+    const response = await driverRoutes.request("/api/drivers/profile", { headers: { "X-Game-Id": gameId } });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.fingerprint.scope.gameId).toBe(gameId);
+    expect(body.fingerprint.trend.recent.total).toBe(1);
+  }
 });

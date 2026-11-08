@@ -30,7 +30,7 @@ export function normalizeSessionType(value: string | null | undefined): ResultSe
   const normalized = value.trim().toLowerCase();
   if (SESSION_TYPES[normalized]) return SESSION_TYPES[normalized];
   if (isPracticeSession(normalized)) return "practice";
-  if (normalized.startsWith("qualif")) return "qualifying";
+  if (normalized.startsWith("qualif") || normalized.endsWith("-qualifying") || normalized.includes("sprint-shootout")) return "qualifying";
   if (normalized.startsWith("race")) return "race";
   return "other";
 }

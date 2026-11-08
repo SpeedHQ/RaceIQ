@@ -5,6 +5,7 @@ import { m } from "@/paraglide/messages";
 import { Label } from "@/components/ui/label";
 import type { AiChatState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
+import { defaultModelForProvider } from "./recommended-model";
 export function AiChatSection({ state }: { state: AiChatState }) {
   const {
     chatProvider,
@@ -41,7 +42,7 @@ export function AiChatSection({ state }: { state: AiChatState }) {
             value={chatProvider}
             onChange={(value) => {
               setChatProvider(value);
-              setChatModel("");
+              setChatModel(defaultModelForProvider(value));
               setChatThinkingBudget(null);
             }}
             providers={aiProviders}

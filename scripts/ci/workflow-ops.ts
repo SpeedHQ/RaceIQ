@@ -1,9 +1,13 @@
 import { tmpdir } from "node:os";
-import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseEnv } from "node:util";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 const [operation, ...args] = Bun.argv.slice(2);
 const env = process.env;
+// Responsive cases exercise these five games; both revisions use same seed set.
+const RESPONSIVE_SCREENSHOT_GAMES = "fm-2023,f1-2025,acc,ac-evo,iracing";
 
 function run(command: string[], cwd = process.cwd(), extraEnv: Record<string, string> = {}) {
   const result = Bun.spawnSync(command, {
@@ -45,9 +49,10 @@ switch (operation) {
     run(["git", "worktree", "add", "--detach", join(env.RUNNER_TEMP!, "raceiq-base"), env.BASE_SHA!]);
     break;
   case "screenshot-current": {
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
+    run(["bun", "run", "build"], process.cwd(), { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
       cwd: "playwright",
-      env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
+      env: { ...env, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
@@ -65,21 +70,46 @@ switch (operation) {
     const base = join(env.RUNNER_TEMP!, "raceiq-base");
     if (!existsSync(base)) throw new Error(`Base comparison worktree is missing: ${base}`);
     run(["bun", "install"], base);
-    // Compare both revisions with the same screenshot cases and selectors.
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive/mobile-screenshots.spec.ts"), join(base, "playwright/tests/responsive/mobile-screenshots.spec.ts"));
-    const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
+    run(["bun", "run", "build"], base, { RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true" });
+    const current = env.GITHUB_WORKSPACE!;
+    const basePlaywright = join(base, "playwright");
+    const output = join(current, "playwright/screenshots/mobile");
+    const config = join(basePlaywright, "responsive-screenshots.config.ts");
+    // Keep baseline-owned cases and helpers compatible with its historical API.
+    writeFileSync(config, `
+      import { devices, defineConfig } from "@playwright/test";
+      import { runtime } from ${JSON.stringify(join(current, "playwright/config/runtime.ts"))};
+      import { createWebServers } from ${JSON.stringify(join(current, "playwright/config/web-servers.ts"))};
+      export default defineConfig({
+        testDir: "tests/responsive",
+        testMatch: "mobile-screenshots.spec.ts",
+        outputDir: "./test-results/mobile-screenshots",
+        fullyParallel: runtime.parallelScreenshotRun,
+        workers: runtime.screenshotWorkers,
+        retries: process.env.CI ? 1 : 0,
+        reporter: process.env.CI ? [["list"], ["github"]] : "list",
+        timeout: 50_000,
+        expect: { timeout: 10_000 },
+        use: { ...devices["Desktop Chrome"], baseURL: \`http://localhost:\${runtime.seeded.port}\`, ignoreHTTPSErrors: true, colorScheme: "dark", actionTimeout: 10_000, navigationTimeout: 30_000, trace: "retain-on-failure" },
+        webServer: createWebServers(runtime),
+      });
+    `);
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
-      cwd: join(base, "playwright"),
-      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
+    const status = Bun.spawnSync([
+      "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
+      `--config=${config}`, `--shard=${env.SHARD}/4`,
+    ], {
+      cwd: basePlaywright,
+      env: { ...env, RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
     const saved = join(env.RUNNER_TEMP!, "base-responsive");
     rmSync(saved, { recursive: true, force: true });
     if (existsSync(output)) cpSync(output, saved, { recursive: true });
-    if (status !== 0) process.exit(status);
+    rmSync(config, { force: true });
+    if (status !== 0) process.exit(status ?? 1);
     break;
   }
   case "save-render": {
@@ -97,13 +127,13 @@ switch (operation) {
   }
   case "fail-render":
     if (env.CURRENT_STATUS !== "success" || env.BASE_STATUS !== "success") {
-      console.warn("Responsive screenshot shard incomplete; continuing with available renders.");
+      console.error("Responsive screenshot comparison unavailable: current or base capture failed; saved shard status is evidence, not a comparison.");
+      process.exitCode = 1;
     }
     break;
   case "collect-screenshots": {
     const preview = join(env.GITHUB_WORKSPACE!, "pr-preview");
     run(["bun", "packages/tooling-ui/src/ui/merge-screenshot-renders.ts", "--input", join(env.RUNNER_TEMP!, "screenshot-renders"), "--output", preview]);
-    run(["bun", "packages/tooling-ui/src/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive"]);
     break;
   }
   case "release-client":
@@ -149,6 +179,22 @@ switch (operation) {
         await Bun.sleep(1000);
       }
       if (!ready) throw new Error("RaceIQ did not listen on port 3117 within 30 seconds");
+      const status = await fetch("http://127.0.0.1:3117/api/auth/status");
+      if (!status.ok) throw new Error(`RaceIQ auth status failed: ${status.status}`);
+      const body: unknown = await status.json();
+      const productionEnv = parseEnv(readFileSync(".env.production", "utf8"));
+      const expected = releaseFeatureFlags({
+        RACEIQ_FEATURE_F1_EXPERIMENTS: productionEnv.RACEIQ_FEATURE_F1_EXPERIMENTS,
+        RACEIQ_FEATURE_IRACING_ADAPTER: productionEnv.RACEIQ_FEATURE_IRACING_ADAPTER,
+        RACEIQ_FEATURE_AMS2_ADAPTER: productionEnv.RACEIQ_FEATURE_AMS2_ADAPTER,
+      });
+      if (!body || typeof body !== "object" || !("features" in body) ||
+          !body.features || typeof body.features !== "object" ||
+          !("f1Experiments" in body.features) || body.features.f1Experiments !== expected.f1Experiments ||
+          !("iracingAdapter" in body.features) || body.features.iracingAdapter !== expected.iracingAdapter ||
+          !("ams2Adapter" in body.features) || body.features.ams2Adapter !== expected.ams2Adapter) {
+        throw new Error("Packaged RaceIQ feature flags do not match .env.production");
+      }
     } finally {
       server.kill();
     }
@@ -166,17 +212,6 @@ switch (operation) {
   case "safe-git":
     run(["git", "config", "--global", "--add", "safe.directory", env.GITHUB_WORKSPACE ?? process.cwd()]);
     break;
-  case "merge-base": {
-    run(["git", "config", "user.name", "github-actions[bot]"]);
-    run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
-    run(["git", "fetch", "--no-tags", "origin", `+refs/heads/${env.BASE_REF}:refs/remotes/origin/${env.BASE_REF}`]);
-    let fetched = Bun.spawnSync(["git", "rev-parse", "--verify", "FETCH_HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-    if (fetched !== env.BASE_SHA) run(["git", "fetch", "--no-tags", "origin", env.BASE_SHA!]);
-    fetched = Bun.spawnSync(["git", "rev-parse", "--verify", "FETCH_HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-    if (fetched !== env.BASE_SHA) throw new Error(`Fetched base commit ${fetched} does not match ${env.BASE_SHA}`);
-    run(["git", "merge", "--no-edit", env.BASE_SHA!]);
-    break;
-  }
   case "release-summary":
     summary(env.SKIP_TESTS === "true" ? "## Release test mode\n\nPlaywright tests skipped by manual dispatch input after local verification." : "## Release test mode\n\nPlaywright tests enabled.");
     break;

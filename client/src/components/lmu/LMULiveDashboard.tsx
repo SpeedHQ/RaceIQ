@@ -8,23 +8,26 @@ import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
-import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
+import { PitEstimate } from "../telemetry/PitEstimate";
+import { LmuLiveOpponents, LmuPlayerData } from "./LmuPlayerData";
 
 
 export function LMULiveDashboard() {
   const lmuGame = getGame("lmu");
   const view = useTelemetryStore((state) => state.telemetryView);
+  const lmuLiveContext = useTelemetryStore((state) => state.lmuLiveContext);
   const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
   const sectors = useTelemetryStore((state) => state.sectors);
   const pit = useTelemetryStore((state) => state.pit);
   const { data: trackName } = useTrackName(view?.identity.trackId);
   const { data: carName } = useCarName(view?.identity.carId);
 
-  if (!view || view.simulator !== "lmu") {
+  if (!view || view.simulator !== "lmu" || view.lmu?.status === "unavailable") {
     return (
       <div className="flex-1 flex flex-col">
         <NoDataView />
+        <LmuLiveOpponents context={lmuLiveContext} />
       </div>
     );
   }
@@ -61,6 +64,14 @@ export function LMULiveDashboard() {
             <PitEstimate view={view} pit={pit} />
           </div>
         </div>
+        <LmuPlayerData
+          values={view.valuesBySemanticId}
+          units={view.unitsBySemanticId}
+          states={Object.fromEntries(Object.entries(view.statusBySemanticId).map(([id, status]) => [id, status.resolution]))}
+          freshness={Object.fromEntries(Object.entries(view.statusBySemanticId).map(([id, status]) => [id, status.freshness]))}
+          context={view.lmu}
+          referenceTime={{ domain: "wall-clock", milliseconds: view.receivedAtMs }}
+        />
       </div>
 
       <div data-live-dashboard-race className="overflow-auto flex flex-col">

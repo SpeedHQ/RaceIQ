@@ -299,10 +299,8 @@ export const diagnosticsRoutes = new Hono()
         currentSession: session
           ? {
               id: session.sessionId,
-              car: session.carOrdinal,
-              track: session.trackOrdinal,
-              carId: session.carId ?? session.carOrdinal,
-              trackId: session.trackId ?? session.trackOrdinal,
+              carId: session.carId,
+              trackId: session.trackId,
             }
           : null,
       },

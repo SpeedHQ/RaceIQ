@@ -1,0 +1,10 @@
+**
+!playwright/
+!playwright/upgrade-smoke.config.ts
+!playwright/support/
+!playwright/support/upgrade/
+!playwright/support/upgrade/Dockerfile
+!playwright/support/upgrade/source-release.ts
+!playwright/tests/
+!playwright/tests/upgrade/
+!playwright/tests/upgrade/source-release.spec.ts

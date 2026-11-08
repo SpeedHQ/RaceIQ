@@ -11,16 +11,20 @@
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
+import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
-import { IS_DEV, IS_E2E } from "./config/env";
+import type { ClassificationMigrationStatusNotification } from "@raceiq/shared/racing/laps/classification-migration";
+
 import {
   isDevTelemetryControlMessageV1,
   type DevTelemetryControlMessageV1,
   type DevTelemetryPacketMessageV1,
   type DevTelemetrySubscriptionMessageV1,
 } from "@raceiq/shared/telemetry/live/contracts";
+import { encodeLmuContext, encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 
 export interface WSData {
   createdAt: number;
@@ -84,41 +88,53 @@ export class WebSocketManager {
   /** Owned projection; packet-handler context must not mutate before publication. */
   private lastFrame: LiveProjection["frame"] | null = null;
   private lastFrameJson: string | null = null;
+  private liveSimulator: string | null = null;
+  private lastProjectionAt = 0;
   private lastDevPacketJson: string | null = null;
-  private readonly allowDevTelemetry = IS_DEV || IS_E2E;
   /** Injected getter for session laps — avoids circular import with pipeline */
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
   /** Stale lap detection notification — sent to each new client on connect */
   private _staleSessionsNotification: Record<string, unknown> | null = null;
   /** Stale race-result notification — sent to each new client on connect */
   private _staleRaceResultsNotification: Record<string, unknown> | null = null;
-  private _captureMigrationNotification: { type: "capture-migration-available"; sessionCount: number; captureCount: number } | null = null;
-  private _captureMigrationCountProvider: (() => Promise<{ sessionCount: number; captureCount: number }>) | null = null;
-
-  setCaptureMigrationCountProvider(provider: () => Promise<{ sessionCount: number; captureCount: number }>): void {
-    this._captureMigrationCountProvider = provider;
+  private _classificationMigrationStatusNotification: ClassificationMigrationStatusNotification | null = null;
+  private dashboardUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private liveCaptureLifecycle = new Map<number, Record<string, unknown>>();
+  private readonly maxLiveCaptureSessions = 128;
+  broadcastSessionCaptureSplitProgress(status: SessionCaptureSplitStatus): void {
+    this.broadcastNotification({ type: "session-capture-split-progress", status });
   }
 
-  setCaptureMigrationNotification(sessionCount: number, captureCount: number): void {
-    this._captureMigrationNotification = sessionCount > 0 && captureCount > 0
-      ? { type: "capture-migration-available", sessionCount, captureCount }
-      : null;
-    this.broadcastNotification(this._captureMigrationNotification ?? { type: "capture-migration-available", sessionCount: 0, captureCount: 0 });
+  private retainLiveCaptureLifecycle(message: Record<string, unknown>): void {
+    const { type, sessionId, captureEpoch } = message;
+    if (typeof sessionId !== "number" || typeof captureEpoch !== "string" || !captureEpoch
+      || !["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(String(type))) return;
+    const previous = this.liveCaptureLifecycle.get(sessionId);
+    if (previous && previous.captureEpoch !== captureEpoch && type !== "recording-started") return;
+    if (previous?.captureEpoch === captureEpoch &&
+        (previous.type === "recording-failed" || (previous.type === "recording-sealed" && type !== "recording-failed") ||
+          (type === "recording-started" && previous.type !== "recording-started"))) return;
+    this.liveCaptureLifecycle.set(sessionId, { ...previous, ...message });
+    while (this.liveCaptureLifecycle.size > this.maxLiveCaptureSessions) {
+      const oldest = this.liveCaptureLifecycle.keys().next().value;
+      if (oldest === undefined) break;
+      this.liveCaptureLifecycle.delete(oldest);
+    }
   }
 
-  broadcastCaptureMigrationProgress(payload: {
-    done: number;
-    total: number;
-    status: "migrated" | "unchanged" | "error" | "success" | "partial";
-    migrated?: number;
-    failed?: number;
-    error?: string;
-  }): void {
-    this.broadcastNotification({ type: "capture-migration-progress", ...payload });
+
+  notifyDashboardUpdated(): void {
+    clearTimeout(this.dashboardUpdateTimer ?? undefined);
+    this.dashboardUpdateTimer = setTimeout(() => {
+      this.dashboardUpdateTimer = null;
+      const message = { type: "dashboard_updated" } satisfies DashboardUpdatedMessage;
+      this.broadcastNotification(message);
+    }, 100);
   }
 
-  get captureMigrationNotification(): Readonly<{ type: "capture-migration-available"; sessionCount: number; captureCount: number }> | null {
-    return this._captureMigrationNotification;
+  clearDashboardUpdateNotification(): void {
+    clearTimeout(this.dashboardUpdateTimer ?? undefined);
+    this.dashboardUpdateTimer = null;
   }
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
@@ -130,6 +146,10 @@ export class WebSocketManager {
   }
   setStaleRaceResultsNotification(payload: Record<string, unknown> | null): void {
     this._staleRaceResultsNotification = payload;
+  }
+  setClassificationMigrationStatusNotification(payload: ClassificationMigrationStatusNotification): void {
+    this._classificationMigrationStatusNotification = payload;
+    this.broadcastNotification(payload);
   }
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
@@ -147,7 +167,6 @@ export class WebSocketManager {
     return this.clients.size;
   }
   get wantsDevTelemetry(): boolean {
-    if (!this.allowDevTelemetry) return false;
     for (const client of this.clients) if (client.data.devTelemetrySubscribed) return true;
     return false;
   }
@@ -171,6 +190,7 @@ export class WebSocketManager {
   }
 
   addClient(ws: ServerWebSocket<WSData>): void {
+    this.expireAMS2Frame();
     this.clients.add(ws);
     let sendFailed = false;
     if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch { sendFailed = true; } }
@@ -189,8 +209,11 @@ export class WebSocketManager {
     if (this._staleRaceResultsNotification) {
       try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
     }
-    if (this._captureMigrationNotification) {
-      try { ws.send(JSON.stringify(this._captureMigrationNotification)); } catch { sendFailed = true; }
+    if (this._classificationMigrationStatusNotification) {
+      try { ws.send(JSON.stringify(this._classificationMigrationStatusNotification)); } catch { sendFailed = true; }
+    }
+    for (const lifecycle of this.liveCaptureLifecycle.values()) {
+      try { ws.send(JSON.stringify(lifecycle)); } catch { sendFailed = true; }
     }
     if (sendFailed) {
       this.dropClient(ws);
@@ -198,10 +221,6 @@ export class WebSocketManager {
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
-    void this._captureMigrationCountProvider?.().then(({ sessionCount, captureCount }) => {
-      if (!this.clients.has(ws)) return;
-      this.setCaptureMigrationNotification(sessionCount, captureCount);
-    }).catch((error) => console.error("[WS] Failed to refresh historical capture count:", error));
   }
 
   removeClient(ws: ServerWebSocket<WSData>): void {
@@ -246,12 +265,11 @@ export class WebSocketManager {
     detectedGame: { id: string; name: string } | null;
     currentSession: {
       id: number;
-      carOrdinal: number;
-      trackOrdinal: number;
-      carId: number | string;
-      trackId: number | string;
+      carId: string;
+      trackId: string;
     } | null;
   }): void {
+    this.expireAMS2Frame();
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "status", ...status });
     for (const client of this.clients) {
@@ -264,6 +282,7 @@ export class WebSocketManager {
    * Used for update-available and other server-initiated events.
    */
   broadcastNotification(payload: Record<string, unknown>): void {
+    this.retainLiveCaptureLifecycle(payload);
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
     for (const client of this.clients) {
@@ -280,6 +299,7 @@ export class WebSocketManager {
 
   publishTelemetry(projection: LiveProjection): void {
     if (projection.schema) {
+      this.liveSimulator = projection.schema.simulator;
       this.lastSchemaJson = JSON.stringify(projection.schema);
       this.pendingSchemaJson = this.clients.size > 0 ? this.lastSchemaJson : null;
       if (this.lastFrame?.schemaId !== projection.schema.schemaId) {
@@ -288,9 +308,37 @@ export class WebSocketManager {
       }
     }
     if (projection.frame) {
+      this.lastProjectionAt = Date.now();
       this.lastFrame = { ...projection.frame, context: structuredClone(projection.frame.context) };
       this.lastFrameJson = null;
     }
+  }
+
+  private expireAMS2Frame(): void {
+    // AMS2 stops updating shared memory after leaving a session. Keep the
+    // schema so the projector can resume without emitting it again.
+    if (this.liveSimulator !== "ams2" || !this.lastFrame || Date.now() - this.lastProjectionAt < 5000) return;
+    this.lastFrame = null;
+    this.lastFrameJson = null;
+    this.lastDevPacketJson = null;
+    this.broadcastNotification({ type: "telemetry-idle" });
+  }
+
+  /** Publish scoring-only LMU snapshots without synthesizing a player telemetry frame. */
+  publishLmuContext(context: LmuLiveContext): void {
+    const lmu = encodeLmuContext(context);
+    this.broadcastNotification({ type: "lmu-context", lmu });
+  }
+  /** Clear only the LMU generation that lost its player/native source. */
+
+  invalidateLmuTelemetry(context: LmuLiveContext): void {
+    const frame = this.lastFrame;
+    if (!frame?.lmu || frame.lmu.key.sessionKey !== context.key.sessionKey) return;
+    this.publishTelemetry({ frame: {
+      ...frame, receivedAtMs: Date.now(), values: frame.values.map(() => null),
+      states: Object.fromEntries(frame.values.map((_, index) => [index, "missing" as const])),
+      freshness: undefined, context: {}, lmu: encodeLmuContext(context),
+    } });
   }
 
   private serializeLatestFrame(): string | null {
@@ -312,17 +360,14 @@ export class WebSocketManager {
       ws.send(JSON.stringify({ type: "subscription", channel: "dev-state", subscribed } satisfies DevTelemetrySubscriptionMessageV1));
       return;
     }
-    if (!this.allowDevTelemetry) {
-      ws.data.devTelemetrySubscribed = false;
-      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1)); return;
-    }
+    // Raw is a user-facing page in compiled builds; stream only to subscribers.
     ws.data.devTelemetrySubscribed = control.type === "subscribe";
     ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: ws.data.devTelemetrySubscribed } satisfies DevTelemetrySubscriptionMessageV1));
     if (ws.data.devTelemetrySubscribed && this.lastDevPacketJson) ws.send(this.lastDevPacketJson);
   }
 
   stageDevTelemetry(packet: TelemetryPacket): void {
-    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
+    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet: encodeLmuPacket(packet) } satisfies DevTelemetryPacketMessageV1);
   }
 
   flushLatest(): void { this._pushToClients(); }
@@ -390,6 +435,7 @@ export class WebSocketManager {
   }
 
   private _pushToClients(): void {
+    this.expireAMS2Frame();
     if (this.clients.size === 0) return;
     const frameJson = this.serializeLatestFrame();
     const schemaJson = this.pendingSchemaJson;
@@ -404,4 +450,6 @@ export class WebSocketManager {
   }
 }
 
-export const wsManager = new WebSocketManager();
+const wsManagerKey = Symbol.for("@raceiq/backend-core/runtime/websocket-manager");
+const sharedManagers = globalThis as typeof globalThis & Record<symbol, WebSocketManager | undefined>;
+export const wsManager = sharedManagers[wsManagerKey] ??= new WebSocketManager();

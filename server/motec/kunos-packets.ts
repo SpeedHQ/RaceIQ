@@ -4,6 +4,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { PreparedKunosMotecCapture } from "./kunos-synthesis";
 import { MOTEC_STEER_LOCK_DEG } from "./kunos-synthesis";
 import type { MotecCarTrack } from "./types";
+import { parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 type KunosGameId = Extract<GameId, "acc" | "ac-evo">;
 type WheelValues = [number, number, number, number];
@@ -118,7 +119,18 @@ export function convertPreparedKunosMotecPackets(
     const temperatures = wheelSample(prepared.tyreTemperature, index);
     const brakeTemperatures = wheelSample(prepared.brakeTemperature, index);
     const wheelSpeed = wheelSample(prepared.wheelSpeed, index);
+    const nativeTrack = profile.gameId === "ac-evo" ? parseAcEvoTrackId(carTrack.trackId) : undefined;
+    const packetIdentity = profile.gameId === "ac-evo"
+      ? {
+          acEvoIdentity: {
+            carName: carTrack.carModel,
+            trackName: nativeTrack?.trackName ?? carTrack.trackName,
+            trackConfiguration: nativeTrack?.trackConfiguration ?? "",
+          },
+        }
+      : {};
     const packet: TelemetryPacket = {
+      ...packetIdentity,
       gameId: profile.gameId,
       IsRaceOn: 1,
       TimestampMS: Date.now(),
@@ -209,10 +221,8 @@ export function convertPreparedKunosMotecPackets(
       SuspensionTravelMFR: suspension[1],
       SuspensionTravelMRL: suspension[2],
       SuspensionTravelMRR: suspension[3],
-      CarOrdinal: carTrack.carOrdinal,
-      ...(profile.includeUnknownCarModel && carTrack.carOrdinal < 0
-        ? { carModelName: carTrack.carModel }
-        : {}),
+      carId: carTrack.carId,
+      ...(profile.includeUnknownCarModel && carTrack.carId === "" ? { carModelName: carTrack.carModel } : {}),
       CarClass: 0,
       CarPerformanceIndex: 0,
       DrivetrainType: profile.drivetrainType,
@@ -223,7 +233,7 @@ export function convertPreparedKunosMotecPackets(
       Speed: speed,
       Power: 0,
       Torque: 0,
-      TrackOrdinal: carTrack.trackOrdinal,
+      trackId: carTrack.trackId,
       BrakeTempFrontLeft: brakeTemperatures[0],
       BrakeTempFrontRight: brakeTemperatures[1],
       BrakeTempRearLeft: brakeTemperatures[2],

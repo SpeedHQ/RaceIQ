@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createWheelLabelRefreshPolicy } from "../src/lib/wheel-label-refresh";
+import { createWheelLabelRefreshPolicy } from "@raceiq/scene-3d/wheel-label-refresh"
 
 test("active playback coalesces newest card content, while pause and seek paint immediately", () => {
   const card = createWheelLabelRefreshPolicy<string>();

@@ -12,4 +12,5 @@ for (const line of contents.split(/\r?\n/)) {
 export const developmentReleaseFeatures = releaseFeatureFlags({
   RACEIQ_FEATURE_F1_EXPERIMENTS: values.get("RACEIQ_FEATURE_F1_EXPERIMENTS"),
   RACEIQ_FEATURE_IRACING_ADAPTER: values.get("RACEIQ_FEATURE_IRACING_ADAPTER"),
+  RACEIQ_FEATURE_AMS2_ADAPTER: values.get("RACEIQ_FEATURE_AMS2_ADAPTER"),
 });

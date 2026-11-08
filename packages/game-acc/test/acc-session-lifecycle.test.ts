@@ -130,8 +130,8 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
     expect(frames.length).toBeGreaterThan(0);
     const first = frames[0];
     const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
     });
     expect(packet).not.toBeNull();
 
@@ -164,8 +164,8 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
   test("session-start callback failure does not create a duplicate session on next packet", async () => {
     const first = readKunosFrames(ACC_FIXTURE)[0];
     const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
     });
     expect(packet).not.toBeNull();
 
@@ -201,8 +201,8 @@ describe("ACC lap detector — session lifecycle", () => {
       const graphics = Buffer.from(first.graphics);
       graphics.writeInt32LE(ordinal, GRAPHICS.session.offset);
       const packet = parseAccBuffers(first.physics, graphics, first.staticData, {
-        carOrdinal: 1,
-        trackOrdinal: 1,
+        carId: "1",
+        trackId: "1",
       });
       const db = new CapturingDbAdapter();
       await new LapDetectorAcc({ db }).feed(packet!);
@@ -216,8 +216,8 @@ describe("ACC lap detector — session lifecycle", () => {
       graphics.writeInt32LE(code, GRAPHICS.penalty.offset);
       graphics.writeFloatLE(seconds, GRAPHICS.penaltyTime.offset);
       return parseAccBuffers(first.physics, graphics, first.staticData, {
-        carOrdinal: 1,
-        trackOrdinal: 1,
+        carId: "1",
+        trackId: "1",
       })!.acc!;
     };
 
@@ -254,8 +254,8 @@ describe("ACC lap detector — session lifecycle", () => {
 
     const first = frames[0];
     const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
     });
     expect(packet).not.toBeNull();
 

@@ -1,12 +1,17 @@
 import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
 import { getIRacingSharedTrackName,
 getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
+getIRacingTrackIdByName, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import { iracingParser } from "./game-parser";
+import {
+  captureIRacingParserCheckpoint,
+  restoreIRacingParserCheckpoint,
+  type IRacingParserState,
+} from "./normalizer";
 
 const IRACING_SYSTEM_PROMPT = `You are an expert iRacing driver coach and race engineer.
 
@@ -39,16 +44,17 @@ export const iracingServerAdapter: ServerGameAdapter = {
     "iRacingSim.exe",
   ],
 
-  getTrackName(ordinal: number): string {
-    return getIRacingTrackName(ordinal);
+  getTrackName(trackId: string): string {
+    return getIRacingTrackName(Number(trackId));
   },
 
-  getSharedTrackName(ordinal: number): string | undefined {
-    return getIRacingSharedTrackName(ordinal);
+  getSharedTrackName(trackId: string): string | undefined {
+    return getIRacingSharedTrackName(Number(trackId));
   },
 
-  getTrackOrdinalByName(name: string): number | undefined {
-    return getIRacingTrackOrdinalByName(name);
+  getTrackIdByName(name: string): string | undefined {
+    const id = getIRacingTrackIdByName(name);
+    return id == null ? undefined : String(id);
   },
 
   canHandle: iracingParser.canHandle,
@@ -62,6 +68,8 @@ export const iracingServerAdapter: ServerGameAdapter = {
     iracingParser.primeParserState(buf, state as never);
   },
   createParserState: iracingParser.createParserState,
+  captureParserCheckpoint(state) { return captureIRacingParserCheckpoint(state as IRacingParserState); },
+  restoreParserCheckpoint(_state, payload) { return restoreIRacingParserCheckpoint(payload); },
 
   createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,

@@ -47,8 +47,8 @@ describe("normalized driver trend", () => {
 
   test("normalizes mixed 90-second and 200-second contexts to percentages", () => {
     const laps = [
-      ...Array.from({ length: 3 }, (_, i) => lap(6 - i, { trackOrdinal: 1, lapTime: 90 + i })),
-      ...Array.from({ length: 3 }, (_, i) => lap(3 - i, { trackOrdinal: 2, lapTime: 200 + i })),
+      ...Array.from({ length: 3 }, (_, i) => lap(6 - i, { trackId: "1", lapTime: 90 + i })),
+      ...Array.from({ length: 3 }, (_, i) => lap(3 - i, { trackId: "2", lapTime: 200 + i })),
     ];
     const trend = buildDriverTrend(laps);
     expect(trend.recent.contexts).toBe(2);
@@ -71,7 +71,7 @@ describe("normalized driver trend", () => {
   });
 
   test("missing valid benchmark keeps lap totals and produces null pace", () => {
-    const laps = [lap(2, { trackOrdinal: 99, lapTime: 90, isValid: false }), lap(1, { trackOrdinal: 1, lapTime: 100 })];
+    const laps = [lap(2, { trackId: "99", lapTime: 90, isValid: false }), lap(1, { trackId: "1", lapTime: 100 })];
     const trend = buildDriverTrend(laps);
     expect(trend.recent.total).toBe(2);
     expect(trend.recent.dirty).toBe(1);
@@ -80,7 +80,7 @@ describe("normalized driver trend", () => {
   });
 
   test("builds baseline when each window has only one normalized lap", () => {
-    const recentPadding = Array.from({ length: 29 }, (_, i) => lap(100 + i, { trackOrdinal: 900 + i, isValid: false, lapTime: 90 }));
+    const recentPadding = Array.from({ length: 29 }, (_, i) => lap(100 + i, { trackId: String(900 + i), isValid: false, lapTime: 90 }));
     const trend = buildDriverTrend([
       lap(2, { lapTime: 100 }),
       ...recentPadding,

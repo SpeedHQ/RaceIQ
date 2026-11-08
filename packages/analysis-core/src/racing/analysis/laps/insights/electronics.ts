@@ -10,6 +10,7 @@ export interface AidDetectionOptions {
   nativeChannelAvailable: boolean;
   /** True only for an explicit game-provided aid-active flag. */
   nativeChannelExplicit: boolean;
+  nativeValues?: readonly (boolean | number | undefined)[];
   /** Direct, continuous wheel rotation, not a vehicle-speed-derived substitute. */
   wheelRotationAvailable: boolean;
   /** Calibrated states provide traction evidence independent of engine RPM. */
@@ -289,7 +290,8 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
       if (observedWheelStates) observedWheelStates[i] = wheelState;
       const p = telemetry[i];
       if (options.nativeChannelAvailable) {
-        const value = aid === "ABS" ? p.acc?.absIntervention : p.acc?.tcIntervention;
+        const sourceValue = options.nativeValues?.[i] ?? (aid === "ABS" ? p.acc?.absIntervention : undefined);
+        const value = typeof sourceValue === "boolean" ? Number(sourceValue) : sourceValue;
         const valid = value !== undefined && Number.isFinite(value) && seconds > 0;
         const active = valid && value! > 0;
         if (active) activeSeconds += seconds;

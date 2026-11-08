@@ -1,6 +1,8 @@
+import { Schema } from "effect";
 import { describe, expect, spyOn, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
 import { WebSocketManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 
@@ -13,6 +15,26 @@ const schema = { type: "telemetry-schema", protocolVersion: 1, schemaId: "schema
 const frame = { type: "telemetry-frame", protocolVersion: 1, schemaId: schema.schemaId, streamId: "stream-1", sessionId: 1, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [], context: {} } as const satisfies NonNullable<LiveProjection["frame"]>;
 
 describe("WebSocketManager controls", () => {
+  test("reconnect retains opaque capture epochs and terminal failure without stale rollback", () => {
+    const manager = new WebSocketManager();
+    const first = "8f1d24ca-6723-46fc-9346-7348693dbf27", current = "03f6c80c-a1d4-4381-bab3-5bdb6bb05ceb";
+    manager.broadcastNotification({ type: "recording-started", sessionId: 42, gameId: "fm-2023", captureEpoch: first });
+    manager.broadcastNotification({ type: "recording-sealed", sessionId: 42, captureEpoch: first });
+    manager.broadcastNotification({ type: "recording-finalizing", sessionId: 42, captureEpoch: first });
+    manager.broadcastNotification({ type: "recording-started", sessionId: 42, gameId: "fm-2023", captureEpoch: current });
+    manager.broadcastNotification({ type: "recording-failed", sessionId: 42, captureEpoch: first, error: "stale failure" });
+    manager.broadcastNotification({ type: "recording-finalizing", sessionId: 42, captureEpoch: current });
+    manager.broadcastNotification({ type: "recording-failed", sessionId: 42, captureEpoch: current, error: "source write failed" });
+    manager.broadcastNotification({ type: "recording-sealed", sessionId: 42, captureEpoch: current });
+    const client = socket();
+    manager.addClient(client);
+    const Snapshot = Schema.Struct({ type: Schema.String, sessionId: Schema.Number, gameId: Schema.String,
+      captureEpoch: Schema.String, error: Schema.optional(Schema.String) });
+    const snapshots = client.sent.map((value) => Schema.decodeUnknownSync(Snapshot)(JSON.parse(value)));
+    expect(snapshots).toEqual([{ type: "recording-failed", sessionId: 42, gameId: "fm-2023", captureEpoch: current, error: "source write failed" }]);
+    manager.removeClient(client);
+  });
+
   test("malformed control is rejected without subscription", () => {
     const manager = new WebSocketManager(); const ws = socket();
     manager.handleMessage(ws, "not-json");
@@ -205,4 +227,54 @@ describe("WebSocketManager controls", () => {
       manager.removeClient(reconnected);
     }
   });
+});
+
+
+test("Raw telemetry is opt-in and releases demand after closing the page", () => {
+  const manager = new WebSocketManager();
+  const ordinary = socket(); const raw = socket();
+  try {
+    manager.addClient(ordinary); manager.addClient(raw);
+    expect(manager.wantsDevTelemetry).toBe(false);
+    manager.handleMessage(raw, JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
+    expect(manager.wantsDevTelemetry).toBe(true);
+    manager.stageDevTelemetry({ gameId: "ams2", ams2: { carName: "Ginetta" } } as TelemetryPacket);
+    manager.flushLatest();
+    expect(raw.sent.map(value => JSON.parse(value)).find(value => value.type === "dev-telemetry").packet.gameId).toBe("ams2");
+    expect(ordinary.sent.some(value => JSON.parse(value).type === "dev-telemetry")).toBe(false);
+    manager.handleMessage(raw, JSON.stringify({ type: "unsubscribe", channel: "dev-telemetry" }));
+    expect(manager.wantsDevTelemetry).toBe(false);
+  } finally {
+    manager.removeClient(ordinary); manager.removeClient(raw);
+  }
+});
+
+
+test("AMS2 idle frames expire for existing and reconnecting clients and resume with the same schema", () => {
+  const clock = spyOn(Date, "now");
+  const manager = new WebSocketManager();
+  const existing = socket(); const reconnecting = socket();
+  try {
+    clock.mockReturnValue(10000);
+    const ams2Schema = { ...schema, simulator: "ams2" as const };
+    manager.setSessionLapsProvider(() => [{ id: 42 }] as unknown as import("@raceiq/shared/racing/sessions/types").LapMeta[]);
+    manager.publishTelemetry({ schema: ams2Schema, frame });
+    manager.addClient(existing);
+    existing.sent.length = 0;
+    clock.mockReturnValue(14999);
+    manager.flushLatest();
+    expect(JSON.parse(existing.sent.at(-1)!).type).toBe("telemetry-frame");
+    existing.sent.length = 0;
+    clock.mockReturnValue(15000);
+    manager.flushLatest();
+    expect(existing.sent.map(value => JSON.parse(value).type)).toEqual(["telemetry-idle"]);
+    manager.addClient(reconnecting);
+    expect(reconnecting.sent.map(value => JSON.parse(value).type)).toEqual(["telemetry-schema", "session-laps"]);
+    manager.publishTelemetry({ frame: { ...frame, sequence: 2 } });
+    manager.flushLatest();
+    expect(JSON.parse(existing.sent.at(-1)!).sequence).toBe(2);
+    expect(JSON.parse(reconnecting.sent.at(-1)!).sequence).toBe(2);
+  } finally {
+    clock.mockRestore(); manager.removeClient(existing); manager.removeClient(reconnecting);
+  }
 });

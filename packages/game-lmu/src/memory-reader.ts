@@ -37,6 +37,26 @@ interface Kernel32Library {
   symbols: Kernel32Symbols;
 }
 
+export function lmuSnapshotsCoherent(first: Buffer, second: Buffer): boolean {
+  if (first.length < LMU_SHARED_MEMORY_SIZE || second.length < LMU_SHARED_MEMORY_SIZE) return false;
+  if (!first.subarray(0, 72).equals(second.subarray(0, 72))) return false;
+  const vehicleCount = first.readInt32LE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
+  if (vehicleCount < 0 || vehicleCount > LMU_MAX_VEHICLES) return false;
+  const scoringEnd = LMU_SCORING_VEHICLES_OFFSET + vehicleCount * LMU_SCORING_VEHICLE_SIZE;
+  if (!first.subarray(LMU_SCORING_INFO_OFFSET, scoringEnd).equals(second.subarray(LMU_SCORING_INFO_OFFSET, scoringEnd))) return false;
+  if (!first.subarray(LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET).equals(second.subarray(LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET))) return false;
+  const activeVehicles = first.readUInt8(LMU_TELEMETRY_HEADER_OFFSET);
+  const playerIndex = first.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 1);
+  const playerHasVehicle = first.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 2) !== 0;
+  if (activeVehicles > LMU_MAX_VEHICLES || (playerHasVehicle && (activeVehicles === 0 || playerIndex >= activeVehicles))) return false;
+  if (!playerHasVehicle) return true;
+  for (let index = 0; index < activeVehicles; index++) {
+    const telemetryStart = LMU_TELEMETRY_INFO_OFFSET + index * LMU_TELEMETRY_INFO_SIZE;
+    const end = index === playerIndex ? telemetryStart + LMU_TELEMETRY_INFO_SIZE : telemetryStart + 4;
+    if (!first.subarray(telemetryStart, end).equals(second.subarray(telemetryStart, end))) return false;
+  }
+  return true;
+}
 /** Bun FFI reader for Studio 397's built-in LMU_Data mapping. */
 export class LMUSharedMemoryReader {
   private kernel32: Kernel32Library | null = null;
@@ -92,54 +112,8 @@ export class LMUSharedMemoryReader {
   }
 
   private consumedRegionsMatch(): boolean {
-    const first = this.snapshot;
-    const second = this.verificationSnapshot;
-    if (!first.subarray(0, 72).equals(second.subarray(0, 72))) return false;
-
-    const vehicleCount = first.readInt32LE(
-      LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles,
-    );
-    if (vehicleCount < 0 || vehicleCount > LMU_MAX_VEHICLES) return false;
-    const scoringEnd =
-      LMU_SCORING_VEHICLES_OFFSET +
-      vehicleCount * LMU_SCORING_VEHICLE_SIZE;
-    if (
-      !first
-        .subarray(LMU_SCORING_INFO_OFFSET, scoringEnd)
-        .equals(second.subarray(LMU_SCORING_INFO_OFFSET, scoringEnd))
-    ) {
-      return false;
-    }
-
-    const firstHeader = first.subarray(
-      LMU_TELEMETRY_HEADER_OFFSET,
-      LMU_TELEMETRY_INFO_OFFSET,
-    );
-    const secondHeader = second.subarray(
-      LMU_TELEMETRY_HEADER_OFFSET,
-      LMU_TELEMETRY_INFO_OFFSET,
-    );
-    if (!firstHeader.equals(secondHeader)) return false;
-    const activeVehicles = first.readUInt8(LMU_TELEMETRY_HEADER_OFFSET);
-    const playerIndex = first.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 1);
-    const playerHasVehicle =
-      first.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 2) !== 0;
-    if (
-      !playerHasVehicle ||
-      activeVehicles === 0 ||
-      activeVehicles > LMU_MAX_VEHICLES ||
-      playerIndex >= activeVehicles
-    ) {
-      return false;
-    }
-    const telemetryStart =
-      LMU_TELEMETRY_INFO_OFFSET + playerIndex * LMU_TELEMETRY_INFO_SIZE;
-    const telemetryEnd = telemetryStart + LMU_TELEMETRY_INFO_SIZE;
-    return first
-      .subarray(telemetryStart, telemetryEnd)
-      .equals(second.subarray(telemetryStart, telemetryEnd));
+    return lmuSnapshotsCoherent(this.snapshot, this.verificationSnapshot);
   }
-
   private loadKernel32(): void {
     if (this.kernel32) return;
     const { dlopen, FFIType, ptr } =

@@ -34,7 +34,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       droppedPackets: 0,
       udpPort: 5300,
       detectedGame: { id: "iracing", name: "iRacing" },
-      currentSession: { id: 5, carOrdinal: 1001, trackOrdinal: 101 },
+      currentSession: { id: 5, carId: "1001", trackId: "101" },
     },
   }));
 

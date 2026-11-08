@@ -173,7 +173,8 @@ export const experimentVersionRoutes = new Hono()
         await recordAction(id, "delete", {
           rootTestId: versionId,
           testIds: result.deletedIds,
-          prevHeadTestId: result.headMoved ? result.prevHeadTestId : null,
+          headChanged: result.headMoved,
+          ...(result.headMoved ? { prevHeadTestId: result.prevHeadTestId } : {}),
         });
       } catch (err: any) {
         console.error("[tune] Failed to log delete action:", err?.message);

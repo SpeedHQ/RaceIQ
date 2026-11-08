@@ -14,9 +14,9 @@ export interface IbtImportPreview {
   recordCount: number;
   durationSeconds: number;
   sessionStartDate: string;
-  trackId: number;
+  trackId: string;
   trackName: string;
-  carId: number;
+  carId: string;
   carName: string;
   carClassName: string;
   missingRaceIQVariables: string[];

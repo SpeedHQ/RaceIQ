@@ -2,6 +2,7 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrations } from "../../db/migrations";
+import { pendingMigrations } from "../../db/migration-plan";
 export async function bootstrap(client: Client): Promise<void> {
   await client.execute("PRAGMA foreign_keys = ON");
   await client.execute(`
@@ -18,11 +19,10 @@ export async function runMigrations(
   throughVersion = Number.POSITIVE_INFINITY,
   migrationSet = migrations,
 ): Promise<number> {
-  const appliedRows = await client.execute("SELECT version FROM schema_migrations");
-  const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
-  const pending = migrationSet
-    .filter((m) => !applied.has(m.version) && m.version <= throughVersion)
-    .sort((a, b) => a.version - b.version);
+  const appliedRows = await client.execute("SELECT version, name FROM schema_migrations");
+  const pending = pendingMigrations(migrationSet, appliedRows.rows.map((row) => ({
+    version: Number(row.version), name: String(row.name),
+  }))).filter((migration) => migration.version <= throughVersion);
 
   if (pending.length === 0) return 0;
 

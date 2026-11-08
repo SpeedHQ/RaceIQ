@@ -3,8 +3,9 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import { SessionsPage } from "../components/sessions/SessionsPage";
+import { SessionsPage } from "@raceiq/sessions-page/ui";
 import { GameStoryScope } from "./GameStoryScope";
+import { SessionsPageHostProvider } from "../features/sessions-page-host";
 
 const gameId = "ac-evo";
 
@@ -19,12 +20,14 @@ function makeLaps(sessionId: number, count: number, base: number): LapMeta[] {
     lapNumber: i + 1,
     lapTime: +(base + Math.sin(i) * 0.4).toFixed(3),
     isValid: i !== 0,
+    classification: null,
     invalidReason: i === 0 ? "outlap" : undefined,
-    carOrdinal: 42,
-    trackOrdinal: 7,
+    carId: "42",
+    trackId: "7",
     sectorTimes: sessionId === 2 ? undefined : [30.1, 33.5, 30.6],
     createdAt: new Date(Date.now() - (count - i) * 95_000).toISOString(),
-  })) as unknown as LapMeta[];
+    processing: { state: "ready", stage: null, error: null },
+  }));
 }
 
 // Two recorded sessions and two MoTeC imports. The imports carry the same
@@ -35,49 +38,53 @@ const sessions = [
   {
     id: 1,
     gameId,
-    trackOrdinal: 7,
-    carOrdinal: 42,
+    trackId: "7",
+    carId: "42",
     lapCount: 6,
     bestLapTime: 94.201,
     sessionType: "practice",
     notes: "Long run on used tyres",
     source: null,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 3_600_000).toISOString(),
   },
   {
     id: 2,
     gameId,
-    trackOrdinal: 12,
-    carOrdinal: 43,
+    trackId: "12",
+    carId: "43",
     lapCount: 4,
     bestLapTime: 412.887,
     sessionType: "race",
     notes: null,
     source: null,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 7_200_000).toISOString(),
   },
   {
     id: 3,
     gameId,
-    trackOrdinal: 7,
-    carOrdinal: 42,
+    trackId: "7",
+    carId: "42",
     lapCount: 3,
     bestLapTime: 93.118,
     sessionType: "practice",
     notes: "Coach reference lap (MoTeC)",
     source: MOTEC_SESSION_SOURCE,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 1_800_000).toISOString(),
   },
   {
     id: 4,
     gameId,
-    trackOrdinal: 12,
-    carOrdinal: 43,
+    trackId: "12",
+    carId: "43",
     lapCount: 2,
     bestLapTime: 408.442,
     sessionType: "qualifying",
     notes: null,
     source: MOTEC_SESSION_SOURCE,
+    processing: { state: "ready", stage: null, error: null },
     createdAt: new Date(Date.now() - 900_000).toISOString(),
   },
 ] as unknown as SessionMeta[];
@@ -86,11 +93,11 @@ const laps = [...makeLaps(1, 6, 94.2), ...makeLaps(2, 4, 412.9), ...makeLaps(3, 
 
 queryClient.setQueryData(["sessions", gameId], sessions);
 queryClient.setQueryData(["laps", gameId], laps);
-queryClient.setQueryData(["resolve-names", gameId, "7,12", "42,43"], {
+queryClient.setQueryData(["resolve-names", gameId, JSON.stringify(["7", "12"]), JSON.stringify(["42", "43"])], {
   trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" },
   carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" },
 });
-queryClient.setQueryData(["resolve-names", null, "7,12", "42,43"], {
+queryClient.setQueryData(["resolve-names", null, JSON.stringify(["7", "12"]), JSON.stringify(["42", "43"])], {
   trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" },
   carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" },
 });
@@ -113,9 +120,11 @@ const meta: Meta<typeof SessionsPage> = {
     (Story) => (
       <GameStoryScope gameId={gameId}>
         <QueryClientProvider client={queryClient}>
+          <SessionsPageHostProvider>
           <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
             <Story />
           </div>
+          </SessionsPageHostProvider>
         </QueryClientProvider>
       </GameStoryScope>
     ),

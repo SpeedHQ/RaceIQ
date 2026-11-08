@@ -65,6 +65,11 @@ if (!gameId) {
 console.log(`using game:         ${gameId}${gameOverride ? " (override)" : ""}`);
 
 if (noImport) process.exit(0);
+if (!fromBuf) {
+  console.error("\nFAIL: user imports accept sparse RaceIQ captures only; legacy full-frame recordings are replay-only.");
+  process.exit(1);
+}
+
 
 // ── Stage 3: full import ─────────────────────────────────────────
 console.log("\n--- import ---");

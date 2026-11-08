@@ -151,7 +151,7 @@ const IRACING_YAML_ALIASES: Record<string, string> = {
   "WeekendInfo.TrackName": "identity.track-name",
   "WeekendInfo.TrackDisplayName": "identity.track-name",
   "WeekendInfo.TrackDisplayShortName": "identity.track-name",
-  "WeekendInfo.TrackID": "identity.track-ordinal",
+  "WeekendInfo.TrackID": "identity.track-id",
   "WeekendInfo.TrackLength": "timing.track-length",
   "WeekendInfo.TrackLengthOfficial": "timing.official-track-length",
   "WeekendInfo.TrackVersion": "diagnostics.track-content-version",

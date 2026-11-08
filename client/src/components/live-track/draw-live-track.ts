@@ -2,8 +2,8 @@ import { m } from "@/paraglide/messages";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { MutableRefObject, RefObject } from "react";
 import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-sample";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 
 import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 export interface Point {
@@ -23,6 +23,7 @@ export function drawLiveTrack({
   canvasRef,
   sample,
   outline,
+  closed = true,
   noOutline,
   isRecorded,
   pitLines,
@@ -37,6 +38,7 @@ export function drawLiveTrack({
   canvasRef: RefObject<HTMLCanvasElement | null>;
   sample: LiveTrackSample | null;
   outline: Point[] | null;
+  closed?: boolean;
   noOutline: boolean;
   isRecorded: boolean;
   startYaw: number | null;
@@ -186,7 +188,7 @@ export function drawLiveTrack({
       if (isJump(i)) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
-    if (!isLiveTrace) ctx.lineTo(sx, sy);
+    if (!isLiveTrace && closed) ctx.lineTo(sx, sy);
     ctx.stroke();
 
     // Thinner highlight
@@ -200,7 +202,7 @@ export function drawLiveTrack({
       if (isJump(i)) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
-    if (!isLiveTrace) ctx.lineTo(sx, sy);
+    if (!isLiveTrace && closed) ctx.lineTo(sx, sy);
     ctx.stroke();
     ctx.globalAlpha = 1;
   } else {

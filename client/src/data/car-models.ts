@@ -4,26 +4,8 @@
  * Falls back to default wireframe dimensions when no config exists.
  */
 import { client } from "../lib/rpc";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 
-export interface CarModelEnrichment {
-  modelPath: string;
-  halfWheelbase: number;
-  halfFrontTrack: number;
-  halfRearTrack: number;
-  bodyLength: number;
-  tireRadius: number;
-  frontTireWidth?: number; // meters (default 0.30)
-  rearTireWidth?: number; // meters (default 0.30)
-  frontTireRadius?: number; // meters (overrides tireRadius for front)
-  rearTireRadius?: number; // meters (overrides tireRadius for rear)
-  /** Full suspension travel range in metres (total stroke, compressed→extended). Optional — falls back to 0.08 default. */
-  suspStroke?: number;
-  glbWheelbase?: number;
-  glbOffsetX?: number;
-  glbOffsetY?: number;
-  glbOffsetZ?: number;
-  solidHiddenMeshes?: number[];
-}
 
 export const DEFAULT_CAR: CarModelEnrichment = {
   modelPath: "",
@@ -79,8 +61,8 @@ export async function loadCarModelConfigs(): Promise<void> {
   } catch {}
 }
 
-export function getCarModel(carOrdinal: number): CarModelEnrichment & { hasModel: boolean } {
-  const config = configs[String(carOrdinal)];
+export function getCarModel(carId: string): CarModelEnrichment & { hasModel: boolean } {
+  const config = configs[carId];
   if (config?.modelPath) return { ...DEFAULT_CAR, ...config, hasModel: true };
   return { ...DEFAULT_CAR, hasModel: false };
 }

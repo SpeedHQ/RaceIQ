@@ -4,7 +4,7 @@ import { useExperimentVersions } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { FocusTimeline } from "./FocusTimeline";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
  * with a single top-level Undo button that reverses exactly the newest

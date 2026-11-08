@@ -20,10 +20,10 @@
  * Reader must accept both versions. Frames are self-describing (length per frame),
  * so V2 bins parse fine — tail fields just return null on V2 buffers.
  */
-import { existsSync, mkdirSync } from "node:fs";
-import { open } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { timestampForFilename } from "../../session-capture/filename";
+import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 
 // Header: magic(8) + version(4) + frameCount(4) = 16 bytes (same layout v2 and v3)
 const HEADER_SIZE = 16;
@@ -34,14 +34,14 @@ function defaultRecordingDir(): string {
 }
 
 export class KunosRecorder {
-  private _file: Bun.FileSink | null = null;
+  private _writer: WorkerSessionRecorder | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
   private _lastStatic: Buffer | null = null;
   private _stopping: Promise<void> | null = null;
 
   get recording(): boolean {
-    return this._file !== null;
+    return this._writer?.recording ?? false;
   }
 
   get frameCount(): number {
@@ -54,39 +54,32 @@ export class KunosRecorder {
 
   /** Start recording to a new file. Returns the file path. */
   start(dir?: string, prefix = "acc"): string {
-    if (this._file) {
+    if (this._writer) {
       void this.stop().catch((error) => {
         console.error("[ACC Recorder] Failed to stop previous recording:", error);
       });
     }
 
     const outDir = dir ?? defaultRecordingDir();
-    if (!existsSync(outDir)) {
-      mkdirSync(outDir, { recursive: true });
-    }
-
-    const timestamp = timestampForFilename();
-    let filename = `${prefix}-${timestamp}.bin`;
-    let filePath = resolve(outDir, filename);
-    let suffix = 1;
-    while (filePath === this._path || existsSync(filePath)) {
-      filename = `${prefix}-${timestamp}-${suffix++}.bin`;
-      filePath = resolve(outDir, filename);
-    }
-    this._path = filePath;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this._file = (Bun.file(this._path) as any).writer({ append: true });
+    const filename = `${prefix}-${timestampForFilename()}-${randomUUID()}.bin`;
+    this._path = resolve(outDir, filename);
+    this._writer = new WorkerSessionRecorder("acc", {
+      headerCountOffset: 12,
+      patchCountOnClose: true,
+      exclusiveFile: true,
+      maxBatchBytes: 4 * 1024 * 1024,
+    });
+    this._writer.start(this._path);
     this._frameCount = 0;
     this._lastStatic = null;
 
-    // Write header with placeholder frameCount (will update on close)
     const header = Buffer.alloc(HEADER_SIZE);
     Buffer.from("ACCTEST\0", "ascii").copy(header, 0);
     header.writeUInt32LE(RECORDER_VERSION, 8);
-    header.writeUInt32LE(0, 12); // frameCount (placeholder)
-    this._file!.write(header);
+    header.writeUInt32LE(0, 12);
+    this._writer.writeRawCaptureBytes(header);
 
-    console.log(`[ACC Recorder] Dump file created: ${filename}`);
+    console.log(`[ACC Recorder] Dump file queued: ${filename}`);
     return this._path;
   }
 
@@ -111,39 +104,23 @@ export class KunosRecorder {
    */
   writeStatic(buffer: Buffer): void {
     if (this._lastStatic?.equals(buffer)) return;
-    this._lastStatic = Buffer.from(buffer);
-    this._writeBufferFrame(2, buffer);
+    if (this._writeBufferFrame(2, buffer)) this._lastStatic = Buffer.from(buffer);
   }
 
   /** Stop recording and flush to disk */
   async stop(): Promise<void> {
-    if (!this._file) return this._stopping ?? undefined;
+    if (!this._writer) return this._stopping ?? undefined;
 
-    const file = this._file;
+    const writer = this._writer;
     const path = this._path!;
     const frameCount = this._frameCount;
-    // Detach before flushing so a replacement recording owns its own state.
-    this._file = null;
+    const fileSize = writer.getCurrentByteOffset();
+    this._writer = null;
     this._lastStatic = null;
 
     const stopping = (async () => {
-      await file.end();
-
-      const handle = await open(path, "r+");
-      let size: number;
-      try {
-        const count = Buffer.allocUnsafe(4);
-        count.writeUInt32LE(frameCount);
-        const { bytesWritten } = await handle.write(count, 0, count.length, 12);
-        if (bytesWritten !== count.length) {
-          throw new Error(`Failed to finalize recording frame count: ${path}`);
-        }
-        ({ size } = await handle.stat());
-      } finally {
-        await handle.close();
-      }
-
-      const fileSizeKb = (size / 1024).toFixed(2);
+      await writer.stop();
+      const fileSizeKb = (fileSize / 1024).toFixed(2);
       const filename = path.split(/[\\/]/).pop();
       console.log(`[ACC Recorder] Stopped. ${frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
     })();
@@ -155,26 +132,26 @@ export class KunosRecorder {
     }
   }
 
-  private _writeBufferFrame(type: number, buffer: Buffer): void {
-    if (!this._file) {
-      console.warn("[ACC Recorder] _file is null, cannot write");
-      return;
+  private _writeBufferFrame(type: number, buffer: Buffer): boolean {
+    const writer = this._writer;
+    if (!writer?.recording) {
+      console.warn("[ACC Recorder] recorder is inactive, cannot write");
+      return false;
     }
 
     const typeNames = ["physics", "graphics", "static"];
-    const frameHeader = Buffer.alloc(5);
-    frameHeader.writeUInt8(type, 0);
-    frameHeader.writeUInt32LE(buffer.length, 1);
+    const record = Buffer.allocUnsafe(5 + buffer.length);
+    record.writeUInt8(type, 0);
+    record.writeUInt32LE(buffer.length, 1);
+    buffer.copy(record, 5);
 
     if (this._frameCount % 100 === 0) {
-      console.log(
-        `[ACC Recorder] Writing frame ${this._frameCount}: type=${typeNames[type]} size=${buffer.length}`
-      );
+      console.log(`[ACC Recorder] Writing frame ${this._frameCount}: type=${typeNames[type]} size=${buffer.length}`);
     }
 
-    this._file.write(frameHeader);
-    this._file.write(buffer);
+    writer.writeRawCaptureRecord(record);
     this._frameCount++;
+    return true;
   }
 }
 

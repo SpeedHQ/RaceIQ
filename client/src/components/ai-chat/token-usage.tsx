@@ -8,7 +8,7 @@ import { useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
-import { client } from "@/lib/rpc";
+import { authenticatedFetch, client } from "@/lib/rpc";
 import type { ChatGeneration } from "./chat-history";
 import { formatTokens, meterLevel } from "./token-usage-format";
 
@@ -153,7 +153,7 @@ export function TokenUsageFooter({
         <Button
           type="button"
           onClick={() => {
-            void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
+            void authenticatedFetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
           }}
           className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20"
           title={m.ai_chat_stop_server_turn()}

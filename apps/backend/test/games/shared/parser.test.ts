@@ -94,7 +94,7 @@ describe("parsePacket", () => {
     expect(p!.Brake).toBe(0);
     expect(p!.Gear).toBe(4);
     expect(p!.Steer).toBe(5);
-    expect(p!.CarOrdinal).toBe(342);
+    expect(p!.carId).toBe("342");
     expect(p!.CarClass).toBe(4);
     expect(p!.CarPerformanceIndex).toBe(812);
     expect(p!.DrivetrainType).toBe(1);

@@ -18,6 +18,7 @@ import type {
   ParserOutput,
 } from "./model";
 import { SETUP_GROUP_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/groups";
+import ams2Sources from "../../../game-ams2/src/packet-sources.json";
 const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {
   "f1-2025": {
     m: "F1.Motion",
@@ -53,20 +54,29 @@ const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {
   },
 };
 
+const AMS2_PACKET_SOURCES: Record<string, string[]> = {
+  ...Object.fromEntries(Object.entries(ams2Sources).map(([field, source]) => [field, [source]])),
+  Fuel: ["AMS2.mFuelLevel", "AMS2.mFuelCapacity"],
+  DistanceTraveled: ["AMS2.mParticipantInfo.mCurrentLapDistance", "AMS2.mParticipantInfo.mLapsCompleted", "AMS2.mTrackLength"],
+  carId: ["AMS2.mCarName"],
+  trackId: ["AMS2.mTrackLocation", "AMS2.mTrackVariation"],
+  sessionUID: ["AMS2.SharedMemory.connectionEpoch", "AMS2.mSessionState", "AMS2.mCarName", "AMS2.mTrackLocation", "AMS2.mTrackVariation"],
+};
 const PACKET_SOURCE_OVERRIDES: Partial<
   Record<GameId, Record<string, string[]>>
 > = {
+  ams2: AMS2_PACKET_SOURCES,
   "f1-2025": {
-    CarOrdinal: ["F1.Participants.player.teamId"],
+    carId: ["F1.Participants.player.teamId"],
     NumCylinders: ["RaceIQ.ParserConstant.NumCylinders"],
   },
   acc: {
-    CarOrdinal: ["ACC.Static.carModel"],
-    TrackOrdinal: ["ACC.Static.track"],
+    carId: ["ACC.Static.carModel"],
+    trackId: ["ACC.Static.track"],
   },
   "ac-evo": {
-    CarOrdinal: ["AC-Evo.Graphics.car_model"],
-    TrackOrdinal: [
+    carId: ["AC-Evo.Graphics.car_model"],
+    trackId: [
       "AC-Evo.Static.track",
       "AC-Evo.Static.track_configuration",
     ],
@@ -108,11 +118,11 @@ const PACKET_SOURCE_OVERRIDES: Partial<
     Fuel: ["LMU.Telemetry.fuel"],
     FuelCapacity: ["LMU.Telemetry.fuelCapacity"],
     CarClass: ["LMU.Telemetry.vehicleClass"],
-    CarOrdinal: [
+    carId: [
       "LMU.Telemetry.vehicleModel",
       "LMU.Telemetry.vehicleName",
     ],
-    TrackOrdinal: [
+    trackId: [
       "LMU.ScoringInfo.trackName",
       "LMU.Telemetry.trackName",
     ],
@@ -351,6 +361,7 @@ function nativeSources(
       if (path) {
         const [root, ...rest] = path.split(".");
         if (roots[root] && rest.length > 0) {
+          if (gameId === "iracing" && root === "source" && rest.join(".") === "values") return;
           sources.add(`${roots[root]}.${rest.join(".").replace(/\.offset$/, "")}`);
           return;
         }
@@ -396,6 +407,11 @@ function nativeSources(
 }
 
 function specialIRacingSources(field: string): string[] | undefined {
+  if (field === "TimestampMS") return ["iRacing.SessionTime"];
+  if (field === "CurrentLap") return [
+    "iRacing.SessionInfo.subSessionId", "iRacing.SessionInfo.sessionId", "iRacing.SessionInfo.sessionNum",
+    "iRacing.Lap", "iRacing.SessionTime", "iRacing.LapCurrentLapTime",
+  ];
   const rawWheel = field.match(
     /(FL|FR|RL|RR|FrontLeft|FrontRight|RearLeft|RearRight)$/,
   )?.[1];
@@ -470,6 +486,15 @@ function packetNativeMetadata(
   key: string,
   canonicalUnit: string,
 ): { nativeUnit: string; normalization?: string } {
+  if (gameId === "ams2") {
+    if (key === "TirePressure") return { nativeUnit: "kPa", normalization: "kilopascals / 6.894757" };
+    if (["Accel", "Brake", "Clutch", "Steer"].includes(key)) return {
+      nativeUnit: "ratio",
+      normalization: key === "Steer" ? "clamp to -1..1, multiply by 127 and round" : "clamp to 0..1, multiply by 255 and round",
+    };
+    if (key === "Fuel") return { nativeUnit: "fraction and L", normalization: "native fuel fraction * capacity litres" };
+    if (key === "carId" || key === "trackId") return { nativeUnit: "text", normalization: "UTF-8 FNV-1a hash of the native car name or joined circuit and layout names, masked to a positive 31-bit integer and represented as a string" };
+  }
   if (gameId === "fm-2023" && key.startsWith("TireTemp")) {
     return {
       nativeUnit: "°F",
@@ -567,7 +592,7 @@ function isPacketRepresentationNormalization(
   if (native.normalization) return true;
   if (
     (gameId === "acc" || gameId === "ac-evo") &&
-    (key === "CarOrdinal" || key === "TrackOrdinal")
+    (key === "carId" || key === "trackId")
   ) {
     return true;
   }

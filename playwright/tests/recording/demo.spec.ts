@@ -1,9 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
+import { getSeededLapMeta } from "../support/seeded/laps";
 import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * Records the RaceIQ welcome demo as 1920×1080 JPEG frames, one per packet.
+ * Records seeded RaceIQ replay telemetry as 1920×1080 JPEG frames, one per packet.
  *
  * Pipeline (single pass, no video intermediate):
  *   1. Main thread: __setFrame(i) awaits requested scene render; capture readback
@@ -45,10 +46,9 @@ test("record demo render", async ({ page, request }, testInfo) => {
     localStorage.setItem("carwireframe-toggles", JSON.stringify({ ...toggles, inputs: true }));
   });
 
-  // Fresh server: onboardingComplete=false → wizard shows automatically
-  const resetSettings = await request.put("/api/settings", { data: { onboardingComplete: false } });
-  expect(resetSettings.ok(), "record demo onboarding reset").toBe(true);
-  await page.goto("/");
+  // Use checked-in seeded telemetry; root welcome route has no replay scene.
+  const lap = await getSeededLapMeta(request, "fm-2023");
+  await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}?viz=3d`);
 
   await page.waitForSelector("canvas", { timeout: 60_000 });
   await page.waitForFunction(() => typeof (window as unknown as Record<string, unknown>).__totalFrames === "number", { timeout: 30_000 });
@@ -58,10 +58,9 @@ test("record demo render", async ({ page, request }, testInfo) => {
   const capture = Math.min(totalFrames - startFrame, MAX_FRAMES);
   console.log(`Source: ${totalFrames} packets, starting at ${startFrame}, capturing ${capture} (${(capture / 60).toFixed(1)}s at 60fps playback)`);
 
-  // Pause, seek to start frame, stretch canvas fullscreen
+  // Seek to start frame, stretch canvas fullscreen
   await page.evaluate(async (start: number) => {
     const w = window as unknown as Record<string, unknown>;
-    (w.__pauseAnimation as () => void)();
     await (w.__setFrame as (n: number) => Promise<void>)(start);
   }, startFrame);
 

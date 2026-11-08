@@ -5,7 +5,13 @@
 @import "tw-shimmer";
 @import "./styles/theme.css";
 @import "./styles/branding.css";
+@import "./components/SessionRecap.css";
 @plugin "@tailwindcss/typography";
+@source "../../packages/tracks-catalogue/ui";
+@source "../../packages/cars-catalogue/ui";
+@source "../../packages/lap-replay/ui";
+@source "../../packages/sessions-page/ui";
+@source "../../packages/session-analyse/ui";
 
 @keyframes drawLine {
   to {
@@ -64,6 +70,21 @@
   html {
     @apply font-sans;
   }
+}
+
+html.overlay-source,
+html.overlay-source body,
+html.overlay-source #root,
+html.overlay-source #root > * {
+  background: transparent !important;
+}
+
+html.overlay-source,
+html.overlay-source body,
+html.overlay-source #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Compact markdown for AI chat messages */

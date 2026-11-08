@@ -12,6 +12,17 @@ describe("isAiConfigured", () => {
     expect(isAiConfigured({ aiProvider: "openai", openaiApiKeySet: false })).toBe(false);
   });
 
+  test("requires Anthropic key when provider is anthropic", () => {
+    expect(isAiConfigured({ aiProvider: "anthropic", anthropicApiKeySet: true })).toBe(true);
+    expect(isAiConfigured({ aiProvider: "anthropic", anthropicApiKeySet: false })).toBe(false);
+  });
+
+  test("requires DeepSeek key when provider is deepseek", () => {
+    expect(isAiConfigured({ aiProvider: "deepseek", deepseekApiKeySet: true })).toBe(true);
+    expect(isAiConfigured({ aiProvider: "deepseek", deepseekApiKeySet: false })).toBe(false);
+    expect(isAiConfigured({ aiProvider: "deepseek", openaiApiKeySet: true })).toBe(false);
+  });
+
   test("requires an explicitly selected provider", () => {
     expect(isAiConfigured({ aiProvider: "gemini", geminiApiKeySet: true })).toBe(true);
     expect(isAiConfigured({ aiProvider: "gemini", geminiApiKeySet: false })).toBe(false);

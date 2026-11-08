@@ -7,8 +7,6 @@ import { homedir } from "node:os";
 import { SHARED_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { accRecorder } from "@raceiq/backend-core/games/kunos/recorder";
 import { replayRecording } from "@raceiq/game-acc/replay";
-import { getAllAccCars, getAccCarClass } from "@raceiq/game-acc-metadata/racing/cars/acc"
-import { getAccCarSpecs } from "@raceiq/game-acc-metadata/racing/cars/acc-specs"
 import { getAccReader } from "../../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
@@ -218,13 +216,12 @@ export const accRoutes = new Hono()
     return c.json(counts);
   })
 
-  // GET /api/acc/setups-by-track?ordinal=123 — match track ordinal to setup slugs
+  // GET /api/acc/setups-by-track?trackId=123 — match track identity to setup slugs
   .get("/api/acc/setups-by-track",
-    zValidator("query", z.object({ ordinal: z.string() })),
+    zValidator("query", z.object({ trackId: z.string().min(1) })),
     (c) => {
-      const ordinal = parseInt(c.req.valid("query").ordinal, 10);
-      if (Number.isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
-      const slug = getAccSharedTrackName(ordinal);
+      const trackId = c.req.valid("query").trackId;
+      const slug = getAccSharedTrackName(Number(trackId));
       if (!slug) return c.json([]);
       return c.json(loadAccSetupsByTrack(slug));
     }
@@ -310,28 +307,7 @@ export const accRoutes = new Hono()
     return c.json({ installed: true, path: destPath });
   })
 
-  // ── Cars ──────────────────────────────────────────────────────────────────
-
-  .get("/api/acc/cars", (c) => {
-    const cars = getAllAccCars().map((car) => ({
-      ...car,
-      specs: getAccCarSpecs(car.id) ?? null,
-    }));
-    cars.sort((a, b) => a.class.localeCompare(b.class) || a.name.localeCompare(b.name));
-    return c.json(cars);
-  })
-
-  // Resolves the ACC class (GT3/GT4/TCX/…) for a car ordinal. Class is the
-  // authoritative server-side fact; the client maps class → pressure window
-  // (or other class-aware rules) locally.
-  .get("/api/acc/cars/:ordinal/class", (c) => {
-    const ord = Number(c.req.param("ordinal"));
-    if (!Number.isFinite(ord)) return c.json({ class: null });
-    return c.json({ class: getAccCarClass(ord) ?? null });
-  })
-
   // ── Debug ─────────────────────────────────────────────────────────────────
-
   .get("/api/acc/debug/raw", (c) => {
     const bufs = getAccReader()?.getDebugBuffers?.();
     if (!bufs) {

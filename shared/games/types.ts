@@ -137,17 +137,17 @@ export interface GameAdapter {
   /** Steering range: abs(max deviation from center) */
   steeringRange: number;
 
-  /** Resolve car ordinal to human-readable name */
-  getCarName(ordinal: number): string;
+  /** Resolve a game's car identity. */
+  getCarName(carId: string): string;
 
-  /** Resolve track ordinal to human-readable name */
-  getTrackName(ordinal: number): string;
+  /** Resolve a game's track identity. */
+  getTrackName(trackId: string): string;
 
-  /** Resolve track ordinal to shared outline file name, if available */
-  getSharedTrackName?(ordinal: number): string | undefined;
+  /** Resolve track identity to shared outline file name, if available. */
+  getSharedTrackName?(trackId: string): string | undefined;
 
-  /** Resolve a game-native track name (e.g. saved on a session/lap) back to its ordinal, if available */
-  getTrackOrdinalByName?(name: string): number | undefined;
+  /** Resolve a game-native track name to its identity, if available. */
+  getTrackIdByName?(name: string): string | undefined;
 
   /** Tire health thresholds — health is 0 (dead) to 1 (fresh) */
   tireHealthThresholds: { green: number; yellow: number };

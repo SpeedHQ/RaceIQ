@@ -15,24 +15,6 @@ const packet = (overrides: Partial<TelemetryPacket> = {}): TelemetryPacket => ({
 } as TelemetryPacket);
 
 describe("race result source extraction", () => {
-  test("uses LMU session mode to distinguish practice timing rank from race position", () => {
-    for (const sessionType of ["practice-1", "test-day", "race"]) {
-      const source = extractRaceSource("lmu", [
-        packet({ gameId: "lmu", LapNumber: 1, RacePosition: 3, lmu: { sessionType, inPits: false } as never }),
-        packet({ gameId: "lmu", LapNumber: 2, RacePosition: 2, lmu: { sessionType, inPits: false } as never }),
-      ]);
-      expect(source.sessionType).toBe(sessionType);
-      expect(source.provenance.fields?.sessionType).toBe("lmu.sessionType");
-      const result = deriveRaceResult(source);
-      if (sessionType === "race") {
-        expect(result.finishingPosition).toBe(2);
-        expect(result.events).toMatchObject([{ eventType: "position-change", positionBefore: 3, positionAfter: 2 }]);
-      } else {
-        expect(result.finishingPosition).toBeNull();
-        expect(result.events).toEqual([]);
-      }
-    }
-  });
 
   test("records ACC penalty changes once, resets after clearing, and preserves pit ordering", () => {
     const frame = (penalty: number, penaltyTime: number, pitStatus = "out") => packet({

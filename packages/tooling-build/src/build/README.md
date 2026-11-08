@@ -14,6 +14,8 @@ Build and package RaceIQ artifacts from repository root.
 
 Inputs: repository `client`, `shared`, `server`, `packages/game-*/assets`, root `assets`, and installed dependencies. Outputs: `dist`, root `assets/raceiq.ico`, generated client asset module, or patched executable as applicable.
 
+Windows release and local installer builds compile feature flags from the repository's `.env.production`. Change that file to enable or disable a production feature; the release startup smoke compares the packaged server's flags with the same file.
+
 Game packages own car images and track SVG sources under `assets/`. Public car images retain their URL paths under `assets/public/` and ship through the client build to `dist/public`. Backend/geometry assets ship to `dist/data/games/<game>/`, preserving catalog-relative paths. Catalogs and curated/generated track data retain their existing shared and writable roots.
 
 macOS builds require `codesign`: Bun's compiled binary may have an invalid signature that causes immediate termination before server startup. Build script re-signs final executable locally; release distribution still needs its own signing and notarization.

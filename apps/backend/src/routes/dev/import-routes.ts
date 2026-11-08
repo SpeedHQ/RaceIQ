@@ -1,3 +1,4 @@
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -5,16 +6,12 @@ import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
-import { getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import { getGame } from "@raceiq/shared/games/registry";
 import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
-import { GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
-import { readCString } from "@raceiq/game-ac-evo/utils";
 import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
 import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
@@ -108,14 +105,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           }
         }
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-          carOrdinal,
-          trackOrdinal,
+          carId: carOrdinal ? String(carOrdinal) : "",
+          trackId: trackOrdinal ? String(trackOrdinal) : "",
         });
         if (!packet) continue;
         const sourceFrame = packTriplet(
           ACC_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? 0,
+          carOrdinal || -1,
+          trackOrdinal || -1,
           frame.physics,
           frame.graphics,
           frame.staticData
@@ -132,28 +129,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       }
       const cache = createAcEvoParserCache();
       for (const frame of frames) {
-        if (!carModel && frame.graphics.length >= GRAPHICS_EVO.car_model.offset + GRAPHICS_EVO.car_model.size) {
-          const cm = readCString(frame.graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
-          if (cm) {
-            carModel = cm;
-            const car = getAcEvoCarByDisplayName(cm);
-            if (car) cache.carOrdinal = car.id;
-          }
-        }
-        if (!trackName && frame.staticData.length >= STATIC_EVO.track.offset + STATIC_EVO.track.size) {
-          const tn = readCString(frame.staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size);
-          if (tn) {
-            trackName = tn;
-            const track = getAcEvoTrackByName(tn);
-            if (track) cache.trackOrdinal = track.id;
-          }
-        }
         const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
         if (!packet) continue;
+        if (!carModel) carModel = packet.acEvoIdentity?.carName || null;
+        if (!trackName) trackName = packet.acEvoIdentity?.trackName || null;
         const sourceFrame = packTriplet(
           ACEVO_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? -1,
+          0,
+          -1,
           frame.physics,
           frame.graphics,
           frame.staticData
@@ -180,6 +163,22 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         const packet = serverAdapter.tryParse(sourceFrame, null);
         if (!packet) continue;
         await pipeline.processPacket(packet, sourceFrame);
+        packetCount++;
+      }
+    } else if (gameId === "ams2") {
+      const serverAdapter = getAllServerGames().find(a => a.id === gameId);
+      if (!serverAdapter) return c.json({ error: "AMS2 adapter is not registered" }, 400);
+      const parserState = serverAdapter.createParserState();
+      for await (const sourceFrame of readAMS2DumpFrames(tmpPath)) {
+        if (serverAdapter.isSessionEndFrame?.(sourceFrame)) {
+          await pipeline.finalizeCurrentSession();
+          continue;
+        }
+        const packet = serverAdapter.tryParse(sourceFrame, parserState);
+        if (!packet) continue;
+        carModel ??= packet.ams2?.carName ?? null;
+        trackName ??= packet.ams2?.trackName ?? null;
+        await pipeline.processPacket(packet, sourceFrame, packet.TimestampMS);
         packetCount++;
       }
     } else {

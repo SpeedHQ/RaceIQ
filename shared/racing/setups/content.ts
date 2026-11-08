@@ -14,6 +14,12 @@ export interface SetupContentRow {
   step?: number;
 }
 
+/** Catalog capability for one setup control; null means unavailable. */
+export type SetupCapabilityRange =
+  | { min: number; max: number; step: number }
+  | { status: "fixed" }
+  | null;
+
 export interface SetupContentSection {
   title: string;
   rows: SetupContentRow[];

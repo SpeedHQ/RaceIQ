@@ -15,7 +15,7 @@ test("settings persist through reload and can be restored", async ({ page, reque
 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "RaceIQ" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Latest Session" })).toBeVisible();
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Units" }).click();

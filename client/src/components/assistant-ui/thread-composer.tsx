@@ -1,32 +1,70 @@
 "use client";
 
-import { AuiIf, ComposerPrimitive, MessagePrimitive } from "@assistant-ui/react";
+import { AuiIf, ComposerPrimitive, MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { ArrowUpIcon, MicIcon, SquareIcon } from "lucide-react";
 import { type FC, useContext } from "react";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { InputDisabledContext } from "./thread-context";
+import { ImageDisabledContext, ImageNoticeContext, InputDisabledContext } from "./thread-context";
 
 export const Composer: FC = () => {
   const inputDisabled = useContext(InputDisabledContext);
+  const imageDisabled = useContext(ImageDisabledContext);
+  const imageNotice = useContext(ImageNoticeContext);
+  const hasUnsupportedImage = useAuiState((s) => imageDisabled && s.composer.attachments.some((attachment) => attachment.type === "image"));
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+    <ComposerPrimitive.Root
+      className="aui-composer-root relative flex w-full flex-col"
+      onSubmitCapture={(event) => {
+        if (hasUnsupportedImage) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+      onDropCapture={(event) => {
+        if (imageDisabled && Array.from(event.dataTransfer.items).some((item) => item.type.startsWith("image/"))) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+      onPasteCapture={(event) => {
+        if (imageDisabled && Array.from(event.clipboardData.items).some((item) => item.type.startsWith("image/"))) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+    >
       <ComposerPrimitive.AttachmentDropzone
         render={<div data-slot="aui_composer-shell" className="border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-none transition-colors data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))]" />}
       >
         <ComposerAttachments />
-        <ComposerPrimitive.Input placeholder={inputDisabled ? m.ai_chat_compacting() : m.ai_chat_send_message_placeholder()} className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none disabled:opacity-50" rows={1} autoFocus enterKeyHint="send" aria-label={m.ai_chat_message_input()} disabled={inputDisabled} />
-        <ComposerAction />
+        {imageNotice && <p role="status" className="px-2 text-app-caption text-app-text-dim">{imageNotice}</p>}
+        <ComposerPrimitive.Input
+          placeholder={inputDisabled ? m.ai_chat_compacting() : m.ai_chat_send_message_placeholder()}
+          className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none disabled:opacity-50"
+          rows={1}
+          autoFocus
+          enterKeyHint="send"
+          aria-label={m.ai_chat_message_input()}
+          disabled={inputDisabled}
+          onKeyDownCapture={(event) => {
+            if (hasUnsupportedImage && event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+        />
+        <ComposerAction imageDisabled={imageDisabled} sendDisabled={hasUnsupportedImage} imageNotice={imageNotice} />
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 };
 
-const ComposerAction: FC = () => (
+const ComposerAction: FC<{ imageDisabled: boolean; sendDisabled: boolean; imageNotice?: string }> = ({ imageDisabled, sendDisabled, imageNotice }) => (
   <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-    <ComposerAddAttachment />
+    {!imageDisabled && <ComposerAddAttachment />}
     <div className="flex items-center gap-1.5">
       <AuiIf condition={(s) => s.thread.capabilities.dictation}>
         <AuiIf condition={(s) => s.composer.dictation == null}>
@@ -37,7 +75,7 @@ const ComposerAction: FC = () => (
         </AuiIf>
       </AuiIf>
       <AuiIf condition={(s) => !s.thread.isRunning}>
-        <ComposerPrimitive.Send render={<TooltipIconButton tooltip={m.ai_chat_send_message()} side="bottom" type="button" variant="default" size="icon-sm" className="aui-composer-send" aria-label={m.ai_chat_send_message()} />}><ArrowUpIcon className="aui-composer-send-icon size-4.5" /></ComposerPrimitive.Send>
+        <ComposerPrimitive.Send render={<TooltipIconButton tooltip={sendDisabled && imageNotice ? imageNotice : m.ai_chat_send_message()} side="bottom" type="button" variant="default" size="icon-sm" className="aui-composer-send" aria-label={m.ai_chat_send_message()} disabled={sendDisabled} />}><ArrowUpIcon className="aui-composer-send-icon size-4.5" /></ComposerPrimitive.Send>
       </AuiIf>
       <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel render={<Button variant="default" size="icon-sm" className="aui-composer-cancel" aria-label={m.ai_chat_stop_generating()} />}><SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" /></ComposerPrimitive.Cancel>

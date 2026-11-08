@@ -23,14 +23,14 @@ async function registerAcceptedIRacingIdentity(
   const writes: Promise<void>[] = [];
   if (identity.carId >= 0 && identity.carName) {
     writes.push(
-      registerDiscoveredCar("iracing", identity.carId, identity.carName),
+      registerDiscoveredCar("iracing", String(identity.carId), identity.carName),
     );
   }
   if (identity.trackId >= 0 && identity.trackName) {
     writes.push(
       registerDiscoveredTrack(
         "iracing",
-        identity.trackId,
+        String(identity.trackId),
         identity.trackName,
       ),
     );
@@ -39,10 +39,10 @@ async function registerAcceptedIRacingIdentity(
 
   const [carName, trackName] = await Promise.all([
     identity.carId >= 0
-      ? getDiscoveredCarName("iracing", identity.carId)
+      ? getDiscoveredCarName("iracing", String(identity.carId))
       : undefined,
     identity.trackId >= 0
-      ? getDiscoveredTrackName("iracing", identity.trackId)
+      ? getDiscoveredTrackName("iracing", String(identity.trackId))
       : undefined,
   ]);
   rememberIRacingIdentity({

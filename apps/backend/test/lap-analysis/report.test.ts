@@ -6,6 +6,8 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 initGameAdapters();
 
 const lap = {
+  carId: "",
+  trackId: "",
   lapNumber: 1,
   lapTime: 90,
   isValid: true,
@@ -16,8 +18,8 @@ const lap = {
 
 const basePacket = {
   gameId: "acc",
+  carId: "0",
   CarClass: 0,
-  CarOrdinal: 0,
   CarPerformanceIndex: 0,
   DrivetrainType: 0,
   VelocityX: 10,

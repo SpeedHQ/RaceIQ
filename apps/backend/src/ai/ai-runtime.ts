@@ -1,10 +1,13 @@
 import { getAiProviderApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { isSupportedAiProvider } from "@raceiq/backend-core/ai/provider-capabilities";
 import { loadSettings, type AppSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "@raceiq/backend-core/ai/ai-features";
 import {
   AiProviderError,
 } from "@raceiq/backend-core/ai/provider-error";
 import {
+  AnthropicProviderAdapter,
+  DeepSeekProviderAdapter,
   GeminiProviderAdapter,
   OpenAiCompatibleProviderAdapter,
   OpenAiProviderAdapter,
@@ -41,7 +44,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "openai-compatible") {
+  if (!isSupportedAiProvider(provider)) {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -78,6 +81,26 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
         });
       }
       return resolvedAiFromAdapter(new OpenAiProviderAdapter({ ...config, apiKey }));
+    }
+    case "anthropic": {
+      const apiKey = await getAiProviderApiKey("anthropic");
+      if (!apiKey) {
+        throw new AiProviderError(`Anthropic API key not set. Add it in Settings → AI ${section}.`, {
+          code: "missing-api-key",
+          provider,
+        });
+      }
+      return resolvedAiFromAdapter(new AnthropicProviderAdapter({ ...config, apiKey }));
+    }
+    case "deepseek": {
+      const apiKey = await getAiProviderApiKey("deepseek");
+      if (!apiKey) {
+        throw new AiProviderError(`DeepSeek API key not set. Add it in Settings → AI ${section}.`, {
+          code: "missing-api-key",
+          provider,
+        });
+      }
+      return resolvedAiFromAdapter(new DeepSeekProviderAdapter({ ...config, apiKey }));
     }
     case "openai-compatible": {
       const apiKey = await getAiProviderApiKey("openai-compatible");

@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { TrackViewer } from "../../components/TrackViewer";
+import { TrackViewer } from "@raceiq/tracks-catalogue/ui"
 
 type TracksSearch = { track?: number; tab?: string };
 

@@ -1,10 +1,10 @@
-import type { CarModelEnrichment } from "../../data/car-models";
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 import * as THREE from "three";
 import { useEffect, useRef, useState } from "react";
 import { Switch } from "../ui/switch";
-import { createCarBody, type CarBodyInstance } from "../wireframe/CarBody";
-import { SceneRuntime } from "../wireframe/SceneRuntime";
-import { THREE_COLORS } from "../../lib/wireframe-utils";
+import { createCarBody, type CarBodyInstance } from "@raceiq/scene-3d/wireframe/CarBody"
+import { SceneRuntime } from "@raceiq/scene-3d/wireframe/SceneRuntime"
+import { THREE_COLORS } from "@raceiq/scene-3d/wireframe-utils"
 import { DEMO_CAR, F1_CAR, LMU_HYPERCAR_CAR } from "../../data/car-models";
 
 type ModelId = "gt3" | "f1" | "peugeot";

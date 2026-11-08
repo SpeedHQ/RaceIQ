@@ -4,22 +4,23 @@
 
 ## Manifest
 
-- Catalog version: `0.19.2`
+- Catalog version: `0.21.1`
 - Schema version: `v7`
-- Generator: `RaceIQ telemetry-catalog generator@0.19.2`
-- Generator source SHA-256: `6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31`
-- Content SHA-256: `c79a9091f13ccd4cdba1329693642f4262a46d38a76eab89e9d0216ebdc1fc36`
+- Generator: `RaceIQ telemetry-catalog generator@0.21.1`
+- Generator source SHA-256: `a1c55ed39fd6cb5c8dff2f5b00cf9e7daf2b38662ae4b236f33be3b2fd9cf6f1`
+- Content SHA-256: `28da4724e9abbe22736952f708f5326a1b9d5dc17b330a74ef0af6ed7cbb7478`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
+| f1-2025 | 292 | 292 | 119 | 173 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
-| ac-evo | 254 | 224 | 124 | 100 | 0 | 0 | 30 |
+| ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
-| lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
+| lmu | 250 | 250 | 126 | 124 | 0 | 0 | 0 |
+| ams2 | 112 | 112 | 108 | 4 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -35,6 +36,10 @@
 | `brakes.brake-line-press` | Brake Line Press | number | mass × length^-1 × time^-2 | bar | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.brake-temp` | Brake Temp | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `brakes.hand-brake` | Hand Brake | number | unit:0–255 | 0–255 | scalar |  |  |  |
+| `control.brake` | Brake input (fraction) | number | dimensionless | fraction | scalar |  |  |  |
+| `control.clutch` | Clutch input (fraction) | number | dimensionless | fraction | scalar |  |  |  |
+| `control.steering` | Steering | number | dimensionless | fraction | scalar |  |  |  |
+| `control.throttle` | Throttle | number | dimensionless | fraction | scalar |  |  |  |
 | `damage.brake-disc-life` | Brake Disc Life | number | dimensionless | % | scalar |  |  |  |
 | `damage.brake-pad-wear` | Brake Pad Wear | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `damage.brakes-damage` | Brakes Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
@@ -59,8 +64,8 @@
 | `damage.rear-wing-damage` | Rear Wing Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.sidepod-damage` | Sidepod Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.tyres-damage` | Tyres Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
-| `diagnostics.best-sector1` | Best Sector1 | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.best-sector2` | Best Sector2 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.best-sector1` | Best Sector1 | number | time | s | scalar |  |  |  |
+| `diagnostics.best-sector2` | Best Sector2 | number | time | s | scalar |  |  |  |
 | `diagnostics.camera.active-camera-number` | Active camera number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.active-group-number` | Active camera group number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.group-name` | Camera group name | structured | dimensionless | text | variable:0-* | group-index:source-order | indices: group-index (variable:0-*, source-order); fields: value:string |  |
@@ -75,13 +80,12 @@
 | `diagnostics.chan-latency` | Chan Latency | number | time | s | scalar |  |  |  |
 | `diagnostics.chan-partner-quality` | Chan Partner Quality | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.chan-quality` | Chan Quality | number | dimensionless | % | scalar |  |  |  |
-| `diagnostics.cloud-coverage` | Cloud Coverage | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.corner-cutting-warnings` | Corner Cutting Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.cpu-usage-bg` | Cpu Usage BG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.cpu-usage-fg` | Cpu Usage FG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.current-bhp` | Current Bhp | number | unit:bhp | bhp | scalar |  |  |  |
-| `diagnostics.current-sector1` | Current Sector1 | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.current-sector2` | Current Sector2 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.current-sector1` | Current Sector1 | number | time | s | scalar |  |  |  |
+| `diagnostics.current-sector2` | Current Sector2 | number | time | s | scalar |  |  |  |
 | `diagnostics.display-units` | Display Units | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-fast-repair` | Dp Fast Repair | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-windshield-tearoff` | Dp Windshield Tearoff | number | unit:unitless | unitless | scalar |  |  |  |
@@ -97,8 +101,9 @@
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
-| `diagnostics.last-sector1` | Last Sector1 | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.last-sector2` | Last Sector2 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.last-sector1` | Last Sector1 | number | time | s | scalar |  |  |  |
+| `diagnostics.last-sector2` | Last Sector2 | number | time | s | scalar |  |  |  |
+| `diagnostics.lmu-context` | Lmu Context | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-page-fault-sec` | Mem Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-soft-page-fault-sec` | Mem Soft Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.migration` | Migration | number | dimensionless | ratio | scalar |  |  |  |
@@ -129,7 +134,7 @@
 | `diagnostics.raw-session-metadata` | Complete SessionInfo YAML | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `diagnostics.rear-anti-sway` | Rear Anti Sway | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.rear-flap-activated` | Rear Flap Activated | boolean | dimensionless | boolean | scalar |  |  |  |
-| `diagnostics.regen-kw` | Regen Kw | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.regen-kw` | Regen Kw | number | mass × length^2 × time^-3 | kW | scalar |  |  |  |
 | `diagnostics.result-reason` | Result Reason | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.result-source` | Result Source | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.sim-build-target` | Build Target | string | dimensionless | text | scalar |  |  |  |
@@ -137,7 +142,6 @@
 | `diagnostics.sim-build-version` | Simulator build version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.solar-altitude` | Solar Altitude | number | angle | rad | scalar |  |  |  |
 | `diagnostics.solar-azimuth` | Solar Azimuth | number | angle | rad | scalar |  |  |  |
-| `diagnostics.state-of-charge` | State Of Charge | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.surface-type` | Surface Type | number | dimensionless | count | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.telemetry.disk-file` | Telemetry Disk File | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.texture-reload-allowed` | Texture reload allowed | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -147,6 +151,7 @@
 | `diagnostics.total-warnings` | Total Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.track-content-version` | Track Version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.vehicle-fia-flags` | Vehicle FIA Flags | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.vehicle-fia-flags-updated-at` | Vehicle FIA Flags Updated At | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vehicle-id` | Vehicle Id | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vid-cap-active` | Vid Cap Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.vid-cap-enabled` | Vid Cap Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -178,18 +183,21 @@
 | `engine.engine-warnings` | Engine Warnings | number | unit:irsdk_enginewarnings | irsdk_EngineWarnings | scalar |  |  |  |
 | `engine.engine0-rpm` | Engine0 RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.exhaust-temp-c` | Exhaust Temp C | number | temperature | °C | scalar |  |  |  |
+| `engine.ignition-starter` | Ignition Starter | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2 |  |
 | `engine.manifold-press` | Manifold Press | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
 | `engine.manual-boost` | Manual Boost | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.manual-no-boost` | Manual No Boost | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.oil-level` | Oil Level | number | length^3 | L | scalar |  |  |  |
 | `engine.oil-pressure` | Oil pressure | number | mass × length^-1 × time^-2 | bar | scalar |  |  |  |
 | `engine.oil-temperature` | Oil temperature | number | temperature | °C | scalar |  |  |  |
+| `engine.overheating` | Overheating | boolean | dimensionless | boolean | scalar |  |  |  |
 | `engine.player-car-power-adjust` | Player Car Power Adjust | number | dimensionless | % | scalar |  |  |  |
 | `engine.player-car-sl-blink-rpm` | Player Car SL Blink RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.player-car-sl-first-rpm` | Player Car SL First RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.player-car-sl-last-rpm` | Player Car SL Last RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.player-car-sl-shift-rpm` | Player Car SL Shift RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.power` | Power | number | mass × length^2 × time^-3 | W | scalar |  |  |  |
+| `engine.rpm` | Engine RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.shift-indicator-pct` | Shift Indicator Pct | number | dimensionless | % | scalar |  |  |  |
 | `engine.shift-light.blink-rpm` | Shift-light blink RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
 | `engine.shift-light.first-rpm` | Shift-light first RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
@@ -200,7 +208,9 @@
 | `engine.turbo-boost` | Turbo Boost | number | dimensionless | count | scalar |  |  |  |
 | `engine.voltage` | Voltage | number | mass × length^2 × time^-3 × electric-current^-1 | V | scalar |  |  |  |
 | `engine.water-level` | Water Level | number | length^3 | L | scalar |  |  |  |
-| `fuel.battery-charge-fraction` | Battery Charge Fraction | number | dimensionless | ratio | scalar |  |  |  |
+| `engine.water-temperature` | Engine Water Temp | number | temperature | °C | scalar |  |  |  |
+| `fuel.battery-charge-fraction` | Battery Charge Fraction | number | dimensionless | fraction | scalar |  |  |  |
+| `fuel.competitor.ambiguous-fuel-fraction` | Competitor ambiguous fuel fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `fuel.density` | Fuel density | number | unit:kg/l | kg/L | scalar |  |  |  |
 | `fuel.dp-fuel-add-kg` | Dp Fuel Add Kg | number | mass | kg | scalar |  |  |  |
 | `fuel.dp-fuel-auto-fill-active` | Dp Fuel Auto Fill Active | number | length^3 | L | scalar |  |  |  |
@@ -223,7 +233,13 @@
 | `fuel.laps-remaining` | Fuel laps remaining | number | dimensionless | count | scalar |  |  |  |
 | `fuel.maximum-fill-percentage` | Maximum fuel fill percentage | number | dimensionless | % | scalar |  |  |  |
 | `fuel.remaining-volume` | Fuel remaining volume | number | length^3 | L | scalar |  |  |  |
-| `fuel.virtual-energy` | Virtual Energy | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
+| `fuel.state-of-charge` | State Of Charge | number | dimensionless | % | scalar |  |  |  |
+| `fuel.virtual-energy` | Virtual Energy | number | dimensionless | fraction | scalar |  |  |  |
+| `hybrid.motor.rpm` | Motor RPM | number | angle × time^-1 | rpm | scalar |  |  |  |
+| `hybrid.motor.state` | Motor State | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
+| `hybrid.motor.temperature` | Motor Temperature | number | temperature | °C | scalar |  |  |  |
+| `hybrid.motor.torque` | Motor Torque | number | unit:n·m | N·m | scalar |  |  |  |
+| `hybrid.motor.water-temperature` | Motor Water Temperature | number | temperature | °C | scalar |  |  |  |
 | `identity.camera-focus-car-index` | Camera focus car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.car-class` | Car Class | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-class-name` | Car Class Name | string | dimensionless | text | scalar |  |  |  |
@@ -232,8 +248,10 @@
 | `identity.car-model` | Car Model | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
-| `identity.car-ordinal` | Car Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
+| `identity.competitor.car-name` | Scoring snapshot competitor car name | string | dimensionless | text | scalar |  |  |  |
+| `identity.competitor.driver-name` | Scoring snapshot competitor driver name | string | dimensionless | text | scalar |  |  |  |
+| `identity.competitor.vehicle-class` | Competitor vehicle class | string | dimensionless | text | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
 | `identity.game-version` | Game Version | number | dimensionless | count | scalar |  |  |  |
@@ -248,10 +266,10 @@
 | `identity.player-track-surface` | Player Track Surface | number | dimensionless | count | scalar |  |  |  |
 | `identity.player-track-surface-material` | Player Track Surface Material | number | unit:irsdk_trksurf | irsdk_TrkSurf | scalar |  |  |  |
 | `identity.session-name` | Session Name | string | dimensionless | text | scalar |  |  |  |
+| `identity.source-identity` | Source identity | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
 | `identity.track-name` | Track name | string | dimensionless | text | scalar |  |  |  |
-| `identity.track-ordinal` | Track Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.track.altitude` | Track altitude | number | length | m | scalar |  |  |  |
 | `identity.track.city` | Track city | string | dimensionless | text | scalar |  |  |  |
 | `identity.track.configuration-name` | Track configuration name | string | dimensionless | text | scalar |  |  |  |
@@ -306,6 +324,14 @@
 | `motion.angular-velocity-x` | Angular Velocity X | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-y` | Angular Velocity Y | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-z` | Angular Velocity Z | number | length × time^-1 | m/s | scalar |  |  |  |
+| `motion.competitor.local-velocity.x` | Competitor local velocity X | number | length × time^-1 | m/s | scalar |  |  |  |
+| `motion.competitor.local-velocity.y` | Competitor local velocity Y | number | length × time^-1 | m/s | scalar |  |  |  |
+| `motion.competitor.local-velocity.z` | Competitor local velocity Z | number | length × time^-1 | m/s | scalar |  |  |  |
+| `motion.competitor.orientation` | Competitor orientation matrix | structured | unit:matrix | matrix | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.position.x` | Competitor world position X | number | length | m | scalar |  |  |  |
+| `motion.competitor.position.y` | Competitor world position Y | number | length | m | scalar |  |  |  |
+| `motion.competitor.position.z` | Competitor world position Z | number | length | m | scalar |  |  |  |
+| `motion.competitor.speed` | Competitor derived speed | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.driver-head-position.x` | Driver head position X | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.y` | Driver head position Y | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
@@ -334,6 +360,9 @@
 | `motion.yaw` | Yaw | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-north` | Yaw North | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-rate-st` | Yaw Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
+| `race.competitor.best-lap-time` | Scoring snapshot competitor best lap time | number | time | s | scalar |  |  |  |
+| `race.competitor.best-sector-1` | Competitor best sector 1 | number | time | s | scalar |  |  |  |
+| `race.competitor.best-sector-2-cumulative` | Competitor best cumulative sector 2 | number | time | s | scalar |  |  |  |
 | `race.competitor.car-class-color` | Competitor car-class color | structured | unit:color | color | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-class-id` | Competitor car-class ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-class-license-level` | Competitor class license level | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -349,12 +378,17 @@
 | `race.competitor.car-path` | Competitor car path | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.class-dry-tire-set-limit` | Competitor class dry-tire set limit | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-max-fuel-percentage` | Competitor class maximum fuel percentage | structured | dimensionless | % | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.class-position` | Competitor class position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.class-position` | Competitor class position | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.class-power-adjust` | Competitor class power adjustment | structured | dimensionless | % | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-relative-speed` | Competitor class relative speed | structured | dimensionless | ratio | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-weight-penalty` | Competitor class weight penalty | structured | mass | kg | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.club-id` | Club ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.club-name` | Competitor club name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.count-lap-flag` | Competitor count-lap flag | number | dimensionless | index | scalar |  |  |  |
+| `race.competitor.current-lap-number` | Scoring snapshot competitor current lap number | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.current-sector` | Competitor current sector | number | dimensionless | index | scalar |  |  |  |
+| `race.competitor.current-sector-1` | Competitor current sector 1 | number | time | s | scalar |  |  |  |
+| `race.competitor.current-sector-2-cumulative` | Competitor current cumulative sector 2 | number | time | s | scalar |  |  |  |
 | `race.competitor.division-id` | Division ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.division-name` | Competitor division name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.driver-abbreviated-name` | Competitor abbreviated name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
@@ -362,16 +396,26 @@
 | `race.competitor.driver-incident-count` | Competitor current-driver incident count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.driver-initials` | Competitor initials | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.driver-name` | Competitor driver name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.estimated-lap-time` | Competitor estimated lap time | number | time | s | scalar |  |  |  |
 | `race.competitor.fast-repairs-used` | Competitor fast repairs used | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.helmet-design` | Competitor helmet design | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.in-pits` | Competitor reported in pits | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.competitor.incidents` | Competitor incidents | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.is-ai` | Competitor AI status | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.is-pace-car` | Competitor pace-car status | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.is-spectator` | Competitor spectator status | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.joker-laps-complete` | Joker Laps Complete | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.lap-distance` | Competitor lap distance | number | length | m | scalar |  |  |  |
+| `race.competitor.lap-fraction` | Scoring snapshot competitor lap fraction | number | dimensionless | fraction | scalar |  |  |  |
+| `race.competitor.lap-start-time` | Competitor lap start time | number | time | s | scalar |  |  |  |
+| `race.competitor.laps-behind-leader` | Competitor laps behind leader | number | dimensionless | count | scalar |  |  |  |
+| `race.competitor.laps-behind-next` | Competitor laps behind next place | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.laps-complete` | Competitor laps complete | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.laps-driven` | Laps Driven | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.laps-led` | Competitor laps led | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.last-lap-time` | Scoring snapshot competitor last lap time | number | time | s | scalar |  |  |  |
+| `race.competitor.last-sector-1` | Competitor last sector 1 | number | time | s | scalar |  |  |  |
+| `race.competitor.last-sector-2-cumulative` | Competitor last cumulative sector 2 | number | time | s | scalar |  |  |  |
 | `race.competitor.license-color` | Competitor license color | structured | unit:color | color | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.license-level` | Competitor license level | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.license-name` | Competitor license name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
@@ -380,7 +424,9 @@
 | `race.competitor.pace-line` | Competitor pace line | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.pace-row` | Competitor pace row | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.penalties` | Competitor penalties | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.pit-state` | Competitor pit state | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4 |  |
 | `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
+| `race.competitor.pit-stop-count` | Scoring snapshot competitor pit-stop count | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.primary-sponsor` | Competitor primary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
@@ -389,20 +435,30 @@
 | `race.competitor.rating` | Competitor rating | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.reason-out-id` | Reason Out ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.reason-out-text` | Reason Out Str | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.scoring-time` | Competitor scoring observation time | number | time | s | scalar |  |  |  |
 | `race.competitor.secondary-sponsor` | Competitor secondary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.server-scored` | Competitor server-scored report | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.competitor.session-flags` | Competitor session flags | structured | unit:bitfield | bitfield | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.suit-design` | Competitor suit design | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.team-id` | Competitor team ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.team-incident-count` | Competitor team incident count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.team-name` | Competitor team name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.time-behind-leader` | Competitor time behind leader | number | time | s | scalar |  |  |  |
+| `race.competitor.time-behind-next` | Competitor time behind next place | number | time | s | scalar |  |  |  |
+| `race.competitor.time-into-lap-estimate` | Competitor estimated time into lap | number | time | s | scalar |  |  |  |
+| `race.competitor.total-laps` | Competitor total laps | number | dimensionless | count | scalar |  |  |  |
 | `race.competitor.track-location` | Competitor track location | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.track-surface-material` | Competitor track-surface material | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.control` | Control | enum | unit:enum | enum | scalar |  | domain: -1, 0, 1, 2, 3 |  |
+| `race.count-lap-flag` | Count Lap Flag | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2 |  |
 | `race.driver-change-lap-status` | Driver-change lap status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.extended-race-iq` | Extended Race IQ | number | unit:unitless | unitless | scalar |  |  |  |
+| `race.finish-status` | Finish Status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
+| `race.in-garage-stall` | In Garage Stall | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -412,6 +468,7 @@
 | `race.pace-car-index` | Pace-car index | number | dimensionless | index | scalar |  |  |  |
 | `race.penalties` | Penalties | number | dimensionless | count | scalar |  |  |  |
 | `race.penalty-code` | Penalty | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 |  |
+| `race.penalty-count` | Penalty Count | number | dimensionless | count | scalar |  |  |  |
 | `race.penalty-time` | Penalty Time | number | time | s | scalar |  |  |  |
 | `race.penalty-type` | Penalty Type | string | dimensionless | text | scalar |  |  |  |
 | `race.pit-lane-timer-active` | Pit Lane Timer Active | number | time | s | scalar |  |  |  |
@@ -426,6 +483,7 @@
 | `race.pit-stall-lap-fraction` | Pit-stall lap fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `race.pit-state` | Pit State | number | dimensionless | count | scalar |  |  |  |
 | `race.pit-status` | Pit Status | string | dimensionless | text | scalar |  |  |  |
+| `race.pit-stop-count` | Pit Stop Count | number | dimensionless | count | scalar |  |  |  |
 | `race.pits-open` | Pits Open | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.pitstop-active` | Pitstop Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player-car-in-pit-stall` | Player Car In Pit Stall | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -434,17 +492,24 @@
 | `race.player-incident-count` | Player incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.player.push-to-pass-active` | Player push-to-pass active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player.push-to-pass-count` | Player push-to-pass count | number | dimensionless | count | scalar |  |  |  |
+| `race.primary-flag` | Primary Flag | enum | unit:enum | enum | scalar |  | domain: 0, 6 |  |
 | `race.race-laps` | Race Laps | number | dimensionless | count | scalar |  |  |  |
 | `race.race-position` | Race Position | number | dimensionless | count | scalar |  |  |  |
+| `race.race-start-at` | Race Start At | number | dimensionless | count | scalar |  |  |  |
 | `race.rear-flap-legal-status` | Rear Flap Legal Status | number | dimensionless | count | scalar |  |  |  |
 | `race.result-status` | Result Status | number | dimensionless | count | scalar |  |  |  |
 | `race.safety-car-status` | Safety Car Status | number | dimensionless | count | scalar |  |  |  |
+| `race.safety-car-status-updated-at` | Safety Car Status Updated At | number | dimensionless | count | scalar |  |  |  |
+| `race.scheduled-stops` | Scheduled Stops | number | dimensionless | count | scalar |  |  |  |
+| `race.sector-flags` | Sector Flags | structured | dimensionless | code | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.caution-flags` | Results Num Caution Flags | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.caution-laps` | Results Num Caution Laps | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.laps-complete` | Results Laps Complete | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.lead-changes` | Results Num Lead Changes | structured | dimensionless | count | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `race.session-summary.official` | Results Official | structured | dimensionless | boolean | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:boolean |  |
 | `race.team-incident-count` | Team incident count | number | dimensionless | count | scalar |  |  |  |
+| `race.under-yellow` | Under Yellow | boolean | dimensionless | boolean | scalar |  |  |  |
+| `race.yellow-flag-state` | Yellow Flag State | enum | unit:enum | enum | scalar |  | domain: -1, 0, 1, 2, 3, 4, 5, 6, 7 |  |
 | `session.car-class-count` | Num Car Classes | number | dimensionless | count | scalar |  |  |  |
 | `session.car-type-count` | Num Car Types | number | dimensionless | count | scalar |  |  |  |
 | `session.category` | Category | string | dimensionless | text | scalar |  |  |  |
@@ -472,6 +537,7 @@
 | `session.driver-change-rule-set` | DC Rule Set | string | dimensionless | text | scalar |  |  |  |
 | `session.driver-change.drivers-used` | Team drivers used | number | dimensionless | count | scalar |  |  |  |
 | `session.event-type` | Event Type | string | dimensionless | text | scalar |  |  |  |
+| `session.game-phase` | Game Phase | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 |  |
 | `session.graphics-packet-id` | Graphics Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.heat-racing` | Heat Racing | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.is-replay-playing` | Is Replay Playing | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -591,6 +657,7 @@
 | `setup.weight.corner-weight` | Corner weight | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.weight.cross-weight` | Cross weight | number | dimensionless | % | scalar |  |  |  |
 | `setup.weight.front-distribution` | Front weight distribution | number | dimensionless | % | scalar |  |  |  |
+| `steering.shaft-torque` | Steering Shaft Torque | number | unit:n·m | N·m | scalar |  |  |  |
 | `suspension.cg-height` | Center-of-gravity height | number | length | m | scalar |  |  |  |
 | `suspension.norm-suspension-travel` | Norm Suspension Travel | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `suspension.ride-height` | Live ride height | number | length | m | variable:0-* | source-order |  |  |
@@ -629,6 +696,10 @@
 | `timing.frame-time-ms` | Frame Time Ms | number | time | ms | scalar |  |  |  |
 | `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | s | scalar |  |  |  |
 | `timing.gap-behind-ms` | Gap Behind Ms | number | time | s | scalar |  |  |  |
+| `timing.gap.car-ahead` | Time Gap Car Ahead | number | time | s | scalar |  |  |  |
+| `timing.gap.car-behind` | Time Gap Car Behind | number | time | s | scalar |  |  |  |
+| `timing.gap.place-ahead` | Time Gap Place Ahead | number | time | s | scalar |  |  |  |
+| `timing.gap.place-behind` | Time Gap Place Behind | number | time | s | scalar |  |  |  |
 | `timing.grid-position` | Grid Position | number | dimensionless | count | scalar |  |  |  |
 | `timing.ideal-lap-time` | Ideal lap time | string | time | s | scalar |  |  |  |
 | `timing.lap-delta-to-best-lap` | Lap Delta To Best Lap | number | time | s | scalar |  |  |  |
@@ -771,6 +842,9 @@
 | `weather.air-density` | Air Density | number | mass × length^-3 | kg/m^3 | scalar |  |  |  |
 | `weather.air-pressure` | Current air pressure | number | mass × length^-1 × time^-2 | kPa | scalar |  |  |  |
 | `weather.air-temp` | Air Temp | number | temperature | °C | scalar |  |  |  |
+| `weather.average-path-wetness` | Average Path Wetness | number | dimensionless | fraction | scalar |  |  |  |
+| `weather.cloud-coverage` | Cloud Coverage | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 |  |
+| `weather.cloud-darkness` | Dark Cloud | number | dimensionless | fraction | scalar |  |  |  |
 | `weather.configured.fog-level` | Configured fog level | number | dimensionless | % | scalar |  |  |  |
 | `weather.configured.relative-humidity` | Configured relative humidity | number | dimensionless | % | scalar |  |  |  |
 | `weather.configured.skies` | Configured skies | string | dimensionless | text | scalar |  |  |  |
@@ -781,7 +855,9 @@
 | `weather.dynamic-track-mode` | Dynamic track mode | string | dimensionless | text | scalar |  |  |  |
 | `weather.fog-level` | Current fog level | number | dimensionless | % | scalar |  |  |  |
 | `weather.is-static-weather` | Is Static Weather | boolean | dimensionless | boolean | scalar |  |  |  |
-| `weather.rain-intensity` | Rain Intensity | number | dimensionless | count | scalar |  |  |  |
+| `weather.maximum-path-wetness` | Maximum Path Wetness | number | dimensionless | fraction | scalar |  |  |  |
+| `weather.minimum-path-wetness` | Minimum Path Wetness | number | dimensionless | fraction | scalar |  |  |  |
+| `weather.rain-intensity` | Rain intensity | number | dimensionless | fraction | scalar |  |  |  |
 | `weather.rain-percent` | Rain Percent | number | dimensionless | % | scalar |  |  |  |
 | `weather.relative-humidity` | Current relative humidity | number | dimensionless | % | scalar |  |  |  |
 | `weather.skies` | Current skies | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, clear, partly cloudy, mostly cloudy, overcast |  |
@@ -795,6 +871,7 @@
 | `weather.track-wetness` | Track Wetness | number | dimensionless | count | scalar |  |  |  |
 | `weather.weather-declared-wet` | Weather Declared Wet | boolean | dimensionless | boolean | scalar |  |  |  |
 | `weather.weather-type` | Current weather type | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, constant, dynamic |  |
+| `weather.wind` | Wind | structured | length × time^-1 | m/s | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
 | `weather.wind-dir` | Wind Dir | number | angle | rad | scalar |  |  |  |
 | `weather.wind-direction` | Current wind direction | number | angle | deg | scalar |  |  |  |
 | `weather.wind-speed` | Current wind speed | number | length × time^-1 | m/s | scalar |  |  |  |

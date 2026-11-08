@@ -1,4 +1,5 @@
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import Database from "libsql";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { restoreSeededDatabase } from "./seeded-database";
@@ -18,17 +19,37 @@ export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
   if (process.env.PW_SEEDED_DATABASE) {
     restoreSeededDatabase(repoDir, dataDir, process.env.PW_SEEDED_DATABASE);
-    return;
+  } else {
+    const seedArgs = [
+      "run",
+      "apps/backend/scripts/data/seed-db.ts",
+      `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`,
+      "--playwright",
+    ];
+    const result = spawnSync("bun", seedArgs, {
+      cwd: repoDir,
+      env: {
+        ...process.env,
+        DATA_DIR: dataDir,
+        DB_IN_MEMORY: "0",
+        RACEIQ_TEST_MODE: "0",
+        SERVER_PASSWORD: "",
+      },
+      stdio: "inherit",
+    });
+
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      const cause = result.signal ? `signal ${result.signal}` : `exit code ${result.status ?? "unknown"}`;
+      throw new Error(`Screenshot database seed failed with ${cause}`);
+    }
   }
 
-  const result = spawnSync("bun", ["run", "apps/backend/scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`], {
-    cwd: repoDir,
-    env: { ...process.env, DATA_DIR: dataDir },
-    stdio: "inherit",
-  });
-
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`Screenshot database seed failed with exit code ${result.status ?? "unknown"}`);
+  // Generic screenshot fixtures are not the startup-migration scenario; that flow has isolated coverage.
+  const database = new Database(resolve(dataDir, "app.db"));
+  try {
+    database.prepare("DELETE FROM session_capture_split_jobs WHERE status IN ('queued', 'failed')").run();
+  } finally {
+    database.close();
   }
 }

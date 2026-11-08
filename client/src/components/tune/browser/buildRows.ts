@@ -10,8 +10,8 @@ export interface RawUserTune {
   name: string;
   author: string;
   category: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
+  carId: string;
+  trackId: string | null;
   description: string;
   settings: unknown;
   bestLapTime: number | null;
@@ -35,8 +35,8 @@ export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): Tun
     author: t.author,
     source: "community",
     category: t.category,
-    carOrdinal: t.carOrdinal,
-    trackOrdinal: t.trackOrdinal ?? null,
+    carId: t.carId,
+    trackId: t.trackId ?? null,
     description: t.description ?? "",
     settings: t.settings,
     ...lapFields(t.description ?? ""),
@@ -49,8 +49,8 @@ export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): Tun
     author: t.author || m.tune_me(),
     source: "user",
     category: t.category,
-    carOrdinal: t.carOrdinal,
-    trackOrdinal: t.trackOrdinal ?? null,
+    carId: t.carId,
+    trackId: t.trackId ?? null,
     description: t.description ?? "",
     settings: t.settings,
     lapTimeSec: t.bestLapTime != null && t.bestLapTime > 0 ? t.bestLapTime : null,

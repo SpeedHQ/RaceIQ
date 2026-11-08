@@ -13,8 +13,6 @@ const baseSha = process.env.BASE_SHA;
 const runnerTemp = process.env.RUNNER_TEMP;
 if (!baseRef || !baseSha || !runnerTemp) throw new Error("BASE_REF, BASE_SHA, and RUNNER_TEMP are required");
 
-run(["config", "user.name", "github-actions[bot]"]);
-run(["config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
 run(["fetch", "--no-tags", "origin", `refs/heads/${baseRef}:refs/remotes/origin/${baseRef}`]);
 let fetchedBaseSha = run(["rev-parse", "--verify", "FETCH_HEAD"], true);
 if (fetchedBaseSha !== baseSha) {
@@ -22,6 +20,4 @@ if (fetchedBaseSha !== baseSha) {
   fetchedBaseSha = run(["rev-parse", "--verify", "FETCH_HEAD"], true);
 }
 if (fetchedBaseSha !== baseSha) throw new Error(`Fetched base commit ${fetchedBaseSha} does not match ${baseSha}`);
-run(["merge", "--no-edit", baseSha]);
 run(["worktree", "add", "--detach", `${runnerTemp}/raceiq-base`, baseSha]);
-export {};

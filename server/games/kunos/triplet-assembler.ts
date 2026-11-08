@@ -3,7 +3,7 @@
  * complete {physics, graphics, staticData} triplets from the latest buffers.
  *
  * This decouples source reading rates (physics 300Hz, graphics 60Hz, static once)
- * from the deterministic assembly rate (100Hz main loop), matching production behavior.
+ * from selected capture admission (up to 100Hz), retaining fresh snapshots.
  *
  * Includes observability for latency and jitter monitoring.
  */
@@ -11,6 +11,8 @@
 import type { IRealtimeKunosMemoryReader } from "./memory-reader";
 import type { Triplet } from "./triplet-pipeline";
 import { logger } from "../../runtime/logger";
+import { NativeCaptureRateLimiter } from "../shared/native-capture-rate-limiter";
+import { getRecordingFrequencyHz } from "../../runtime/config/recording-frequency";
 
 interface PollingMetrics {
   callbackDurationMs: number[];
@@ -76,6 +78,7 @@ export class TripletAssembler {
   private _pollingTimer: ReturnType<typeof setInterval> | null = null;
   private _running = false;
   private _dispatcher: OrderedTripletDispatcher | null = null;
+  private readonly _captureRateLimiter = new NativeCaptureRateLimiter();
 
   // Observability
   private _metrics: PollingMetrics = {
@@ -101,6 +104,7 @@ export class TripletAssembler {
   start(callback: (triplet: Triplet) => Promise<void>): void {
     if (this._running) return;
     this._running = true;
+    this._captureRateLimiter.reset();
     this._lastPollTime = performance.now();
     this._dispatcher = new OrderedTripletDispatcher(
       async (triplet) => {
@@ -137,6 +141,7 @@ export class TripletAssembler {
     // never waits for downstream persistence; the dispatcher owns FIFO drain.
     this._pollingTimer = setInterval(() => {
       const pollStartTime = performance.now();
+      if (!this._captureRateLimiter.shouldCapture(pollStartTime, getRecordingFrequencyHz())) return;
       const intervalMs = pollStartTime - this._lastPollTime;
 
       if (this._enableMetrics) {
@@ -199,7 +204,7 @@ export class TripletAssembler {
       this._metrics.totalPolls++;
     }, 1000 / 100); // 10ms
 
-    console.log(`[TripletAssembler] Started at 100Hz${this._enableMetrics ? " (observability enabled)" : ""}`);
+    console.log(`[TripletAssembler] Started 100Hz polling with selected capture ceiling${this._enableMetrics ? " (observability enabled)" : ""}`);
 
     // Log metrics periodically (every 5s)
     if (this._enableMetrics) {
@@ -209,6 +214,7 @@ export class TripletAssembler {
 
   async stop(): Promise<void> {
     this._running = false;
+    this._captureRateLimiter.reset();
     if (this._pollingTimer) {
       clearInterval(this._pollingTimer);
       this._pollingTimer = null;

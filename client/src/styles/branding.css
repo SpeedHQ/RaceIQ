@@ -53,6 +53,11 @@
   --brand-game-lmu-surface-mid: #1b1506;
   --brand-game-lmu-surface-end: #302509;
 
+  --brand-game-ams2: #f59e0b;
+  --brand-game-ams2-surface-start: #100a03;
+  --brand-game-ams2-surface-mid: #211306;
+  --brand-game-ams2-surface-end: #362009;
+
   /* Vehicle manufacturers */
   --brand-car-default: #555555;
   --brand-car-porsche: #c4a035;
@@ -140,14 +145,6 @@
   border-color: color-mix(in srgb, var(--brand-color) 20%, transparent);
 }
 
-.game-brand-card {
-  border-color: color-mix(in srgb, var(--brand-color) 12%, transparent);
-}
-
-.game-brand-card:hover {
-  border-color: color-mix(in srgb, var(--brand-color) 35%, transparent);
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--brand-color) 10%, transparent);
-}
 
 .game-brand-glow {
   background: radial-gradient(circle, color-mix(in srgb, var(--brand-color) 15%, transparent) 0%, transparent 70%);
@@ -367,4 +364,11 @@
 .provider-badge {
   color: var(--brand-provider, var(--app-text-dim));
   background: color-mix(in srgb, var(--brand-provider, var(--app-text-dim)) 20%, transparent);
+}
+
+[data-game-brand="ams2"] {
+  --brand-color: var(--brand-game-ams2);
+  --brand-surface-start: var(--brand-game-ams2-surface-start);
+  --brand-surface-mid: var(--brand-game-ams2-surface-mid);
+  --brand-surface-end: var(--brand-game-ams2-surface-end);
 }

@@ -5,7 +5,7 @@ import { errorFromResponse } from "@/lib/rpc-error";
 import { useRequiredGameId } from "@/stores/game";
 
 export type TuneFormCar = {
-  ordinal: number;
+  id: string;
   name: string;
   specs?: {
     topSpeedMph: number;

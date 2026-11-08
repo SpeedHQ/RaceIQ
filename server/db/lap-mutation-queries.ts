@@ -1,22 +1,24 @@
 import { cacheDelete } from "./telemetry-replay-storage";
 import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps } from "./schema";
+import { laps, sessions } from "./schema";
+import { withDatabaseWrite } from "./write-coordination";
+import { revokeUnreferencedLmuOpponentIndexes } from "./session-queries";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
-  await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
+  await withDatabaseWrite(() => db.update(laps).set({ notes }).where(eq(laps.id, id)).run());
 }
 
 
 export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: number[] | null): Promise<void> {
   const values: Record<string, unknown> = { isValid, invalidReason };
-  if (sectors !== undefined) {
-    values.sectorTimes = sectors;
-  }
-  await db.update(laps).set(values).where(eq(laps.id, id)).run();
+  if (sectors !== undefined) values.sectorTimes = sectors;
+  await withDatabaseWrite(() => db.update(laps).set(values).where(eq(laps.id, id)).run());
 }
 
 /**
@@ -42,10 +44,11 @@ export function insertLap(
   profileId: number | null = null,
   tuneId: number | null = null,
   invalidReason: string | null = null,
-  sectors: number[] | null = null,
+  sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
-  return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity);
+  return withDatabaseWrite(() => doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity), undefined, "lap.insert");
 }
 
 async function doInsertLap(
@@ -58,7 +61,8 @@ async function doInsertLap(
   profileId: number | null,
   tuneId: number | null,
   invalidReason: string | null,
-  sectors: number[] | null = null,
+  sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
   // Stamp the lap with the active tuning session (if any). This is the single
@@ -78,8 +82,9 @@ async function doInsertLap(
       isValid,
       rawByteOffset,
       rawFrameCount,
-      sectorTimes: sectors,
       profileId,
+      sectorTimes: sectors,
+      classification,
       tuneId,
       invalidReason,
       experimentId: activeExperimentId,
@@ -91,7 +96,7 @@ async function doInsertLap(
   return result.id;
 }
 export async function updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
-  await db.update(laps).set({ carSetup: carSetup ? JSON.stringify(carSetup) : null }).where(eq(laps.id, lapId)).run();
+  await withDatabaseWrite(() => db.update(laps).set({ carSetup: carSetup ? JSON.stringify(carSetup) : null }).where(eq(laps.id, lapId)).run());
 }
 
 /**
@@ -107,29 +112,41 @@ export async function updateLapCarSetup(lapId: number, carSetup: object | null):
  */
 
 export async function setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
-  await db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run();
+  await withDatabaseWrite(() => db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run());
 }
 
 
 /** Delete one transient lap row without deleting its still-active parent session. */
 export async function deleteLapOnly(id: number): Promise<void> {
-  await db.delete(laps).where(eq(laps.id, id)).run();
+  await withDatabaseWrite(() => db.delete(laps).where(eq(laps.id, id)).run());
   cacheDelete(id);
 }
 
 export async function deleteLap(id: number): Promise<boolean> {
-  // Get session ID before deleting
-  const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
-  const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
-  if (result.length > 0) {
-    cacheDelete(id);
-    // Clean up empty parent session
-    if (lap) {
-      const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
-      if (remaining.length === 0) {
-        await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
+  const deletion = await withSessionCaptureMaintenanceLock(() => withDatabaseWrite(() =>
+    db.transaction(async (tx) => {
+      const lap = await tx.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
+      if (!lap) return null;
+      const session = await tx.select({
+        gameId: sessions.gameId,
+        rawFile: sessions.rawFile,
+        captureManifestFile: sessions.captureManifestFile,
+      }).from(sessions).where(eq(sessions.id, lap.sessionId)).get();
+      const result = await tx.delete(laps).where(eq(laps.id, id)).returning().all();
+      if (!result.length) return null;
+      const remaining = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
+      let indexSourcePath: string | null = null;
+      if (!remaining.length) {
+        const deletedSession = await tx.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
+        if (deletedSession.rowsAffected === 1 && session?.gameId === "lmu") {
+          indexSourcePath = session.captureManifestFile ?? session.rawFile;
+        }
       }
-    }
-  }
-  return result.length > 0;
+      return { indexSourcePath };
+    }),
+  ));
+  if (!deletion) return false;
+  cacheDelete(id);
+  if (deletion.indexSourcePath) await revokeUnreferencedLmuOpponentIndexes([deletion.indexSourcePath]);
+  return true;
 }

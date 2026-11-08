@@ -114,7 +114,49 @@ describe("aligned telemetry", () => {
     expect(ranged.distanceMeters.length).toBeLessThanOrEqual(50_000);
   });
 
+  test("projects through repeated reference points without reversing progress or losing missing positions", () => {
+    const reference = Array.from({ length: 202 }, (_, i) => {
+      const distance = Math.max(0, i - 1) * 10;
+      return { ...telemetry()[0], DistanceTraveled: distance, PositionX: 100 + distance, PositionZ: 10 };
+    });
+    const distances = [0, 10, 20, 15, 30, 40, 50, ...Array.from({ length: 195 }, (_, i) => 60 + i * 10)];
+    const candidate = distances.map((distance, i) => ({
+      ...reference[i],
+      DistanceTraveled: i * 10,
+      PositionX: i === 5 ? Number.NaN : 100 + distance,
+    }));
+    const index = prepareLapSetAlignmentIndex([
+      { ...input(1), telemetry: reference },
+      { ...input(2), telemetry: candidate },
+    ], { gridStepMeters: 1, trackLengthMeters: 2000 });
+    expect(index.referenceLapId).toBe(1);
+    const projected = index.distancesByLapId.get(2)!;
+    expect(projected.slice(0, 7)).toEqual([0, 10, 20, 20, 30, 30, 50]);
+    expect(projected.at(-1)).toBe(2000);
+    expect(projected.every((distance, i) => i === 0 || distance >= projected[i - 1])).toBe(true);
+  });
+
   test("rejects empty alignment input", () => {
     expect(() => alignLapSet([], { gridStepMeters: 1 })).toThrow("At least one lap required");
   });
+});
+
+test("completed invalid laps define the map instead of an unfinished session tail", () => {
+  const base = input(1).telemetry[0]!;
+  const packets = Array.from({ length: 101 }, (_, i) => ({ ...base,
+    DistanceTraveled: i * 20, CurrentLap: i * 0.7, TimestampMS: i * 700,
+    PositionX: 300 * Math.cos(i / 100 * 2 * Math.PI),
+    PositionZ: 200 * Math.sin(i / 100 * 2 * Math.PI),
+  }));
+  const completed = { ...input(1), isValid: false, telemetry: packets };
+  const unfinished = { ...input(4), lapTime: 0, isValid: false, telemetry: packets.slice(0, 4) };
+  for (const laps of [[completed, unfinished], [unfinished, completed]]) {
+    const set = alignLapSet(laps, { gridStepMeters: 1 });
+    expect(set.referenceLapId).toBe(completed.lapId);
+    expect(set.nominalSpanMeters).toBe(2000);
+    const trace = set.laps.find(lap => lap.lapId === completed.lapId)!;
+    expect(Math.max(...trace.positionX) - Math.min(...trace.positionX)).toBeGreaterThan(590);
+    expect(Math.max(...trace.positionZ) - Math.min(...trace.positionZ)).toBeGreaterThan(390);
+    expect(set.laps.map(lap => lap.lapId)).toEqual(laps.map(lap => lap.lapId));
+  }
 });

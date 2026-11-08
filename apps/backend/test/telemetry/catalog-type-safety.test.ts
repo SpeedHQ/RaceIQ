@@ -8,9 +8,9 @@ const FIXTURES = [
 describe("telemetry catalog type contracts", () => {
   test("valid and invalid fixtures typecheck with expected errors", () => {
     const result = Bun.spawnSync([
-      "bunx",
-      "tsc",
-      "--noEmit",
+      "bun",
+      "check",
+      "--no-pretty",
       "--strict",
       "--target",
       "ES2022",
@@ -19,7 +19,6 @@ describe("telemetry catalog type contracts", () => {
       "--moduleResolution",
       "bundler",
       "--skipLibCheck",
-      "--ignoreConfig",
       ...FIXTURES,
     ]);
 

@@ -4,6 +4,7 @@ import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { listExperimentVersions, updateExperimentVersionSetupSnapshot } from "@raceiq/backend-core/db/experiment-version-queries";
+import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
 import { resolveGuardedSetupFile, type AccGameId } from "../setups/file-guard";
 
 export type ExperimentGameId = AccGameId | "f1-2025";
@@ -67,7 +68,10 @@ export type ActiveExperimentContext =
   | { ok: false; status: 400 | 404 | 409 | 500; error: string };
 
 /** Resolve session, history, checked-out version, and active setup in one call. */
-export async function loadActiveExperimentContext(sessionId: number): Promise<ActiveExperimentContext> {
+export async function loadActiveExperimentContext(
+  sessionId: number,
+  opts?: { versionId: number | null; lapIds?: readonly number[] },
+): Promise<ActiveExperimentContext> {
   const session = await getExperiment(sessionId);
   if (!session) return { ok: false, status: 404, error: "Tuning session not found" };
 
@@ -77,19 +81,20 @@ export async function loadActiveExperimentContext(sessionId: number): Promise<Ac
   }
 
   const tests = await listExperimentVersions(sessionId);
-  const activeTest =
-    session.headVersionId != null
+  const activeTest = opts
+    ? (opts.versionId == null ? null : (tests.find((test) => test.id === opts.versionId) ?? null))
+    : (session.headVersionId != null
       ? (tests.find((test) => test.id === session.headVersionId) ?? (tests.length ? tests[tests.length - 1]! : null))
-      : (tests.length ? tests[tests.length - 1]! : null);
+      : (tests.length ? tests[tests.length - 1]! : null));
   const setupAncestor = nearestSetupAncestor(tests, activeTest?.id ?? null);
 
   if (gameId === "f1-2025") {
     let setupSnapshot = setupAncestor?.setupSnapshot ?? null;
-    if (!setupSnapshot && activeTest) {
-      setupSnapshot = await captureF1SetupFromLaps(sessionId);
-      // Backfill the setup-bearing node, never a drill arm.
-      const backfillTarget = setupAncestor ?? (activeTest.kind !== "drill" ? activeTest : null);
-      if (setupSnapshot && backfillTarget) {
+    if (!setupSnapshot && (activeTest || opts)) {
+      setupSnapshot = await captureF1SetupFromLaps(sessionId, opts ? (opts.lapIds ?? []) : undefined);
+      // Only unpinned callers backfill; chat prerequisite reads have no side effects.
+      const backfillTarget = setupAncestor ?? (activeTest?.kind !== "drill" ? activeTest : null);
+      if (!opts && setupSnapshot && backfillTarget) {
         await updateExperimentVersionSetupSnapshot(backfillTarget.id, setupSnapshot);
       }
     }
@@ -127,16 +132,20 @@ export async function loadActiveExperimentContext(sessionId: number): Promise<Ac
   };
 }
 
-/** Scan newest F1 laps for first telemetry setup, serialized for storage. */
-export async function captureF1SetupFromLaps(experimentId: number): Promise<string | null> {
+/** Scan only allowed F1 laps for a setup snapshot, serialized for storage. */
+export async function captureF1SetupFromLaps(
+  experimentId: number,
+  allowedLapIds?: readonly number[],
+): Promise<string | null> {
+  const allowed = allowedLapIds == null ? null : new Set(allowedLapIds);
+  if (allowed?.size === 0) return null;
   const sessionLaps = await getLapsForExperiment(experimentId);
   for (const meta of sessionLaps) {
+    if (allowed && !allowed.has(meta.id)) continue;
     const lap = await getLapById(meta.id);
     if (!lap) continue;
-    for (const packet of lap.telemetry) {
-      const setup = (packet as any).f1?.setup;
-      if (setup && typeof setup === "object") return JSON.stringify(setup);
-    }
+    const setup = resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry });
+    if (setup) return JSON.stringify(setup);
   }
   return null;
 }

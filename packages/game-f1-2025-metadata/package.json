@@ -12,6 +12,7 @@
     "@raceiq/shared": "workspace:*"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json"
   }
 }

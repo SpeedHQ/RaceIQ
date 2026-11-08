@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SessionsPage } from "../../components/sessions/SessionsPage";
-import { validateSessionsSearch } from "../../lib/game-routes";
+import { SessionsPage } from "@raceiq/sessions-page/ui";
+import { validateSessionsSearch } from "@raceiq/sessions-page/contracts";
 
 export const Route = createFileRoute("/$gameid/sessions/")({
   component: SessionsPage,

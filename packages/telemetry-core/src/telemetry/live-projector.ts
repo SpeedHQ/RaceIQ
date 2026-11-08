@@ -7,7 +7,9 @@ import { liveSemanticIds } from "./live/semantics";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import { lmuSourceTimestamp, lmuTelemetryTimestamp } from "@raceiq/shared/telemetry/lmu-source-time";
 import { encodeLiveFrame, encodeLiveSchema } from "./live-wire";
+import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; }
 const hash = (parts: readonly string[]) => createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
@@ -26,10 +28,15 @@ export class LiveTelemetryProjector {
     const sessionId = input.sessionId ?? null;
     if (this.gameId !== gameId || this.sessionId !== sessionId || !this.resolver) this.startStream(gameId, sessionId);
     const resolver = this.resolver!;
-    const observedMs = Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
+    const nativeTimestamp = gameId === "lmu" ? lmuTelemetryTimestamp(input.packet) : undefined;
+    const observedMs = nativeTimestamp?.domain === "session"
+      ? nativeTimestamp.milliseconds
+      : gameId === "lmu" && input.packet.lmuContext?.key.frameTime.domain === "session"
+        ? input.packet.lmuContext.key.frameTime.milliseconds
+        : Number.isFinite(input.packet.TimestampMS) ? input.packet.TimestampMS : input.receivedAtMs;
     const timestampDomain = gameId === "acc" || gameId === "ac-evo" ? "wall-clock" as const : "session" as const;
     const observation = { timestamp: { domain: timestampDomain, milliseconds: observedMs }, updateSequence: BigInt(this.sequence + 1) };
-    this.view = resolver.createFrameView(input.packet, observation, this.view);
+    this.view = resolver.createFrameView(input.packet, observation, this.view, gameId === "lmu" ? lmuSourceTimestamp : undefined);
     const resolved = this.view.resolveMany(liveSemanticIds(gameId).map((id) => resolver.slot(id))) as readonly ResolvedValue<unknown>[];
     const states: Record<number, "missing" | "stale" | "invalid" | "not-applicable" | "error"> = {};
     const freshness: Record<number, "stale" | "unknown"> = {};
@@ -42,7 +49,7 @@ export class LiveTelemetryProjector {
       const { definitions: _oldDefinitions, ...schemaMeta } = this.schema!;
       this.schema = encodeLiveSchema(resolved.map((value, index) => ({ semanticId: ids[index], unit: value.unit, mappingStatus: value.mappingStatus, schemaVersion: value.schemaVersion, limitations: Array.isArray(value.limitations) ? value.limitations.filter((limitation): limitation is string => typeof limitation === "string") : typeof value.limitations === "string" ? [value.limitations] : [] })), schemaMeta);
     }
-    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence: this.sequence + 1, observedAt: { domain: timestampDomain, milliseconds: observedMs }, receivedAtMs: input.receivedAtMs, values: resolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}) } });
+    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence: this.sequence + 1, observedAt: { domain: timestampDomain, milliseconds: observedMs }, receivedAtMs: input.receivedAtMs, values: resolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}) }, ...(gameId === "lmu" && input.packet.lmuContext ? { lmu: encodeLmuContext(input.packet.lmuContext) } : {}) });
     this.sequence += 1;
     return this.sequence === 0 ? { schema: this.schema, frame } : { frame };
   }

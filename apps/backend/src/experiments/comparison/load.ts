@@ -52,7 +52,7 @@ function toEvaluable(meta: LapMeta): EvaluableLap {
     id: meta.id,
     lapTime: meta.lapTime,
     isValid: meta.isValid,
-    invalidReason: meta.invalidReason ?? null,
+    classification: meta.classification,
     experimentExcluded: meta.experimentExcluded ?? false,
     experimentExcludedSource: meta.experimentExcludedSource ?? null,
   };
@@ -84,9 +84,9 @@ async function resolveCornersFor(
   referenceTelemetry: TelemetryPacket[],
 ): Promise<Corner[]> {
   const session = await getExperiment(sessionId);
-  const trackOrdinal = session?.trackOrdinal ?? metas.find((m) => m.trackOrdinal != null)?.trackOrdinal ?? null;
+  const trackIdentity = session?.trackId ?? metas.find((m) => m.trackId != null)?.trackId ?? null;
   const gameId = session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null;
-  return resolveLapCorners(trackOrdinal, gameId, referenceTelemetry);
+  return resolveLapCorners(trackIdentity, gameId, referenceTelemetry);
 }
 
 /**

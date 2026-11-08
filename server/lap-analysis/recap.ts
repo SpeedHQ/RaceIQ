@@ -1,3 +1,4 @@
+import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
@@ -9,14 +10,15 @@ export interface RecapLapInput {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   sectorTimes: number[] | null;
   invalidReason?: string | null;
 }
 
 export interface RecapSessionInput {
   id: number;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   gameId: GameId;
   createdAt: string;
   ownership?: "mine" | "others";
@@ -45,7 +47,7 @@ export interface ComputeRecapInput {
 }
 
 function isValidLap(lap: RecapLapInput): boolean {
-  return lap.isValid === true && lap.lapTime > 0 && !isPitCycleLap(lap);
+  return lap.isValid === true && lap.lapTime > 0 && isPaceLap(lap.classification) && !isPitCycleLap(lap);
 }
 
 /**

@@ -6,9 +6,9 @@ export interface CatalogTune {
   id: string;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: "circuit" | "wet" | "low-drag" | "stable" | "track-specific";
-  trackOrdinal?: number;
+  trackId?: string;
   description: string;
   strengths: string[];
   weaknesses: string[];

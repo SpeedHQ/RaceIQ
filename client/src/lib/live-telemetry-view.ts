@@ -1,6 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
+import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 import type { FreshnessState, ResolutionState } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 
 export type WheelValues<T> = Readonly<{ fl: T; fr: T; rl: T; rr: T }>;
 export type TireSurfaceBand = "representative" | "inner" | "middle" | "outer";
@@ -29,7 +30,8 @@ export interface LiveTelemetryView {
   sessionId: number | null;
   sequence: number;
   observedAtMs: number;
-  identity: { carId?: number | string; trackId?: number | string; carOrdinal?: number; trackOrdinal?: number; carClass?: number; performanceIndex?: number; drivetrainType?: number };
+  receivedAtMs: number;
+  identity: { carId?: string; trackId?: string; carClass?: number; performanceIndex?: number; drivetrainType?: number };
   motion: {
     speedMps?: number;
     acceleration?: { x: number; z: number };
@@ -37,7 +39,7 @@ export interface LiveTelemetryView {
     attitude?: { roll: number; pitch: number; yaw: number };
     distanceM?: number;
   };
-  inputs: { throttle?: number; brake?: number; steer?: number; gear?: number };
+  inputs: { throttle?: number; brake?: number; clutch?: number; steer?: number; gear?: number };
   engine: { rpm?: number; idleRpm?: number; maxRpm?: number; powerW?: number; torqueNm?: number; boost?: number };
   fuel: { amount?: number; capacity?: number };
   timing: {
@@ -84,7 +86,10 @@ export interface LiveTelemetryView {
   session: { type?: number | string };
   race: { pitStatus?: number | boolean | string };
   competitors: readonly LiveCompetitorView[];
+  lmu?: LmuLiveContextWire;
   statusBySemanticId: Readonly<Record<string, LiveTelemetryValueStatus>>;
+  valuesBySemanticId: Readonly<Record<string, unknown>>;
+  unitsBySemanticId: Readonly<Record<string, string | null>>;
 }
 
 type Indexed = { schema: LiveTelemetrySchemaMessageV1; indexes: Map<string, number> };
@@ -125,13 +130,17 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     const candidate = value(semanticId);
     return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : undefined;
   };
+  const numberOrString = (semanticId: string): number | string | undefined => {
+    const candidate = value(semanticId);
+    return typeof candidate === "string" || (typeof candidate === "number" && Number.isFinite(candidate)) ? candidate : undefined;
+  };
   const boolean = (semanticId: string): boolean | undefined => {
     const candidate = value(semanticId);
     return typeof candidate === "boolean" ? candidate : undefined;
   };
-  const numberOrString = (semanticId: string): number | string | undefined => {
+  const stringId = (semanticId: string): string | undefined => {
     const candidate = value(semanticId);
-    return typeof candidate === "string" || (typeof candidate === "number" && Number.isFinite(candidate)) ? candidate : undefined;
+    return typeof candidate === "string" ? candidate : undefined;
   };
   const wheel = (semanticId: string): WheelValues<number> | undefined => {
     const candidate = value(semanticId);
@@ -176,6 +185,12 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       },
     ]),
   );
+  const valuesBySemanticId: Record<string, unknown> = Object.fromEntries(
+    schema.definitions.map((definition, index) => [definition.semanticId, frame.values[index]]),
+  );
+  const unitsBySemanticId: Record<string, string | null> = Object.fromEntries(
+    schema.definitions.map((definition) => [definition.semanticId, definition.unit]),
+  );
   const competitorFields = [
     ["position", "race.competitor.position"],
     ["name", "race.competitor.driver-name"],
@@ -212,12 +227,11 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     streamId: frame.streamId,
     sessionId: frame.sessionId,
     sequence: frame.sequence,
+    receivedAtMs: frame.receivedAtMs,
     observedAtMs: frame.observedAt.milliseconds,
     identity: {
-      carId: schema.simulator === "lmu" ? numberOrString("identity.car-id") : number("identity.car-ordinal"),
-      trackId: schema.simulator === "lmu" ? numberOrString("identity.track-id") : number("identity.track-ordinal"),
-      carOrdinal: number("identity.car-ordinal"),
-      trackOrdinal: number("identity.track-ordinal"),
+      carId: stringId("identity.car-id"),
+      trackId: stringId("identity.track-id"),
       carClass: number("identity.car-class"),
       performanceIndex: number("identity.car-performance-index"),
       drivetrainType: number("identity.drivetrain-type"),
@@ -232,6 +246,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     inputs: {
       throttle: number("inputs.accel"),
       brake: number("inputs.brake"),
+      clutch: number("inputs.clutch"),
       steer: number("inputs.steer"),
       gear: number("inputs.gear"),
     },
@@ -313,6 +328,9 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     session: { type: numberOrString("session.session-type") },
     race: { pitStatus },
     competitors,
+    ...(frame.lmu ? { lmu: frame.lmu } : {}),
     statusBySemanticId,
+    valuesBySemanticId,
+    unitsBySemanticId,
   };
 }

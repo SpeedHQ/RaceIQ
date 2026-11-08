@@ -11,6 +11,7 @@ import type {
 } from "./model";
 
 const NORMALIZED_SEMANTIC_ALIASES: Record<string, string> = {
+  acEvoIdentity: "identity.source-identity",
   TyreCompound: "tires.tire-compound",
   NumCylinders: "engine.cylinder-count",
   SurfaceRumbleFL_2: "tires.surface-rumble",
@@ -122,6 +123,8 @@ function addExtensionVariable(
   gameId: GameId,
   field: ExtensionFieldSet,
 ): void {
+  // Native snapshot clocks are resolver provenance, not additional measurements.
+  if (field.paths.every((path) => path === "lmu.telemetryElapsedTime" || path === "lmu.scoringElapsedTime")) return;
   const metadata = extensionMetadata(field.paths[0]);
   const alias = metadata?.semanticId;
   const category = categoryFor(field.semanticKey);

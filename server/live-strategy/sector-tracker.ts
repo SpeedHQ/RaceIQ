@@ -37,6 +37,7 @@ export class SectorTracker {
   private lapDistTotal = 0;
   private currentSector = 0;
   private sectorStartTime = 0;
+  private joinedDuringSector = false;
   private currentTimes: number[] = [0, 0, 0];
   private bestTimes: number[] = [Infinity, Infinity, Infinity];
   private lastTimes: number[] = [0, 0, 0];
@@ -46,13 +47,13 @@ export class SectorTracker {
   private initialized = false;
   private prevCurrentLap = 0;
   private refLap: ReferenceLap | null = null;
-  private currentTrackOrdinal = -1;
-  private currentCarOrdinal = -1;
+  private currentTrackIdentity: string | null = null;
+  private currentCarIdentity: string | null = null;
   private currentGameId: GameId | null = null;
   private currentGame: GameAdapter | null = null;
 
   /** Reset for a new session — loads sector boundaries and track length. */
-  async reset(trackOrdinal: number, gameId: GameId, carOrdinal: number = -1): Promise<void> {
+  async reset(trackIdentity: string, gameId: GameId, carIdentity: string): Promise<void> {
     this.bounds = null;
     this.sectorCount = 3;
     this.lapDistStart = 0;
@@ -66,8 +67,8 @@ export class SectorTracker {
     this.initialized = false;
     this.prevCurrentLap = 0;
     this.refLap = null;
-    this.currentTrackOrdinal = trackOrdinal;
-    this.currentCarOrdinal = carOrdinal;
+    this.currentTrackIdentity = trackIdentity;
+    this.currentCarIdentity = carIdentity;
     this.currentGameId = gameId;
     this.currentGame = getGame(gameId);
 
@@ -76,7 +77,7 @@ export class SectorTracker {
     if (this.currentGame.nativeSectors) return;
 
     // Sector boundaries: this game's curated pair, else bundled, else thirds.
-    const track = resolveTrack(gameId, trackOrdinal);
+    const track = resolveTrack(gameId, trackIdentity);
     const sectors = track.sectors;
 
     if (!sectors?.s1End || !sectors?.s2End) return;
@@ -98,7 +99,7 @@ export class SectorTracker {
     };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
+    console.log(`[Sectors] Loaded for track ${trackIdentity} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
   }
 
   /** Process a packet. Returns sector data or null if no sector bounds loaded. */
@@ -135,20 +136,37 @@ export class SectorTracker {
       this.lapDistTotal = packet.lmu.trackLengthM;
     }
 
+    if (this.currentGameId === "ams2" && Number.isFinite(packet.ams2?.trackLengthM) && packet.ams2!.trackLengthM > 0) {
+      // AMS2 supplies authoritative length even before a track outline exists.
+      // Preserve curated boundaries; the fallback remains derived thirds.
+      const trackLength = packet.ams2!.trackLengthM;
+      this.bounds = { starts: this.bounds?.starts ?? [0, 1 / 3, 2 / 3], trackLength };
+      this.lapDistTotal = trackLength;
+    }
+
     if (!this.bounds) return null;
 
     // Initialize from first packet
     if (!this.initialized) {
       this.initialized = true;
-      this.lapDistStart = packet.DistanceTraveled;
+      this.lapDistStart = this.currentGameId === "ams2" && Number.isFinite(packet.ams2?.lapDistanceM)
+        ? packet.DistanceTraveled - packet.ams2!.lapDistanceM
+        : packet.DistanceTraveled;
       this.lastLap = packet.LapNumber;
       this.sectorStartTime = 0;
       this.prevCurrentLap = packet.CurrentLap;
+      if (this.currentGameId === "ams2" && this.lapDistTotal > 0) {
+        this.currentSector = sectorFromDistanceFraction(this.bounds.starts, (packet.DistanceTraveled - this.lapDistStart) / this.lapDistTotal);
+        this.joinedDuringSector = this.currentSector > 0;
+        if (this.joinedDuringSector) this.sectorStartTime = packet.CurrentLap;
+      }
     }
 
     // Handle backward distance jump (demo loop / teleport)
     if (packet.DistanceTraveled < this.lapDistStart - 100) {
-      this.lapDistStart = packet.DistanceTraveled;
+      this.lapDistStart = this.currentGameId === "ams2" && Number.isFinite(packet.ams2?.lapDistanceM)
+        ? packet.DistanceTraveled - packet.ams2!.lapDistanceM
+        : packet.DistanceTraveled;
       this.resetLapProgress(packet.CurrentLap);
     }
 
@@ -192,7 +210,9 @@ export class SectorTracker {
         this.lapDistTotal = completedDist;
       }
 
-      this.lapDistStart = packet.DistanceTraveled;
+      this.lapDistStart = this.currentGameId === "ams2" && Number.isFinite(packet.ams2?.lapDistanceM)
+        ? packet.DistanceTraveled - packet.ams2!.lapDistanceM
+        : packet.DistanceTraveled;
       this.resetLapProgress(0);
     }
     this.lastLap = packet.LapNumber;
@@ -219,7 +239,7 @@ export class SectorTracker {
     }
 
     // Current sector running time
-    const currentSectorTime = packet.CurrentLap - this.sectorStartTime;
+    const currentSectorTime = this.joinedDuringSector ? 0 : packet.CurrentLap - this.sectorStartTime;
 
     // Estimated lap time via interpolation against best lap's distance-time curve.
     // delta = liveTime - refTimeAtSameDistance; estimated = bestLapTime + delta
@@ -261,7 +281,10 @@ export class SectorTracker {
 
   /** Build a reference lap structure from packet data. */
   private buildRefLapFromPackets(packets: TelemetryPacket[], lapTime: number): ReferenceLap {
-    const lapDistStart = packets[0].DistanceTraveled;
+    const first = packets[0];
+    const lapDistStart = this.currentGameId === "ams2" && Number.isFinite(first.ams2?.lapDistanceM)
+      ? first.DistanceTraveled - first.ams2!.lapDistanceM
+      : first.DistanceTraveled;
     const distances = new Float64Array(packets.length);
     const times = new Float64Array(packets.length);
 
@@ -274,6 +297,7 @@ export class SectorTracker {
 
   private resetLapProgress(sectorStartTime: number): void {
     this.currentSector = 0;
+    this.joinedDuringSector = false;
     this.sectorStartTime = sectorStartTime;
     this.currentTimes = Array(this.sectorCount).fill(0);
   }
@@ -281,7 +305,8 @@ export class SectorTracker {
   private advanceSector(nextSector: number, currentLapTime: number): void {
     if (nextSector <= this.currentSector) return;
 
-    this.currentTimes[this.currentSector] = currentLapTime - this.sectorStartTime;
+    if (!this.joinedDuringSector) this.currentTimes[this.currentSector] = currentLapTime - this.sectorStartTime;
+    this.joinedDuringSector = false;
     this.sectorStartTime = currentLapTime;
     this.currentSector = nextSector;
   }
@@ -366,8 +391,8 @@ export class SectorTracker {
       prevCurrentLap: this.prevCurrentLap,
       refLapLength: this.refLap?.distances.length ?? 0,
       refLapTime: this.refLap?.lapTime ?? null,
-      currentTrackOrdinal: this.currentTrackOrdinal,
-      currentCarOrdinal: this.currentCarOrdinal,
+      currentTrackId: this.currentTrackIdentity,
+      currentCarId: this.currentCarIdentity,
     };
   }
 }

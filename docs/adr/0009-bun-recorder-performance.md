@@ -13,4 +13,3 @@ Benchmark adapter registration explicitly enables iRacing independently of produ
 
 Do not include native transport/range/allocator changes or speculative grid caching. Existing consumer-only measurements do not establish an end-to-end Bun recording speedup.
 
-Plan: [Extraction requirements and verification](../plans/bun-recorder-performance.md).

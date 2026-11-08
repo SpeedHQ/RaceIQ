@@ -1,9 +1,18 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { queryKeys } from "../hooks/query-keys";
+import { ProcessingStatus } from "./ProcessingStatus";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { Button } from "./ui/button";
+
+function isEligiblePaceLap(lap: LapMeta): boolean {
+  return lap.isValid && Number.isFinite(lap.lapTime) && lap.lapTime > 0 && isPaceLap(lap.classification) && !lap.experimentExcluded;
+}
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "-:--.---";
@@ -14,27 +23,34 @@ function formatLapTime(seconds: number): string {
 
 interface RecordedLapsProps {
   laps: LapMeta[];
-  trackOrdinal?: number;
+  trackId?: string;
   maxLaps?: number;
 }
 
-export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
+export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
+  const queryClient = useQueryClient();
+  const refreshProcessing = useCallback(() => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+    ]);
+  }, [queryClient]);
 
   // Filter by track if provided, otherwise use all
-  const filteredLaps = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
+  const filteredLaps = trackId != null ? laps.filter((l) => l.trackId === trackId) : laps;
 
   const sorted = [...filteredLaps].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
   const sectorCount = storedLapsSectorCount(filteredLaps);
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const gridTemplateColumns = sectorCount > 0 ? `auto repeat(${sectorCount}, minmax(0,1fr)) minmax(0,1fr) auto auto` : "auto minmax(0,1fr) auto auto";
 
-  const allTimes = filteredLaps.map((l) => l.lapTime);
-  const best = allTimes.length > 0 ? Math.min(...allTimes) : 0;
+  const paceLaps = filteredLaps.filter(isEligiblePaceLap);
+  const best = paceLaps.length > 0 ? Math.min(...paceLaps.map((l) => l.lapTime)) : 0;
 
   const bestSectors = Array.from({ length: sectorCount }, (_, index) => {
-    const times = filteredLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
+    const times = paceLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => Number.isFinite(time) && time > 0);
     return times.length > 0 ? Math.min(...times) : 0;
   });
 
@@ -68,11 +84,16 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
           </div>
           <div className="divide-y divide-app-border/30">
             {sorted.map((l) => {
-              const delta = l.lapTime - best;
+              const eligible = isEligiblePaceLap(l);
+              const delta = eligible && best > 0 ? l.lapTime - best : null;
               const isBest = delta === 0;
-              const timeColor = isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const timeColor = isBest ? "text-(--lap-pace-best)" : delta != null && delta < 0.5 ? "text-(--lap-pace-on-target)" : delta != null && delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const processing = l.processing;
+              const processingLoading = processing == null;
+              const ready = processing?.state === "ready";
+              const pending = processing == null || processing.state === "queued" || processing.state === "processing";
               return (
-                <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
+                <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }} aria-busy={pending}>
                   <span
                     className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`}
                     title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}
@@ -83,16 +104,16 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   {sectorLabels.map((label, index) => {
                     const time = l.sectorTimes?.[index] ?? 0;
                     return (
-                      <span key={label} className={`text-sm font-mono tabular-nums text-right ${sectorColor(time, bestSectors[index])}`}>
+                      <span key={label} className={`text-sm font-mono tabular-nums text-right ${eligible ? sectorColor(time, bestSectors[index]) : "text-app-text-secondary"}`}>
                         {time > 0 ? time.toFixed(3) : "—"}
                       </span>
                     );
                   })}
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
-                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
+                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{delta == null ? "—" : isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center w-16 justify-end">
                     <Button
-                      disabled={l.sessionId == null}
+                      disabled={l.sessionId == null || !ready}
                       title={l.sessionId == null ? "Replay unavailable: session missing" : undefined}
                       onClick={() => void navigate({ to: `${gameRoute}/sessions/${l.sessionId}/replay/${l.id}` as never })}
                       variant="app-primary"
@@ -102,6 +123,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                       {m.sessions_replay_lap()}
                     </Button>
                   </div>
+                  {!ready && <div className="col-span-full"><ProcessingStatus processing={processing} loading={processingLoading} onRefresh={refreshProcessing} /></div>}
                 </div>
               );
             })}

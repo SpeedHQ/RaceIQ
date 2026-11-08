@@ -1,7 +1,7 @@
 import { segmentDisplayNames, segmentGroupLabels } from "@raceiq/shared/racing/tracks/segment-label";
-import type { Point, TrackSectors } from "@/components/track/types";
-import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import type { Point, TrackSectors } from "@raceiq/tracks-catalogue/contracts";
+import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@raceiq/scene-3d/colors";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 
 export interface PitLine {
   kind: "pit-road" | "merge-line";
@@ -16,7 +16,7 @@ export function isPitLine(value: unknown): value is PitLine {
   });
 }
 
-export function drawPitLines(ctx: CanvasRenderingContext2D, lines: readonly PitLine[] | null | undefined, toCanvas: (x: number, z: number) => [number, number]): void {
+export function drawPitLines(ctx: Pick<CanvasRenderingContext2D, "beginPath" | "strokeStyle" | "lineWidth" | "setLineDash" | "lineCap" | "lineJoin" | "moveTo" | "lineTo" | "stroke">, lines: readonly PitLine[] | null | undefined, toCanvas: (x: number, z: number) => [number, number]): void {
   if (!lines) return;
   for (const line of lines) {
     if (line.points.length < 2) continue;

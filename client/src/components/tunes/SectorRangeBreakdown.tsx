@@ -1,5 +1,5 @@
-import { tireTempColor } from "@/lib/vehicle-dynamics";
-import { type SemanticTuneSample, type TuneWheelMetric, wheelValue } from "./semantic-tune";
+import { tireTempColor } from "@raceiq/scene-3d/vehicle-dynamics";
+import { type SemanticTuneSample, type TuneWheelMetric, wheelValue } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 
 interface SectorTimes {
   times: number[];

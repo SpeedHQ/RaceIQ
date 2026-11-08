@@ -4,3 +4,4 @@ packages/game-iracing/test/iracing-sdk-decoding.test.ts
 packages/game-iracing/test/iracing-sdk-lap-sectors.test.ts
 packages/game-iracing/test/iracing-sdk-source-frame.test.ts
 packages/game-iracing/test/iracing-sdk-source-integration.test.ts
+packages/game-iracing/test/iracing-lap-index.test.ts

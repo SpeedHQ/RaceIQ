@@ -103,8 +103,8 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         gameId: "ac-evo", fileName: "Default-12312.carsetup",
+        carId: audi.name,
         contentBase64: read("Default-12312.carsetup").toString("base64"),
-        carOrdinal: audi.id,
       }),
     });
     expect(res.status).toBe(201);
@@ -112,8 +112,7 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
     try {
       const tune = await getTuneById(body.id);
       expect(tune?.gameId).toBe("ac-evo");
-      expect(tune?.name).toBe("Default-12312");
-      expect(tune?.carOrdinal).toBe(audi.id);
+      expect(tune?.carId).toBe(audi.name);
       const settings = JSON.parse(tune!.settings);
       const source = read("Default-12312.carsetup");
       expect(settings.carSetupBase64).toBe(source.toString("base64"));
@@ -128,7 +127,7 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
 
   test("rejects a setup assigned to another car and non-setup bytes", async () => {
     for (const overrides of [
-      { carOrdinal: -1 },
+      { carId: "" },
       { contentBase64: Buffer.from("not a setup").toString("base64") },
       { fileName: "setup.json" },
     ]) {
@@ -136,7 +135,7 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          gameId: "ac-evo", fileName: "Default-12312.carsetup", carOrdinal: audi.id,
+          gameId: "ac-evo", fileName: "Default-12312.carsetup", carId: audi.name,
           contentBase64: read("Default-12312.carsetup").toString("base64"),
           ...overrides,
         }),
@@ -220,6 +219,17 @@ describe("errorFromResponse", () => {
     });
     expect((await errorFromResponse(res)).message).toBe("Couldn't decode that .carsetup file");
   });
+
+  test("preserves contracted status and code", async () => {
+    const err = await errorFromResponse(new Response(JSON.stringify({
+      code: "RECORDING_PROCESSING",
+      error: "Recording is queued or processing",
+    }), { status: 409 }));
+    expect(err.message).toBe("Recording is queued or processing");
+    expect(err.status).toBe(409);
+    expect(err.code).toBe("RECORDING_PROCESSING");
+  });
+
 
   test("an HTML error page degrades to status + snippet, never a parse throw", async () => {
     const res = new Response("<!DOCTYPE html><html><body>nope</body></html>", { status: 500, statusText: "Internal Server Error" });

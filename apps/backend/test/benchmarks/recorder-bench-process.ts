@@ -1,16 +1,44 @@
-import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 
 type ProcessRow = { parent: number; cpuSeconds: number; rssBytes: number };
 
+export function readProcessOutput(command: string, args: string[]): Promise<string> {
+  const { promise, resolve, reject } = Promise.withResolvers<string>();
+  execFile(command, args, { timeout: 10_000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout, stderr) => {
+    if (error) reject(new Error(`Process sampling failed (${command}): ${stderr.trim() || error.message}`, { cause: error }));
+    else resolve(stdout);
+  });
+  return promise;
+}
+
 async function processTable(): Promise<Map<number, ProcessRow>> {
-  const child = spawn("ps", ["-axo", "pid=,ppid=,time=,rss="], { stdio: ["ignore", "pipe", "ignore"] });
-  let text = "";
-  child.stdout?.on("data", (chunk: Buffer) => { text += chunk.toString(); });
-  const exit = Promise.withResolvers<void>();
-  child.once("exit", exit.resolve);
-  await exit.promise;
-  return parseProcessRows(text);
+  if (process.platform === "win32") {
+    // Win32_Process reports CPU time in 100-nanosecond ticks and working set in bytes.
+    const text = await readProcessOutput("powershell.exe", [
+      "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+      "$ErrorActionPreference = 'Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, KernelModeTime, UserModeTime, WorkingSetSize)",
+    ]);
+    return parseWindowsProcessRows(text);
+  }
+  return parseProcessRows(await readProcessOutput("ps", ["-axo", "pid=,ppid=,time=,rss="]));
+}
+
+export function parseWindowsProcessRows(text: string): Map<number, ProcessRow> {
+  const rows = new Map<number, ProcessRow>();
+  const processes: {
+    ProcessId: number;
+    ParentProcessId: number;
+    KernelModeTime: string | number;
+    UserModeTime: string | number;
+    WorkingSetSize: string | number;
+  }[] = JSON.parse(text.trim().replace(/^\uFEFF/, ""));
+  for (const row of processes) rows.set(row.ProcessId, {
+    parent: row.ParentProcessId,
+    cpuSeconds: (Number(row.KernelModeTime) + Number(row.UserModeTime)) / 10_000_000,
+    rssBytes: Number(row.WorkingSetSize),
+  });
+  return rows;
 }
 
 export function parseProcessRows(text: string): Map<number, ProcessRow> {
@@ -44,6 +72,8 @@ export class ProcessTreeSampler {
   #peakRssBytes = 0;
   #timer: ReturnType<typeof setTimeout> | null = null;
   #stopped = false;
+  #pendingSample: Promise<void> | null = null;
+  #sampleError: unknown = null;
 
   constructor(proc: ChildProcess | number, ownPidOnly = false) { this.#proc = proc; this.#ownPidOnly = ownPidOnly; }
   #rootPid(): number { return typeof this.#proc === "number" ? this.#proc : this.#proc.pid!; }
@@ -65,10 +95,14 @@ export class ProcessTreeSampler {
       rss += row.rssBytes; this.#maxCpu.set(pid, Math.max(this.#maxCpu.get(pid) ?? 0, row.cpuSeconds));
     }
     this.#peakRssBytes = Math.max(this.#peakRssBytes, rss);
-    if (!this.#stopped) this.#timer = setTimeout(() => { void this.#sample(); }, 100);
+    if (!this.#stopped) this.#timer = setTimeout(() => {
+      this.#pendingSample = this.#sample().catch((error: unknown) => { this.#sampleError = error; });
+    }, 100);
   }
   async stop(): Promise<{ cpuSeconds: number; peakRssBytes: number }> {
     this.#stopped = true; clearTimeout(this.#timer ?? undefined);
+    await this.#pendingSample;
+    if (this.#sampleError) throw this.#sampleError;
     const rows = await processTable(); let rss = 0;
     for (const pid of this.#pids(rows)) {
       const row = rows.get(pid); if (!row) continue;

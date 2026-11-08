@@ -8,8 +8,8 @@ interface SeededLap {
   sessionId: number;
   lapNumber: number;
   lapTime: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   isValid: boolean;
 }
 
@@ -17,7 +17,6 @@ interface LiveTelemetryReplay {
   schema?: LiveTelemetrySchemaMessageV1;
   frames?: LiveTelemetryFrameMessageV1[];
 }
-
 interface LiveScreenshotSample {
   lap: SeededLap;
   schema: LiveTelemetrySchemaMessageV1;
@@ -84,11 +83,8 @@ export async function mockLiveScreenshotTelemetry(page: Page, request: APIReques
       udpPort: 5300,
       detectedGame: { id: game.gameId, name: game.name },
       currentSession: {
-        id: sample.lap.sessionId,
-        carOrdinal: sample.lap.carOrdinal,
-        trackOrdinal: sample.lap.trackOrdinal,
-        carId: sample.lap.carOrdinal,
-        trackId: sample.lap.trackOrdinal,
+        carId: sample.lap.carId,
+        trackId: sample.lap.trackId,
       },
     }));
     socket.send(JSON.stringify(sample.schema));

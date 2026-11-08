@@ -1,11 +1,10 @@
-export function mergeNameCache(cache: Record<number, string>, resolved: Record<string, string>): Record<number, string> {
+export function mergeNameCache(cache: Record<string, string>, resolved: Record<string, string>): Record<string, string> {
   let changed = false;
   const next = { ...cache };
 
-  for (const [ordinal, name] of Object.entries(resolved)) {
-    const key = Number(ordinal);
-    if (next[key] !== name) {
-      next[key] = name;
+  for (const [id, name] of Object.entries(resolved)) {
+    if (next[id] !== name) {
+      next[id] = name;
       changed = true;
     }
   }

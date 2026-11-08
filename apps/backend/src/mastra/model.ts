@@ -26,9 +26,20 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
+import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
+import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
 
 export type BoundMastraModel = MastraModelConfig;
+
+/**
+ * DeepSeek defaults for every Mastra agent. DeepSeek reasons by default, which
+ * spends the output budget and slows long prompts; RaceIQ never needs the visible
+ * reasoning, so every agent switches it off unless a call overrides the option.
+ */
+export const DEEPSEEK_AGENT_DEFAULTS = {
+  providerOptions: { deepseek: { thinking: { type: "disabled" } } },
+} as const;
 
 function bindMastraModel(model: LanguageModel): BoundMastraModel {
   return model as unknown as BoundMastraModel;
@@ -205,10 +216,10 @@ export function modelFromRequestContext(
 ): BoundMastraModel | undefined {
   const model = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
   if (typeof model === "string") return model;
-  if (model && typeof model === "object" && "doGenerate" in model
-      && typeof model.doGenerate === "function") {
-    const boundModel = model as BoundMastraModel;
-    return boundModel;
+  if (model && typeof model === "object"
+      && (("doGenerate" in model && typeof model.doGenerate === "function")
+        || ("id" in model && typeof model.id === "string"))) {
+    return model as BoundMastraModel;
   }
   return undefined;
 }
@@ -243,12 +254,38 @@ export function getMastraModelId(
       if (!apiKey) return `openai/${id}`;
       return bindMastraModel(createOpenAI({ apiKey }).chat(id));
     }
+    case "anthropic": {
+      // Claude through Anthropic's OpenAI-compatible chat completions API.
+      // Settings-driven agents pass no key; configureAiProviderEnvironment sets it.
+      const key = apiKey || process.env.ANTHROPIC_API_KEY || "";
+      const anthropic = createOpenAI({
+        baseURL: ANTHROPIC_OPENAI_BASE_URL,
+        apiKey: key,
+        headers: openAiCompatibleExtraHeaders(ANTHROPIC_OPENAI_BASE_URL, key),
+        fetch: anthropicCompatibleFetch() as FetchFunction,
+      });
+      return bindMastraModel(anthropic.chat(model || "claude-haiku-5-5"));
+    }
+    case "deepseek": {
+      if (!model.trim()) {
+        throw new AiProviderError("No DeepSeek model selected. Choose one in Settings.", {
+          code: "missing-model",
+          provider: "deepseek",
+        });
+      }
+      const id = `deepseek/${model}` as const;
+      return apiKey ? { id, apiKey } : id;
+    }
     case "openai-compatible": {
+      const baseURL = localEndpoint ?? "http://localhost:1234/v1";
+      // Settings-driven agents pass no key; configureAiProviderEnvironment sets it.
+      const key = apiKey || process.env.OPENAI_COMPATIBLE_API_KEY;
       const openai = createOpenAI({
-        baseURL: localEndpoint ?? "http://localhost:1234/v1",
-        apiKey: apiKey || "local",
+        baseURL,
+        apiKey: key || "local",
+        headers: openAiCompatibleExtraHeaders(baseURL, key),
         // Ollama thinking models emit; see the file header for the full chain.
-        fetch: reasoningContentToThinkFetch(globalThis.fetch as FetchFunction),
+        fetch: reasoningContentToThinkFetch((isAnthropicEndpoint(baseURL) ? anthropicCompatibleFetch() : globalThis.fetch) as FetchFunction),
       });
       // `openai(id)` targets `/v1/responses` in @ai-sdk/openai v3+. LM Studio
       // only fully implements `/v1/chat/completions`, so pick that transport

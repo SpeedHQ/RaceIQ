@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
-import { DEFAULT_TOGGLES } from "../src/lib/wireframe-data";
+import { DEFAULT_TOGGLES } from "@raceiq/scene-3d/wireframe-data"
 import { buildDemoFixture } from "@raceiq/tooling-data/telemetry/generate-demo-fixture";
-import { buildLoadTrail } from "../src/components/wireframe/CarScene";
-import { canonicalModelYawAlignment } from "../src/components/wireframe/CarBody";
-import { DEMO_CAR, F1_CAR, type CarModelEnrichment } from "../src/data/car-models";
-import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { buildLoadTrail } from "@raceiq/scene-3d/wireframe/CarScene"
+import { canonicalModelYawAlignment } from "@raceiq/scene-3d/wireframe/CarBody"
+import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
+import { DEMO_CAR, F1_CAR } from "../src/data/car-models";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 function frame(index: number): SemanticAnalysisFrame {
   return {

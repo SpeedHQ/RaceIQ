@@ -29,7 +29,7 @@ export function TuneForm({
 }) {
   const [name, setName] = useState(initialData?.name ?? "");
   const [author, setAuthor] = useState(initialData?.author ?? m.tune_me());
-  const [carOrdinal, setCarOrdinal] = useState(initialData?.carOrdinal ?? 2860);
+  const [carId, setCarId] = useState(initialData?.carId ?? "2860");
   const [category, setCategory] = useState<TuneCategory>(initialData?.category ?? "circuit");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [settings, setSettings] = useState<TuneSettings>(withDefaults(initialData?.settings));
@@ -51,12 +51,12 @@ export function TuneForm({
 
   const filteredFormCars = carSearchQuery ? allCars.filter((c) => c.name.toLowerCase().includes(carSearchQuery.toLowerCase())).slice(0, 20) : allCars.slice(0, 20);
 
-  const selectedCarName = allCars.find((c) => c.ordinal === carOrdinal)?.name ?? (carOrdinal ? `Car #${carOrdinal}` : "");
+  const selectedCarName = allCars.find((c) => c.id === carId)?.name ?? (carId ? `Car #${carId}` : "");
 
   useEffect(() => {
     setName(initialData?.name ?? "");
     setAuthor(initialData?.author ?? m.tune_me());
-    setCarOrdinal(initialData?.carOrdinal ?? 2860);
+    setCarId(initialData?.carId ?? "2860");
     setCategory(initialData?.category ?? "circuit");
     setDescription(initialData?.description ?? "");
     setSettings(withDefaults(initialData?.settings));
@@ -175,7 +175,7 @@ export function TuneForm({
       gameId: "fm-2023",
       name,
       author,
-      carOrdinal,
+      carId,
       category,
       description,
       settings: savedSettings,
@@ -216,12 +216,12 @@ export function TuneForm({
       {activeTab === "info" && (
         <TuneInfoSection
           allCars={allCars}
-          carOrdinal={carOrdinal}
+          carId={carId}
           carDropOpen={carDropOpen}
           carSearchQuery={carSearchQuery}
           filteredFormCars={filteredFormCars}
           selectedCarName={selectedCarName}
-          setCarOrdinal={setCarOrdinal}
+          setCarId={setCarId}
           setCarDropOpen={setCarDropOpen}
           setCarSearchQuery={setCarSearchQuery}
           name={name}
@@ -293,7 +293,7 @@ export function TuneForm({
               </Button>
             </div>
           ) : (
-            <TuneSettingsFields settings={settings} isMetric={isMetric} allCars={allCars} carOrdinal={carOrdinal} drivetrain={drivetrain} updateSettings={updateSettings} setSettings={setSettings} />
+            <TuneSettingsFields settings={settings} isMetric={isMetric} allCars={allCars} carId={carId} drivetrain={drivetrain} updateSettings={updateSettings} setSettings={setSettings} />
           )}
         </div>
       )}

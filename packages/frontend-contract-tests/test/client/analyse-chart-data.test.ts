@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { buildChartData } from "client/src/components/analyse/chart-data";
-import type { SemanticAnalysisFrame } from "client/src/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 function frame(currentLap: number, values: Record<string, unknown> = {}): SemanticAnalysisFrame {
   return {
@@ -39,4 +39,17 @@ test("chart temperature converter applies to tire core and brake series", () => 
   expect(chart?.tireTempFL).toEqual([200, 200]);
   expect(chart?.tireCoreTempFL).toEqual([180, 180]);
   expect(chart?.brakeTempFL).toEqual([200, 200]);
+});
+
+test("pedal chart uses percentages while preserving missing readings and source data", () => {
+  const frames = [
+    frame(0, { "inputs.accel": 255, "inputs.brake": 127.5 }),
+    frame(1, { "inputs.accel": 0, "inputs.brake": 255 }),
+    frame(2),
+  ];
+  const chart = buildChartData(frames)!;
+  expect(chart.throttle.slice(0, 2)).toEqual([100, 0]);
+  expect(chart.brake.slice(0, 2)).toEqual([50, 100]);
+  expect(Number.isNaN(chart.throttle[2])).toBe(true);
+  expect(frames[0].values["inputs.accel"]).toBe(255);
 });

@@ -1,13 +1,21 @@
 /** Canonical import oracle: committed captures must use index projections, never full packets. */
 import { describe, test, expect, afterEach } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
-import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import {
+  encodeSegmentContextEndFrame,
+  encodeSegmentContextFrame,
+  iterateSessionCaptureRecords,
+  iterateSessionFrames,
+} from "@raceiq/capture-formats/session/framing";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
@@ -18,7 +26,14 @@ import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeli
 initGameAdapters();
 initServerGameAdapters();
 
-afterEach(() => { enableParserInstrumentation(false); resetParserInstrumentation(); stopMaintenanceTasks(); });
+afterEach(() => {
+  enableParserInstrumentation(false);
+  resetParserInstrumentation();
+  stopMaintenanceTasks();
+  for (const directory of tempDirs.splice(0)) rmSync(directory, { recursive: true, force: true });
+});
+
+const tempDirs: string[] = [];
 
 const FIXTURES = [
   ["fm-2023-2026-04-09T21-55-03-186Z.bin.gz", "fm-2023"],
@@ -49,8 +64,22 @@ describe("indexed canonical import oracle", () => {
     }
     expect(compared).toBeGreaterThan(0);
 
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-sparse-import-"));
+    tempDirs.push(directory);
+    const capturePath = join(directory, "capture.bin");
+    const recorder = new SparseSessionRecorder(gameId);
+    recorder.start(capturePath);
+    recorder.writeMetaFrame();
+    for (const record of iterateSessionCaptureRecords(bytes)) {
+      if (record.kind === "frame") recorder.writeRecord(record.frame, record.frameTimeMs);
+      else if (record.kind === "segment-boundary") recorder.writeSegmentBoundary();
+      else if (record.kind === "segment-context") recorder.writeRawCaptureBytes(encodeSegmentContextFrame());
+      else recorder.writeRawCaptureBytes(encodeSegmentContextEndFrame());
+    }
+    await recorder.stop();
+    const sparseBytes = readFileSync(capturePath);
     enableParserInstrumentation(true);
-    const result = await importSessionBin(bytes, gameId, { notifyDriverProfile: false });
+    const result = await importSessionBin(sparseBytes, gameId, { notifyDriverProfile: false });
     const counts = getParserInstrumentation();
     expect(result.packetCount).toBeGreaterThan(0);
     expect(counts.sourceFramesScanned).toBeGreaterThan(0);

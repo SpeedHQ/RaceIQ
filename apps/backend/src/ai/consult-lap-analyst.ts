@@ -29,13 +29,23 @@ interface LapAnalystConsult {
   summary: string;
 }
 
-export async function consultLapAnalystForSession(sessionId: number): Promise<LapAnalystConsult> {
-  const lap = await loadRepresentativeLap(sessionId);
-  if (!lap) return { available: false, summary: "No analysable lap yet for this session." };
+export async function consultLapAnalystForSession(
+  sessionId: number,
+  opts?: { lapIds?: readonly number[] },
+): Promise<LapAnalystConsult> {
+  const lap = await loadRepresentativeLap(sessionId, opts);
+  if (!lap) {
+    return {
+      available: false,
+      summary: opts?.lapIds == null
+        ? "No analysable lap yet for this session."
+        : "No analysable lap yet in this experiment branch.",
+    };
+  }
 
-  const trackOrdinal = lap.trackOrdinal ?? 0;
-  const segments = await resolveLapSegments(trackOrdinal, lap.gameId);
-  const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry, { segments });
+  const trackIdentity = lap.trackId;
+  const segments = await resolveLapSegments(trackIdentity, lap.gameId);
+  const corners = await resolveLapCorners(trackIdentity, lap.gameId, lap.telemetry, { segments });
 
   const settings = loadSettings();
   const insights = await getOrComputeLapInsights(lap.id) ?? [];

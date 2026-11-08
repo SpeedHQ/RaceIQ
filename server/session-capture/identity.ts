@@ -17,6 +17,10 @@ export function sha256ContentHash(bytes: Uint8Array): string {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+export function createRawCaptureIdentity(bytes: Uint8Array, storageEncoding: RawCaptureIdentity["storageEncoding"]): RawCaptureIdentity {
+  const content = Buffer.from(bytes);
+  return { bytes: content, contentHash: sha256ContentHash(content), storageEncoding };
+}
 /** Hash canonical capture bytes without retaining the file or decompressed stream. */
 export async function hashRawCapture(path: string): Promise<string | undefined> {
   const file = Bun.file(path);

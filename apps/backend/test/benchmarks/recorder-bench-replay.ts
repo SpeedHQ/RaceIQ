@@ -3,7 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { readUdpDump } from "@raceiq/backend-core/test-support/recordings/udp";
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
-export async function replayWithClock(path: string, gameId: "fm-2023" | "f1-2025", port: number, speed: number, signal?: AbortSignal) {
+export async function replayWithClock(path: string, gameId: "fm-2023" | "f1-2025", port: number, speed: number, signal?: AbortSignal, onPacketSent?: (sentAtNs: bigint) => void) {
   const packets = readUdpDump(path);
   signal?.throwIfAborted();
   const socket = dgram.createSocket("udp4");
@@ -49,6 +49,7 @@ export async function replayWithClock(path: string, gameId: "fm-2023" | "f1-2025
       const sent = Promise.withResolvers<void>();
       socket.send(packet, port, "127.0.0.1", (error) => { if (error) sent.reject(error); else sent.resolve(); });
       await sent.promise;
+      onPacketSent?.(process.hrtime.bigint());
     }
   } finally { socket.close(); }
   return packets.length;

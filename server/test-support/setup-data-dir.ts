@@ -80,8 +80,14 @@ afterAll(async () => {
     // pipeline never loaded — nothing to stop
   }
   try {
-    const { client } = await import("../db/index");
-    client.close();
+    const { closeDashboardReadDatabase } = await import("../db/dashboard-queries");
+    closeDashboardReadDatabase();
+  } catch {
+    // Dashboard reads never initialized a connection.
+  }
+  try {
+    const { closeDb } = await import("../db/index");
+    closeDb();
   } catch {
     // db never loaded — nothing to close
   }

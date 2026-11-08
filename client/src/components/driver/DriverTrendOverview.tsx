@@ -1,10 +1,10 @@
 import * as m from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
-import type { DriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
+import type { DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "@raceiq/backend-core/driver-profile/trend";
 import type { DriverProfileState } from "../../hooks/driver-profile";
 import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../../lib/utc-date";
+import { parseUtcTimestamp } from "@raceiq/frontend-pure/utc-date";
 
 interface DriverTrendOverviewProps {
   trend: DriverTrend;

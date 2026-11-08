@@ -28,6 +28,17 @@ function messageText(message: ChatTurnMessage): string {
   return typeof message.content === "string" ? message.content : "";
 }
 
+/** Read the latest submitted driver text, never a recalled or synthetic context message. */
+export function getLatestChatTurnText(requestContext?: { get: (key: string) => unknown }): string {
+  const messages = requestContext?.get(CHAT_TURN_MESSAGES_KEY);
+  if (!Array.isArray(messages)) return "";
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index] as ChatTurnMessage;
+    if (message.role === "user") return messageText(message);
+  }
+  return "";
+}
+
 /** Require a later user approval of a matching assistant proposal. */
 export function hasExplicitChangeConfirmation(messages: readonly ChatTurnMessage[], change: ConfirmableChange): boolean {
   const current = [...messages].reverse().find((message) => message.role === "user");

@@ -1,33 +1,41 @@
+import { parseOptionalIdentityKey, parseOptionalNumber } from "@raceiq/frontend-pure/route-search";
+import type { TuneReviewTrackTab } from "@raceiq/session-analyse/contracts";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getAllGames, tryGetGame } from "@raceiq/shared/games/registry"
 import type { ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 import { clientReleaseFeatures } from "./release-features";
 
-export type AnalyseSearch = {
-  session?: number;
-  track?: number | string;
-  car?: number | string;
-  lap?: number;
-  laps?: string;
-  primary?: number;
-  cursor?: number;
-  viz?: string;
-  ai?: number;
-  view?: string;
-  tab?: TuneReviewTrackTab;
-};
 export type CompareSearch = {
-  track?: number;
-  carA?: number;
-  carB?: number;
+  track?: string;
+  layout?: string;
+  carA?: string;
+  carB?: string;
   lapA?: number;
   lapB?: number;
+  opponentLap?: string;
+  opponentRevision?: string;
+  reference?: "player" | "opponent";
   cursor?: number;
   ai?: number;
+  view?: "compare" | "spectate";
 };
+export function compareTrackFromSearch(track: unknown, layoutValue: unknown): string | undefined {
+  const layout = parseOptionalIdentityKey(layoutValue);
+  if (layout == null) return parseOptionalIdentityKey(track);
+  const name = typeof track === "string" ? track : undefined;
+  return name == null ? undefined : JSON.stringify([name, layout]);
+}
+export function compareTrackSearch(trackId: string | null): { track?: string; layout?: string } {
+  if (trackId == null) return { track: undefined, layout: undefined };
+  try {
+    const parts: unknown = JSON.parse(trackId);
+    if (Array.isArray(parts) && parts.length === 2 && parts.every((part) => typeof part === "string" && part.length > 0)) {
+      return { track: parts[0], layout: parts[1] };
+    }
+  } catch {}
+  return { track: trackId, layout: undefined };
+}
 
-export type SessionsTab = "mine" | "others";
-export type SessionsSearch = { tab?: SessionsTab };
 export type TuneView = "overview" | `s${number}`;
 export type TuneSearch = {
   session?: number | "live";
@@ -36,7 +44,6 @@ export type TuneSearch = {
 };
 
 export type TuneReviewView = "overview" | "track" | `s${number}`;
-export type TuneReviewTrackTab = "consistency" | "braking" | "throttle" | "dynamics" | "fuel" | "suspension";
 export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
@@ -50,14 +57,18 @@ export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
 export type LiveDashboard = "forza" | "f1" | "acc" | "lmu";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
-  driver: ["fm23", "f125", "acc", "ac-evo"],
+  driver: ["fm23", "f125", "acc", "ac-evo", "iracing", "ams2"],
   experiments: ["f125", "acc", "ac-evo"],
-  raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu"],
+  raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu", "ams2"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
 };
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
   return getAllGames().find((game) => game.routePrefix === prefix)?.id;
+}
+
+export function gameIdForPathname(pathname: string): GameId | null {
+  return getAllGames().find((game) => pathname === `/${game.routePrefix}` || pathname.startsWith(`/${game.routePrefix}/`))?.id ?? null;
 }
 
 /** Select the existing dashboard implementation for a registered game. */
@@ -71,6 +82,7 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
     case "ac-evo":
       return "acc";
     case "iracing":
+    case "ams2":
       return "forza";
     case "lmu":
       return "lmu";
@@ -83,72 +95,23 @@ export function routePrefixForGameId(gameId: string): string | undefined {
   return tryGetGame(gameId)?.routePrefix;
 }
 
-export function parseOptionalNumber(value: unknown): number | undefined {
-  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== "string" || value.trim() === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-export function parseOptionalIdentityKey(value: unknown): number | string | undefined {
-  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== "string" || value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && value.trim() !== "" ? parsed : value;
-}
-
-/** Parse the canonical comparison lap list without silently accepting malformed IDs. */
-export function parseAnalyseLapIds(value: string | undefined): number[] | null | undefined {
-  if (value == null) return undefined;
-  const parts = value.split(",");
-  if (parts.length === 0 || parts.some((part) => part.trim() === "")) return null;
-  const ids = parts.map((part) => Number(part));
-  if (ids.some((id) => !Number.isInteger(id) || id <= 0) || new Set(ids).size !== ids.length) return null;
-  return ids;
-}
-
-export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
-  const requestedTab = search.tab ?? search.trackTab;
-  const tab =
-    requestedTab === "consistency" ||
-    requestedTab === "braking" ||
-    requestedTab === "throttle" ||
-    requestedTab === "dynamics" ||
-    requestedTab === "fuel" ||
-    requestedTab === "suspension"
-      ? requestedTab
-      : undefined;
-  return {
-    session: parseOptionalNumber(search.session),
-    track: parseOptionalIdentityKey(search.track),
-    car: parseOptionalIdentityKey(search.car),
-    lap: parseOptionalNumber(search.lap),
-    laps: typeof search.laps === "string" ? search.laps : undefined,
-    primary: parseOptionalNumber(search.primary),
-    cursor: parseOptionalNumber(search.cursor),
-    viz: typeof search.viz === "string" ? search.viz : undefined,
-    ai: parseOptionalNumber(search.ai),
-    view: typeof search.view === "string" ? search.view : undefined,
-    tab,
-  };
-}
 
 export function validateCompareSearch(search: Record<string, unknown>): CompareSearch {
   return {
-    track: parseOptionalNumber(search.track),
-    carA: parseOptionalNumber(search.carA),
-    carB: parseOptionalNumber(search.carB),
+    ...compareTrackSearch(compareTrackFromSearch(search.track, search.layout ?? search.trackLayout) ?? null),
+    carA: parseOptionalIdentityKey(search.carA),
+    carB: parseOptionalIdentityKey(search.carB),
     lapA: parseOptionalNumber(search.lapA),
     lapB: parseOptionalNumber(search.lapB),
+    opponentLap: typeof search.opponentLap === "string" && search.opponentLap.length > 0 ? search.opponentLap : undefined,
+    opponentRevision: typeof search.opponentRevision === "string" && search.opponentRevision.length > 0 ? search.opponentRevision : undefined,
+    reference: search.reference === "opponent" ? "opponent" : search.reference === "player" ? "player" : undefined,
     cursor: parseOptionalNumber(search.cursor),
     ai: parseOptionalNumber(search.ai),
+    view: search.view === "spectate" ? "spectate" : search.view === "compare" ? "compare" : undefined,
   };
 }
 
-export function validateSessionsSearch(search: Record<string, unknown>): SessionsSearch {
-  const tab = search.tab === "others" || search.tab === "mine" ? search.tab : search.tab === "recorded" || search.tab === "imported" ? "mine" : undefined;
-  return { tab };
-}
 
 export function validateTuneSearch(search: Record<string, unknown>): TuneSearch {
   const view = search.view === "overview" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;

@@ -4,11 +4,11 @@ import { resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric
 import type { GameId } from "@raceiq/shared/games/ids";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
-import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
+import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "@raceiq/scene-3d/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import { semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
-import { hasSurfaceTemperatureProfile } from "./tire-temperature-profile";
+import { semanticWheelNumbers, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
+import { hasSurfaceTemperatureProfile } from "@raceiq/scene-3d/tire-temperature-profile"
 interface WearRate {
   FL: number;
   FR: number;
@@ -35,7 +35,8 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
   const brake = semanticWheelNumbers(frame, "brakes.brake-temp");
   const pressure = binding(analysis.tirePressure) ? resolveWheelMetric(frame, binding(analysis.tirePressure)!) : [null, null, null, null];
   const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
-  const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
+  const carId = typeof frame.values["identity.car-id"] === "string" ? frame.values["identity.car-id"] : undefined;
+  const optimal = useTirePressureOptimal(gameId, carId);
   const dualTemperature = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value" && analysis.tireTemperature.binding.semanticId === "tire.temperature.surface.representative" && temp.some((value) => value != null) && (coreTemp.some((value) => value != null) || carcassTemp.some((value) => value != null));
   const profile = hasSurfaceTemperatureProfile(frame);
   const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";

@@ -9,7 +9,7 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
  * the new normal — the regression test then measures relative drift against
  * the most recent committed baseline.
  *
- *   bun run ai:baseline
+ *   EVALS_MODEL=gemini-3-flash bun run ai:baseline
  */
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -34,8 +34,14 @@ import {
 } from "../../src/mastra/evals/fixtures";
 import { analystScorers, compareScorers, scoreOutput } from "../../src/mastra/evals/index";
 
-if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.error("Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");
+const evalsProvider = process.env.EVALS_PROVIDER ?? "gemini";
+const hasEvalKey = evalsProvider === "deepseek"
+  ? Boolean(process.env.DEEPSEEK_API_KEY)
+  : Boolean(process.env.GEMINI_API_KEY) || Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+if (!hasEvalKey) {
+  console.error(evalsProvider === "deepseek"
+    ? "Missing DEEPSEEK_API_KEY (EVALS_PROVIDER=deepseek)"
+    : "Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");
   process.exit(1);
 }
 
@@ -164,9 +170,9 @@ function buildComparePrompt(
   packetsA: TelemetryPacket[],
   packetsB: TelemetryPacket[],
 ) {
-  const trackName = resolveTrackName(fx.lapA.trackOrdinal);
-  const carA = resolveCarName(fx.lapA.carOrdinal);
-  const carB = resolveCarName(fx.lapB.carOrdinal);
+  const trackName = fx.lapA.trackId;
+  const carA = fx.lapA.carId;
+  const carB = fx.lapB.carId;
   const finalDelta = fx.lapA.lapTime - fx.lapB.lapTime;
   const header = compareLapHeader(trackName, carA, carB, fx.lapA, fx.lapB, finalDelta);
   const summarise = (pkts: typeof packetsA, label: string) => {

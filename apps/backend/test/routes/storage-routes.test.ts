@@ -1,11 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { miscRoutes } from "../../src/routes/system/index";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { getAllGames } from "@raceiq/shared/games/registry";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
-
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 initGameAdapters();
 
 describe("session storage stats", () => {
@@ -27,6 +29,36 @@ describe("session storage stats", () => {
           gzBytes: 0,
         });
       }
+    }
+  });
+
+  test("tallies ownership and legacy folders against game ids", async () => {
+    const root = resolveRecordingDirectory();
+    const gameId = "storage-layout-test-game";
+    const paths = [
+      join(root, gameId, "own", "mine.bin"),
+      join(root, gameId, "others", "other.bin.gz"),
+      join(root, gameId, "legacy.bin"),
+    ];
+    const externalDir = await mkdtemp(join(tmpdir(), "raceiq-storage-link-"));
+    const externalCapture = join(externalDir, "linked.bin");
+    await writeFile(externalCapture, Buffer.from("outside"));
+    try {
+      for (const path of paths) {
+        await mkdir(join(path, ".."), { recursive: true });
+        await writeFile(path, Buffer.from("file"));
+      }
+      await symlink(externalDir, join(root, gameId, "own", "linked-dir"), "dir");
+      const response = await miscRoutes.request("/api/storage/sessions");
+      const body = await response.json() as {
+        byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }>;
+      };
+      expect(body.byGame[gameId]).toEqual({ binCount: 2, gzCount: 1, binBytes: 8, gzBytes: 4 });
+      expect(body.byGame.own).toBeUndefined();
+      expect(body.byGame.others).toBeUndefined();
+    } finally {
+      await rm(join(root, gameId), { recursive: true, force: true });
+      await rm(externalDir, { recursive: true, force: true });
     }
   });
 });

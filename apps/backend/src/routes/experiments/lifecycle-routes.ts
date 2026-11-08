@@ -8,7 +8,7 @@ import { createExperiment, getExperiment, listExperimentFocusEvents, listExperim
 import { createExperimentVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
-import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { suggestLapTarget } from "@raceiq/shared/racing/experiments/stint-target";
 import { ExperimentFocusSchema } from "@raceiq/shared/racing/experiments/focus";
 
@@ -20,8 +20,8 @@ const ExperimentQuerySchema = z.object({
 const CreateExperimentSchema = z.object({
   gameId: GameIdSchema,
   name: z.string().min(1).max(120),
-  carOrdinal: z.number().int().nullable().optional(),
-  trackOrdinal: z.number().int().nullable().optional(),
+  carId: z.string().nullable().optional(),
+  trackId: z.string().nullable().optional(),
   carName: z.string().max(200).nullable().optional(),
   trackName: z.string().max(200).nullable().optional(),
   baseSetupPath: z.string().max(1000).nullable().optional(),
@@ -54,15 +54,14 @@ export const experimentLifecycleRoutes = new Hono()
   )
 
   // POST /api/experiments — create a session (from a base setup or a
-  // live/recorded session seed; car/track supplied as names or ordinals).
-  // Seeds the v1 "base" tuning test from baseSetupPath when one was supplied.
+  // live/recorded session seed; car/track supplied as names or IDs).
   .post("/api/experiments",
     zValidator("json", CreateExperimentSchema),
     async (c) => {
       const body = c.req.valid("json");
       const id = await createExperiment(body);
       // Seed v1 "base" only when the session was created from a base setup —
-      // an ordinal-seeded session has no setup file to version yet.
+      // an ID-seeded session has no setup file to version yet.
       if (body.baseSetupPath) {
         const baseTestId = await createExperimentVersion(
           {
@@ -162,7 +161,7 @@ export const experimentDetailRoutes = new Hono()
         if (!l.isValid || l.lapTime <= 0) return best;
         return best == null || l.lapTime < best ? l.lapTime : best;
       }, null);
-      const trackLengthM = row.trackOrdinal != null ? getTrackLengthMeters(row.trackOrdinal, row.gameId) : null;
+      const trackLengthM = row.trackId ? getTrackLengthMetersById(row.trackId, row.gameId) : null;
       const lapTarget = suggestLapTarget(bestLap, trackLengthM);
 
       return c.json({ ...row, lapTarget });

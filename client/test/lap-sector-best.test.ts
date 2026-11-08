@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { bestSectorLapIds } from "../src/lib/lap-sectors";
+import { bestSectorLapIds, validLapBests } from "../src/lib/lap-sectors";
 
 describe("bestSectorLapIds", () => {
   test("selects only the actual fastest lap for each sector", () => {
@@ -20,4 +20,15 @@ describe("bestSectorLapIds", () => {
 
     expect(bestSectorLapIds(laps, 1)).toEqual([10]);
   });
+});
+
+test("recorded PBs ignore a faster invalid lap and incomplete timings", () => {
+  expect(validLapBests([
+    { isValid: false, lapTime: 58.468, sectorTimes: [19.728, 20.492, 18.248] },
+    { isValid: true, lapTime: 90, sectorTimes: [30, 31, 29] },
+    { isValid: true, lapTime: 0, sectorTimes: [1, 1, 1] },
+    { isValid: true, lapTime: NaN, sectorTimes: [1, 1, 1] },
+  ], 3)).toEqual({ lapTime: 90, sectors: [30, 31, 29] });
+  expect(validLapBests([{ isValid: false, lapTime: 58.468, sectorTimes: [19, 20, 19] }], 3))
+    .toEqual({ lapTime: 0, sectors: [0, 0, 0] });
 });

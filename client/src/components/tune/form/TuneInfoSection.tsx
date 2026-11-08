@@ -9,12 +9,12 @@ import type { TuneFormCar } from "./useAllCars";
 
 export function TuneInfoSection({
   allCars,
-  carOrdinal,
+  carId,
   carDropOpen,
   carSearchQuery,
   filteredFormCars,
   selectedCarName,
-  setCarOrdinal,
+  setCarId,
   setCarDropOpen,
   setCarSearchQuery,
   name,
@@ -29,12 +29,12 @@ export function TuneInfoSection({
   setDescription,
 }: {
   allCars: TuneFormCar[];
-  carOrdinal: number;
+  carId: string;
   carDropOpen: boolean;
   carSearchQuery: string;
   filteredFormCars: TuneFormCar[];
   selectedCarName: string;
-  setCarOrdinal: Dispatch<SetStateAction<number>>;
+  setCarId: Dispatch<SetStateAction<string>>;
   setCarDropOpen: Dispatch<SetStateAction<boolean>>;
   setCarSearchQuery: Dispatch<SetStateAction<string>>;
   name: string;
@@ -79,15 +79,15 @@ export function TuneInfoSection({
           <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
             {filteredFormCars.map((c) => (
               <Button
-                key={c.ordinal}
+                key={c.id}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setCarOrdinal(c.ordinal);
+                  setCarId(c.id);
                   setCarSearchQuery("");
                   setCarDropOpen(false);
                 }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carOrdinal === c.ordinal ? "text-app-accent" : "text-app-text"}`}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carId === c.id ? "text-app-accent" : "text-app-text"}`}
               >
                 {c.name}
               </Button>
@@ -127,7 +127,7 @@ export function TuneInfoSection({
         <AppInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full" />
       </label>
       {(() => {
-        const carData = allCars.find((c) => c.ordinal === carOrdinal);
+        const carData = allCars.find((c) => c.id === carId);
         if (!carData?.specs) return null;
         const s = carData.specs;
         return (

@@ -4,8 +4,9 @@
  * binary body, so we hand it to the browser as a download.
  */
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { OpponentComparisonRequest } from "@raceiq/lap-replay/contracts";
 import { formatLapTime } from "./format";
-import { client } from "./rpc";
+import { authenticatedFetch, client } from "./rpc";
 
 /** Build a CSV string from lap telemetry and hand it to the browser as a download. */
 export function buildExportCsv(
@@ -17,12 +18,12 @@ export function buildExportCsv(
   driverName?: string,
 ): string {
   const first = telemetry[0] ?? {};
-  const carOrdinal = selectedLap?.carOrdinal ?? first.CarOrdinal ?? "?";
-  const trackOrdinal = selectedLap?.trackOrdinal ?? first.TrackOrdinal ?? "?";
+  const carId = selectedLap?.carId ?? first.CarId ?? "?";
+  const trackId = selectedLap?.trackId ?? first.TrackId ?? "?";
   const header = [
     `# Driver: ${driverName || "Unknown"}`,
-    `# Car: ${carName || `Ordinal ${carOrdinal}`} | CarOrdinal: ${carOrdinal}`,
-    `# Track: ${trackName || `Ordinal ${trackOrdinal}`} | TrackOrdinal: ${trackOrdinal}`,
+    `# Car: ${carName || `ID ${carId}`} | CarId: ${carId}`,
+    `# Track: ${trackName || `ID ${trackId}`} | TrackId: ${trackId}`,
     `# Lap: ${selectedLap?.lapNumber ?? "?"} | LapId: ${selectedLapId} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"} | Session: ${selectedLap?.sessionId ?? "?"} | Game: ${selectedLap?.gameId ?? "?"} | PI: ${selectedLap?.pi ?? "?"} | Valid: ${selectedLap?.isValid ?? "?"}`,
   ].join("\n");
   const csv = [header, Object.keys(first).join(","), ...telemetry.map((packet) => Object.values(packet).join(","))].join("\n");
@@ -58,14 +59,18 @@ export async function downloadResponse(res: DownloadResponse, fallbackName: stri
  * Download the given laps and/or whole sessions as a single .zip.
  * Throws with the server's error message so callers can surface it.
  */
-export async function exportLapsZip(sel: { lapIds?: number[]; sessionIds?: number[] }): Promise<void> {
+export async function exportLapsZip(sel: { lapIds?: number[]; sessionIds?: number[]; opponent?: Pick<OpponentComparisonRequest, "opponentLapId" | "sourceRevision"> }): Promise<void> {
   const lapIds = sel.lapIds ?? [];
   const sessionIds = sel.sessionIds ?? [];
   if (lapIds.length === 0 && sessionIds.length === 0) return;
 
   const res = await client.api.laps["export-zip"].$get({
-    query: { ids: lapIds.join(","), sessionIds: sessionIds.join(",") },
-  });
+    query: {
+      ids: lapIds.join(","),
+      ...(sessionIds.length ? { sessionIds: sessionIds.join(",") } : {}),
+      ...(sel.opponent ? { opponentLap: sel.opponent.opponentLapId, opponentRevision: sel.opponent.sourceRevision } : {}),
+    },
+  }, sel.opponent ? { headers: { "X-Game-Id": "lmu" } } : undefined);
   if (!res.ok) {
     const err = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(err?.error ?? `Export failed (${res.status})`);
@@ -74,13 +79,14 @@ export async function exportLapsZip(sel: { lapIds?: number[]; sessionIds?: numbe
 }
 
 /** Upload a .zip produced by {@link exportLapsZip}. Returns import counts. */
-export async function importLapsZip(file: File, ownership: "mine" | "others" = "mine"): Promise<{ imported: number; skipped: number }> {
+export async function importLapsZip(file: File, ownership: "mine" | "others" = "mine", identityOverrides?: Record<string, { carId: string; trackId: string }>): Promise<{ imported: number; skipped: number }> {
   // Multipart upload: the route takes a raw FormData body (no zod form
   // validator), so RPC has no typed shape for it — same as /api/laps/import.
   const body = new FormData();
   body.append("file", file);
   body.append("ownership", ownership);
-  const res = await fetch("/api/laps/import-zip", { method: "POST", body });
+  if (identityOverrides) body.append("identityOverrides", JSON.stringify(identityOverrides));
+  const res = await authenticatedFetch("/api/laps/import-zip", { method: "POST", body });
   const data = (await res.json().catch(() => null)) as { imported?: number; skipped?: number; error?: string } | null;
   if (!res.ok) throw new Error(data?.error ?? `Import failed (${res.status})`);
   return { imported: data?.imported ?? 0, skipped: data?.skipped ?? 0 };

@@ -119,6 +119,7 @@ export const replayRoutes = new Hono()
           receivedAtMs: timestampMilliseconds(envelope.receivedAt),
           values: envelope.values,
           context: {},
+          ...(envelope.lmu ? { lmu: envelope.lmu } : {}),
         }),
       );
       return c.json({ schema, frames });
@@ -170,7 +171,7 @@ export const replayRoutes = new Hono()
     });
 
     const sectorTracker = new SectorTracker();
-    await sectorTracker.reset(packets[0]!.TrackOrdinal, gameId, packets[0]!.CarOrdinal);
+    await sectorTracker.reset(packets[0]!.trackId, gameId, packets[0]!.carId);
     if (gameId === "iracing") {
       const referenceLap = selectIRacingReferenceLap(recorded.packets);
       if (referenceLap) {

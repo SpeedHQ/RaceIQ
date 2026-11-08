@@ -1,0 +1,2 @@
+import { defineConfig, devices } from "@playwright/test";
+export default defineConfig({ testDir: "tests/seeded/compare", testMatch: ["spectate-focus.spec.ts", "spectate-transition.spec.ts", "spectate-zoom.spec.ts"], outputDir: "/tmp/raceiq-snap-native-results", workers: 1, expect: { timeout: 15_000 }, use: { ...devices["Desktop Chrome"], launchOptions: { args: ["--enable-unsafe-webgpu", "--use-angle=metal"] }, actionTimeout: 20_000, screenshot: "only-on-failure", viewport: { width: 1440, height: 1000 }, baseURL: "http://127.0.0.1:4149", colorScheme: "dark" } });

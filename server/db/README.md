@@ -16,9 +16,14 @@ Owns RaceIQ's SQLite persistence boundary: connection startup, schema evolution,
 
 - Schema and migration history are append-only compatibility contracts. Change both deliberately; never rewrite an applied migration.
 - Entrypoints must await `initDb()` before querying. Foreign keys, WAL mode, backfills, and migration ordering are established there.
+- Dashboard authentication shares the application-owned libSQL client. Auth code must not open or close a separate SQLite connection; mixing libSQL and `bun:sqlite` on a live WAL database can unlink the WAL while another connection is still writing. Entrypoints own connection shutdown after all database work completes.
+- Repository lint forbids `bun:sqlite` imports, re-exports, dynamic imports, and CommonJS loading. Standalone synchronous fixtures and tooling use native `libsql`; runtime authentication uses the shared application client.
 - Raw session files are the authoritative telemetry replay source; frame offsets and counts retain their persisted meaning.
-- Query modules normalize SQLite nulls and booleans at the boundary. Game IDs, ordinal pairs, experiment links, and exclusion provenance must remain scoped together.
+- Query modules normalize SQLite nulls and booleans at the boundary. Game IDs, string `carId`/`trackId` pairs, experiment links, and exclusion provenance must remain scoped together.
 - Database code may use game adapters to interpret persisted telemetry, but game policy and parsing semantics stay in their owning domains.
+- AC Evo stores the exact trimmed source car name and a JSON `[trackName, trackConfiguration]` tuple. Numeric game IDs become strings at normalization; binary source formats stay unchanged.
+- Historical ordinal columns are migration inputs only. Identity upgrades preserve session/lap IDs and user annotations; unresolved AC Evo IDs remain empty until source capture recovery.
+- Restore a pre-upgrade database backup to roll back an identity schema upgrade; older binaries cannot read the contracted schema.
 
 ## Testing
 

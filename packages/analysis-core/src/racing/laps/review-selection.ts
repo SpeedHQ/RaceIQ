@@ -1,3 +1,4 @@
+import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { isPitCycleLap } from "./pit-cycle";
 
 /**
@@ -32,6 +33,7 @@ export type EvaluationReason =
   | "chosen"
   | "invalid"
   | "pit"
+  | "non-pace"
   | "manual"
   | "auto"
   | "slower-than-cap";
@@ -52,6 +54,7 @@ export interface EvaluableLap {
   id: number;
   lapTime: number;
   isValid: boolean;
+  classification: LapClassification | null;
   invalidReason?: string | null;
   experimentExcluded?: boolean;
   experimentExcludedSource?: "auto" | "manual" | null;
@@ -84,6 +87,8 @@ export function selectEvaluationLaps<T extends EvaluableLap>(
       reasonById.set(lap.id, "manual");
     } else if (!lap.isValid || lap.lapTime <= 0) {
       reasonById.set(lap.id, "invalid");
+    } else if (!isPaceLap(lap.classification)) {
+      reasonById.set(lap.id, "non-pace");
     } else if (isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
       reasonById.set(lap.id, "pit");
     } else {
@@ -116,6 +121,8 @@ export function evaluationReasonLabel(reason: EvaluationReason): string {
       return "Eval";
     case "invalid":
       return "Invalid";
+    case "non-pace":
+      return "Non-pace";
     case "pit":
       return "Pit lap";
     case "manual":

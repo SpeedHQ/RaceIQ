@@ -24,4 +24,20 @@ describe("detailed telemetry storage", () => {
     expect(restored.TireSurfaceTempInnerFL).toBeUndefined();
     expect(restored.BrakeTempFrontLeft).toBeUndefined();
   });
+  test("round-trips punctuation in native track tuple JSON identity", () => {
+    const trackId = JSON.stringify(['Brands, "Hatch"', 'GP, "Full"']);
+    const packet = {
+      gameId: "ac-evo",
+      carId: 'Porsche, "992"',
+      trackId,
+      Speed: 42,
+    } as TelemetryPacket;
+
+    const [restored] = decompressTelemetry(compressTelemetry([packet]));
+
+    expect(restored.carId).toBe('Porsche, "992"');
+    expect(restored.trackId).toBe(trackId);
+    expect(JSON.parse(restored.trackId!)).toEqual(['Brands, "Hatch"', 'GP, "Full"']);
+    expect(restored.Speed).toBe(42);
+  });
 });

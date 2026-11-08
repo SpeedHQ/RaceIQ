@@ -16,16 +16,14 @@ jobs:
   update-readme:
     timeout-minutes: 30
     runs-on:
-      - mars-windows-x64-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-2vcpu-10g
+      - mars-ubuntu-2vcpu-6g
     permissions:
       contents: write
 
     steps:
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - uses: actions/checkout@v7
 
       - name: Append dashboard screenshots to assets/screenshots/README.md

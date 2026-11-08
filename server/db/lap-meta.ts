@@ -1,21 +1,21 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, ProcessingMetadata, SessionCaptureSplitPhase } from "@raceiq/shared/racing/sessions/types";
 
 type StoredLapMetaRow = {
+  processing: ProcessingMetadata;
   id: number;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean | number;
+  classification: LapMeta["classification"];
   invalidReason: string | null;
   notes: string | null;
   pi: number | null;
   carSetup: string | null;
   createdAt: string;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId: string | null;
-  trackId: string | null;
+  carId: string;
+  trackId: string;
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
@@ -39,11 +39,27 @@ type StoredLapMetaRow = {
   isFavorite?: boolean | number | null;
   telemetryAvailable?: boolean | number | null;
   ownership?: string | null;
+  standaloneCaptureReady?: boolean | number | null;
+  captureManifestFile?: string | null;
+  capturePhase?: SessionCaptureSplitPhase | null;
 };
+export function mergeLapProcessingMetadata(
+  capturePhase: SessionCaptureSplitPhase | null | undefined,
+  indexProcessing: ProcessingMetadata,
+): ProcessingMetadata {
+  if (capturePhase === "failed") return { state: "failed", stage: "capture", error: "Capture preparation failed" };
+  if (capturePhase === "queued") return { state: "queued", stage: "capture", error: null };
+  if (capturePhase === "splitting" || capturePhase === "verifying" || capturePhase === "publishing") {
+    return { state: "processing", stage: "capture", error: null };
+  }
+  return indexProcessing;
+}
+
 /** Normalize nullable SQLite fields into the public LapMeta representation. */
 export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const {
     isValid,
+    classification,
     invalidReason,
     notes,
     pi,
@@ -71,8 +87,12 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     rawFrameCount,
     rawByteOffset,
     rawFile: _rawFile,
+    captureManifestFile: _captureManifestFile,
+    capturePhase: _capturePhase,
     isFavorite,
     telemetryAvailable,
+    standaloneCaptureReady,
+    processing,
     ...base
   } = row;
 
@@ -97,11 +117,13 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
 
   return {
     ...base,
-    carId: carId ?? row.carOrdinal,
-    trackId: trackId ?? row.trackOrdinal,
+    processing,
+    carId,
+    trackId,
     ...versionIdentity,
     ...frameCount,
     isValid: Boolean(isValid),
+    classification: classification ?? null,
     invalidReason: invalidReason ?? undefined,
     notes: notes ?? undefined,
     pi: pi ?? 0,
@@ -123,5 +145,6 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tyreWear: tyreWear ?? null,
     isFavorite: Boolean(isFavorite),
     telemetryAvailable: lapTelemetryAvailable,
+    standaloneCaptureReady: standaloneCaptureReady === undefined ? undefined : Boolean(standaloneCaptureReady),
   };
 }

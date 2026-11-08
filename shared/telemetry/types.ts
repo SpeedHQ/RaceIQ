@@ -2,7 +2,7 @@ import type { GameId } from "../games/ids";
 import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
 import type { IRacingExtendedData } from "./iracing";
-import type { LMUExtendedData } from "./lmu";
+import type { LMUExtendedData, LmuLiveContext } from "./lmu";
 export interface RaceIQExtendedData {
   /** UTC epoch milliseconds when source frame was acquired; absent in historical captures. */
   frameTimeMs?: number;
@@ -10,10 +10,19 @@ export interface RaceIQExtendedData {
 
 export interface TelemetryPacket {
   gameId: GameId;
+  carId: string;
+  trackId: string;
+  acEvoIdentity?: {
+    carName: string;
+    trackName: string;
+    trackConfiguration: string;
+  };
   f1?: F1ExtendedData;
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
   lmu?: LMUExtendedData;
+  ams2?: {carName: string; trackName: string; trackLengthM: number; lapDistanceM: number; sessionType: string; lapInvalidated: boolean; inPits: boolean};
+  lmuContext?: LmuLiveContext;
   extendedRaceIQ?: RaceIQExtendedData;
 
   // Game session UID (used for reliable session boundary detection)
@@ -192,12 +201,6 @@ export interface TelemetryPacket {
   SuspensionTravelMRR: number;
 
   // Car info
-  CarOrdinal: number; // s32
-  /**
-   * Raw car name/model string from telemetry when CarOrdinal is -1 (car not
-   * in the game's cars.csv). Lets the session layer register the car in
-   * discovered_cars instead of storing an unresolvable -1. AC Evo only.
-   */
   carModelName?: string;
   CarClass: number; // s32 (0-7)
   CarPerformanceIndex: number; // s32
@@ -212,8 +215,6 @@ export interface TelemetryPacket {
   Power: number; // f32 watts
   Torque: number; // f32 newton meters
 
-  // Track ID
-  TrackOrdinal: number; // s32
 
   // Brake temps (ACC only)
   BrakeTempFrontLeft?: number;

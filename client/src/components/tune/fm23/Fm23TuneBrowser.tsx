@@ -45,7 +45,7 @@ export function Fm23TuneBrowser() {
         gameId: "fm-2023",
         name: parsed.name || file.name.replace(/\.json$/i, "") || m.tune_source_imported_tune(),
         author: parsed.author || m.tune_source_imported(),
-        carOrdinal: Number(parsed.carOrdinal ?? 2860),
+        carId: String(parsed.carId ?? "2860"),
         category: parsed.category || "circuit",
         description: parsed.description || m.tune_source_imported_from_json(),
         settings: withDefaults(normalizedSettings),
@@ -59,33 +59,33 @@ export function Fm23TuneBrowser() {
   const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);
 
-  const trackOrdinals = useMemo(() => [...new Set(rows.map((r) => r.trackOrdinal).filter((o): o is number => o != null))], [rows]);
-  const carOrdinals = useMemo(() => [...new Set(rows.map((r) => r.carOrdinal))], [rows]);
-  const { data: names } = useResolveNames(trackOrdinals, carOrdinals);
+  const trackIds = useMemo(() => [...new Set(rows.map((r) => r.trackId).filter((id): id is string => id != null))], [rows]);
+  const carIds = useMemo(() => [...new Set(rows.map((r) => r.carId))], [rows]);
+  const { data: names } = useResolveNames(trackIds, carIds);
 
-  const carNames: Record<number, string> = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const ord of carOrdinals) map[ord] = names?.carNames[String(ord)] ?? `Car #${ord}`;
+  const carNames: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const id of carIds) map[id] = names?.carNames[id] ?? `Car #${id}`;
     return map;
-  }, [carOrdinals, names]);
+  }, [carIds, names]);
 
-  const trackNames: Record<number, string> = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const ord of trackOrdinals) map[ord] = names?.trackNames[String(ord)] ?? `Track #${ord}`;
+  const trackNames: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const id of trackIds) map[id] = names?.trackNames[id] ?? `Track #${id}`;
     return map;
-  }, [trackOrdinals, names]);
+  }, [trackIds, names]);
 
   const carOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.carId, (counts.get(r.carId) ?? 0) + 1);
+    const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: carNames[id] ?? `Car #${id}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.tune_filter_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames]);
 
   const trackOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: names?.trackNames[String(ord)] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
+    const counts = new Map<string, number>();
+    for (const r of rows) if (r.trackId != null) counts.set(r.trackId, (counts.get(r.trackId) ?? 0) + 1);
+    const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: names?.trackNames[id] ?? `Track ${id}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.tune_filter_any_track(), count: rows.length }, ...opts];
   }, [rows, names]);
 

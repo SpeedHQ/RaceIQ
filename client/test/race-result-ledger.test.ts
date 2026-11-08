@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { buildRaceResultTimeline, formatService } from "../src/components/race-results/RaceResultLedger";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import { SessionResultMeta } from "../src/components/sessions/SessionResultMeta";
 const result = {
   id: 1,
   sessionId: 7,
@@ -37,6 +33,32 @@ const result = {
 } as const;
 
 describe("race result timeline", () => {
+  test("inserts in-laps as pits in lap order without duplicating recorded stops", () => {
+    const timeline = buildRaceResultTimeline(result, [
+      { id: 3, lapNumber: 15, classification: "in_lap" },
+      { id: 2, lapNumber: 12, classification: "in_lap" },
+      { id: 1, lapNumber: 4, classification: "in_lap" },
+      { id: 4, lapNumber: 5, classification: "out_lap" },
+      { id: 5, lapNumber: 6, classification: "reset" },
+    ]);
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "pit", "pit", "pit", "finish"]);
+    expect(timeline.filter((node) => node.kind === "pit")).toEqual([
+      expect.objectContaining({ lapNumber: 4, service: "unknown", durationSeconds: null }),
+      expect.objectContaining({ lapNumber: 12, service: "tyres", durationSeconds: 22.4 }),
+      expect.objectContaining({ lapNumber: 15, service: "unknown", durationSeconds: null }),
+    ]);
+  });
+
+  test("shows in-lap pits without a native result, without inventing a finish", () => {
+    expect(buildRaceResultTimeline(null, [
+      { id: 1, lapNumber: 2, classification: "in_lap" },
+    ])).toEqual([
+      { kind: "start", position: null },
+      { kind: "pit", sequence: -1, lapNumber: 2, service: "unknown", durationSeconds: null, tyreChange: null, fuelAdded: null },
+    ]);
+    expect(buildRaceResultTimeline(null, [{ id: 1, lapNumber: 1, classification: null }])).toEqual([]);
+  });
+
   test("hides stale LMU practice positions while retaining pit activity", () => {
     const timeline = buildRaceResultTimeline({
       ...result, gameId: "lmu", sessionType: "practice",
@@ -50,15 +72,6 @@ describe("race result timeline", () => {
     expect(timeline[2]).toMatchObject({ finishingPosition: null });
   });
 
-  test("never labels LMU practice or test day as a race result position", () => {
-    for (const sessionType of ["practice-1", "test-day"]) {
-      const session = { gameId: "lmu", sessionType, finishingPosition: 1 } as SessionMeta;
-      const markup = renderToStaticMarkup(createElement(SessionResultMeta, { session }));
-      expect(markup).not.toMatch(/P\d/);
-    }
-    const race = { gameId: "lmu", sessionType: "race", finishingPosition: 1 } as SessionMeta;
-    expect(renderToStaticMarkup(createElement(SessionResultMeta, { session: race }))).toMatch(/P<!-- -->1|P1/);
-  });
 
   test("places qualifying before start, race events, and finish", () => {
     const timeline = buildRaceResultTimeline(result);

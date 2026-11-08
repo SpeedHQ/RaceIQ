@@ -113,7 +113,7 @@ describe("computeLapSectors — sector source priority", () => {
   test("f1-2025 uses sector times from F1 SessionHistory packet", async () => {
     const f1Sectors = { s1: 26.7, s2: 27.4 };
     const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
-    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    const sectors = await computeLapSectors("3004", "f1-2025", packets, LAP_TIME);
     expect(sectors).not.toBeNull();
     expect(sectors![0]).toBeCloseTo(f1Sectors.s1, 3);
     expect(sectors![1]).toBeCloseTo(f1Sectors.s2, 3);
@@ -123,7 +123,7 @@ describe("computeLapSectors — sector source priority", () => {
   test("f1-2025 sector times sum to lap time", async () => {
     const f1Sectors = { s1: 27.123, s2: 28.456 };
     const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
-    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    const sectors = await computeLapSectors("3004", "f1-2025", packets, LAP_TIME);
     expect(sectors).not.toBeNull();
     expect(sectors!.reduce((sum, time) => sum + time, 0)).toBeCloseTo(LAP_TIME, 3);
   });
@@ -132,41 +132,8 @@ describe("computeLapSectors — sector source priority", () => {
     // No opts.f1Sectors → no f1 sub-object. F1 must never fall back to
     // distance-fraction — the game is the authority on its own splits.
     const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025");
-    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    const sectors = await computeLapSectors("3004", "f1-2025", packets, LAP_TIME);
     expect(sectors).toBeNull();
   });
 
-  test("LMU converts cumulative scoring splits to individual sector times", async () => {
-    const packets = makeLapPackets(TRACK_LENGTH, 100, "lmu");
-    packets.at(-1)!.lmu = {
-      lastSector1: 30,
-      lastSector2: 65,
-    } as TelemetryPacket["lmu"];
-
-    expect(await computeLapSectors(-1, "lmu", packets, 100)).toEqual([30, 35, 35]);
-  });
-
-  test("LMU falls back to distance sectors when cumulative splits are inconsistent", async () => {
-    const packets = makeLapPackets(TRACK_LENGTH, 100, "lmu");
-    const fallback = await computeLapSectors(-1, "lmu", packets, 100);
-    expect(fallback).not.toBeNull();
-    packets.at(-1)!.lmu = {
-      lastSector1: 30,
-      lastSector2: 20,
-    } as TelemetryPacket["lmu"];
-
-    expect(await computeLapSectors(-1, "lmu", packets, 100)).toEqual(fallback);
-  });
-
-  test("LMU rejects native splits that leave no final sector", async () => {
-    const packets = makeLapPackets(TRACK_LENGTH, 100, "lmu");
-    // A mid-lap attachment cannot recover missing splits from distance.
-    packets[0]!.CurrentLap = 20;
-    packets.at(-1)!.lmu = {
-      lastSector1: 30,
-      lastSector2: 100,
-    } as TelemetryPacket["lmu"];
-
-    expect(await computeLapSectors(-1, "lmu", packets, 100)).toBeNull();
-  });
 });

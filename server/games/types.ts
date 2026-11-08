@@ -35,6 +35,9 @@ export interface ServerGameAdapter extends GameAdapter {
   /** Quick check: does this buffer belong to this game? */
   canHandle(buf: Buffer): boolean;
 
+  /** Native menu/end frames can terminate a session without a driving packet. */
+  isSessionEndFrame?(buf: Buffer): boolean;
+
   /**
    * Parse a UDP buffer into a TelemetryPacket.
    * Return null if the packet should be skipped (e.g. paused).
@@ -50,6 +53,17 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Create per-game parser state (e.g. F1's multi-packet accumulator). null = stateless. */
   createParserState(): unknown;
+  /** Encode compact parser state for independent replay of a later frame window. */
+  captureParserCheckpoint?(state: unknown): Uint8Array | null;
+
+  /** Restore parser state from a game-owned checkpoint payload. */
+  restoreParserCheckpoint?(state: unknown, payload: Uint8Array): unknown;
+
+  /**
+   * True only when parser state is stateless/frame-local and an empty checkpoint
+   * is an exact pre-frame initialization. Stateful parsers need checkpoint codecs.
+   */
+  readonly parserStateIsFrameLocal?: boolean;
 
   /** AI analyst system prompt for this game */
   aiSystemPrompt: string;

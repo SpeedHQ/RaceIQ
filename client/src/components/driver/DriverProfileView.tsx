@@ -1,5 +1,5 @@
 import * as m from "@/paraglide/messages";
-import type { DriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
+import type { DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import type { RankedWeakness } from "@raceiq/backend-core/driver-profile/detectors";
 import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverProfileRun, DriverProfileState } from "../../hooks/driver-profile";

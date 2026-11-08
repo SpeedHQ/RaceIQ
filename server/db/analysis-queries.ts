@@ -1,6 +1,7 @@
 import { eq, and, sql } from "drizzle-orm";
-import { db } from "./index";
+import { db, readDb } from "./index"
 import { lapAnalyses, compareAnalyses } from "./schema";
+import { withDatabaseWrite } from "./write-coordination";
 
 interface AnalysisRow {
   analysis: string;
@@ -28,15 +29,14 @@ export interface AnalysisUsage {
  */
 
 export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
-  const row = await db
-    .select({
-      analysis: lapAnalyses.analysis,
-      inputTokens: lapAnalyses.inputTokens,
-      outputTokens: lapAnalyses.outputTokens,
-      costUsd: lapAnalyses.costUsd,
-      durationMs: lapAnalyses.durationMs,
-      model: lapAnalyses.model,
-    })
+  const row = await readDb.select({
+    analysis: lapAnalyses.analysis,
+    inputTokens: lapAnalyses.inputTokens,
+    outputTokens: lapAnalyses.outputTokens,
+    costUsd: lapAnalyses.costUsd,
+    durationMs: lapAnalyses.durationMs,
+    model: lapAnalyses.model,
+  })
     .from(lapAnalyses)
     .where(eq(lapAnalyses.lapId, lapId))
     .get();
@@ -45,8 +45,7 @@ export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
 
 
 export async function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage): Promise<void> {
-  const existing = await db
-    .select({ id: lapAnalyses.id })
+  const existing = await readDb.select({ id: lapAnalyses.id })
     .from(lapAnalyses)
     .where(eq(lapAnalyses.lapId, lapId))
     .get();
@@ -62,14 +61,14 @@ export async function saveAnalysis(lapId: number, analysis: string, usage: Analy
   };
 
   if (existing) {
-    await db.update(lapAnalyses)
+    await withDatabaseWrite(() => db.update(lapAnalyses)
       .set(values)
       .where(eq(lapAnalyses.lapId, lapId))
-      .run();
+      .run());
   } else {
-    await db.insert(lapAnalyses)
+    await withDatabaseWrite(() => db.insert(lapAnalyses)
       .values({ lapId, ...values })
-      .run();
+      .run());
   }
 }
 
@@ -78,7 +77,7 @@ export async function saveAnalysis(lapId: number, analysis: string, usage: Analy
  */
 
 export async function deleteAnalysis(lapId: number): Promise<void> {
-  await db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId)).run();
+  await withDatabaseWrite(() => db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId)).run());
 }
 
 /**
@@ -93,15 +92,14 @@ export async function getCompareAnalysis(
 ): Promise<AnalysisRow | null> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
-  const row = await db
-    .select({
-      analysis: compareAnalyses.analysis,
-      inputTokens: compareAnalyses.inputTokens,
-      outputTokens: compareAnalyses.outputTokens,
-      costUsd: compareAnalyses.costUsd,
-      durationMs: compareAnalyses.durationMs,
-      model: compareAnalyses.model,
-    })
+  const row = await readDb.select({
+    analysis: compareAnalyses.analysis,
+    inputTokens: compareAnalyses.inputTokens,
+    outputTokens: compareAnalyses.outputTokens,
+    costUsd: compareAnalyses.costUsd,
+    durationMs: compareAnalyses.durationMs,
+    model: compareAnalyses.model,
+  })
     .from(compareAnalyses)
     .where(
       and(
@@ -124,8 +122,7 @@ export async function saveCompareAnalysis(
 ): Promise<void> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
-  const existing = await db
-    .select({ id: compareAnalyses.id })
+  const existing = await readDb.select({ id: compareAnalyses.id })
     .from(compareAnalyses)
     .where(
       and(
@@ -147,7 +144,7 @@ export async function saveCompareAnalysis(
   };
 
   if (existing) {
-    await db.update(compareAnalyses)
+    await withDatabaseWrite(() => db.update(compareAnalyses)
       .set(values)
       .where(
         and(
@@ -156,11 +153,11 @@ export async function saveCompareAnalysis(
           eq(compareAnalyses.kind, kind),
         ),
       )
-      .run();
+      .run());
   } else {
-    await db.insert(compareAnalyses)
+    await withDatabaseWrite(() => db.insert(compareAnalyses)
       .values({ lapAId: lo, lapBId: hi, kind, ...values })
-      .run();
+      .run());
   }
 }
 
@@ -172,7 +169,7 @@ export async function deleteCompareAnalysis(
 ): Promise<void> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
-  await db.delete(compareAnalyses)
+  await withDatabaseWrite(() => db.delete(compareAnalyses)
     .where(
       and(
         eq(compareAnalyses.lapAId, lo),
@@ -180,5 +177,5 @@ export async function deleteCompareAnalysis(
         eq(compareAnalyses.kind, kind),
       ),
     )
-    .run();
+    .run());
 }

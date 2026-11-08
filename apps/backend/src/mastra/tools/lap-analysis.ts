@@ -2,7 +2,11 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { getAnalysis } from "@raceiq/backend-core/db/analysis-queries";
-import { parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { getTuneById } from "@raceiq/backend-core/db/tune-queries";
+import { getGame } from "@raceiq/shared/games/registry";
+import { sanitizeAnalystOutput, parseAnalystOutput, type SetupValidationContext } from "@raceiq/backend-core/ai/schemas";
+import { linkedTuneSetupForLap, setupContextForLap } from "../../ai/lap-setup-context";
 import type {
   AnalysisUsage,
   LapAnalysisResult,
@@ -10,11 +14,14 @@ import type {
 
 export type ParsedLapAnalysis =
   { analysis: unknown; readable: string } | { error: string; readable: string };
-export function parseCachedLapAnalysis(row: {
-  analysis: string;
-}): ParsedLapAnalysis {
+export function parseCachedLapAnalysis(
+  row: { analysis: string },
+  context?: SetupValidationContext,
+): ParsedLapAnalysis {
   try {
-    const parsed = parseAnalystOutput(row.analysis);
+    const parsed = context
+      ? sanitizeAnalystOutput(row.analysis, context, { requireMatchingProvenance: true })
+      : parseAnalystOutput(row.analysis);
     if (!parsed.success) {
       let invalidJson = false;
       try {
@@ -59,6 +66,9 @@ const LapAnalysisOutput = z.object({
 /** Read-only access to cached analysis. Never invents or regenerates results. */
 export function getLapAnalysisToolFor(
   readAnalysis: typeof getAnalysis = getAnalysis,
+  readLap: typeof getLapById = getLapById,
+  readTune: typeof getTuneById = getTuneById,
+  resolveGame: typeof getGame = getGame,
 ) {
   return createTool({
     id: "get_lap_analysis",
@@ -79,7 +89,19 @@ export function getLapAnalysisToolFor(
           };
         }
 
-        const parsed = parseCachedLapAnalysis(row);
+        const lap = await readLap(lapId);
+        if (!lap) {
+          return {
+            available: false,
+            lapId,
+            readable: `Lap ${lapId} is unavailable; cached analysis cannot be validated safely.`,
+            model: row.model,
+            error: "Lap not found",
+          };
+        }
+        const linkedTune = await linkedTuneSetupForLap(lap, readTune);
+        const context = setupContextForLap(lap, resolveGame, linkedTune);
+        const parsed = parseCachedLapAnalysis(row, context);
         if ("error" in parsed) {
           return {
             available: false,

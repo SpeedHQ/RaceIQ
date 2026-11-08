@@ -17,10 +17,16 @@ export type ThreadComponents = {
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
   inputDisabled?: boolean | undefined;
+  imageDisabled?: boolean | undefined;
+  imageNotice?: string | undefined;
   onRegenerate?: ((messageId: string, prompt: string) => void) | undefined;
+  onRemoveFailedTurn?: ((messageId: string) => Promise<void>) | undefined;
 };
 
 export const EMPTY_COMPONENTS: ThreadComponents = {};
 export const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS);
 export const RegenerateContext = createContext<((messageId: string, prompt: string) => void) | undefined>(undefined);
 export const InputDisabledContext = createContext(false);
+export const ImageDisabledContext = createContext(false);
+export const ImageNoticeContext = createContext<string | undefined>(undefined);
+export const RemoveFailedTurnContext = createContext<((messageId: string) => Promise<void>) | undefined>(undefined);

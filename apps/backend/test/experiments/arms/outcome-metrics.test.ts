@@ -20,6 +20,7 @@ function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {
   return {
     lapTime: 90,
     isValid: true,
+    classification: null,
     invalidReason: null,
     experimentExcluded: false,
     experimentExcludedSource: null,

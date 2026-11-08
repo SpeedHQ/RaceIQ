@@ -30,8 +30,8 @@ function cdnTune(id: string, name: string) {
   return {
     id,
     gameId: "fm-2023",
-    carOrdinal: 2860,
-    trackOrdinal: null,
+    carId: "2860",
+    trackId: null,
     name,
     author: "someone",
     category: "circuit",
@@ -77,8 +77,8 @@ describe("replaceCommunityTunes", () => {
       {
         id: "community-1",
         gameId: "fm-2023",
-        carOrdinal: 2860,
-        trackOrdinal: null,
+        carId: "2860",
+        trackId: null,
         name: "A",
         author: "x",
         category: "circuit",
@@ -93,8 +93,8 @@ describe("replaceCommunityTunes", () => {
       {
         id: "community-2",
         gameId: "fm-2023",
-        carOrdinal: 2860,
-        trackOrdinal: null,
+        carId: "2860",
+        trackId: null,
         name: "B",
         author: "x",
         category: "circuit",
@@ -106,6 +106,8 @@ describe("replaceCommunityTunes", () => {
     const rows = await getCommunityTunes("fm-2023");
     expect(rows.length).toBe(1);
     expect(rows[0].id).toBe("community-2");
+    expect(rows[0].carId).toBe("2860");
+    expect(rows[0].trackId).toBeNull();
     expect(await getCommunityTuneById("community-1")).toBeNull();
   });
 });
@@ -155,13 +157,25 @@ describe("syncCommunityTunes", () => {
     expect(result.count).toBe(1);
   });
 
+  test("normalizes legacy numeric IDs only at CDN boundary", async () => {
+    setCommunityTunesSyncState("old");
+    stubFetch({
+      "manifest.json": { ok: true, body: { version: "v4", games: { "fm-2023": { path: "fm-2023/tunes.json" } } } },
+      "tunes.json": { ok: true, body: [{ ...cdnTune("community-legacy", "Legacy"), carId: undefined, trackId: undefined, carOrdinal: 2860, trackOrdinal: 14 }] },
+    });
+    const result = await syncCommunityTunes();
+    expect(result.count).toBe(1);
+    const row = await getCommunityTuneById("community-legacy");
+    expect(row).toMatchObject({ carId: "2860", trackId: "14" });
+  });
+
   test("tunes fetch failure keeps existing cache", async () => {
     await replaceCommunityTunes("fm-2023", [
       {
         id: "community-existing",
         gameId: "fm-2023",
-        carOrdinal: 2860,
-        trackOrdinal: null,
+        carId: "2860",
+        trackId: null,
         name: "Existing",
         author: "x",
         category: "circuit",

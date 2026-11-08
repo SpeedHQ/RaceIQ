@@ -10,9 +10,13 @@ export const IdParamSchema = z.object({
     .refine((n) => Number.isInteger(n), "id must be an integer"),
 });
 
-/** Path param `:ordinal` or `:ord` — coerces string to integer */
-export const OrdinalParamSchema = z.object({
-  ordinal: z.string().transform((val) => parseInt(val, 10)),
+/** Native car and track path identities stay strings, including layout tuples. */
+export const CarIdParamSchema = z.object({
+  carId: z.string().min(1),
+});
+
+export const TrackIdParamSchema = z.object({
+  trackId: z.string().min(1),
 });
 
 /** Common `?gameId=` query param */

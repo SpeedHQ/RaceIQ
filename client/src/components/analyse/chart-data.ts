@@ -1,4 +1,4 @@
-import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 export interface ChartData {
   speed: number[];
@@ -67,8 +67,8 @@ export function buildChartData(
   const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
   for (const frame of semanticFrames) {
     speed.push(semanticNumber(frame, "motion.speed") ?? NaN);
-    throttle.push(semanticNumber(frame, "inputs.accel") ?? NaN);
-    brake.push(semanticNumber(frame, "inputs.brake") ?? NaN);
+    throttle.push((semanticNumber(frame, "inputs.accel") ?? NaN) / 255 * 100);
+    brake.push((semanticNumber(frame, "inputs.brake") ?? NaN) / 255 * 100);
     rpm.push(semanticNumber(frame, "engine.current-engine-rpm") ?? NaN);
     steering.push(semanticNumber(frame, "inputs.steer") ?? NaN);
     const rotation = semanticWheelNumbers(frame, "tires.wheel-rotation-speed");

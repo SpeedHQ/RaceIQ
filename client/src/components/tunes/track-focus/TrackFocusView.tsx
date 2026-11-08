@@ -7,15 +7,15 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
-import type { LineSpreadTrace } from "../../../hooks/experiments";
+import type { LineSpreadTrace } from "@raceiq/analysis-core/racing/laps/consistency-types";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
 import { useLapIssues } from "../../../hooks/tunes";
 import { useLapInsights } from "../../../hooks/laps";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
-import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
-import type { TuneReviewTrackTab } from "../../../lib/game-routes";
+import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
+import type { TuneReviewTrackTab } from "@raceiq/session-analyse/contracts";
 import { trackFractionRange } from "../../../lib/aligned-telemetry-fidelity";
 
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -88,7 +88,7 @@ export function TrackFocusView({
   gameId,
   alignedSet,
   lapIds,
-  trackOrdinal,
+  trackId,
   primaryLapId,
   experimentId,
   lineSpreadOverride,
@@ -116,13 +116,13 @@ export function TrackFocusView({
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
   const focusTelemetry = useMemo(() => {
     const lap = alignedSet?.laps.find((candidate) => candidate.lapId === primaryLapId);
-    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
-  }, [alignedSet, gameId, primaryLapId, trackOrdinal]);
+    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackId, alignedSet?.nominalSpanMeters ?? 0) : null;
+  }, [alignedSet, gameId, primaryLapId, trackId]);
   const { data: issues } = useLapIssues(primaryLapId);
   const { data: lapInsights } = useLapInsights(primaryLapId);
-  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
-  const { data: corners } = useTrackCorners(trackOrdinal, gameId);
-  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
+  const { data: bounds } = useTrackBoundaries(trackId, gameId);
+  const { data: corners } = useTrackCorners(trackId, gameId);
+  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackId, gameId);
   const edges = useMemo(() => {
     const e = extractEdges(bounds);
     if (!e) return null;
@@ -179,7 +179,7 @@ export interface TrackFocusViewProps {
   gameId: GameId;
   alignedSet: AlignedLapSet | undefined;
   lapIds: readonly number[];
-  trackOrdinal?: number;
+  trackId?: string;
   primaryLapId: number;
   experimentId?: number | null;
   lineSpreadOverride?: LineSpreadTrace | null;

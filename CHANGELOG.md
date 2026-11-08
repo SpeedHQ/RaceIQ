@@ -6,16 +6,352 @@
 
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 - Explain that RaceIQ automatically detects supported running games and records and saves telemetry during onboarding.
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
+- Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+
+### Internal
+- Require an explicitly configured model for AI evaluation runs.
+
+## v0.21.1 - 2026-11-03
+
+### Features
+
+### Fixes
+- Restore the recording-frequency control in Settings → Recording.
+- Restore iRacing and Automobilista 2 in the Windows app sidebar.
+
+### Internal
+
+## v0.21.0 - 2026-11-03
+
+### Features
+- Choose Claude (Anthropic) as an AI provider for analysis, chat, auto-tune and driver profiles with its own API key. The model picker lists the Claude models available to that key, tags Claude Haiku 5.5 as Recommended, and preselects it when you switch to Claude.
+- Add iRacing support.
+- Add AMS2 support.
+- Group LMU state of charge, virtual energy and regenerative power in a separate table below the main Replay and Compare → Spectate metrics.
+- Show separate LMU player energy, engine, electric motor, steering feedback, weather and race-control readings in live telemetry when provided by the game.
+- Show read-only LMU setup, forecast and condition snapshots with source age and availability, without waiting for network requests before displaying live telemetry.
+- Show LMU traction-control and ABS settings and activation, traction-control cut level, motor map, battery state of charge, virtual energy and signed regen power in Replay's existing Data panel instead of a separate Player telemetry section; show brake migration beside brake bias in Dynamics.
+- Load LMU laps faster in Replay and Compare → Spectate while preserving every recorded sample, setup snapshot, and condition observation.
+- Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through session, driver, and lap filters with car details and without coverage or telemetry status labels, switch Driver to Me to browse every player lap in the session, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Compare partial opponent laps even when scoring updates lag behind the player's lap boundary. Keep stale, removed, missing and unrecorded references distinct.
+- Expand an LMU session on the Sessions page to see recorded opponents immediately, without choosing a player lap, as collapsible driver rows showing their fastest recorded lap and its sector splits. Sort recorded opponents by fastest valid best lap by default. Browse opponents in a scrollable child table that stays within the session table, with lap warnings behind compact info indicators. Expand a driver to replay or compare an exact recorded lap without duplicating recordings, keeping opponent laps together across player recording splits. Opponent Replay fills the available workspace. Keep opponent cars and paths on the flat track plane without changing recorded elevation.
+- Use black backgrounds for recorded opponent tables and expanded opponent lap rows on the Sessions page.
+- Hide Car layout and Data panels, including the tire-panel shortcut, when replaying an LMU opponent lap. Player replay and comparison panels remain unchanged.
+- Include the complete LMU multiplayer recording in demo seeds as sub-100 MB gzip parts, stream native input without buffering the whole capture, and retain separate player and opponent recordings.
+- Show animated suspension springs and chassis movement in Replay and Compare → Spectate; use the lap's observed travel range when no game range is specified, while preserving native normalized readings.
+- Show clickable circuit-overview sector markers on desktop only while hovering or using keyboard focus; keep them visible on touch screens.
+- Use dashed track edges in Replay and Compare → Spectate to provide fixed-distance speed cues.
+- Show plain TC and ABS indicators in the Replay and Compare → Spectate center dashboard only when native activation telemetry was recorded, lighting them green during activation and keeping inactive or temporarily unavailable readings neutral.
+- Show color-coded per-wheel traction status in the center dashboard for single-lap Replay and Compare → Spectate, with separate A/B readings and unavailable telemetry marked clearly.
+- Keep Sessions actions in a bottom-center floating bar with a selection count and Deselect all. Keep Compare visible and enable it only for two compatible laps; filter comparison laps by Mine, Others, or All inside the lap-picker dropdown.
+- Compare laps in Spectate with synchronized 3D replay, configurable cameras and overlays, live A/B instruments, sector deltas, and telemetry, car, AI, Focus View, and lap-statistics panels.
+
+- Inspect recorded telemetry in Compare → Spectate with a Data panel and switch between lap A and B without showing both panels at once.
+- Bring Compare → Spectate's scene, playback, telemetry and Insights to single-lap Replay, with saved 3D settings, grouped wheel graphs, stable ERS bands, chassis/tire-info rendering and independently resizable, horizontally scrollable panels.
+- Restore the single-lap Replay segment-time list in a collapsible Segments panel, with active-segment highlighting and a saved open state.
+- Use Replay on phones with a compact horizontal dashboard, larger touch controls, an opaque circuit overview you can close, and one panel at a time beneath the playback tabs. Read colored sector labels closer to the timeline on phones and desktops, and scroll track and lap pickers out of view while keeping navigation visible.
+- Manage Replay AI analysis from its tab without a duplicate panel header.
+- Open desktop Replay and Spectate panels within half the workspace, then drag them wider—including a single panel—to give charts more room. Resize each panel without shrinking its neighbors.
+- Drag Replay and Spectate tabs to reorder them, or use Alt+Left/Right; keep the saved tab order when reopening the page.
+- Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup or in Settings → Recording. Live UDP recording is unchanged.
+- Downsample saved recordings manually or with an opt-in age policy in Settings → Recording; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
+- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1, and recover interrupted publication when validated recording metadata is available.
+- Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
+- Show lap classifications separately from validity in expanded session lap tables.
+- Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
+- Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
+
+### Fixes
+- Restore the LMU opponent-recording preference in Settings → Recording → Opponent data.
+- Let failed MoTeC imports roll back without waiting for an unrelated LMU opponent-index storage reservation.
+- Report LMU opponent-index publication errors as failed preparation instead of silently yielding.
+- Keep recording and LMU opponent indexing available in Windows release installations.
+- Restore recorded-opponent driver and lap selections after reloading comparisons while the opponent catalog loads.
+- Keep selected LMU lap exports within the chosen recording window, preserve opponent frame order, and avoid duplicate samples.
+- Preserve recorded opponent position samples around missing distance observations without interpolating across gaps.
+- Keep completed player laps importable after removing LMU opponent data.
+- Show a warning when opponent recording stops while player recording continues.
+- Add immediate lap selection to opponent replay, with saved LMU sessions listed newest first using readable date, track and car labels. Keep unavailable sessions selectable so another session can be opened.
+- Locate partial LMU opponent segments using authoritative circuit distance, interpolate only covered timing boundaries, and draw available circuit-overview geometry without bridging recording gaps.
+- Reduce LMU opponent comparison loading and memory use by sharing a bounded, short-lived session index, reusing validated source contexts, and avoiding export-only raw frame retention.
+- Publish player lap chunks and replay references when importing LMU recordings with retained opponents.
+- Keep LMU recorder acquisition generations within their actual simulator session instead of creating duplicate practice sessions.
+- Keep LMU diagnostic recording running through temporary disk backpressure instead of silently stopping when its writer queue fills.
+- Finalize diagnostic dumps before exiting on Ctrl+C, and report the absolute saved LMU recording path and frame count.
+- Correct the LMU steering indicator direction in the Replay and Compare → Spectate center dashboard without changing recorded steering values.
+- Center Le Mans Ultimate track outlines within catalogue cards.
+- On Replay and Compare → Spectate, show dashed estimated opponent race lines across short recorded telemetry gaps while keeping longer gaps disconnected. Ignore sparse capture-sequence cadence when determining discontinuities, while keeping genuine scoring-counter gaps and resets disconnected.
+- Classify full LMU opponent laps from native track length and observed distance boundaries despite capture-sequence gaps, while preserving missing source samples and keeping counter-only short transitions partial.
+- Distinguish native fractional LMU brake and clutch inputs from normalized control readings in the telemetry catalog.
+- Keep unchanged LMU supplemental snapshots available while successful polling continues, without resetting their original observation ages.
+- Render LMU developer telemetry snapshots without crashing on precision-preserved observation sequences.
+- Preserve LMU player snapshots, availability states and original observation times through recording, lap export, import and replay.
+- Keep LMU selected-lap exports compact enough to import again, including supplemental snapshots at the recording frame-size limit.
+- Show unrecorded LMU import channels as unavailable instead of artificial zero or false readings, while preserving recorded zeros.
+- Import completed LMU laps even when the first lap-number event arrives after other telemetry.
+- Use native scoring update ages for LMU weather and race-control readings without changing historical snapshot ages.
+- Clear frozen or disconnected LMU player data even when the system clock moves backward.
+- Keep LMU snapshots responsive when the local telemetry service returns oversized, rejected, or malformed condition responses.
+- Mark LMU's pit-started opening lap incomplete instead of treating it as a valid in-lap.
+- Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
+- Avoid track-geometry lookups for unresolved LMU display names.
+- Skip LMU outline requests when stored track names do not identify one layout.
+- Announce missing position data in single-lap Replay as an alert and offer Retry.
+- Finish pending recording finalization with the original error when a writer fails after overload.
+- Keep dismissed historical lap-classification notices hidden after unrelated session updates, reopening them only for new work or changed results.
+- Model competitor positions as indexed structured values so live resolver returns and validates all competitors in source order.
+- Restore complete seeded capture bundles and private capture references for Playwright, skip unsupported Windows directory fsync, and validate portable opponent-index block paths on Windows.
+- Keep Kunos pit-cycle classification independent of recording validity while preserving native track-limit and telemetry-quality failures in live capture and replay.
+- Cancel queued recording layout migration during shutdown and recheck recording activity under the maintenance lock.
+- Distinguish comparison lap choices with their stable lap IDs when recorded lap numbers and times match across sessions.
+- Preserve the exact recorded packet when seeking Replay through frames with identical timestamps.
+- Release comparison position lock when seeking an exact coalesced frame without a registered distance, rather than borrowing another frame's distance.
+- Keep the mobile circuit overview within its available width. Open new desktop panel combinations within half the workspace while preserving saved widths when reopening the same panels.
+- Restore the source session, expanded opponent, and table scroll position when returning from opponent Replay to Sessions.
+- Keep recorded sessions selectable when all opponent laps lack comparable data, and show pending recording processing instead of an empty comparison selection.
+- Restore Spa track edges for AC Evo recordings that identify the circuit as “Circuit de Spa Francorchamps”, while preserving recorded track IDs and layout matching.
+- Open Session Analyse even when every recorded lap is invalid or non-pace, while preserving validity flags, keeping default review limited to pace-eligible laps, and allowing explicit inspection of other laps.
+- Split converted recordings that contain only full checkpoints instead of repeatedly rejecting them as unsupported legacy captures.
+- Get answers from current Claude models, which rejected every request with "`temperature` is deprecated for this model".
+- Stop AI settings from freezing on Windows while saved API keys and the launch-on-login setting are checked, and show Claude models immediately instead of waiting for the model list.
+- Load the model list and run AI features when the OpenAI-compatible base URL is Anthropic's `https://api.anthropic.com/v1`, which previously failed with "x-api-key header is required".
+- Send the saved OpenAI-compatible API key from the setup engineer and driver coach instead of a placeholder key.
+- Keep API keys saved in Settings while a Linux or WSL development server runs instead of silently discarding them; installed builds are unchanged.
+- Keep the historical lap-classification notice limited to its original sessions, allow dismissal while work continues, and distinguish summary updates from pending lap processing.
+- Place inner and outer surface-temperature bands on the correct sides of the 3D wheels in Replay and Compare → Spectate.
+- Reclaim all telemetry chunks when deleting direct recordings, matching the cleanup preview while protecting shared recordings.
+- Enable Replay and Compare in Live Recorded Laps and track lap tables when capture publication completes, without bypassing LMU opponent processing.
+- Recover Replay and Compare scenes automatically when position telemetry becomes available after loading.
+- Show positive tire-wear rates during degradation and reset them after tire replacement in Replay and Compare.
+- Keep wheel animation speed consistent across display refresh rates and playback frame-rate limits.
+- Restore bookmarked map positions when returning to cached comparisons.
+- Direct Linux installations to release downloads instead of offering the Windows-only installer.
+- Preserve Replay and Spectate panel widths when panels are toggled, and keep the mobile circuit overview clear of driver inputs and focus controls.
+- Keep Spectate selected when switching comparison views with the keyboard.
+- On the Compare page, opening a lap-only link to queued laps now shows their processing status.
+- Hide replay telemetry categories without recorded values while retaining valid zero readings.
+- Reuse published session-duration summaries in Sessions listings instead of rescanning recordings.
+- Keep car trajectories and fallback circuit outlines solid in Replay and Compare; reserve dashed styling for track edges.
+- Keep game detection and live connection status updating when another application owns the UDP telemetry port.
+- Restore the global Live link in the main app sidebar, including the home dashboard and game pages.
+- Show active TC and ABS readings in green in Replay's Data panel, while keeping inactive and unavailable readings neutral.
+- Use reported traction-control activity in Replay and lap insights when the game's telemetry provides it; infer activation only when that channel is unavailable.
+- Hide Y-axis labels on telemetry charts while keeping chart legends and data visible.
+- Keep recording splitting and background processing available when the UDP telemetry port is already in use.
+- Report inconclusive historical lap classification as limited without requesting attention, and correct earlier results.
+- Select and deselect child laps with the Sessions table header checkbox, preserving selections on other pages and ownership tabs.
+- Stop recording curb maps and using detected curbs to recalibrate track boundaries; preserve telemetry-based curb detection.
+- Keep Spectate racing lines visible when zooming out to the full circuit.
+- Keep litre-based fuel percentages unavailable when tank capacity is missing instead of interpreting low fuel volumes as fractions.
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
+- Keep recording splitting and the dashboard running when another application already uses the live telemetry UDP port.
+- Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
+- Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
+- Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
+- Keep game links visible on Live pages.
+- Keep first-run setup responsive by omitting the optional telemetry demo.
+- Label the community setup copy action “Clone” in the setup browser.
+- Leave MoTeC imports unchanged during historical lap-classification upgrades.
+- Retry updated native recordings instead of retaining an obsolete classification failure.
+- Keep next-lap yellow flags from changing the completed lap's pace classification.
+- Show an empty analysis state when a session has no eligible pace laps; explicitly selected non-pace laps remain available.
+- Preserve valid standing-start laps without weakening distance or timing checks.
+- Correct F1 25 race, time-trial, and sprint-qualifying session types, and recover mislabeled session metadata from existing recordings during result reprocessing.
+- Classify F1 sprint-shootout sessions as qualifying on dashboards.
+- Complete lap-classification upgrades when recordings contain known incomplete laps.
+- Distinguish qualifying grid position from lap session type: show Qualified with its position in timelines and a separate session-type column beside lap classifications.
+- Show in-laps as Pit nodes in session timelines, retaining recorded pit-stop details without duplicate nodes.
+- Show known incomplete laps as Incomplete instead of Unclassified in session lap tables.
+- Recognize normal pace laps in supported games and reassess existing recordings automatically.
+- Classify ACC teleports to the pits as Reset rather than ordinary in-laps in both live capture and imported recordings, and exclude them from pace statistics.
+- Keep valid pit-cycle laps valid while excluding non-pace laps from live lap and sector bests.
+- Preserve F1 race-start evidence when loading individual recorded laps.
+- Preserve telemetry-detected out-laps when linked pit-event inference marks the same lap as an in-lap.
+- Recognize AC Evo pace laps using the game's native session type.
+- Keep historical lap classification current after recordings are moved or deleted.
+- Keep track statistics usable when a Race or Quali filter has no pace laps.
+- Refresh track lap classifications after background processing and reconnects.
+- Prevent recording maintenance panels from overlapping.
+- Coordinate dashboard refresh with recording imports and session deletion without blocking read-only requests.
+- Start dashboard processing only after consented recording organization and successful historical, identity, and race-result repairs; wait for active writes and lap-classification work during shutdown.
+- Allow repeated recording downsampling without exceeding filesystem filename limits.
+- Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
+- Downsample recordings in the current format and recordings previously split by lap so replay uses the smaller capture.
+- Keep the selected downsampling rate across recording segments and retain the original finish-line sample.
+- Refresh already-loaded Analyse charts after downsampling.
+- Show busy-storage conflicts when selecting Compress instead of failing silently.
+- Keep dashboard recording facts available after downsampling, even if final cleanup fails.
+- Keep existing recordings playable after accepting the split-recording prompt in compiled builds.
+- Restore migration of existing recordings into organized folders on Windows.
+- Restore dashboard, driver-profile, and Analyse pages when opening the app.
+- Block screenshots for chat models without verified image support and keep text conversations usable.
+- Complete first-run sparse recording migration in compiled builds instead of failing.
+
+
+### Internal
+- Fail AppImage releases when packaged smoke checks fail, and run full manual CI gates when no meaningful change range exists.
+- Run responsive screenshot comparisons with a baseline-compatible harness and report failed baseline captures as unavailable evidence.
+- Route AMS2 diagnostic dumps through the shared safe launcher and accept native absolute executable paths in the compiled-browser harness.
+- Skip full replay interpolation on animation callbacks discarded by the frame-rate cap.
+- Upgrade Bun and its type definitions to 1.4.4 across local tooling, containers, and CI; run full Turbo test suites outside pull requests.
+- Keep isolated opponent browser tests on their assigned UDP port and wait for Windows database handles to close during cleanup.
+- Preserve Windows directory-sync path errors when validating recording publication directories.
+- Target comparison lap pickers explicitly in browser checks and wait for rendered frames in the native camera zoom check.
+- Keep diagnostic dump runs in one BIN per selected source, retain raw Forza/F1 datagrams, stream live telemetry over WebSocket for every game, and bypass telemetry-driven session/database processing and background recording maintenance. Omit unused native source-event transport from standalone recording writers.
+- Extract Sessions and Session Analyse into feature-owned UI, server, contract, and test workspaces while preserving existing navigation and analysis behavior.
+- Move Sessions and Session Review into their own package.
+- Update the dependency lockfile for Bun 1.4.4 so the Bench compare workflow can use frozen installs.
+- Cover Replay extraction invariants with regressions for bounded track ribbons, seek-aware tire labels, cold frame capture, keyboard frame stepping, position-only segment timings and native AC Evo TC evidence.
+- Ignore terminal color codes when waiting for compiler startup in the Paraglide lifecycle CI test.
+- Generate Paraglide declarations with the installed native TypeScript compiler and stop abandoned translation watchers from consuming CPU after development exits.
+- Use Ubuntu instead of macOS for CI runners and cap Mars memory requests at 6 GB.
+- Invalidate cached frontend builds when source changes in dependent workspaces.
+- Extract tracks and cars catalogues into feature-owned UI, server, contract, and E2E workspaces with enforced browser boundaries, inherited Turbo impact inputs, and isolated compiled-app browser tasks.
+- Run native Spectate camera and transition checks in a dedicated browser lane while retaining coverage for CPU-compatible rendering paths.
+- Verify LMU recorded pit-cycle classifications independently of lap validity, preserving telemetry-quality failures and incomplete tails.
+- Synchronize zoom-reversal checks with rendered transition frames and wait for concurrent SQLite writers during migration fixture setup.
+- Keep sparse-capture fixtures schema-valid and verify failed classification recordings without waiting for dashboard work blocked by startup repair prerequisites.
+- Rename the shared LMU decoded-frame contract to `LMUSourceFrame` and remove an unused legacy version constant without changing recording compatibility.
+- Define startup repair stages in a keyed registry with an explicit order; reject unknown, duplicate, or omitted stages before repairs run.
+- Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
+- Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.
+- Stabilize recording and browser E2E checks with bounded fixture reads, metadata-only experiment setup, browser-side playback pausing, and seeded demo capture using the correct Playwright configuration.
+- Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
+- Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
+- Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
+- Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
+- Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.
+- Use the configured HTTP port for AppImage release smoke checks so healthy startup does not block release creation.
+- Build compiled Playwright servers on each runner so Linux E2E shards use matching binary architectures.
+- Collect replay allocations sooner on memory-limited CI runners.
+- Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
+- Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
+- Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
+- Run locale generation before frontend contract typechecking so clean CI workspaces resolve Paraglide modules.
+- Compare archived PR-head and base screenshots in the final comment workflow to generate UI diff images.
+- Shorten visual and Playwright job labels while preserving parallel workflow branches.
+- Report signal termination and progress in screenshot database seeding failures.
+- Remove duplicate sector-time columns when resuming database migrations from partial progress.
+- Keep shared seeded E2E data free of pending split jobs; the dedicated migration test covers startup consent.
+
+## v0.20.0 - 2026-10-15
+
+### Breaking
+- Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
+
+### Feature
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
+- Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
+
+- Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
+- Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
+- Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
+- Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
+- Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
+- Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
+- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
+- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
+- Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
+- Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
+
+### Fixes
+- Restore migration of existing recordings into organized folders on Windows.
+- Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
+- Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
+- Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
+- Restore dashboard, driver-profile, and Analyse pages when opening the app.
+- Restrict AI setup recommendations to available adjustments and legal values for the associated car and setup without dropping legal front-wing recommendations; suppress unchanged settings.
+- Show setup values from the lap's linked setup and preserve bump values in older saved AC Evo setups while keeping separate left/right Slow bump settings.
+- Block screenshots for chat models without verified image support and keep text conversations usable.
+- Remove failed screenshot messages without losing unrelated conversation or saved lap analysis.
+- Keep experiment AI chat tied to the selected version and its own laps; ask drivers to refresh when the version changes during a reply.
+- Create multiple confirmed setup alternatives in the same experiment chat reply without incorrectly asking drivers to refresh.
+- Preserve the selected experiment branch when undoing an unrelated branch deletion or partial restoration.
+- Prevent simultaneous saves of new setups from overwriting existing files.
+- Preserve saved lap analysis when clearing chat history.
+- Respect development onboarding overrides when deciding whether to show the setup wizard.
+- Remove saved network interfaces that are no longer available and replace them without losing other selections.
+- Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
+- Open Windows tray dashboard and update links on an active selected address when localhost is disabled.
+- Start a development dashboard against an explicit backend proxy target without requiring a local database.
+- Retry dashboard initialization after an authorization-status failure instead of showing a blank page.
+- Make browser-origin whitelisting opt-in and explain how to allow external HUD hostnames when it is enabled.
+- Restore portable dashboard interface selection with interface names and IP addresses, and open access settings when the selected interface is not listening. Generate HUD links and QR codes only for active dashboard addresses and ports.
+- Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.
+- Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
+- Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
+- Use the development dashboard port for localhost, LAN, and Tailscale links in settings.
+- Label the confirmation to disable dashboard password protection as “Confirm settings”.
+- Keep localhost dashboard access working after adding browser domains to an existing all-interface configuration.
+- Use tabs to switch password protection options and keep Access & security forms compact within the dialog.
+- Keep the access setup Next button in the wizard footer alongside Back.
+- Show concise, translated password-length guidance inline with the field label and remove the redundant exposure acknowledgement toggle; warn that unprotected dashboard visitors can edit data and settings and use configured AI chat.
+- Restrict development dashboard access to selected network interfaces.
+- Keep live telemetry connected when opening the development dashboard through a LAN link.
+- Open the dashboard instead of a backend status page when using a shared link during development.
+- Restore track edges in AC Evo Tourist replay, including the supported approach section, without joining edges across the missing connector.
+- Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.
+- Refresh experiment spread and corner results after recorded laps are repaired.
+- Initialize setup-folder imports after the car catalog loads and prevent imports without a valid car.
+- Keep live Tourist route maps open between finish and start.
+- Keep outdated-recording warnings visible until every stale session is repaired.
+- Ask for missing or unresolved car and track identities when importing MoTeC ZIPs or opening saved sessions; retain valid selections and preserve original MoTeC content.
+- Restore history-lap imports for experiments without selected car or track IDs.
+- Persist setup name, author, description, and weakness edits.
+- Show saved lap favorites and telemetry availability in lap details.
+- Resolve session car and track names for display, search, and sorting.
+- Avoid missing-identity lookup errors on Home and live dashboards before a car is known.
+- Preserve all four brake temperatures in ACC and AC Evo MoTeC imports.
+- Keep bundled AC Evo track geometry and setup-folder metadata after discovery.
+- Restore the Any car filter in the AC Evo setup browser.
 - Prevent crafted AI credential requests from running commands on macOS.
 - Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
+- Keep authenticated imports, cleanup, and dashboard chat working after enabling password protection.
 - Load LMU track boundaries without long stalls on detailed SVG maps.
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
+- Keep AC Evo venue layouts distinct during import, setup selection, and session repair without losing saved notes, favorites, or setup links.
+- Replay long Tourist laps without chart crashes or closed-circuit map overlays.
+- Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
+- Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
+- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
+
+### Fixes
+- Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal
+- Package organized recording paths in seeded Playwright databases while rejecting unsafe capture paths.
+- Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
+- Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
+- Keep seeded Playwright discovery independent of server-only catalog imports, and reset persisted dashboard access between fresh-install wizard attempts with an explicit loopback settings check.
+- Recreate the database and dashboard access setup when seeding with `--clean`.
+- Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
+- Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
+- Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
+- Log legacy fixture conversion to sparse format during database seeding.
+
+- Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
+- Run development-dashboard SQLite assertions in a subprocess so Windows releases native database handles before fixture cleanup.
+- Limit live `ps` resource-sampler tests to supported platforms.
+- Share the application-owned database connection with dashboard authentication to prevent Linux WAL cleanup from discarding imported sessions during upgrade verification.
+- Ban Bun's separate SQLite driver in repository lint and use libSQL for synchronous fixtures and tooling.
+- Preserve dashboard credentials and login sessions from earlier feature builds while applying identity and dashboard read-model migrations.
+- Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
+- Write seed-imported session captures in sparse canonical format.
+- Preserve raw-fixture developer playback and live UDP benchmarks; retain segment boundaries and acquisition timestamps during seed conversion.
+- Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
+- Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
+- Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
+- Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
+- Support recorder benchmark CPU/RSS sampling on Windows through PowerShell/CIM, and fail subprocess sampling errors instead of hanging tooling tests.
+- Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
@@ -28,7 +364,14 @@
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 - Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
-
+- Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent dashboard API with explicit pending coverage.
+- Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
+- Add isolated Bun/SQLite dashboard scale assertion, timing, and recording/backfill contention runners.
+- Read timestamped recorder dumps correctly in contention checks, preserve failed-scenario evidence, fix duplicate-lap SQL, and close child input after the final command.
+- Maintain revision-safe monthly dashboard entity rollups for older complete months, preserving recent daily detail and exact boundaries; backfill existing summaries without changing source data.
+- Separate realistic active-user dashboard benchmarks from archive stress, report actual period membership and SQL Promise timings, and preserve incomplete/failed-scope measurements without weakening budgets.
+- Reuse a read-only SQLite connection and cached statements for synchronous dashboard snapshots; measure those queries directly and apply the active-user recorder fixture profile.
+- Upgrade the runtime and tooling to Bun 1.4.3.
 ## v0.19.2 - 2026-10-04
 
 ### Features

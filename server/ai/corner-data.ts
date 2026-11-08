@@ -39,12 +39,16 @@ export function computeCornerMetrics(
   if (corners.length === 0 || packets.length === 0) return [];
 
   const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
+  // Corner definitions use metres from lap start; telemetry may retain a
+  // nonzero absolute distance origin on later laps.
+  const distanceOrigin = packets[0].DistanceTraveled;
   const metrics: CornerMetrics[] = [];
 
   for (const corner of corners) {
-    const cornerPackets = packets.filter(
-      (p) => p.DistanceTraveled >= corner.distanceStart && p.DistanceTraveled <= corner.distanceEnd
-    );
+    const cornerPackets = packets.filter((p) => {
+      const distance = p.DistanceTraveled - distanceOrigin;
+      return distance >= corner.distanceStart && distance <= corner.distanceEnd;
+    });
     if (cornerPackets.length === 0) continue;
 
     const speeds = cornerPackets.map(p => packetSpeed(p, speedFactor));
@@ -67,22 +71,23 @@ export function computeCornerMetrics(
     let nearestIdx = 0;
     let nearestDelta = Infinity;
     for (let i = 0; i < packets.length; i++) {
-      const delta = Math.abs(packets[i].DistanceTraveled - cornerStartDist);
+      const delta = Math.abs((packets[i].DistanceTraveled - distanceOrigin) - cornerStartDist);
       if (delta < nearestDelta) { nearestDelta = delta; nearestIdx = i; }
-      if (packets[i].DistanceTraveled > cornerStartDist) break;
+      if (packets[i].DistanceTraveled - distanceOrigin > cornerStartDist) break;
     }
     let brakingDistance = 0;
     for (let i = nearestIdx; i >= 0; i--) {
+      const packetDistance = packets[i].DistanceTraveled - distanceOrigin;
       if (packets[i].Brake > 50) {
-        brakingDistance = cornerStartDist - packets[i].DistanceTraveled;
+        brakingDistance = cornerStartDist - packetDistance;
         while (i > 0 && packets[i - 1].Brake > 50) {
           i--;
-          brakingDistance = cornerStartDist - packets[i].DistanceTraveled;
+          brakingDistance = cornerStartDist - (packets[i].DistanceTraveled - distanceOrigin);
         }
         break;
       }
       // Stop scanning if we're too far back (more than 300m before corner)
-      if (cornerStartDist - packets[i].DistanceTraveled > 300) break;
+      if (cornerStartDist - packetDistance > 300) break;
     }
 
     const timeInCorner = cornerPackets.length / 60;
@@ -92,7 +97,7 @@ export function computeCornerMetrics(
     let throttleOnDist = 0;
     for (const p of cornerPackets) {
       if (p.Accel / 255 > 0.5) {
-        throttleOnDist = p.DistanceTraveled - corner.distanceStart;
+        throttleOnDist = p.DistanceTraveled - distanceOrigin - corner.distanceStart;
         break;
       }
     }

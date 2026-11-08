@@ -25,7 +25,8 @@
  * (nothing to contradict) so it never blocks a run it can't actually grade.
  */
 import { createScorer } from "@mastra/core/evals";
-import { type AnalystOutput, parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import type { AnalystOutput } from "@raceiq/backend-core/ai/output-schema";
 
 const JUDGE_BASE_URL = process.env.EVAL_JUDGE_BASE_URL ?? "http://localhost:1234/v1";
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "google/gemma-4-e2b";

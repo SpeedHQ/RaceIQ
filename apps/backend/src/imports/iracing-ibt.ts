@@ -213,7 +213,11 @@ export async function commitStagedIbt(
   const { paths, manifest } = loadManifest(token);
   try {
     try {
-      await registerImportedIRacingIdentity(manifest.preview);
+      await registerImportedIRacingIdentity({
+        ...manifest.preview,
+        carId: manifest.preview.carId === "" ? -1 : Number(manifest.preview.carId),
+        trackId: manifest.preview.trackId === "" ? -1 : Number(manifest.preview.trackId),
+      });
       const result = await importSessionFrames(
         ibtFrames(paths.ibt, manifest.preview),
         "iracing",

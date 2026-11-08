@@ -3,11 +3,25 @@
   "extends": ["//"],
   "tags": ["game"],
   "tasks": {
+    "transit": {
+      "inputs": ["$TURBO_EXTENDS$", "test/fixtures/sessions/*.bin.gz"]
+    },
     "test": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2"]
+      "dependsOn": ["@raceiq/game-lmu-tests#transit"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.bin.gz", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.part*"]
+    },
+    "test:integration": {
+      "dependsOn": ["@raceiq/game-lmu-tests#transit"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/*.bin.gz"]
+    },
+    "test:unit": {
+      "dependsOn": ["@raceiq/game-lmu-tests#transit"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/*.bin.gz"]
     },
     "test:e2e:recordings": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1", "$TURBO_ROOT$/test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2"]
+      "cache": false,
+      "dependsOn": ["@raceiq/game-lmu-tests#transit"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.bin.gz", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.part*"]
     }
   }
 }

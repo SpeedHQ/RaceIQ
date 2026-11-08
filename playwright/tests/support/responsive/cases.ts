@@ -57,7 +57,7 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "iracing-tracks", path: "/iracing/tracks", viewports: DESKTOP_ONLY },
   { name: "f125-track-detail", path: "/f125/tracks/19/info", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez" },
   { name: "acc-track-detail", path: "/acc/tracks/8/info", viewports: DESKTOP_ONLY, readyText: "Barcelona" },
-  { name: "ac-evo-track-detail", path: "/ac-evo/tracks/14/info", viewports: DESKTOP_ONLY, readyText: "Barcelona" },
+  { name: "ac-evo-track-detail", path: "/ac-evo/tracks/%5B%22Barcelona%22%2C%22GP%22%5D/info", viewports: DESKTOP_ONLY, readyText: "Barcelona" },
   { name: "iracing-track-detail", path: "/iracing/tracks/18/info", viewports: DESKTOP_ONLY, readyText: "Road America" },
   { name: "f125-setups", path: "/f125/setups", viewports: DESKTOP_ONLY },
   { name: "ac-evo-setups", path: "/ac-evo/setups", viewports: DESKTOP_ONLY },
@@ -67,7 +67,7 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "fm23-seeded-laps", path: "/fm23/tracks/5/laps", viewports: DESKTOP_ONLY, readyText: "Road America", requiresSeed: true },
   { name: "f125-seeded-laps", path: "/f125/tracks/19/laps", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez", requiresSeed: true },
   { name: "acc-seeded-laps", path: "/acc/tracks/2/laps", viewports: DESKTOP_ONLY, readyText: "Brands Hatch", requiresSeed: true },
-  { name: "ac-evo-seeded-laps", path: "/ac-evo/tracks/2/laps", viewports: DESKTOP_ONLY, readyText: "Brands Hatch", requiresSeed: true },
+  { name: "ac-evo-seeded-laps", path: "/ac-evo/tracks/%5B%22Brands%20Hatch%22%2C%22GP%22%5D/laps", viewports: DESKTOP_ONLY, readyText: "Brands Hatch", requiresSeed: true },
   { name: "iracing-seeded-laps", path: "/iracing/tracks/192/laps", viewports: DESKTOP_ONLY, readyText: "Daytona International Speedway", requiresSeed: true },
   { name: "fm23-track-setups", path: "/fm23/tracks/860/setups", viewports: DESKTOP_ONLY, readyText: "Brand Hatch" },
   { name: "f125-track-setups", path: "/f125/tracks/19/setups", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez" },
@@ -120,22 +120,6 @@ export const RESPONSIVE_INTERACTION_CASES: readonly ResponsiveInteractionCase[] 
   },
 ] as const;
 
-export const RESPONSIVE_DEVICE_CASES = [
-  {
-    name: "pixel-7-touch-shell",
-    project: "mobile-device",
-    path: "/fm23",
-    expectedViewport: { width: 412, height: 839 },
-  },
-  {
-    name: "ipad-gen-7-touch-shell",
-    project: "tablet-device",
-    path: "/fm23",
-    expectedViewport: { width: 810, height: 1080 },
-  },
-] as const;
-
-export type ResponsiveDeviceCase = (typeof RESPONSIVE_DEVICE_CASES)[number];
 
 export const RESPONSIVE_SCREENSHOT_COUNT =
   RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_PAGES.filter((page) => !page.viewports || page.viewports.includes(viewport.name)).length, 0) +

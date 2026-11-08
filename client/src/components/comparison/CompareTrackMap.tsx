@@ -4,7 +4,7 @@ import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTraceIndexAtDistance, type Point } from "@/lib/comparison-utils";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { getSemanticCanvasContext } from "@raceiq/scene-3d/rendering/css-canvas";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { CompareSegmentTable } from "./CompareSegmentTable";
@@ -27,12 +27,12 @@ interface CompareTrackMapProps {
   segments: SegmentTiming[];
   hoveredDistanceRef: React.RefObject<number | null>;
   redrawRef: React.MutableRefObject<(() => void) | null>;
-  trackOrdinal?: number | null;
+  trackId?: string | null;
   gameId?: GameId | null;
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId }: CompareTrackMapProps) {
+export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef, redrawRef, trackId, gameId }: CompareTrackMapProps) {
   const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
   const overviewContainerRef = useRef<HTMLDivElement>(null);
@@ -49,17 +49,17 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
 
   // Fetch track boundaries
   useEffect(() => {
-    if (!trackOrdinal) {
+    if (!trackId) {
       setBoundaries(null);
       return;
     }
     if (!gameId) return;
-    client.api["track-boundaries"][":ordinal"]
-      .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-boundaries"][":trackId"]
+      .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as BoundaryData)
       .then((data) => setBoundaries(data))
       .catch(() => setBoundaries(null));
-  }, [trackOrdinal, gameId]);
+  }, [trackId, gameId]);
 
   // Align outline to telemetry coordinate space.
   // Extracted outlines (e.g. F1 2025 from AI spline data) may be in a different

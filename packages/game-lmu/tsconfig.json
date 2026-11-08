@@ -4,9 +4,10 @@
     "composite": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.json"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.json",
+    "package.json"
   ],
   "exclude": [
     "**/node_modules/**",

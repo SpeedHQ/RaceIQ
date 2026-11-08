@@ -2,7 +2,7 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatCarSetup, readCarSetupFile } from "../../src/carsetup";
+import { formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../src/carsetup";
 import { parseCarSetup } from "../../src/carsetup-wire";
 
 const FIXTURE = join(ROOT_DIR, "test/artifacts/carsetup/Default-12312.carsetup");
@@ -44,8 +44,7 @@ describe("ac-evo carsetup parser", () => {
     }
   });
 
-  it("summary matches in-game values (grounded, Audi R8 GT3 Evo II)", async () => {
-    const { summarizeCarSetup } = await import("../../src/carsetup");
+  it("summary matches in-game values (grounded, Audi R8 GT3 Evo II)", () => {
     const setup = parseCarSetup(readFileSync(FIXTURE))!;
     const sections = summarizeCarSetup(setup);
     const rows = (title: string) =>
@@ -58,8 +57,8 @@ describe("ac-evo carsetup parser", () => {
     expect(fl["Wheel rate"]).toBe("240 kN/m");
     expect(fl["Packer rate"]).toBe("3500");
     expect(fl["Bumpstop rate"]).toBe("1500");
-    expect(fl["Slow bump"]).toBe("6");
-    expect(fl["Slow rebound"]).toBe("5");
+    expect(fl["Slow bump"]).toBe("6 clicks");
+    expect(fl["Slow rebound"]).toBe("5 clicks");
 
     // ARB lives on the Front/Rear cards; click shown when stiffness matches
     // known Audi table (1→16, 2→22, 3→28 kN/m)
@@ -82,6 +81,21 @@ describe("ac-evo carsetup parser", () => {
     expect(aero["Rear wing"]).toBe("2");
 
     expect(rows("Fuel & strategy")["Fuel load"]).toBe("104 L");
+  });
+
+  it("keeps Slow bump settings separate per wheel and labels slider values in clicks", () => {
+    const setup = parseCarSetup(readFileSync(FIXTURE))!;
+    const sections = summarizeCarSetup(setup);
+    for (const corner of ["Front left", "Front right", "Rear left", "Rear right"]) {
+      const slowBump = sections.find((s) => s.title === corner)?.rows.find((r) => r.label === "Slow bump");
+      expect(slowBump).toBeDefined();
+      expect(slowBump?.value).toMatch(/^\d+ clicks$/);
+    }
+    expect(sections.flatMap((s) => s.rows.map((r) => r.label))).not.toContain("Fast bump");
+    const values = ["Front left", "Front right", "Rear left", "Rear right"].map((corner) =>
+      sections.find((section) => section.title === corner)!.rows.find((row) => row.label === "Slow bump")!.value,
+    );
+    expect(new Set(values).size).toBeGreaterThan(1);
   });
 
   it("readCarSetupFile reads from disk", async () => {

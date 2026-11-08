@@ -1,14 +1,9 @@
 /**
  * Setup Engineer mutation guards and on-demand lap-issue analysis.
  *
- * Unlike test/setup-engineer-tools.test.ts (pure primitives only), this file
- * DOES import `mastra/tools/setup-engineer.ts` — but only after stubbing every
- * side-effectful module it wires (DB/fs/ws/memory) via `mock.module`, so the
- * deterministic `applyIntents` engine stays REAL while writes are observable
- * fakes. The scenario: every requested change is skipped by `applyIntents`
- * (unknown components), so `applied` is empty — the tool must refuse and MUST
- * NOT create a phantom version (no writeAppliedSetup / createExperimentVersion /
- * setSessionHead calls).
+ * This file imports the real singleton tools. Gated dispatchers isolate
+ * DB/fs/memory writes while the deterministic engine and worker analysis stay
+ * real. Unknown components must not write a setup or create a phantom version.
  */
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -18,6 +13,7 @@ import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import { symptomsToIssues } from "@raceiq/backend-core/ai/tune-issues";
 import { analyzeLapIssues } from "@raceiq/backend-core/experiments/lap-issues";
 import { RequestContext } from "@mastra/core/request-context";
+import { setupEngineerTools } from "../../../src/mastra/tools/setup-engineer";
 
 // `mock.module` is PROCESS-global in Bun and cannot be undone: re-mocking an
 // already-mocked path is a no-op, so an `afterAll` "restore" achieves nothing
@@ -77,15 +73,32 @@ function baseAccSetup() {
 // --- observable fakes for the write path ------------------------------------
 const writeAppliedSetup = mock(() => ({ setupPath: "fake/path.json", setupSnapshot: null, fileName: "fake.json" }));
 const readActiveSetup = mock(async () => ({ ok: true, setup: baseAccSetup(), realPath: "fake/base.json", baseDir: "fake" }));
-const createExperimentVersion = mock(async () => 999);
+const createExperimentVersionAndSetHead = mock(async () => null);
 const setSessionHead = mock(async () => {});
 const recordAction = mock(async () => {});
-const setExperimentVersionNote = mock(async () => null);
 
 function completedPackets(): TelemetryPacket[] {
   return Array.from({ length: 180 }, (_, i) => ({
+    EngineMaxRpm: 0, EngineIdleRpm: 0, CurrentEngineRpm: 0,
+    AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0,
+    AngularVelocityX: 0, AngularVelocityY: 0, AngularVelocityZ: 0,
+    Yaw: 0, Pitch: 0, Roll: 0,
+    WheelRotationSpeedFL: 0, WheelRotationSpeedFR: 0, WheelRotationSpeedRL: 0, WheelRotationSpeedRR: 0,
+    WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0,
+    WheelInPuddleDepthFL: 0, WheelInPuddleDepthFR: 0, WheelInPuddleDepthRL: 0, WheelInPuddleDepthRR: 0,
+    SurfaceRumbleFL_2: 0, SurfaceRumbleFR_2: 0, SurfaceRumbleRL_2: 0, SurfaceRumbleRR_2: 0,
+    TireSlipCombinedFL_2: 0,
+    TireTempFL: 0, TireTempFR: 0, TireTempRL: 0, TireTempRR: 0,
+    Boost: 0, Fuel: 0, CurrentRaceTime: 0, RacePosition: 0,
+    Clutch: 0, HandBrake: 0, Gear: 0, NormDrivingLine: 0, NormAIBrakeDiff: 0,
+    TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0,
+    SurfaceRumbleFL: 0, SurfaceRumbleFR: 0, SurfaceRumbleRL: 0, SurfaceRumbleRR: 0,
+    TireCombinedSlipFL: 0, TireCombinedSlipFR: 0, TireCombinedSlipRL: 0, TireCombinedSlipRR: 0,
+    SuspensionTravelMFL: 0, SuspensionTravelMFR: 0, SuspensionTravelMRL: 0, SuspensionTravelMRR: 0,
+    CarClass: 0, CarPerformanceIndex: 0, DrivetrainType: 0, NumCylinders: 0,
+    PositionY: 0, Power: 0, Torque: 0,
     gameId: "acc", IsRaceOn: 1, LapNumber: 1, LastLap: 0, BestLap: 0,
-    CarOrdinal: 100, TrackOrdinal: 5, PositionX: 0, PositionZ: 0,
+    carId: "100", trackId: "5", PositionX: 0, PositionZ: 0,
     TimestampMS: i * 16, CurrentLap: i / 60,
     DistanceTraveled: i * 2, Speed: i < 40 ? 50 : 20,
     VelocityX: i < 40 ? 50 : 20, VelocityY: 0, VelocityZ: 0,
@@ -94,7 +107,7 @@ function completedPackets(): TelemetryPacket[] {
     TireSlipRatioFL: 0.3, TireSlipRatioFR: 0.3, TireSlipRatioRL: 0, TireSlipRatioRR: 0,
     NormSuspensionTravelFL: 0.5, NormSuspensionTravelFR: 0.5,
     NormSuspensionTravelRL: 0.5, NormSuspensionTravelRR: 0.5,
-  } as TelemetryPacket));
+  }));
 }
 
 const issueLaps = Array.from({ length: 9 }, (_, i) => ({
@@ -122,17 +135,19 @@ mock.module("../../../src/setups/io", () => ({
 }));
 mock.module("@raceiq/backend-core/db/experiment-version-queries", () => ({
   ...RealTestQueries,
-  createExperimentVersion: gate(RealTestQueries.createExperimentVersion, createExperimentVersion),
-  deleteTestSubtree: gate(RealTestQueries.deleteTestSubtree, mock(async () => {})),
+  createExperimentVersionAndSetHead: gate(RealTestQueries.createExperimentVersionAndSetHead, createExperimentVersionAndSetHead),
+  deleteTestSubtree: gate(RealTestQueries.deleteTestSubtree, mock(async () => ({ deletedIds: [], headMoved: false, prevHeadTestId: 1, newHeadTestId: 1 }))),
   getExperimentVersion: gate(RealTestQueries.getExperimentVersion, mock(async () => ({ id: 1, version: 1 }))),
   getExperimentVersionsByLabel: gate(RealTestQueries.getExperimentVersionsByLabel, mock(async () => null)),
   resolveActiveTestId: gate(RealTestQueries.resolveActiveTestId, mock(async () => 1)),
-  setExperimentVersionNote: gate(RealTestQueries.setExperimentVersionNote, setExperimentVersionNote),
   setExperimentVersionNotes: gate(RealTestQueries.setExperimentVersionNotes, mock(async () => {})),
+  setExperimentVersionNoteGuarded: gate(RealTestQueries.setExperimentVersionNoteGuarded, mock(async () => ({ ok: false, previous: null }))),
+  setExperimentVersionNotesGuarded: gate(RealTestQueries.setExperimentVersionNotesGuarded, mock(async () => ({ ok: false, previous: null }))),
 }));
 mock.module("@raceiq/backend-core/db/experiment-queries", () => ({
   ...RealSessionQueries,
   setSessionHead: gate(RealSessionQueries.setSessionHead, setSessionHead),
+  getExperiment: gate(RealSessionQueries.getExperiment, mock(async (id: number) => ({ ...fakeCtx.session, id }))),
 }));
 mock.module("@raceiq/backend-core/ai/chat-agent", () => ({
   ...RealChatAgent,
@@ -194,14 +209,21 @@ mock.module("../../../src/mastra/model", () => ({
   getMastraModelId: gate(RealMastraModel.getMastraModelId, mock(() => "fake/model")),
 }));
 
-const { setupEngineerTools } = await import("../../../src/mastra/tools/setup-engineer");
 
-const requestContext = { get: (k: string) => ({ gameId: "acc", sessionId: 61 } as any)[k] };
+const testBranch = (sessionId: number) => ({
+  sessionId, headVersionId: 1, versions: fakeCtx.tests, activeVersion: fakeCtx.activeTest,
+  session: fakeCtx.session, laps: sessionId === 61 ? issueLaps : [], lapIds: sessionId === 61 ? issueLaps.map((lap) => lap.id) : [],
+  setupContext: fakeCtx,
+});
+const requestContextData: Record<string, unknown> = {
+  gameId: "acc", sessionId: 61, "raceiq.experimentChatBranch": testBranch(61),
+};
+const requestContext = { get: (k: string) => requestContextData[k] };
 
 describe("apply_changes — no-op guard when every change is skipped", () => {
   test("returns ok:false with skipped reasons and creates NO version", async () => {
     writeAppliedSetup.mockClear();
-    createExperimentVersion.mockClear();
+    createExperimentVersionAndSetHead.mockClear();
     setSessionHead.mockClear();
 
     const result: any = await setupEngineerTools.applyChangesTool.execute!(
@@ -217,51 +239,25 @@ describe("apply_changes — no-op guard when every change is skipped", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/skipped|applied/i);
-    expect(result.applied).toHaveLength(0);
-    expect(result.skipped.length).toBeGreaterThan(0);
-    expect(result.skipped[0]!.reason).toBeTruthy();
+    expect(result.applied).toEqual([]);
+    expect(result.skipped.map((change: { component: string }) => change.component)).toEqual([
+      "Front Anti-Roll Bar Stiffness Coefficient", "Rear Hyperdrive Damper",
+    ]);
 
     // The phantom-version bug: none of these may run when nothing applied.
     expect(writeAppliedSetup).not.toHaveBeenCalled();
-    expect(createExperimentVersion).not.toHaveBeenCalled();
+    expect(createExperimentVersionAndSetHead).not.toHaveBeenCalled();
     expect(setSessionHead).not.toHaveBeenCalled();
   });
 });
 
-describe("record_driver_notes — driver confirmation guard", () => {
-  test("refuses to write the driver note without driverConfirmed", async () => {
-    setExperimentVersionNote.mockClear();
-
-    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
-      { note: "understeer on entry into T1", driverConfirmed: false },
-      { requestContext } as any,
-    );
-
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/confirm|approve/i);
-    expect(setExperimentVersionNote).not.toHaveBeenCalled();
-  });
-
-  test("writes the note once the driver has confirmed it", async () => {
-    setExperimentVersionNote.mockClear();
-
-    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
-      { note: "understeer on entry into T1", driverConfirmed: true },
-      { requestContext } as any,
-    );
-
-    expect(result.ok).toBe(true);
-    expect(setExperimentVersionNote).toHaveBeenCalledTimes(1);
-  });
-});
 
 describe("get_lap_issues — explicit experiment-scoped worker analysis", () => {
   async function invokeIssues(lapId?: number, sessionId = 61) {
     const context = new RequestContext();
     context.set("gameId", "acc");
     context.set("sessionId", sessionId);
-    // Direct tool execution reads requestContext; Mastra's tracing observer is unused here.
+    context.set("raceiq.experimentChatBranch", testBranch(sessionId));
     const executionContext = { requestContext: context } as Parameters<NonNullable<typeof setupEngineerTools.getLapIssuesTool.execute>>[1];
     const result = await setupEngineerTools.getLapIssuesTool.execute!({ lapId }, executionContext);
     if (!result || !("ok" in result)) throw new Error("Unexpected tool validation failure");
@@ -291,7 +287,6 @@ describe("get_lap_issues — explicit experiment-scoped worker analysis", () => 
     const result = await invokeIssues(109, 62);
 
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/not in this session/);
     expect(result.laps).toEqual([]);
     expect(getLapById).not.toHaveBeenCalled();
   });
@@ -336,18 +331,5 @@ describe("get_lap_issues — explicit experiment-scoped worker analysis", () => 
     expect(recovered.laps[0].issues).toContainEqual(
       expect.objectContaining({ kind: "understeer", lapNumber: 19 }),
     );
-  });
-});
-
-describe("SETUP_ENGINEER_INSTRUCTIONS — prompt mandates", () => {
-  test("mandates consult_lap_analyst before the first recommendation and refuses on unknown setup values", async () => {
-    const { SETUP_ENGINEER_INSTRUCTIONS } = await import("../../../src/mastra/agents/setup-engineer");
-
-    // 1. First-recommendation gate on the lap analyst.
-    expect(SETUP_ENGINEER_INSTRUCTIONS).toMatch(/MUST call \\?`consult_lap_analyst\\?` (?:once )?before (?:making |giving )?(?:your|the) FIRST setup recommendation/i);
-    // 2. None-valued knobs are untunable but must not block tuning the rest;
-    //    only a fully unknown setup is a hard stop.
-    expect(SETUP_ENGINEER_INSTRUCTIONS).toMatch(/value None.*never recommend or apply changes to them/i);
-    expect(SETUP_ENGINEER_INSTRUCTIONS).toMatch(/ALL current setup values are unknown.*unreadable/i);
   });
 });

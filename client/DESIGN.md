@@ -107,7 +107,7 @@ components:
 
 ### Imperative rendering boundary
 
-DOM and SVG code consume theme variables directly. Main-thread renderers that require concrete browser values use `src/lib/rendering/css-values.ts`, which resolves the CSS contract with native `getComputedStyle()`. HTML Canvas drawing uses the focused proxy in `src/lib/rendering/css-canvas.ts`; uPlot, Three.js, and image export use the value bridge directly. Neither module is a Tailwind theme layer or a general color library.
+DOM and SVG code consume theme variables directly. Main-thread renderers that require concrete browser values use `@raceiq/scene-3d/rendering/css-values`, which resolves the CSS contract with native `getComputedStyle()`. HTML Canvas drawing uses the focused proxy in `@raceiq/scene-3d/rendering/css-canvas`; uPlot, Three.js, and image export use the value bridge directly. Both bridges belong to the shared 3D scene package; neither is a Tailwind theme layer or a general color library.
 
 The bridge is deliberately DOM-bound. `OffscreenCanvas` worker code cannot read the document theme and must receive already-resolved theme values from the main thread.
 
@@ -236,6 +236,10 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 ### Navigation
 
 - **Style:** Dark chrome matching `app-surface`, active/current item marked with the cyan accent (text or underline), not a background fill — keeps the One Signal Rule intact even in nav.
+
+### Background operations
+
+For work that needs confirmation before running in the background, use the documented [confirmation dialog → background progress pattern](../docs/contributing/background-operation-flow.md). Compose the existing dialog primitives: centered modal for the decision, non-modal bottom-right panel for progress and results, and an inline maintenance surface for recovery. Keep job state and transport feature-owned; the guide distinguishes sparse conversion's current behavior from reusable policy.
 
 ## 6. Do's and Don'ts
 

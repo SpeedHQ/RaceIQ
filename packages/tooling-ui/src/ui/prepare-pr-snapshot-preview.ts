@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-import { mkdirSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { collectScreenshotDiffs } from "./collect-screenshot-diffs";
 
 const positional = process.argv.slice(2);
 const values = positional.length
@@ -24,9 +23,8 @@ if (!outDir || !baseRenderDir || !currentRenderDir || !prNumber || !baseRef) {
 mkdirSync(outDir, { recursive: true });
 await Bun.write(join(outDir, "pr-number.txt"), `${prNumber}\n`);
 await Bun.write(join(outDir, "base-ref.txt"), `${baseRef}\n`);
-await collectScreenshotDiffs({
-  baseDir: baseRenderDir,
-  currentDir: currentRenderDir,
-  outDir,
-  prefix: "rendered-base-vs-pr",
-});
+for (const [name, source] of [["base-storybook", baseRenderDir], ["current-storybook", currentRenderDir]]) {
+  const target = join(outDir, name);
+  if (existsSync(source)) cpSync(source, target, { recursive: true });
+  else mkdirSync(target, { recursive: true });
+}

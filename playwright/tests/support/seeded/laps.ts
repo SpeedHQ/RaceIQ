@@ -8,8 +8,8 @@ interface SeededLapListItem {
   sessionId: number;
   lapNumber: number;
   lapTime: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   isValid: boolean;
   carSetup: LapMeta["carSetup"];
 }

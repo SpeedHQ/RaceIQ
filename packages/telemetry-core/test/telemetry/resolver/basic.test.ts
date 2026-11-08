@@ -33,6 +33,36 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
+  test("replay samples preserve freshness boundaries and invalid values across reused frames", () => {
+    const resolver = compileTelemetryResolver({ simulator: "lmu", requested: [{ semanticId: "motion.speed" }] });
+    const slot = resolver.slot("motion.speed");
+    let view = resolver.createFrameView(
+      packet("lmu", { Speed: 42 }),
+      { timestamp: { domain: "session", milliseconds: 2_000 }, updateSequence: 1n },
+      undefined,
+      () => ({ domain: "session", milliseconds: 1_000 }),
+    );
+    expect(view.resolveSample(slot)).toEqual({
+      semanticId: "motion.speed", value: 42, unit: "m/s", state: "ok", freshness: "fresh",
+    });
+    view = resolver.createFrameView(
+      packet("lmu", { Speed: 42 }),
+      { timestamp: { domain: "session", milliseconds: 2_001 }, updateSequence: 2n },
+      view,
+      () => ({ domain: "session", milliseconds: 1_000 }),
+    );
+    expect(view.resolveSample(slot)).toEqual({
+      semanticId: "motion.speed", value: 42, unit: "m/s", state: "stale", freshness: "stale",
+    });
+    view = resolver.createFrameView(
+      packet("lmu", { Speed: NaN }),
+      { timestamp: { domain: "session", milliseconds: 2_002 }, updateSequence: 3n },
+      view,
+    );
+    expect(view.resolveSample(slot)).toMatchObject({ value: null, state: "invalid" });
+    expect(view.readNumber(slot)).toBeUndefined();
+  });
+
   test("uses normalized packet values without running a derivation DAG", () => {
     let evaluations = 0;
     const derivation = {
@@ -90,6 +120,30 @@ describe("compiled telemetry resolver", () => {
         mappingStatus: "normalized",
         state: "ok",
       });
+    }
+  });
+
+  test("keeps litre-based fuel percentages missing without usable capacity", () => {
+    for (const simulator of ["acc", "ac-evo", "lmu"] as const) {
+      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+        simulator,
+        requested: [{ semanticId: "fuel.fuel-percent" }],
+      });
+      const slot = resolver.slot("fuel.fuel-percent");
+      for (const Fuel of [0, 0.5, 1]) {
+        for (const FuelCapacity of [NaN, 0]) {
+          const frame = resolver.createFrameView(
+            packet(simulator, { Fuel, FuelCapacity }),
+            { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+          );
+          expect(frame.resolveNumber(slot)).toMatchObject({ value: null, state: Number.isNaN(FuelCapacity) ? "invalid" : "missing" });
+        }
+      }
+      const frame = resolver.createFrameView(
+        packet(simulator, { Fuel: 0.5, FuelCapacity: 100 }),
+        { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+      );
+      expect(frame.resolveNumber(slot)).toMatchObject({ value: 0.5, state: "ok" });
     }
   });
 

@@ -12,9 +12,21 @@ async function assertNoRouteErrors(page: Page) {
   }
 }
 
+async function gotoSeededRoute(page: Page, path: string, expectSplitStatus = false): Promise<void> {
+  const splitStatus = expectSplitStatus
+    ? page.waitForResponse(
+        (response) => new URL(response.url()).pathname === "/api/storage/split-migration",
+        { timeout: 60_000 },
+      )
+    : null;
+  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  if (splitStatus) expect((await splitStatus).ok()).toBe(true);
+}
+
 async function assertHealthySeededRoute(page: Page, trackHeading?: string) {
   const workspace = page.locator("[data-responsive-workspace]");
   await expect(workspace).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.getByRole("dialog", { name: "Split recordings for faster lap loading?" })).toHaveCount(0);
   await expect(workspace).toBeVisible();
   await assertNoRouteErrors(page);
   await assertNoHorizontalOverflow(page);
@@ -29,7 +41,7 @@ async function assertHealthySeededRoute(page: Page, trackHeading?: string) {
 for (const route of SEEDED_GLOBAL_ROUTE_CASES) {
   test(`Global — ${route.label} (${route.path})`, async ({ page }) => {
     const browserErrors = collectBrowserErrors(page);
-    await page.goto(route.path, { waitUntil: "domcontentloaded" });
+    await gotoSeededRoute(page, route.path, route.path === "/");
     await assertHealthySeededRoute(page);
     expect(browserErrors.errors, `unexpected browser errors on ${route.path}`).toEqual([]);
   });
@@ -38,7 +50,7 @@ for (const route of SEEDED_GLOBAL_ROUTE_CASES) {
 for (const route of SEEDED_ROUTE_CASES) {
   test(`${route.game.name} — ${route.label} (${route.path})`, async ({ page }) => {
     const browserErrors = collectBrowserErrors(page);
-    await page.goto(route.path, { waitUntil: "domcontentloaded" });
+    await gotoSeededRoute(page, route.path);
     if (route.expectedPath) {
       await expect(page).toHaveURL(new RegExp(`${route.expectedPath.replaceAll("/", "\\/")}\\/?$`));
     }

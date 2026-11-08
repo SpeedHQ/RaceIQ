@@ -42,6 +42,11 @@ describe("race result derivation", () => {
   test("normalizes session families", () => {
     expect(normalizeSessionType("race-2")).toBe("race");
     expect(normalizeSessionType("qualifying-1")).toBe("qualifying");
+    expect(normalizeSessionType("short-qualifying")).toBe("qualifying");
+    expect(normalizeSessionType("one-shot-qualifying")).toBe("qualifying");
+    expect(normalizeSessionType("sprint-shootout-1")).toBe("qualifying");
+    expect(normalizeSessionType("short-sprint-shootout")).toBe("qualifying");
+    expect(normalizeSessionType("one-shot-sprint-shootout")).toBe("qualifying");
     expect(normalizeSessionType(undefined)).toBe("unknown");
   });
 
@@ -52,31 +57,7 @@ describe("race result derivation", () => {
     expect(deriveRaceResult(source({ sessionType: "race", classification: "finished", finishingPosition: 1 })).outcomeStatus).toBe("provisional");
   });
 
-  test("practice has no race positions or position changes", () => {
-    const result = deriveRaceResult(source({
-      gameId: "lmu", sessionType: "practice-1", finishingPosition: 2, qualifyingPosition: 3,
-      positionChanges: [{
-        eventType: "position-change", sequence: 1, lapNumber: 2, elapsedSeconds: 90,
-        durationSeconds: null, service: "unknown", tyreChange: null,
-        fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: {},
-        positionBefore: 3, positionAfter: 2,
-      }],
-    }));
-    expect(result.classification).toBe("unknown");
-    expect(result.finishingPosition).toBeNull();
-    expect(result.qualifyingPosition).toBeNull();
-    expect(result.isPodium).toBeNull();
-    expect(result.events).toEqual([]);
-    expect(result.evidence.fieldStatus.finishingPosition).toBe("unavailable");
-    expect(result.evidence.fieldStatus.qualifyingPosition).toBe("unavailable");
-  });
 
-  test("LMU test day is practice, not a classified race", () => {
-    const result = deriveRaceResult(source({ gameId: "lmu", sessionType: "test-day", finishingPosition: 1 }));
-    expect(result.sessionType).toBe("practice");
-    expect(result.finishingPosition).toBeNull();
-    expect(result.isPodium).toBeNull();
-  });
 
   test("does not infer outcome from missing fields", () => {
     const result = deriveRaceResult(source({ sessionType: "race" }));

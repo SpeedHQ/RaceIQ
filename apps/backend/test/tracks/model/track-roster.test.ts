@@ -1,6 +1,9 @@
+import { hasRecordedOutline, scanRecordedFiles, getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { computedAverageFileName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { userGameDir } from "@raceiq/shared/racing/tracks/storage/files";
 /** Committed track facts and geometry roster contracts. */
 import { describe, test, expect } from "bun:test";
-import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, writeFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { cornerNumbers, type TrackFacts } from "@raceiq/shared/racing/tracks/facts";
 import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
@@ -136,4 +139,17 @@ describe("curated native corner landmarks", () => {
       }
     });
   }
+});
+
+
+test("saved AMS2 track maps are discovered after a startup scan", () => {
+  const ordinal = 2147000001;
+  const file = resolve(userGameDir("ams2"), `${computedAverageFileName("ams2", ordinal)}.csv`);
+  try {
+    writeFileSync(file, "x,z\n0,0\n25,0\n50,0\n75,0\n100,0\n100,25\n100,50\n100,75\n100,100\n75,100\n50,100\n25,100\n0,100\n0,75\n0,50\n0,25\n0,0\n");
+    scanRecordedFiles();
+    expect(hasRecordedOutline(ordinal, "ams2")).toBe(true);
+    expect(hasRecordedOutline(ordinal, "iracing")).toBe(false);
+    expect(getTrackLengthMeters(ordinal, "ams2")).toBe(400);
+  } finally { rmSync(file, { force: true }); scanRecordedFiles(); }
 });

@@ -2,8 +2,8 @@ import { m } from "@/paraglide/messages";
 import { useMemo, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import type { SemanticTuneSample } from "./semantic-tune";
+import { SECTOR_COLOR_VARS } from "@raceiq/scene-3d/colors";
+import type { SemanticTuneSample } from "@raceiq/analysis-core/racing/laps/semantic-tune";
 import { useTrackBoundaries } from "../../hooks/track-queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 
@@ -26,7 +26,7 @@ interface SectorMapProps {
   /** Show the source-defined sector time legend under the map. Default true. */
   showTimes?: boolean;
   /** When provided, the track's left/right edges are fetched and drawn faintly. */
-  trackOrdinal?: number;
+  trackId?: string;
   gameId?: GameId;
   /** Tooltip content for the hovered frame; when omitted, hover is disabled. */
   readout?: (frame: SemanticTuneSample, fraction: number) => ReadoutRow[];
@@ -46,8 +46,8 @@ interface SectorMapProps {
  * drawn faintly when the track has geometry. Hovering scrubs the lap like a
  * chart — a marker follows the cursor and a tooltip shows values at that point.
  */
-export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, gameId, readout, onHover, issueMarkers = [], markFraction }: SectorMapProps) {
-  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
+export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackId, gameId, readout, onHover, issueMarkers = [], markFraction }: SectorMapProps) {
+  const { data: bounds } = useTrackBoundaries(trackId, gameId);
   const edges = useMemo(() => {
     const extracted = extractEdges(bounds);
     if (!extracted || !gameId || !needsTrackFlip(gameId)) return extracted;
@@ -56,7 +56,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<ProjPt | null>(null);
 
-  const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges), [telemetry, sectorTimes, edges]);
+  const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges, "line"), [telemetry, sectorTimes, edges]);
 
   if (!geom) {
     return <div className="p-4 text-xs text-app-text-dim">{m.tunes_no_position_data()}</div>;
@@ -121,7 +121,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   }
 
   return (
-    <div className="p-3">
+    <div className="mx-auto w-full max-w-[28rem] p-3">
       <div className="relative">
         <svg
           ref={svgRef}

@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, openSync, writeSync, closeSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { dirname } from "node:path";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, META_FRAME_BYTES } from "./framing";
 
@@ -23,7 +24,7 @@ export class SessionRecorder {
   private _byteOffset = 0;
   private _metaPending = false;
   private _active = false;
-
+  private _stopPromise: Promise<void> | null = null;
   get recording(): boolean {
     return this._active;
   }
@@ -40,13 +41,15 @@ export class SessionRecorder {
   getCurrentByteOffset(): number {
     return this._byteOffset;
   }
+  /** Request a full storage checkpoint on the next source record when supported. */
+  requestFullCheckpoint(): void {}
 
   /**
    * Reserve a file path for this session. No file is created on disk until
    * the first writeRecord() call — empty sessions leave nothing behind.
    */
   start(filePath: string): string {
-    if (this._active) this.stop();
+    if (this._active) throw new Error("Cannot start recording while another recording is active");
     this._path = filePath;
     this._recordCount = 0;
     this._byteOffset = 0;
@@ -124,29 +127,36 @@ export class SessionRecorder {
   }
 
   /** Flush, patch total frame count into header, and close. No file is created if no records were written. */
-  async stop(): Promise<void> {
+  stop(): Promise<void> {
+    if (!this._active) return this._stopPromise ?? Promise.resolve();
+
     const path = this._path;
     const file = this._file;
     const count = this._recordCount;
     const hadMeta = this._metaPending;
+    this._active = false;
     this._file = null;
     this._metaPending = false;
-    this._active = false;
-    if (!file || !path) return;
-    await file.end();
-    if (hadMeta) {
-      try {
+
+    const finalization = (async () => {
+      if (!file || !path) return;
+
+      await file.end();
+      if (hadMeta) {
         const countBuf = encodeFrameLength(count);
-        const fd = openSync(path, "r+");
+        const handle = await open(path, "r+");
         try {
-          writeSync(fd, countBuf, 0, countBuf.length, 8);
+          await handle.write(countBuf, 0, countBuf.length, 8);
         } finally {
-          closeSync(fd);
+          await handle.close();
         }
-      } catch {
-        // Non-fatal: header patch failing doesn't corrupt the record data
       }
-    }
-    console.log(`[SessionRecorder] Stopped. ${count} records written to ${path}`);
+      console.log(`[SessionRecorder] Stopped. ${count} records written to ${path}`);
+    })();
+    this._stopPromise = finalization;
+    void finalization.finally(() => {
+      if (this._stopPromise === finalization) this._stopPromise = null;
+    }).catch(() => {});
+    return finalization;
   }
 }

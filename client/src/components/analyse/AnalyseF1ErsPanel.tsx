@@ -1,5 +1,5 @@
 import { m } from "../../paraglide/messages";
-import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 
 const ERS_MODES = [m.f1live_ers_none(), m.f1live_ers_low(), m.f1ers_mode_medium(), m.f1live_ers_high(), m.f1live_ers_overtake()];
 const enumIndex = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {

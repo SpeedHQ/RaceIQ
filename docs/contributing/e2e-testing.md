@@ -134,7 +134,7 @@ Playwright projects are CI boundaries, not individual test files:
 
 | CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
 | --- | --- | --- | --- |
-| Compiled E2E | `all` | `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, `tablet-device` | All functional, responsive, and Chromium device projects |
+| Compiled E2E | `all` | All configured projects, including `tracks-catalogue` and `cars-catalogue` | All functional, responsive, and Chromium device projects |
 
 `.github/workflows/playwright-dev.yml` and the release workflow each invoke
 the reusable workflow once. The invocation starts the `all` server set and
@@ -168,11 +168,56 @@ launchers wipe it before each run. Never point seeded E2E at tracked fixtures or
 user data. Tests use committed recordings plus production parser/import paths
 and must restore any note/import/delete mutation in `finally`.
 
+### Feature-owned catalogue E2Es
+
+Tracks and cars specs live in `packages/{tracks,cars}-catalogue/test/e2e/`, with one corresponding Playwright project each. Central configuration retains their seeded setup dependency and includes both in full browser runs. Tracks retain a single project worker for their stateful import/delete flows.
+
+Run both real compiled-app suites from the repository root:
+
+```sh
+bunx turbo run test:e2e --filter=@raceiq/tracks-catalogue --filter=@raceiq/cars-catalogue
+```
+
+The shared application build runs once. Package scripts invoke the existing Playwright CLI directly; each owns distinct seeded data, HTTP/client/UDP ports and result output. Do not point another running app at a feature's data directory while its task resets that directory.
+
+Inspect affected impact and execution tasks without starting servers:
+
+```sh
+bunx turbo run e2e:impact test:e2e --affected --filter='@raceiq/*-catalogue' --dry=json
+```
+
+Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md).
+
+These commands do not replace the broad existing CI matrix. Local selection evidence does not establish that GitHub provisioned fewer jobs.
+
+
 CI reality: non-draft pull requests and release/manual workflows each invoke
 one compiled Playwright job with `raceiq-dist-windows`. Local workflow
 inspection confirms project selection and artifact paths, but only an observed
 GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright
 touch/user-agent emulation in Chromium; they are not physical-device tests.
+
+### Release database upgrade regression
+
+`apps/backend/test/e2e/database-upgrade.test.ts` belongs to the existing recording
+E2E collection. Run only this scenario with:
+
+```sh
+bun test apps/backend/test/e2e/database-upgrade.test.ts
+```
+
+The test selects the highest locally available stable `vX.Y.Z` tag, installs
+its frozen dependencies in temporary storage, and uses that release's `db:seed`
+with the Tourist recording. Current working-branch server then opens the same
+database and captures. Stale lap times and layout are deliberately set before
+startup while existing detector markers remain filled. The test does not call
+reprocessing directly: normal server startup must trigger reconciliation.
+Assertions require native Tourist layout and valid finish times 398.781 s and
+401.277 s, with no stale lap times left afterward.
+
+Fetch release tags before running. Requires Git, `tar`, Bun, and access to release
+dependencies. Release installation is isolated from current workspace links;
+only temporary databases are upgraded. Working data and checkout stay intact.
 
 ### Recorded same-lap telemetry contract
 

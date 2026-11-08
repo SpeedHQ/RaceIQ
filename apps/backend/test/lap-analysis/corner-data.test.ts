@@ -96,6 +96,24 @@ describe("computeCornerMetrics", () => {
     expect(m.throttleOnDist).toBeCloseTo(60, 5);
   });
 
+  test("lap-distance origin shift preserves corner, braking, and throttle metrics", () => {
+    const base = computeCornerMetrics(speedPackets(), [corner])[0];
+    const origin = 3520.2021484375;
+    const shifted = computeCornerMetrics(
+      speedPackets().map((packet) => ({
+        ...packet,
+        DistanceTraveled: packet.DistanceTraveled + origin,
+      })),
+      [corner],
+    )[0];
+    expect(shifted).toEqual(base);
+    expect(shifted.entrySpeed).toBeCloseTo(50 * 2.237, 3);
+    expect(shifted.minSpeed).toBeCloseTo(20 * 2.237, 3);
+    expect(shifted.exitSpeed).toBeCloseTo(45 * 2.237, 3);
+    expect(shifted.brakingDistance).toBeCloseTo(40, 5);
+    expect(shifted.throttleOnDist).toBeCloseTo(60, 5);
+  });
+
   test("derives time-in-corner from packet count at 60Hz", () => {
     // 6 packets in range -> 0.1s
     const [m] = computeCornerMetrics(speedPackets(), [corner]);

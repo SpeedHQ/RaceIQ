@@ -1,18 +1,27 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { beginRecordingStorageImport, registerActiveLmuOpponentSource } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
-import { deleteSession, updateSessionSource } from "../db/session-queries";
+import { deleteSessionForImportRollback, enqueueSessionCaptureSplit, revokeUnreferencedLmuOpponentIndexes, updateSessionSource } from "../db/session-queries";
+import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
-import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
+import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import { DirectSessionRecorderAdapter } from "./direct-recorder";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionIdentity, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { getAMS2DiscoveredCarName, getAMS2DiscoveredTrackName } from "@raceiq/game-ams2-metadata/index";
+import { registerDiscoveredCar } from "../db/discovered-cars";
+import { registerDiscoveredTrack } from "../db/discovered-tracks";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
+import { enqueueLmuOpponentIndex } from "./lmu-opponent-index-runtime";
 
 
 
@@ -22,10 +31,10 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carId: number | string;
-  trackId: number | string;
+  classification: LapClassification | null;
+  carId: string;
+  trackId: string;
 }
-
 export interface ImportSessionResult {
   packetCount: number;
   laps: ImportedLap[];
@@ -33,24 +42,17 @@ export interface ImportSessionResult {
 }
 
 /**
- * Delegates to RealDbAdapter but captures the returned lap IDs + session
- * metadata so an import caller can tell the UI what got inserted and build
- * deep links into the analyse page.
+ * Captures import metadata while inheriting real DB lap-binding publication.
  */
-export class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner: RealDbAdapter;
+export class ImportCaptureAdapter extends RealDbAdapter {
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
   private readonly _pendingLapWrites = new Set<Promise<number>>();
   private _lapWriteFailure: unknown;
-  private readonly _sessionMeta = new Map<
-    number,
-    { carOrdinal: number; trackOrdinal: number; gameId: GameId; identity?: SessionIdentity }
-  >();
+  private readonly _sessionMeta = new Map<number, { carId: string; trackId: string; gameId: GameId }>();
   private _continueSession = false;
   private readonly _sessionSource?: string;
-
 
   constructor(options: {
     notifyDriverProfile?: boolean;
@@ -58,21 +60,28 @@ export class ImportCaptureAdapter implements DbAdapter {
     sessionSource?: string;
     rollbackFiles?: Iterable<string>;
   } = {}) {
-    this._inner = new RealDbAdapter(options);
+    super(options);
     this._sessionSource = options.sessionSource;
     for (const path of options.rollbackFiles ?? []) this.rawFiles.add(path);
   }
 
 
+
   async insertSession(
-    carOrdinal: number,
-    trackOrdinal: number,
+    carId: string,
+    trackId: string,
     gameId: GameId,
     sessionType?: string,
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
-    identity?: SessionIdentity,
   ): Promise<number> {
+    if (gameId === "ams2") {
+      // Parsing has already read the original names. Persist once per session,
+      // so offline imports have the same restart behavior as the native source.
+      const carName=getAMS2DiscoveredCarName(carId), trackName=getAMS2DiscoveredTrackName(trackId);
+      if(carName) await registerDiscoveredCar("ams2",carId,carName);
+      if(trackName) await registerDiscoveredTrack("ams2",trackId,trackName);
+    }
     if (this._continueSession) {
       this._continueSession = false;
       const sessionId = [...this.sessionIds].at(-1);
@@ -83,26 +92,17 @@ export class ImportCaptureAdapter implements DbAdapter {
       if (meta && meta.gameId !== gameId) {
         throw new Error("Import segment game does not match its source session");
       }
-      if (meta && (meta.carOrdinal !== carOrdinal || meta.trackOrdinal !== trackOrdinal)) {
-        await this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);
+      if (meta && (meta.carId !== carId || meta.trackId !== trackId)) {
+        await super.updateSessionCarTrack(sessionId, carId, trackId);
       }
-      this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal, gameId, identity });
+      this._sessionMeta.set(sessionId, { carId, trackId, gameId });
       return sessionId;
     }
-    const id = await this._inner.insertSession(
-      carOrdinal,
-      trackOrdinal,
-      gameId,
-      sessionType,
-      versionIdentity,
-      ownership,
-      identity,
-    );
+    const id = await super.insertSession(carId, trackId, gameId, sessionType, versionIdentity, ownership);
     this.sessionIds.add(id);
-    this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId, identity });
+    this._sessionMeta.set(id, { carId, trackId, gameId });
     if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
-
   }
 
   continueSessionOnNextInsert(): void {
@@ -123,10 +123,11 @@ export class ImportCaptureAdapter implements DbAdapter {
     tuneId: number | null,
     invalidReason: string | null,
     sectors: number[] | null,
+    classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
-    const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
+    const pending = super.insertLap(
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
       this.laps.push({
@@ -135,8 +136,9 @@ export class ImportCaptureAdapter implements DbAdapter {
         lapNumber,
         lapTime,
         isValid,
-        carId: meta?.identity?.carId ?? meta?.carOrdinal ?? 0,
-        trackId: meta?.identity?.trackId ?? meta?.trackOrdinal ?? 0,
+        classification,
+        carId: meta?.carId ?? "",
+        trackId: meta?.trackId ?? "",
       });
       return id;
     });
@@ -151,40 +153,19 @@ export class ImportCaptureAdapter implements DbAdapter {
     return pending;
   }
   async deleteLap(lapId: number): Promise<void> {
-    await this._inner.deleteLap(lapId);
+    await super.deleteLap(lapId);
     const index = this.laps.findIndex((lap) => lap.lapId === lapId);
     if (index >= 0) this.laps.splice(index, 1);
   }
 
-  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
-    return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
-  }
-  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
-    return this._inner.updateLapCarSetup(lapId, carSetup);
-  }
-  getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
-    return this._inner.getLaps(gameId, limit);
-  }
-  getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number) {
-    return this._inner.getTuneAssignment(gameId, carOrdinal, trackOrdinal);
-  }
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
     this.rawFiles.add(rawFile);
-    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
+    return super.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
   }
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
+  updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
     const existing = this._sessionMeta.get(sessionId);
-    if (existing) this._sessionMeta.set(sessionId, { ...existing, carOrdinal, trackOrdinal, identity });
-    return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);
-  }
-  getLapsForExclusionScope(experimentId: number, tuneId: number) {
-    return this._inner.getLapsForExclusionScope(experimentId, tuneId);
-  }
-  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
-    return this._inner.setLapAutoExclusion(lapId, excluded);
-  }
-  getLapExperimentScope(lapId: number) {
-    return this._inner.getLapExperimentScope(lapId);
+    if (existing) this._sessionMeta.set(sessionId, { ...existing, carId, trackId });
+    return super.updateSessionCarTrack(sessionId, carId, trackId);
   }
 
   async waitForPendingLapWrites(): Promise<void> {
@@ -198,28 +179,51 @@ export class ImportCaptureAdapter implements DbAdapter {
    * Best-effort rollback for an isolated file import. The recorder must be
    * stopped before this runs so no process still owns the canonical capture.
    */
-  async rollback(): Promise<void> {
+  async rollback(): Promise<string[]> {
+    const indexSourcePaths = new Set<string>(this.rawFiles);
     for (const sessionId of this.sessionIds) {
-      await deleteSession(sessionId);
+      try {
+        const deleted = await deleteSessionForImportRollback(sessionId);
+        if (deleted.indexSourcePath) indexSourcePaths.add(deleted.indexSourcePath);
+      } catch (error) {
+        console.error(`[Import] Failed to delete session ${sessionId} during rollback:`, error);
+      }
     }
     for (const rawFile of this.rawFiles) {
-      if (existsSync(rawFile)) unlinkSync(rawFile);
+      try {
+        if (existsSync(rawFile)) unlinkSync(rawFile);
+      } catch (error) {
+        console.error(`[Import] Failed to remove rollback file ${rawFile}:`, error);
+      }
     }
     this.laps.length = 0;
+    return [...indexSourcePaths];
   }
 }
 
 async function rollbackImport(
   capture: ImportCaptureAdapter,
   error: unknown,
+  deferredOpponentIndexRevocations: Set<string>,
 ): Promise<never> {
-  await capture.rollback();
+  try {
+    for (const path of await capture.rollback()) deferredOpponentIndexRevocations.add(path);
+  } catch (rollbackError) {
+    console.error("[Import] Rollback failed:", rollbackError);
+  }
   throw error;
 }
 
+
 type SessionFrame = Buffer | { frame: Buffer; frameTimeMs?: number }
+  | { kind: "parser-bootstrap"; gameId: GameId; formatVersion: number; payload: Buffer }
   | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END;
 type SessionFrameSource = Iterable<SessionFrame> | AsyncIterable<SessionFrame>;
+type ParserBootstrapFrame = Extract<SessionFrame, { kind: "parser-bootstrap" }>;
+function isParserBootstrapFrame(frame: SessionFrame): frame is ParserBootstrapFrame {
+  return typeof frame === "object" && frame !== null && !Buffer.isBuffer(frame) &&
+    "kind" in frame && frame.kind === "parser-bootstrap";
+}
 
 /** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
 export class ImportSourceRecorder implements SessionRecorderAdapter {
@@ -266,6 +270,8 @@ export interface ImportSessionOptions {
   rollbackFiles?: Iterable<string>;
   /** Source-specific metadata persisted transactionally before reconciliation. */
   onImportedLaps?: (laps: readonly ImportedLap[]) => Promise<void>;
+  /** Import-only LMU retention state; never modifies the saved live-session preference. */
+  opponentRetention?: "retained" | "removed" | "not-recorded";
 }
 
 
@@ -283,22 +289,38 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
+  const deferredOpponentIndexRevocations = new Set<string>();
+  let releaseImportOpponentSource: (() => void) | null = null;
+  let releaseStorageImport: (() => void) | null = null;
+  try {
+  releaseStorageImport = beginRecordingStorageImport();
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
     sessionSource: options.sessionSource,
     rollbackFiles: options.rollbackFiles,
   });
+  const recorder = options.recorder ?? (options.opponentRetention
+    ? new DirectSessionRecorderAdapter(options.ownership, {
+      opponentRetentionOverride: options.opponentRetention,
+      deferOpponentIndexEnqueue: true,
+      writerOptions: { maxQueuedBytes: 16 * 1024 * 1024 + 12 },
+    })
+    : new SparseSessionRecorderAdapter(options.ownership, {}, "offline"));
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
-    recorder: options.recorder,
+    enqueueSessionCaptureSplits: false,
+    recorder,
   });
 
   let packetCount = 0;
   let failure: unknown;
+  let finalizedOpponentSourcePath: string | null = null;
+
   try {
     for await (const item of source) {
       if (await processItem(item, packetCount, pipeline, db)) packetCount++;
+      if (options.opponentRetention) await pipeline.drainSessionRecorderWrites();
     }
     await pipeline.flushIncompleteLap();
     await db.waitForPendingLapWrites();
@@ -306,17 +328,22 @@ async function importTelemetrySource<T>(
     failure = error;
   } finally {
     try {
+      if (gameId === "lmu" && options.opponentRetention === "retained" && recorder.path) {
+        finalizedOpponentSourcePath = recorder.path;
+        releaseImportOpponentSource = registerActiveLmuOpponentSource(recorder.path, "import");
+      }
       await pipeline.flushSessionRecorder();
     } catch (error) {
       failure ??= error;
     }
   }
 
-  if (failure) return rollbackImport(db, failure);
+  if (failure) await rollbackImport(db, failure, deferredOpponentIndexRevocations);
   if (options.requireLaps && db.laps.length === 0) {
-    return rollbackImport(
+    await rollbackImport(
       db,
       new Error("No complete, importable laps were found"),
+      deferredOpponentIndexRevocations,
     );
   }
 
@@ -325,15 +352,31 @@ async function importTelemetrySource<T>(
     for (const sessionId of db.sessionIds) {
       await reconcileSessionResult(sessionId, gameId);
     }
+    await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
-    return rollbackImport(db, error);
+    await rollbackImport(db, error, deferredOpponentIndexRevocations);
   }
+  for (const sessionId of db.sessionIds) {
+    await enqueueSessionCaptureSplit(sessionId);
+  }
+  if (finalizedOpponentSourcePath) enqueueLmuOpponentIndex(finalizedOpponentSourcePath);
 
   return {
     packetCount,
     laps: db.laps,
     sessionIds: [...db.sessionIds],
   };
+  } finally {
+    releaseImportOpponentSource?.();
+    releaseStorageImport?.();
+    if (gameId === "lmu" && deferredOpponentIndexRevocations.size > 0) {
+      try {
+        await revokeUnreferencedLmuOpponentIndexes([...deferredOpponentIndexRevocations]);
+      } catch (error) {
+        console.error("[Import] Failed to revoke opponent indexes after rollback:", error);
+      }
+    }
+  }
 }
 
 /**
@@ -347,10 +390,12 @@ export function importSessionFrames(
   options: ImportSessionOptions = {},
 ): Promise<ImportSessionResult> {
   const serverGame = getServerGame(gameId);
-  let state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
   let expectsSessionContext = gameId === "iracing";
   let completeLapStart = false;
   let inParserContext = false;
+  let lastOwnedPacket: LapIndexPacket | null = null;
+  let sourceSequence = 0;
   return importTelemetrySource(
     frames,
     gameId,
@@ -359,13 +404,16 @@ export function importSessionFrames(
       countSourceFrameScanned();
       if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
         if (capture.sessionIds.size > 0) {
+          await pipeline.flushIncompleteLap();
           capture.continueSessionOnNextInsert();
           pipeline.beginSessionSegment();
         }
+        pipeline.expectCompleteLapStart();
         state = serverGame.createParserState?.() ?? null;
         expectsSessionContext = gameId === "iracing";
         completeLapStart = true;
         inParserContext = false;
+        lastOwnedPacket = null;
         return false;
       }
       if (sourceFrame === SESSION_SEGMENT_CONTEXT) {
@@ -376,11 +424,33 @@ export function importSessionFrames(
         inParserContext = false;
         return false;
       }
+      if (isParserBootstrapFrame(sourceFrame)) {
+        if (sourceFrame.gameId !== gameId || sourceFrame.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+          throw new Error("Parser bootstrap does not match imported game");
+        }
+        if (!serverGame.restoreParserCheckpoint) {
+          throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+        }
+        state = serverGame.restoreParserCheckpoint(state, sourceFrame.payload);
+        pipeline.recordParserBootstrap(sourceFrame.gameId, sourceFrame.payload, completeLapStart);
+        inParserContext = false;
+        expectsSessionContext = false;
+        completeLapStart = false;
+        return false;
+      }
       const frameTimeMs = Buffer.isBuffer(sourceFrame) ? undefined : sourceFrame.frameTimeMs;
       const frame = Buffer.isBuffer(sourceFrame) ? sourceFrame : sourceFrame.frame;
       if (inParserContext) {
-        serverGame.tryParse(frame, state);
+        const packet = lastOwnedPacket
+          ? serverGame.tryParseLapIndex(frame, state)
+          : (serverGame.tryParse(frame, state), null);
         pipeline.recordSessionContextFrame(frame, false, frameTimeMs);
+        // Trailing context can complete detection, but is persisted outside the owned window.
+        if (lastOwnedPacket && packet &&
+            (packet.LapNumber > lastOwnedPacket.LapNumber || isDelayedFinishContext(lastOwnedPacket, packet))) {
+          applyFrameTime(packet, frameTimeMs);
+          await pipeline.processLapIndexPacket(packet, undefined, frameTimeMs);
+        }
         return false;
       }
       if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(frame)) {
@@ -391,9 +461,19 @@ export function importSessionFrames(
         return false;
       }
       expectsSessionContext = false;
-      completeLapStart = false;
+      if (serverGame.isSessionEndFrame?.(frame)) {
+        await pipeline.finalizeCurrentSession();
+        return false;
+      }
+      pipeline.captureParserSource({ gameId, sequence: sourceSequence++, frame, locator: null,
+        ...(frameTimeMs === undefined ? {} : { timestampMs: frameTimeMs }) });
       const packet = serverGame.tryParseLapIndex(frame, state);
-      if (!packet) return false;
+      if (!packet) {
+        if (completeLapStart) pipeline.recordSessionContextFrame(frame, true, frameTimeMs);
+        return false;
+      }
+      completeLapStart = false;
+      lastOwnedPacket = packet;
       applyFrameTime(packet, frameTimeMs);
       countIndexSampleMaterialized();
       await pipeline.processLapIndexPacket(packet, frame, frameTimeMs);

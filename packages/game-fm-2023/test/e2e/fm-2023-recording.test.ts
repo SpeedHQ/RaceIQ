@@ -6,6 +6,13 @@ import { assertLapTimesProper, assertValidLapHasSectors } from "@raceiq/backend-
 import { generateRecordingVisualizations } from "@raceiq/backend-core/test-support/laps/visualizations";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 
+import { forzaServerAdapter } from "../../src/index";
+
+test("FM-2023 remains without a parser checkpoint codec", () => {
+  expect("captureParserCheckpoint" in forzaServerAdapter).toBe(false);
+  expect("restoreParserCheckpoint" in forzaServerAdapter).toBe(false);
+});
+
 describe("FM-2023 recording", () => {
   describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
     const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin.gz";
@@ -211,12 +218,14 @@ describe("FM-2023 recording", () => {
       expect(laps.map((lap) => lap.lapNumber)).toEqual([0, 1, 2]);
       expect(laps[1]).toMatchObject({
         isValid: false,
-        invalidReason: "inlap",
+        classification: "in_lap",
+        invalidReason: "telemetry lap time mismatch",
       });
       expect(laps[1].lapTime).toBeCloseTo(98.955, 3);
       expect(laps[1].packets.length).toBeGreaterThan(4_000);
       expect(laps[2]).toMatchObject({
         isValid: false,
+        classification: "out_lap",
         invalidReason: "outlap",
       });
       expect(laps[2].lapTime).toBeCloseTo(82.296, 3);
