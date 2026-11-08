@@ -156,6 +156,24 @@ describe("changelog parser", () => {
 - Old fix`);
   });
 
+  test("rolls the first release without adding an Unreleased section", () => {
+    expect(
+      rolloverChangelog("## Unreleased\n\n### Fixes\n- First fix", {
+        version: "0.1.0",
+        date: "2026-11-08",
+      }),
+    ).toBe("## v0.1.0 - 2026-11-08\n\n### Fixes\n- First fix");
+  });
+
+  test("rejects rollover without pending notes heading", () => {
+    expect(() =>
+      rolloverChangelog("## v0.1.0\n\n### Fixes\n- Existing fix", {
+        version: "0.2.0",
+        date: "2026-11-08",
+      }),
+    ).toThrow("No ## Unreleased heading found");
+  });
+
   test("formats a publication timestamp as a UTC ISO date", () => {
     expect(formatReleaseDate("2026-08-05T23:30:00-07:00")).toBe("2026-08-06");
   });
