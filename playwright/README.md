@@ -10,7 +10,7 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
 | `lap-replay` | `packages/lap-replay/test/e2e/**/*.spec.ts`, excluding native GPU specs | Seeded app |
-| `lap-replay-webgpu` | Package-owned native Spectate camera and transition specs | Seeded app with a hardware WebGPU adapter |
+| `lap-replay-webgpu` | Package-owned native Spectate camera and transition specs | Seeded app with a WebGPU adapter (hardware or software) |
 | `record-demo` | `recording/demo.spec.ts` | Seeded replay with GPU launch flags |
 
 `record-demo` waits for the seeded route/import suites and all feature projects to finish before frame capture because they share seeded server state.
@@ -21,7 +21,7 @@ Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive 
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
-The `lap-replay-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. It selects ANGLE Metal on macOS. On Windows it uses ANGLE D3D11 and the full Chromium channel, which bundles the DXIL shader libraries missing from the headless-shell distribution. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
+The `lap-replay-webgpu` project requires a WebGPU adapter and fails rather than skips if one is unavailable. It accepts software adapters; a software pass does not prove hardware coverage. Each test attaches adapter metadata to its results. It selects ANGLE Metal on macOS. On Windows it uses ANGLE D3D11 and the full Chromium channel, which bundles the DXIL shader libraries missing from the headless-shell distribution. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 
