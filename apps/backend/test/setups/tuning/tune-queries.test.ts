@@ -207,6 +207,23 @@ describe("tune assignments", () => {
     await setTuneAssignment("acc", "porsche_992_gt3_r", "kyalami", first);
     expect((await getTuneAssignment("acc", "porsche_992_gt3_r", "kyalami"))?.tuneId).toBe(first);
   });
+  test("unassigning an exact ACC identity removes all unambiguous aliases", async () => {
+    const data = { gameId: "acc", name: "Legacy", author: "t", carId: "33", category: "race", description: "", settings: "{}" };
+    const legacy = await insertTune(data);
+    const native = await insertTune({ ...data, name: "Native" });
+    await setTuneAssignment("acc", "33", "22", legacy);
+    await setTuneAssignment("acc", "porsche_992_gt3_r", "kyalami", native);
+    await setTuneAssignment("acc", "33", "8", legacy);
+    await setTuneAssignment("ac-evo", "33", "22", legacy);
+
+    expect((await getTuneAssignment("acc", "porsche_992_gt3_r", "kyalami"))?.tuneId).toBe(native);
+    expect(await deleteTuneAssignment("acc", "porsche_992_gt3_r", "kyalami")).toBe(true);
+    expect(await getTuneAssignment("acc", "porsche_992_gt3_r", "kyalami")).toBeNull();
+    expect(await getTuneAssignment("acc", "33", "22")).toBeNull();
+    expect((await getTuneAssignment("acc", "33", "8"))?.tuneId).toBe(legacy);
+    expect((await getTuneAssignment("ac-evo", "33", "22"))?.tuneId).toBe(legacy);
+  });
+
 
   test("setTuneAssignment creates assignment", async () => {
     const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carId: "100", category: "circuit", description: "", settings: TEST_SETTINGS });

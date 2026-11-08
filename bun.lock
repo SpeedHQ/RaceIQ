@@ -130,6 +130,7 @@
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/frontend-pure": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/lap-replay": "workspace:*",

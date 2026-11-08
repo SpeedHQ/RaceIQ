@@ -186,7 +186,7 @@ export async function deleteTuneAssignment(gameId: string, carId: string, trackI
     const selected = rows.find((row) => row.carId === carId && row.trackId === trackId) ?? (rows.length === 1 ? rows[0] : undefined);
     if (!selected) return false;
     const result = await db.delete(tuneAssignments)
-      .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, selected.carId), eq(tuneAssignments.trackId, selected.trackId)))
+      .where(and(eq(tuneAssignments.gameId, gameId), inArray(tuneAssignments.carId, cars), inArray(tuneAssignments.trackId, tracks)))
       .returning().all();
     return result.length > 0;
   });

@@ -21,6 +21,7 @@ import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
 import { useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
 import { useSessions } from "../../hooks/session-queries";
 import { buildExportCsv } from "../../lib/lap-export";
+import { isKnownSessionIdentity } from "./session-identity";
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   }, [identitySessionId]);
   const repairOpen = identitySession != null && !repairDismissed && (
     !identitySession.carId || !identitySession.trackId ||
-    (catalogsLoaded && (!carIds.has(identitySession.carId) || !trackIds.has(identitySession.trackId))) ||
+    (catalogsLoaded && !isKnownSessionIdentity(gameId, identitySession.carId, identitySession.trackId, carIds, trackIds)) ||
     carsCatalogError || tracksCatalogError
   );
   async function saveIdentity(identity: { carId: string; trackId: string }) {
