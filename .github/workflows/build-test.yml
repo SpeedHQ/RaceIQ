@@ -199,7 +199,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          git fetch --no-tags --depth=1 origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
           bun packages/tooling-release/src/release/check-changelog.ts
   # Playwright runners span architectures; build the compiled server on each runner
   # instead of sharing a dist artifact built for an arbitrary build-runner architecture.
