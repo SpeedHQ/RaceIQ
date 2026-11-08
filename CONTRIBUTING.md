@@ -55,5 +55,5 @@ Drizzle schema definitions do not run production migrations. Update both `server
 - Keep shared frontend appearance in semantic component variants; keep feature composition in consumers.
 - Back new or changed user-facing UI text with locale messages, including labels, tooltips, errors, empty states, and accessibility text; do not hard-code display strings. Update all supported locale catalogs, preserve interpolation/pluralization, and verify `bun run i18n:check-keys` and `bun run i18n:validate`.
 - Add or update tests only for changed observable behavior.
-- Add a concise entry under `## Unreleased` in `UNRELEASED.md` for each pull request. Keep `CHANGELOG.md` for released versions; release finalization moves ongoing notes there and resets `UNRELEASED.md`.
+- Add a concise entry in the matching category of `UNRELEASED.md` for each pull request; no `## Unreleased` heading is needed. Keep `CHANGELOG.md` for released versions; release finalization moves ongoing notes there and resets `UNRELEASED.md`.
 - Complete the [PR checklist](.github/pull_request_template.md), including manual validation of the affected behavior.

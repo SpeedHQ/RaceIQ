@@ -4,7 +4,7 @@ Validate and render release metadata.
 
 | Command | Purpose |
 |---|---|
-| `bun packages/tooling-release/src/release/check-changelog.ts` | In pull-request CI, require a new note under `## Unreleased` in `UNRELEASED.md`; no-op outside pull requests. |
+| `bun packages/tooling-release/src/release/check-changelog.ts` | In pull-request CI, require a new note in `UNRELEASED.md`; no-op outside pull requests. |
 | `bun packages/tooling-release/src/release/generate-release-note.ts <version>` | Render `UNRELEASED.md`'s public body into `releasenote.md` for the GitHub release body. |
 | `bun packages/tooling-release/src/release/rollover-changelog.ts <version> <publishedAt>` | Prepend ongoing notes to `CHANGELOG.md` under the published version and UTC date, then reset `UNRELEASED.md`. |
 

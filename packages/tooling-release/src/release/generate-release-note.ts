@@ -6,6 +6,6 @@ if (!version) throw new Error("Usage: bun packages/tooling-release/src/release/g
 
 const changelog = readFileSync(join(process.cwd(), "UNRELEASED.md"), "utf8");
 const notes = renderUnreleasedBody(changelog);
-if (!notes) throw new Error(`UNRELEASED.md has no release notes under ## Unreleased for v${version}`);
+if (!notes) throw new Error(`UNRELEASED.md has no public release notes for v${version}`);
 writeFileSync("releasenote.md", `${notes}\n`);
 console.log(`Generated releasenote.md for v${version}`);

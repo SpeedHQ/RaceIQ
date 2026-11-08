@@ -17,5 +17,5 @@ const date = formatReleaseDate(publishedAt);
 const rolledChangelog = rolloverChangelog(`${unreleased.trim()}\n\n${changelog}`, { version, date });
 
 writeFileSync(changelogPath, `${rolledChangelog}\n`);
-writeFileSync(unreleasedPath, "## Unreleased\n\n### Features\n\n### Fixes\n\n### Internal\n");
+writeFileSync(unreleasedPath, "### Features\n\n### Fixes\n\n### Internal\n");
 console.log(`Rolled CHANGELOG.md for v${version}`);

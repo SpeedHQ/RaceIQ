@@ -11,8 +11,6 @@ import { hasUnreleasedChangelogChange } from "@raceiq/tooling-release/tooling/va
 describe("changelog parser", () => {
   test("parses releases and strips Internal from rendered notes", () => {
     const entries = parseChangelog(`
-## Unreleased
-
 ### Features
 - Future feature
 
@@ -55,11 +53,9 @@ describe("changelog parser", () => {
       "### Breaking\n- Migration required\n\n### Features\n- New dashboard",
     );
   });
-  test("renders the Unreleased section for the release artifact", () => {
+  test("renders heading-free pending notes for the release artifact", () => {
     expect(
-      renderUnreleasedBody(`## Unreleased
-
-### Features
+      renderUnreleasedBody(`### Features
 - New feature
 
 ### Internal
@@ -71,9 +67,7 @@ describe("changelog parser", () => {
   });
   test("renders all public release notes without Internal sections", () => {
     expect(
-      renderAllReleaseNotes(`## Unreleased
-
-### Features
+      renderAllReleaseNotes(`### Features
 - New feature
 
 ### Internal
@@ -88,15 +82,13 @@ describe("changelog parser", () => {
 - Old detail
 `),
     ).toBe(
-      "## Unreleased\n\n### Features\n- New feature\n\n## v0.13.0 - 2026-07-16\n\n### Fixes\n- Old fix",
+      "### Features\n- New feature\n\n## v0.13.0 - 2026-07-16\n\n### Fixes\n- Old fix",
     );
   });
   test("renders the requested release heading before existing history", () => {
     expect(
       renderAllReleaseNotes(
         `
-## Unreleased
-
 ### Features
 - New feature
 
@@ -127,8 +119,6 @@ describe("changelog parser", () => {
     expect(
       rolloverChangelog(
         `
-## Unreleased
-
 ### Features
 - New feature
 
@@ -158,20 +148,20 @@ describe("changelog parser", () => {
 
   test("rolls the first release without adding an Unreleased section", () => {
     expect(
-      rolloverChangelog("## Unreleased\n\n### Fixes\n- First fix", {
+      rolloverChangelog("### Fixes\n- First fix", {
         version: "0.1.0",
         date: "2026-11-08",
       }),
     ).toBe("## v0.1.0 - 2026-11-08\n\n### Fixes\n- First fix");
   });
 
-  test("rejects rollover without pending notes heading", () => {
+  test("rejects rollover without pending release sections", () => {
     expect(() =>
       rolloverChangelog("## v0.1.0\n\n### Fixes\n- Existing fix", {
         version: "0.2.0",
         date: "2026-11-08",
       }),
-    ).toThrow("No ## Unreleased heading found");
+    ).toThrow("No pending release sections found");
   });
 
   test("formats a publication timestamp as a UTC ISO date", () => {
@@ -187,20 +177,18 @@ describe("changelog parser", () => {
 
 
 describe("changelog CI check", () => {
-  test("accepts an added bullet under Unreleased", () => {
+  test("accepts an added bullet without an enclosing heading", () => {
     expect(
       hasUnreleasedChangelogChange(
         [
           "@@ -1,2 +1,5 @@",
-          " ## Unreleased",
-          " ",
           " ### Features",
           "+- New feature",
         ].join("\n"),
       ),
     ).toBe(true);
   });
-  test("accepts an added bullet when Unreleased is outside the diff hunk", () => {
+  test("accepts an added bullet when the category is outside the diff hunk", () => {
     expect(
       hasUnreleasedChangelogChange(
         [
@@ -210,15 +198,11 @@ describe("changelog CI check", () => {
           " ",
           "## v0.13.0 - 2026-07-16",
         ].join("\n"),
-        `## Unreleased
-
-### Internal
+        `### Internal
 - Existing note
 
 ## v0.13.0 - 2026-07-16`,
-        `## Unreleased
-
-### Internal
+        `### Internal
 - Existing note
 - Consolidated per-game routes
 

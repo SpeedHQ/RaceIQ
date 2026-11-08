@@ -18,8 +18,8 @@ const patch = new TextDecoder().decode(diff.stdout);
 const before = baseChangelog ? new TextDecoder().decode(baseChangelog.stdout) : "";
 const after = await Bun.file("UNRELEASED.md").text();
 if (!hasUnreleasedChangelogChange(patch, before, after)) {
-  console.error("UNRELEASED.md must add a note under ## Unreleased for this pull request.");
+  console.error("UNRELEASED.md must add a note for this pull request.");
   process.exit(1);
 }
 
-console.log("UNRELEASED.md contains a new ## Unreleased note.");
+console.log("UNRELEASED.md contains a new note.");
