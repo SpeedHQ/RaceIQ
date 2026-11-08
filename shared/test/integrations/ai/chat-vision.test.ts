@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { gateChatImages, resolveChatVisionCapability } from "./chat-vision";
+import { gateChatImages, resolveChatVisionCapability } from "../../../integrations/ai/chat-vision";
 
 describe("resolveChatVisionCapability — DeepSeek", () => {
   test("deepseek-flash supports image input", () => {

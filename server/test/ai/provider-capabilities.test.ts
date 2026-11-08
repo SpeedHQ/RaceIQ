@@ -8,7 +8,7 @@ import {
   isSupportedAiProvider,
   mapDeepSeekModels,
   responseFormatFor,
-} from "./provider-capabilities";
+} from "../../ai/provider-capabilities";
 
 describe("isDeepSeekEndpoint", () => {
   test("recognizes the official endpoint with or without trailing slashes", () => {
