@@ -7,7 +7,7 @@
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
 
 ### Internal
-- Move session catalog validation and MoTeC target setup into the game packages without changing ACC recording identities.
+- Move session catalog validation and MoTeC target setup into game-specific packages; preserve existing ACC recording identities.
 - Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
