@@ -3,7 +3,7 @@ import {
   convertPreparedKunosMotecPackets,
   type KunosMotecPacketProfile,
 } from "@raceiq/backend-core/motec/kunos-packets";
-import { prepareKunosMotecCapture } from "@raceiq/backend-core/motec/kunos-synthesis";
+import { prepareKunosMotecCapture, MOTEC_IMPORT_LIMITATIONS } from "@raceiq/backend-core/motec/kunos-synthesis";
 import type {
   MotecCarTrack,
   MotecCarTrackOverride,
@@ -11,7 +11,9 @@ import type {
 } from "@raceiq/backend-core/motec/types";
 import { getAcEvoCarByModel, getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
-import { acEvoCarId, acEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+import { acEvoCarId, acEvoTrackId, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+import type { MotecTarget } from "@raceiq/backend-core/motec/targets";
+import { getGame } from "@raceiq/shared/games/registry";
 
 export function resolveAcEvoMotecCarTrack(
   log: LdLog,
@@ -41,6 +43,16 @@ const AC_EVO_MOTEC_PACKET_PROFILE = {
   currentSectorIndex: -1,
   trackGripStatus: "unknown",
   includeUnknownCarModel: true,
+  packetIdentity: (carTrack: MotecCarTrack) => {
+    const nativeTrack = parseAcEvoTrackId(carTrack.trackId);
+    return {
+      acEvoIdentity: {
+        carName: carTrack.carModel,
+        trackName: nativeTrack?.trackName ?? carTrack.trackName,
+        trackConfiguration: nativeTrack?.trackConfiguration ?? "",
+      },
+    };
+  },
 } satisfies KunosMotecPacketProfile;
 
 export function convertAcEvoMotecToPackets(
@@ -51,6 +63,9 @@ export function convertAcEvoMotecToPackets(
   const prepared = prepareKunosMotecCapture(log, beacons, {
     gameId: "ac-evo",
     trackId: carTrack.trackId,
+    centerSuspensionTravel: true,
+    closeCompleteLaps: true,
+    reconstructHeading: true,
   });
   const packets = convertPreparedKunosMotecPackets(
     prepared,
@@ -68,5 +83,18 @@ export function convertAcEvoMotecToPackets(
       hz: channel.effectiveFreq,
     })),
     yawFromLateralG: prepared.path.yawFromLateralG,
+  };
+}
+
+export function createAcEvoMotecTarget(): MotecTarget {
+  const acEvo = getGame("ac-evo");
+  return {
+    gameId: "ac-evo",
+    displayName: acEvo.displayName,
+    routePrefix: acEvo.routePrefix,
+    carsEndpoint: "/api/ac-evo/cars",
+    limitations: MOTEC_IMPORT_LIMITATIONS,
+    convert: convertAcEvoMotecToPackets,
+    resolveCarTrack: resolveAcEvoMotecCarTrack,
   };
 }

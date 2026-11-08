@@ -7,6 +7,8 @@ import {
 import { prepareKunosMotecCapture, MOTEC_IMPORT_LIMITATIONS } from "@raceiq/backend-core/motec/kunos-synthesis";
 import type { LdLog } from "@raceiq/backend-core/motec/ld";
 import type { MotecCarTrack, MotecCarTrackOverride, MotecConversionResult } from "@raceiq/backend-core/motec/types";
+import type { MotecTarget } from "@raceiq/backend-core/motec/targets";
+import { getGame } from "@raceiq/shared/games/registry";
 
 export function resolveAccMotecCarTrack(log: LdLog, override?: MotecCarTrackOverride): MotecCarTrack {
   const car = getAccCarByModel(log.vehicleId);
@@ -58,5 +60,18 @@ export function convertAccMotecToPackets(log: LdLog, beacons: number[], carTrack
       hz: channel.effectiveFreq,
     })),
     yawFromLateralG: prepared.path.yawFromLateralG,
+  };
+}
+
+export function createAccMotecTarget(): MotecTarget {
+  const acc = getGame("acc");
+  return {
+    gameId: "acc",
+    displayName: acc.displayName,
+    routePrefix: acc.routePrefix,
+    carsEndpoint: "/api/acc/cars",
+    limitations: MOTEC_IMPORT_LIMITATIONS,
+    convert: convertAccMotecToPackets,
+    resolveCarTrack: resolveAccMotecCarTrack,
   };
 }
