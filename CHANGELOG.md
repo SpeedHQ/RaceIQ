@@ -6,6 +6,7 @@
 - Preserve ACC car and track names from recordings and MoTeC imports, including names not yet in the catalog.
 
 ### Internal
+- Move session catalog identity validation into each game metadata package.
 
 ## v0.21.1 - 2026-11-03
 
