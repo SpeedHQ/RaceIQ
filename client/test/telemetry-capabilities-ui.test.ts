@@ -540,6 +540,14 @@ describe("telemetry capability UI", () => {
     expect(markup).toMatch(/Ratio[\s\S]*>—</);
   });
 
+  test("renders native F1 percentage and ACC fractional brake bias correctly", () => {
+    const f1 = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: semanticFrame({ "brakes.brake-bias": 58 }), gameId: "f1-2025", units: parityUnits }));
+    const acc = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: semanticFrame({ "brakes.brake-bias": 0.58 }), gameId: "acc", units: parityUnits }));
+    expect(f1).toContain(">58.0%</span>");
+    expect(acc).toContain(">58.0%</span>");
+    expect(f1).not.toContain("5800.0%");
+  });
+
   test("renders canonical Forza tire values in selected display unit", () => {
     const fmUnits = {
       ...parityUnits,
