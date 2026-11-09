@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { requestTuneIntents } from "@raceiq/assistant/ai/tune-intent";
 import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
-import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
+import { loadSettings, saveSettings, type AppSettings } from "@raceiq/backend-core/runtime/config/settings";
+import * as keystore from "@raceiq/backend-core/runtime/platform/keystore";
 
 type CapturedRequest = { url: string; init: RequestInit };
 
@@ -34,15 +34,29 @@ function installFetchStub(requests: CapturedRequest[]) {
 }
 
 describe("requestTuneIntents with an OpenAI-compatible endpoint", () => {
-  const original = loadSettings();
-  afterEach(async () => {
-    saveSettings(original);
-    await setSecret("openai-compatible-api-key", "");
+  let original: AppSettings;
+  const secrets = new Map<string, string>();
+  let restoreSecret: () => void;
+
+  beforeEach(() => {
+    original = loadSettings();
+    secrets.clear();
+    const spy = spyOn(keystore, "getSecret").mockImplementation(async (key) => secrets.get(key) ?? "");
+    restoreSecret = () => spy.mockRestore();
+  });
+
+  afterEach(() => {
+    try {
+      saveSettings(original);
+    } finally {
+      restoreSecret();
+      secrets.clear();
+    }
   });
 
   test("sends Anthropic auth headers and no temperature to Anthropic's endpoint", async () => {
     saveSettings({ ...original, autoTuneProvider: "openai-compatible", autoTuneModel: "claude-haiku-5-5", localEndpoint: "https://api.anthropic.com/v1" });
-    await setSecret("openai-compatible-api-key", "test-key");
+    secrets.set("openai-compatible-api-key", "test-key");
     const requests: CapturedRequest[] = [];
     const restore = installFetchStub(requests);
     try {
@@ -65,9 +79,8 @@ describe("requestTuneIntents with an OpenAI-compatible endpoint", () => {
   });
 
   test("routes DeepSeek auto-tune to DeepSeek with its selected model", async () => {
-    const originalKey = await getSecret("deepseek-api-key");
+    secrets.set("deepseek-api-key", "deepseek-test-key");
     saveSettings({ ...original, autoTuneProvider: "deepseek", autoTuneModel: "deepseek-flash" });
-    await setSecret("deepseek-api-key", "deepseek-test-key");
     const requests: CapturedRequest[] = [];
     const restore = installFetchStub(requests);
     try {
@@ -79,13 +92,12 @@ describe("requestTuneIntents with an OpenAI-compatible endpoint", () => {
       expect(JSON.parse(String(requests[0].init.body)).model).toBe("deepseek-flash");
     } finally {
       restore();
-      await setSecret("deepseek-api-key", originalKey ?? "");
     }
   });
 
   test("keeps bearer-only auth and temperature for a local endpoint", async () => {
     saveSettings({ ...original, autoTuneProvider: "openai-compatible", autoTuneModel: "qwen", localEndpoint: "http://local.test/v1" });
-    await setSecret("openai-compatible-api-key", "gateway-secret");
+    secrets.set("openai-compatible-api-key", "gateway-secret");
     const requests: CapturedRequest[] = [];
     const restore = installFetchStub(requests);
     try {
