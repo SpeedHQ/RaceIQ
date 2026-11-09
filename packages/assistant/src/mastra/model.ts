@@ -26,7 +26,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
-import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/assistant/ai/openai-compatible-headers";
+import { anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/assistant/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
 import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 
@@ -243,28 +243,24 @@ export function getMastraModelId(
     ? { provider: providerOrConfig, model: legacyModel ?? "", localEndpoint: legacyLocalEndpoint }
     : providerOrConfig;
   const { provider, model, localEndpoint, apiKey } = config;
+  if (provider !== "openai-compatible" && ["gemini", "openai", "anthropic", "deepseek"].includes(provider) && !apiKey) {
+    throw new AiProviderError(`${provider} API key not set. Configure it in Settings.`, {
+      code: "missing-api-key",
+      provider,
+    });
+  }
   switch (provider) {
     case "gemini": {
       const id = model || "gemini-flash-latest";
-      if (!apiKey) return `google/${id}`;
-      return bindMastraModel(createGoogleGenerativeAI({ apiKey })(id));
+      return bindMastraModel(createGoogleGenerativeAI({ apiKey: apiKey! })(id));
     }
     case "openai": {
       const id = model || "gpt-4o-mini";
-      if (!apiKey) return `openai/${id}`;
-      return bindMastraModel(createOpenAI({ apiKey }).chat(id));
+      return bindMastraModel(createOpenAI({ apiKey: apiKey!, baseURL: "https://api.openai.com/v1" }).chat(id));
     }
     case "anthropic": {
-      // Claude through Anthropic's OpenAI-compatible chat completions API.
-      // Settings-driven agents pass no key; configureAiProviderEnvironment sets it.
-      const key = apiKey || process.env.ANTHROPIC_API_KEY || "";
-      const anthropic = createOpenAI({
-        baseURL: ANTHROPIC_OPENAI_BASE_URL,
-        apiKey: key,
-        headers: openAiCompatibleExtraHeaders(ANTHROPIC_OPENAI_BASE_URL, key),
-        fetch: anthropicCompatibleFetch() as FetchFunction,
-      });
-      return bindMastraModel(anthropic.chat(model || "claude-haiku-5-5"));
+      const id = `anthropic/${model || "claude-haiku-5-5"}` as const;
+      return { id, apiKey: apiKey! };
     }
     case "deepseek": {
       if (!model.trim()) {
@@ -274,12 +270,11 @@ export function getMastraModelId(
         });
       }
       const id = `deepseek/${model}` as const;
-      return apiKey ? { id, apiKey } : id;
+      return { id, apiKey: apiKey! };
     }
     case "openai-compatible": {
       const baseURL = localEndpoint ?? "http://localhost:1234/v1";
-      // Settings-driven agents pass no key; configureAiProviderEnvironment sets it.
-      const key = apiKey || process.env.OPENAI_COMPATIBLE_API_KEY;
+      const key = apiKey;
       const openai = createOpenAI({
         baseURL,
         apiKey: key || "local",

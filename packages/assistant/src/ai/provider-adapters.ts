@@ -1,3 +1,4 @@
+import { Agent } from "@mastra/core/agent";
 import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 import { getMastraModelId, type BoundMastraModel } from "../mastra/model";
 import {
@@ -12,8 +13,9 @@ import type {
   StructuredRequest,
   TextRequest,
 } from "@raceiq/assistant/ai/ai-types";
-import { ANTHROPIC_OPENAI_BASE_URL } from "@raceiq/assistant/ai/openai-compatible-headers";
 import { baseUrlFor } from "@raceiq/assistant/ai/provider-endpoints";
+import { describeCompatibleApiFailure } from "@raceiq/assistant/ai/provider-capabilities";
+import { DEFAULT_RETRY_POLICY, isRetryableStatus, parseRetryAfter, retryDelayMs } from "./provider-resilience";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
 
 export type ProviderAdapterConfig = {
@@ -157,47 +159,95 @@ export class OpenAiCompatibleProviderAdapter {
   }
 }
 
-/** Claude models through Anthropic's OpenAI-compatible API. */
+/** Claude models through Mastra's native Anthropic provider. */
 export class AnthropicProviderAdapter {
   readonly feature: AiFeature;
   readonly provider: AiProvider = "anthropic";
   readonly model: string;
   readonly mastraModel: BoundMastraModel;
-  readonly #apiKey: string;
+  readonly #agent: Agent;
 
   constructor(config: ProviderAdapterConfig & { apiKey: string }) {
     this.feature = config.feature;
     this.model = config.model;
-    this.#apiKey = config.apiKey;
+    this.#agent = new Agent({
+      id: "anthropic-direct",
+      name: "Anthropic direct",
+      instructions: "Follow the user's instructions.",
+      maxRetries: 0,
+      model: getMastraModelId({ provider: this.provider, model: this.model, apiKey: config.apiKey }),
+    });
     this.mastraModel = getMastraModelId({
       provider: this.provider,
       model: this.model,
-      apiKey: this.#apiKey,
+      apiKey: config.apiKey,
     });
+  }
+
+  private async generate(input: TextRequest, schema?: object): Promise<AiResult> {
+    const start = performance.now();
+    const modelSettings = {
+      temperature: input.temperature,
+      maxOutputTokens: input.maxOutputTokens,
+    };
+    const generate = () => schema
+      ? this.#agent.generate(promptFor(input), {
+          modelSettings,
+          structuredOutput: { schema: schema as never },
+        })
+      : this.#agent.generate(promptFor(input), { modelSettings });
+    const result = await (async () => {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          return await generate();
+        } catch (error) {
+          const candidate = error as { name?: unknown; message?: unknown; statusCode?: unknown; responseHeaders?: Record<string, string> } | null;
+          const status = typeof candidate?.statusCode === "number" ? candidate.statusCode : null;
+          // The gateway does not expose fetch provenance, so message-only transport errors cannot be retried safely.
+          if (candidate?.name === "AbortError" || attempt >= DEFAULT_RETRY_POLICY.maxAttempts ||
+              status === null || !isRetryableStatus(status)) throw error;
+          const retryAfter = parseRetryAfter(candidate?.responseHeaders?.["retry-after"]);
+          if (retryAfter !== null && retryAfter > DEFAULT_RETRY_POLICY.maxRetryAfterMs) throw error;
+          const { promise, resolve } = Promise.withResolvers<void>();
+          setTimeout(resolve, retryDelayMs(attempt, DEFAULT_RETRY_POLICY, Math.random, retryAfter));
+          await promise;
+        }
+      }
+    })().catch((error: unknown) => {
+      if (error instanceof AiProviderError) throw error;
+      if (typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number") {
+        const statusCode = error.statusCode;
+        throw new AiProviderError(describeCompatibleApiFailure("anthropic", statusCode), {
+          code: "upstream",
+          provider: "anthropic",
+          modelId: this.model,
+          statusCode,
+          isRetryable: statusCode >= 500 || statusCode === 429,
+          responseBody: "responseBody" in error && typeof error.responseBody === "string" ? error.responseBody : undefined,
+        });
+      }
+      throw error;
+    });
+    const analysis = schema ? JSON.stringify(result.object) : result.text?.trim();
+    if (!analysis) throw new AiProviderError("Anthropic returned empty response", { code: "upstream", provider: "anthropic" });
+    return {
+      analysis,
+      usage: {
+        inputTokens: result.usage?.inputTokens ?? 0,
+        outputTokens: result.usage?.outputTokens ?? 0,
+        costUsd: 0,
+        durationMs: Math.round(performance.now() - start),
+        model: this.model,
+      },
+    };
   }
 
   generateText(input: TextRequest): Promise<AiResult> {
-    return runOpenAiCompatible({
-      prompt: promptFor(input),
-      apiKey: this.#apiKey,
-      endpoint: ANTHROPIC_OPENAI_BASE_URL,
-      model: this.model,
-      temperature: input.temperature,
-      maxOutputTokens: input.maxOutputTokens,
-    });
+    return this.generate(input);
   }
 
   generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult> {
-    return runOpenAiCompatible({
-      prompt: promptFor(input),
-      apiKey: this.#apiKey,
-      endpoint: ANTHROPIC_OPENAI_BASE_URL,
-      model: this.model,
-      schema: input.schema as unknown as object,
-      schemaName: input.schemaName,
-      temperature: input.temperature,
-      maxOutputTokens: input.maxOutputTokens,
-    });
+    return this.generate(input, input.schema as object);
   }
 }
 

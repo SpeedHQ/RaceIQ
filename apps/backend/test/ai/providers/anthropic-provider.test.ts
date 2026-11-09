@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { generateText, type LanguageModel } from "ai";
+import { Agent } from "@mastra/core/agent";
+import { getMastraModelId } from "@raceiq/assistant/mastra/model";
 import { getAnthropicModelsDetailed, getProviders } from "@raceiq/assistant/ai/providers";
 import { AnthropicProviderAdapter } from "@raceiq/assistant/ai/provider-adapters";
 
@@ -15,8 +16,14 @@ function installFetchStub(requests: CapturedRequest[], body: unknown) {
 }
 
 const completion = {
-  choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
-  usage: { prompt_tokens: 1, completion_tokens: 1 },
+  id: "msg_test",
+  type: "message",
+  role: "assistant",
+  model: "claude-haiku-5-5",
+  content: [{ type: "text", text: "{\"answer\":\"ok\"}" }],
+  stop_reason: "end_turn",
+  stop_sequence: null,
+  usage: { input_tokens: 1, output_tokens: 1 },
 };
 
 describe("Claude (Anthropic) provider", () => {
@@ -65,27 +72,36 @@ describe("Claude (Anthropic) provider", () => {
     }
   });
 
-  test("sends direct and Mastra requests to Anthropic with Anthropic auth and no reasoning_effort", async () => {
+  test("uses native Anthropic messages with request-scoped keys for direct and Mastra calls", async () => {
     const requests: CapturedRequest[] = [];
     const restore = installFetchStub(requests, completion);
     try {
-      const adapter = new AnthropicProviderAdapter({ feature: "chat", model: "claude-haiku-5-5", apiKey: "test-key" });
-      await adapter.generateText({ prompt: "ping" });
-      await generateText({ model: adapter.mastraModel as unknown as LanguageModel, prompt: "ping" });
-      expect(requests).toHaveLength(2);
-      for (const request of requests) {
-        expect(request.url).toBe("https://api.anthropic.com/v1/chat/completions");
+      const adapter = new AnthropicProviderAdapter({ feature: "chat", model: "claude-haiku-5-5", apiKey: "direct-key" });
+      const agent = new Agent({ id: "test-anthropic", name: "Test", instructions: "Answer.", model: getMastraModelId({ provider: "anthropic", model: "claude-sonnet-5-5", apiKey: "agent-key" }) });
+      const direct = await adapter.generateText({ prompt: "ping" });
+      const structured = await adapter.generateStructured({
+        prompt: "ping",
+        schema: { type: "object", properties: { answer: { type: "string" } }, required: ["answer"], additionalProperties: false },
+      });
+      await agent.generate("ping");
+      expect(direct.analysis).toBe("{\"answer\":\"ok\"}");
+      expect(JSON.parse(structured.analysis)).toEqual({ answer: "ok" });
+      expect(requests).toHaveLength(3);
+      for (const [index, request] of requests.entries()) {
+        expect(request.url).toBe("https://api.anthropic.com/v1/messages");
         const headers = new Headers(request.init.headers);
-        expect(headers.get("authorization")).toBe("Bearer test-key");
-        expect(headers.get("x-api-key")).toBe("test-key");
+        expect(headers.get("x-api-key")).toBe(index === 2 ? "agent-key" : "direct-key");
         expect(headers.get("anthropic-version")).toBe("2023-06-01");
         const body = JSON.parse(String(request.init.body));
-        expect(body.model).toBe("claude-haiku-5-5");
+        expect(body.model).toBe(index === 2 ? "claude-sonnet-5-5" : "claude-haiku-5-5");
         expect(body).not.toHaveProperty("reasoning_effort");
-        expect(body).not.toHaveProperty("temperature");
       }
     } finally {
       restore();
     }
+  });
+
+  test("rejects a missing request key instead of using an environment key", () => {
+    expect(() => getMastraModelId("anthropic", "claude-sonnet-5-5")).toThrow("API key not set");
   });
 });
