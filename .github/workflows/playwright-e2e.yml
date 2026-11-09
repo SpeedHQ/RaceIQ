@@ -25,7 +25,7 @@ on:
         description: "Run the WebGPU gate (software adapters allowed; hardware not guaranteed)"
         required: false
         type: boolean
-        default: true
+        default: false
 
 jobs:
   seed-database:

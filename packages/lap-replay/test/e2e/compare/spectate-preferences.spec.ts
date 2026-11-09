@@ -590,6 +590,7 @@ test("AMS2 Spectate renders animated suspension for both cars", async ({ page, r
     await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
   }
   await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+  await expect(page.locator("[data-spectate-playback]")).toHaveAttribute("data-playing", "false");
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
   const initialPhi = Number(await canvas.getAttribute("data-camera-phi"));
