@@ -1,3 +1,8 @@
+## Unreleased
+
+### Internal
+- Refactor game-owned catalog validation and MoTeC integration.
+
 ## v0.22.0 - 2026-11-08
 
 ### Features
