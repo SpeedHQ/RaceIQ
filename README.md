@@ -14,7 +14,7 @@
   <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest"><img src="https://img.shields.io/github/downloads/SpeedHQ/RaceIQ/total?style=for-the-badge&color=blue&label=downloads" alt="Downloads"></a>
   <a href="https://github.com/SpeedHQ/RaceIQ/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SpeedHQ/RaceIQ?style=for-the-badge&color=blue" alt="License"></a>
   <a href="https://deepwiki.com/SpeedHQ/RaceIQ"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  <a href="https://marscontrol.dev/"><img src="https://img.shields.io/badge/CI%20sponsor-MARS-blue?style=for-the-badge" alt="CI sponsored by MARS"></a>
+  <a href="https://marscontrol.dev/?ref=raceiq"><img src="https://img.shields.io/badge/CI%20sponsor-MARS-blue?style=for-the-badge" alt="CI sponsored by MARS"></a>
 </p>
 
 <p align="center">
