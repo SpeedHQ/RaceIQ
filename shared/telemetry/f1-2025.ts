@@ -23,7 +23,22 @@ export interface F1GridEntry {
   lastS3: number;
 }
 
+export interface F1CarTelemetry2Data {
+  activeAeroMode: number; // 0 corner, 1 straight
+  activeAeroAvailable: boolean;
+  activeAeroActivationDistance: number; // metres
+  overtakeAvailable: boolean;
+  overtakeActive: boolean;
+  overtakeActivationDistance: number; // metres
+  regulations2026: boolean; // wire format 2026 also carries pre-2026 cars
+  drivingWrongWay: boolean;
+}
+
 export interface F1ExtendedData {
+  /** Wire layout, not a season/car identity. Absent on legacy stored packets. */
+  packetFormat?: 2025 | 2026;
+  ersHarvestLimitPerLap?: number;
+  carTelemetry2?: F1CarTelemetry2Data;
   drsAllowed: boolean;
   drsActivated: boolean;
   drsZoneApproaching: boolean;

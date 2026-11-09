@@ -39,6 +39,7 @@ export interface F1CarTelemetryData {
 }
 export interface F1CarStatusEntry { tyreCompound: number; tyreVisualCompound: number; tyreAge: number; }
 export interface F1CarStatusData {
+  ersHarvestLimitPerLap?: number;
   fuelRemaining: number; fuelCapacity: number; tyreCompound: number; tyreVisualCompound: number; tyreAge: number;
   ersStore: number; ersDeployMode: number; ersDeployedThisLap: number; ersHarvestedThisLap: number; drsAllowed: boolean;
   tractionControl: number; antiLockBrakes: number; fuelMix: number; frontBrakeBias: number; pitLimiterStatus: number;
@@ -105,9 +106,9 @@ export function decodeF1Session(data: Buffer): F1SessionData | null {
   const rainPercentage = samples > 0 && data.length >= 135 ? data.readUInt8(134) : 0;
   return { weather: data.readUInt8(0), trackTemp: data.readInt8(1), airTemp: data.readInt8(2), totalLaps: data.readUInt8(3), trackLength: data.readUInt16LE(4), sessionType: data.readUInt8(6), trackId: data.readInt8(7), formula: data.readUInt8(8), pitSpeedLimit: data.length >= 14 ? data.readUInt8(13) : 0, safetyCarStatus: data.length >= 125 ? data.readUInt8(124) : 0, rainPercentage, sector2LapDistanceStart: 0, sector3LapDistanceStart: 0, pitStopWindowIdealLap: data.length >= 646 ? data.readUInt8(645) : 0, pitStopWindowLatestLap: data.length >= 647 ? data.readUInt8(646) : 0 };
 }
-export function decodeF1LapData(data: Buffer, playerCarIndex: number): F1LapData | null {
+export function decodeF1LapData(data: Buffer, playerCarIndex: number, maxCars = 22): F1LapData | null {
   const size = 57; const allCars: F1LapCarData[] = [];
-  for (let i = 0; i < 22 && data.length >= (i + 1) * size; i++) { const o = i * size; allCars.push({ lastLapTime: data.readUInt32LE(o) / 1000, currentLapTime: data.readUInt32LE(o + 4) / 1000, bestLapTime: 0, position: data.readUInt8(o + 32), pitStatus: data.readUInt8(o + 34), numPitStops: data.readUInt8(o + 35), totalDistance: data.readFloatLE(o + 24) }); }
+  for (let i = 0; i < maxCars && data.length >= (i + 1) * size; i++) { const o = i * size; allCars.push({ lastLapTime: data.readUInt32LE(o) / 1000, currentLapTime: data.readUInt32LE(o + 4) / 1000, bestLapTime: 0, position: data.readUInt8(o + 32), pitStatus: data.readUInt8(o + 34), numPitStops: data.readUInt8(o + 35), totalDistance: data.readFloatLE(o + 24) }); }
   const o = playerCarIndex * size; if (data.length < o + size) return null;
   const s1 = data.readUInt8(o + 10) * 60000 + data.readUInt16LE(o + 8); const s2 = data.readUInt8(o + 13) * 60000 + data.readUInt16LE(o + 11);
   return { lastLapTime: data.readUInt32LE(o) / 1000, currentLapTime: data.readUInt32LE(o + 4) / 1000, bestLapTime: 0, currentLapNum: data.readUInt8(o + 33), position: data.readUInt8(o + 32), totalDistance: data.readFloatLE(o + 24), lapDistance: data.readFloatLE(o + 20), sector: data.readUInt8(o + 36), sector1Time: s1 / 1000, sector2Time: s2 / 1000, currentLapInvalid: data.readUInt8(o + 37), penalties: data.readUInt8(o + 38), totalWarnings: data.readUInt8(o + 39), cornerCuttingWarnings: data.readUInt8(o + 40), driverStatus: data.readUInt8(o + 44), resultStatus: data.readUInt8(o + 45), pitLaneTimerActive: data.readUInt8(o + 46), pitLaneTimeInLaneInMS: data.readUInt16LE(o + 47), speedTrapFastestSpeed: data.readFloatLE(o + 52), gridPosition: data.readUInt8(o + 43), allCars };

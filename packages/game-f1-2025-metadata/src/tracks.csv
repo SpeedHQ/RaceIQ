@@ -32,3 +32,7 @@ ordinal,name,location,country,variant,lengthKm,commonTrackName
 30,Miami International Autodrome,Miami,USA,Grand Prix,5.412,miami
 31,Las Vegas Street Circuit,Las Vegas,USA,Grand Prix,6.201,las-vegas
 32,Lusail International Circuit,Lusail,QAT,Grand Prix,5.419,lusail
+39,Silverstone Circuit (Reverse),Silverstone,GBR,Reverse,0,
+40,Red Bull Ring (Reverse),Spielberg,AUT,Reverse,0,
+41,Circuit Zandvoort (Reverse),Zandvoort,NED,Reverse,0,
+42,Madrid,Madrid,ESP,Grand Prix,0,

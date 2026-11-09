@@ -1,11 +1,15 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { F1ExtendedData, F1GridEntry } from "@raceiq/shared/telemetry/f1-2025";
+import type { F1CarTelemetry2Data, F1ExtendedData, F1GridEntry } from "@raceiq/shared/telemetry/f1-2025";
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,
   F1_SESSION_TYPES,
   type F1Header,
+  type F1PacketFormat,
+  isF1PacketFormat,
+  F1_2026_PACKET_SIZES,
 } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { decode2026CarStatus, decode2026CarTelemetry, decode2026CarTelemetry2, decode2026Motion, decode2026Participants, decode2026Session } from "./f1-2026-decoders";
 import {
   decodeF1CarDamage,
   decodeF1CarSetup,
@@ -38,7 +42,7 @@ import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compound
 
 
 /**
- * Stateful accumulator for F1 2025 UDP telemetry.
+ * Stateful accumulator for F1 25's 2025 and 2026 UDP layouts.
  *
  * F1 splits telemetry across multiple packet types that arrive at different
  * rates. This accumulator orders decoded updates, maintains session caches,
@@ -47,6 +51,8 @@ import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compound
 export interface F1ParserCheckpointV1 {
   format: "raceiq:f1-2025-parser";
   version: 1;
+  packetFormat?: F1PacketFormat;
+  carTelemetry2?: F1CarTelemetry2Data | null;
   sessionUID: string;
   motion: F1MotionData | null;
   carTelemetry: F1CarTelemetryData | null;
@@ -105,10 +111,12 @@ function validDriverHistory(value: unknown): boolean {
   return hasFiniteFields(value, ["bestS1", "bestS2", "bestS3", "lastS1", "lastS2", "lastS3", "bestLapTime"]);
 }
 export class F1StateAccumulator {
+  private packetFormat: F1PacketFormat = 2025;
   private sessionUID: bigint = 0n;
 
   private motion: F1MotionData | null = null;
   private carTelemetry: F1CarTelemetryData | null = null;
+  private carTelemetry2: F1CarTelemetry2Data | null = null;
   private lapData: F1LapData | null = null;
   private finalClassification: F1FinalClassificationData | null = null;
   private carStatus: F1CarStatusData | null = null;
@@ -127,9 +135,11 @@ export class F1StateAccumulator {
   private lastHeaderSessionTime: number | undefined;
 
   reset(): void {
+    this.packetFormat = 2025;
     this.sessionUID = 0n;
     this.motion = null;
     this.carTelemetry = null;
+    this.carTelemetry2 = null;
     this.lapData = null;
     this.finalClassification = null;
     this.carStatus = null;
@@ -139,6 +149,7 @@ export class F1StateAccumulator {
     this.session = null;
     this.participants = [];
     this.driverHistory = new Map();
+    this.driverLapSectors = new Map();
     this.playerCarIndex = 0;
     this.carStatusUpdatedAt = undefined;
     this.sessionUpdatedAt = undefined;
@@ -151,6 +162,8 @@ export class F1StateAccumulator {
     const checkpoint: F1ParserCheckpointV1 = {
       format: "raceiq:f1-2025-parser",
       version: 1,
+      packetFormat: this.packetFormat,
+      carTelemetry2: this.carTelemetry2,
       sessionUID: this.sessionUID.toString(10),
       motion: this.motion, carTelemetry: this.carTelemetry, lapData: this.lapData,
       finalClassification: this.finalClassification, carStatus: this.carStatus,
@@ -179,6 +192,10 @@ export class F1StateAccumulator {
       throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
     }
     if (!checkpoint || checkpoint.format !== "raceiq:f1-2025-parser" || checkpoint.version !== 1 ||
+        (checkpoint.packetFormat !== undefined && !isF1PacketFormat(checkpoint.packetFormat)) ||
+        (checkpoint.carTelemetry2 != null && !hasFiniteFields(checkpoint.carTelemetry2,
+          ["activeAeroMode", "activeAeroActivationDistance", "overtakeActivationDistance"],
+          ["activeAeroAvailable", "overtakeAvailable", "overtakeActive", "regulations2026", "drivingWrongWay"])) ||
         !Array.isArray(checkpoint.participants) || !checkpoint.participants.every(
           (participant) => hasFiniteFields(participant, ["driverId", "teamId"]) &&
             typeof participant.name === "string") ||
@@ -209,6 +226,8 @@ export class F1StateAccumulator {
       throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
     }
     this.sessionUID = sessionUID;
+    this.packetFormat = checkpoint.packetFormat ?? 2025;
+    this.carTelemetry2 = checkpoint.carTelemetry2 ?? null;
     this.motion = checkpoint.motion; this.carTelemetry = checkpoint.carTelemetry; this.lapData = checkpoint.lapData;
     this.finalClassification = checkpoint.finalClassification; this.carStatus = checkpoint.carStatus;
     this.carDamage = checkpoint.carDamage; this.carSetup = checkpoint.carSetup; this.motionEx = checkpoint.motionEx;
@@ -241,9 +260,15 @@ export class F1StateAccumulator {
   }
 
   private applyState(header: F1Header, buf: Buffer): boolean {
-    if (header.sessionUID !== this.sessionUID) {
+    if (!isF1PacketFormat(header.packetFormat)) return false;
+    const format: F1PacketFormat = header.packetFormat;
+    if (format === 2026 && (header.playerCarIndex >= 24 || header.packetVersion !== 1 ||
+        F1_2026_PACKET_SIZES[header.packetId] !== buf.length)) return false;
+    if (header.sessionUID !== this.sessionUID || format !== this.packetFormat ||
+        header.playerCarIndex !== this.playerCarIndex) {
       this.reset();
       this.sessionUID = header.sessionUID;
+      this.packetFormat = format;
     }
     this.playerCarIndex = header.playerCarIndex;
     if (this.lastHeaderSessionTime !== undefined && header.sessionTime < this.lastHeaderSessionTime) {
@@ -255,10 +280,11 @@ export class F1StateAccumulator {
     const data = buf.subarray(F1_HEADER_SIZE);
     switch (header.packetId) {
       case F1_PACKET_IDS.MOTION:
-        this.motion = decodeF1Motion(data, this.playerCarIndex) ?? this.motion;
+        this.motion = format === 2026 ? decode2026Motion(data, this.playerCarIndex)
+          : decodeF1Motion(data, this.playerCarIndex) ?? this.motion;
         break;
       case F1_PACKET_IDS.SESSION: {
-        const session = decodeF1Session(data);
+        const session = format === 2026 ? decode2026Session(data) : decodeF1Session(data);
         if (session) {
           this.session = session;
           this.sessionUpdatedAt = header.sessionTime;
@@ -266,25 +292,31 @@ export class F1StateAccumulator {
         break;
       }
       case F1_PACKET_IDS.LAP_DATA:
-        this.lapData = decodeF1LapData(data, this.playerCarIndex) ?? this.lapData;
+        this.lapData = decodeF1LapData(data, this.playerCarIndex, format === 2026 ? 24 : 22) ?? this.lapData;
         break;
       case F1_PACKET_IDS.PARTICIPANTS:
-        this.participants = decodeF1Participants(data);
+        this.participants = format === 2026 ? decode2026Participants(data) : decodeF1Participants(data);
         break;
       case F1_PACKET_IDS.CAR_SETUP:
         this.carSetup = decodeF1CarSetup(data, this.playerCarIndex) ?? this.carSetup;
         break;
       case F1_PACKET_IDS.CAR_TELEMETRY:
-        this.carTelemetry = decodeF1CarTelemetry(data, this.playerCarIndex) ?? this.carTelemetry;
+        this.carTelemetry = format === 2026 ? decode2026CarTelemetry(data, this.playerCarIndex)
+          : decodeF1CarTelemetry(data, this.playerCarIndex) ?? this.carTelemetry;
         break;
       case F1_PACKET_IDS.CAR_STATUS: {
-        const carStatus = decodeF1CarStatus(data, this.playerCarIndex);
+        const carStatus = format === 2026 ? decode2026CarStatus(data, this.playerCarIndex)
+          : decodeF1CarStatus(data, this.playerCarIndex);
         if (carStatus) {
           this.carStatus = carStatus;
           this.carStatusUpdatedAt = header.sessionTime;
         }
         break;
       }
+      case F1_PACKET_IDS.CAR_TELEMETRY_2:
+        if (format !== 2026) return false;
+        this.carTelemetry2 = decode2026CarTelemetry2(data, this.playerCarIndex);
+        break;
       case F1_PACKET_IDS.EVENT: {
         const event = decodeF1Event(data);
         if (event) this.applyEvent(event, header.sessionTime);
@@ -407,6 +439,8 @@ export class F1StateAccumulator {
     }
 
     const f1: F1ExtendedData = {
+      ...(header.packetFormat === 2026 ? { packetFormat: 2026 as const } : {}),
+      ...(this.carTelemetry2 ? { carTelemetry2: { ...this.carTelemetry2 } } : {}),
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
       drsZoneApproaching: false, // TODO: from motion extra data
@@ -414,6 +448,7 @@ export class F1StateAccumulator {
       ersDeployMode: cs?.ersDeployMode ?? 0,
       ersDeployedThisLap: cs?.ersDeployedThisLap ?? 0,
       ersHarvestedThisLap: cs?.ersHarvestedThisLap ?? 0,
+      ...(cs?.ersHarvestLimitPerLap === undefined ? {} : { ersHarvestLimitPerLap: cs.ersHarvestLimitPerLap }),
       tyreCompound: cs ? getF1CompoundName(cs.tyreVisualCompound) : "unknown",
       tyreVisualCompound: cs?.tyreVisualCompound ?? 0,
       tyreAge: cs?.tyreAge ?? 0,
