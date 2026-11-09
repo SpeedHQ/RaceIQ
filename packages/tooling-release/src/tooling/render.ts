@@ -4,8 +4,6 @@ import {
   type ChangelogEntry,
 } from "./sections";
 
-const EMPTY_UNRELEASED = "## Unreleased\n\n### Features\n\n### Fixes\n\n### Internal";
-
 export function formatReleaseDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) throw new Error("Invalid release date");
@@ -36,12 +34,8 @@ export function renderReleaseBody(markdown: string): string {
 }
 
 export function renderUnreleasedBody(markdown: string): string {
-  const heading = /^##\s+Unreleased\s*$/m.exec(markdown);
-  if (!heading || heading.index === undefined) return "";
-  const start = heading.index + heading[0].length;
-  const nextHeading = markdown.slice(start).search(/^##\s+/m);
-  const end = nextHeading === -1 ? markdown.length : start + nextHeading;
-  return renderReleaseBody(markdown.slice(start, end));
+  const nextHeading = markdown.search(/^##\s+/m);
+  return renderReleaseBody(markdown.slice(0, nextHeading < 0 ? markdown.length : nextHeading));
 }
 
 
@@ -65,8 +59,8 @@ export function renderAllReleaseNotes(markdown: string, release?: { version: str
   const blocks: string[] = [];
   const unreleased = renderUnreleasedBody(markdown);
   if (unreleased) {
-    const heading = release ? `## v${release.version}${release.date ? ` - ${release.date}` : ""}` : "## Unreleased";
-    blocks.push(`${heading}\n\n${unreleased}`);
+    const heading = release ? `## v${release.version}${release.date ? ` - ${release.date}` : ""}\n\n` : "";
+    blocks.push(`${heading}${unreleased}`);
   }
   for (const entry of parseChangelog(markdown)) {
     blocks.push(`## v${entry.version}${entry.date ? ` - ${entry.date}` : ""}\n\n${entry.notes}`);
@@ -75,14 +69,11 @@ export function renderAllReleaseNotes(markdown: string, release?: { version: str
 }
 
 export function rolloverChangelog(markdown: string, release: { version: string; date: string }): string {
-  const heading = /^##\s+Unreleased\s*$/m.exec(markdown);
-  if (!heading || heading.index === undefined) throw new Error("No ## Unreleased heading found");
-
-  const start = heading.index + heading[0].length;
-  const nextHeading = markdown.slice(start).search(/^##\s+/m);
-  const end = nextHeading === -1 ? markdown.length : start + nextHeading;
-  const body = markdown.slice(start, end).trim();
+  const nextHeading = markdown.search(/^##\s+/m);
+  const end = nextHeading < 0 ? markdown.length : nextHeading;
+  const body = markdown.slice(0, end).trim();
+  if (!/^###\s+/m.test(body)) throw new Error("No pending release sections found");
   const released = `## v${release.version} - ${release.date}${body ? `\n\n${body}` : ""}`;
   const history = markdown.slice(end).trim();
-  return `${EMPTY_UNRELEASED}\n\n${released}${history ? `\n\n${history}` : ""}`;
+  return `${released}${history ? `\n\n${history}` : ""}`;
 }

@@ -1,11 +1,3 @@
-## Unreleased
-
-### Features
-
-### Fixes
-
-### Internal
-
 ## v0.22.0 - 2026-11-08
 
 ### Features
