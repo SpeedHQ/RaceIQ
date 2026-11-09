@@ -2,7 +2,7 @@ import { ROOT_DIR } from "../root";
 /**
  * ONE-SHOT migration tool — delete once shared/data/tracks/guides/*.json is committed.
  *
- * Converts the inline `guides` array in server/ai/track-guides.ts into one JSON
+ * Converts the inline `guides` array in packages/assistant/src/ai/track-guides.ts into one JSON
  * file per layout.
  *
  * Guide *data* is read from the live module, never regexed out of the source:
@@ -12,7 +12,7 @@ import { ROOT_DIR } from "../root";
  * into the runtime object — `// Sources:` becomes the `sources` field and the
  * remaining prose becomes `notes`, both hand-reviewed afterwards.
  *
- * Requires a working-tree-only edit to server/ai/track-guides.ts:
+ * Requires a working-tree-only edit to packages/assistant/src/ai/track-guides.ts:
  *
  *   export const __rawGuides = guides;
  *
@@ -23,7 +23,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { TrackGuideCornerFile, TrackGuideFile } from "@raceiq/shared/racing/tracks/guide/types";
 // @ts-expect-error — __rawGuides is a temporary export that exists only while this script runs.
-import { __rawGuides } from "@raceiq/backend-core/ai/track-guides";
+import { __rawGuides } from "@raceiq/assistant/ai/track-guides";
 
 interface RawCorner {
   name: string;
@@ -39,7 +39,7 @@ interface RawGuide {
   priorityCorners: string[];
 }
 
-const SOURCE = resolve(ROOT_DIR, "server/ai/track-guides.ts");
+const SOURCE = resolve(ROOT_DIR, "packages/assistant/src/ai/track-guides.ts");
 const OUT_DIR = resolve(ROOT_DIR, "shared/data/tracks/guides");
 
 /**

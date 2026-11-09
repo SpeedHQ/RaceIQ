@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { generateText, type LanguageModel } from "ai";
-import { getAnthropicModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
-import { AnthropicProviderAdapter } from "../../../src/ai/provider-adapters";
+import { getAnthropicModelsDetailed, getProviders } from "@raceiq/assistant/ai/providers";
+import { AnthropicProviderAdapter } from "@raceiq/assistant/ai/provider-adapters";
 
 type CapturedRequest = { url: string; init: RequestInit };
 

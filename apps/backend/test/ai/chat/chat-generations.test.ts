@@ -1,6 +1,6 @@
 // test/chat-generations.test.ts
 //
-// Unit tests for the chat-generation helpers in server/ai/chat-agent.ts:
+// Unit tests for the chat-generation helpers in packages/assistant/src/ai/chat-agent.ts:
 // parseThreadGeneration, generationThreadId, listThreadGenerations, and
 // resolveActiveThread. The latter two probe a memory store, which they take as
 // an optional second argument, so this file just passes a fake in-memory thread
@@ -22,7 +22,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
   chatMemoryOptions,
-} from "@raceiq/backend-core/ai/chat-agent";
+} from "@raceiq/assistant/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);

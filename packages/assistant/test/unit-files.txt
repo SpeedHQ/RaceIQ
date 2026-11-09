@@ -1,0 +1,3 @@
+packages/assistant/test/provider-capabilities.test.ts
+packages/assistant/test/provider-endpoints.test.ts
+packages/assistant/test/providers-deepseek.test.ts

@@ -1,16 +1,15 @@
 # AI
 
 ## Purpose
-Collect all AI-facing logic: deterministic telemetry symptom extraction, prompt construction, AI provider dispatch, tune-intent orchestration, chat/thread primitives, and track-guidance lookup used by analyst prompts.
+Deterministic telemetry symptom extraction and setup-output validation used by both the backend and assistant package. Assistant prompts, provider dispatch, and chat primitives live in `packages/assistant`.
 
 ## Structure
-- Deterministic symptom layer: `tune-symptoms.ts`, `tune-tire-symptoms.ts`, `tune-damper-symptoms.ts`, `tune-weight-transfer.ts`.
-- Auto-tune pipeline: `tune-intent.ts`, `tune-recommend.ts`, `tune-writer.ts`.
-- AI provider/response path: `providers.ts`, `schemas.ts`, `google-provider-options.ts`.
-- Provider transport policy: `provider-resilience.ts` (per-request deadlines, transport-only retries with jitter/Retry-After, circuit breaker), `stream-deadline.ts` (stall watchdog for UI streams).
-- Prompt formatting and coaching entry points: `tune-*` prompt files, `chat-prompt.ts`, `compare-chat-prompt.ts`, `analyst-prompt.ts`, `inputs-compare-prompt.ts`.
-- Chat persistence/state: `chat-agent.ts`.
-- Track knowledge bridge: `track-guides.ts`.
+- Deterministic symptom layer: `tune-symptoms.ts`, `tune-tire-symptoms.ts`, `tune-damper-symptoms.ts`, `tune-weight-transfer.ts`, and `tune-issues.ts`.
+- Setup-output validation: `schemas.ts` and `output-schema.ts`.
+- Track conditions: `track-conditions.ts`.
+
+## Provider registration
+Add the provider ID, display name, and default model to `packages/assistant/src/ai/ai-features.ts`. Add its adapter factory to `packages/assistant/src/ai/ai-runtime.ts`. Implement provider-specific credentials, transport, model discovery, settings, and UI integration as required.
 
 ## Boundaries and invariants
 - Public contracts kept stable unless proven unused across repository.

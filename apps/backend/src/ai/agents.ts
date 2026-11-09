@@ -24,12 +24,12 @@
  */
 import { resolve } from "node:path";
 import type { ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
-import { lapAnalystAgent as rawLapAnalystAgent } from "../mastra/agents/lap-analyst";
+import { lapAnalystAgent as rawLapAnalystAgent, setRuntimeLapAnalystAgent } from "../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../mastra/agents/compare-chat";
 import { setupEngineerAgent as rawSetupEngineerAgent } from "../mastra/agents/setup-engineer";
-import { driverProfilerAgent as rawDriverProfilerAgent } from "../mastra/agents/driver-profiler";
+import { driverProfilerAgent as rawDriverProfilerAgent } from "@raceiq/assistant/mastra/agents/driver-profiler";
 import { driverCoachAgent as rawDriverCoachAgent } from "../mastra/agents/driver-coach";
 
 type LapAnalystAgent = typeof rawLapAnalystAgent;
@@ -66,6 +66,7 @@ if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test" && 
   try {
     const { mastra } = await import("../mastra/index");
     lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;
+    setRuntimeLapAnalystAgent(lapAnalystAgent);
     lapChatAgent = mastra.getAgent("lap-chat") as unknown as LapChatAgent;
     compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
     compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;

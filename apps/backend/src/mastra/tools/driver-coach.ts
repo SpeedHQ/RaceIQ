@@ -1,7 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
+import { computeChildLabel, nextFreeLabel } from "@raceiq/assistant/ai/version-label";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersionAndSetHead, nextVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";

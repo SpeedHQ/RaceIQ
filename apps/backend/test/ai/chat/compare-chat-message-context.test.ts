@@ -4,7 +4,7 @@ import {
   compareChatToolChoice,
   getChatTurnContext,
   sanitizeChatHistoryMessages,
-} from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-message-context";
 
 describe("compare chat turn context", () => {
   test("reads only server-set context from request context", () => {

@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
+import type { AiProvider } from "@raceiq/shared/integrations/ai/providers";
+export { isAiProvider } from "@raceiq/shared/integrations/ai/providers";
 
-type ProviderId = "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
+type ProviderId = AiProvider;
 export type ModelInfo = { id: string; name: string; contextLength?: number };
 export type ModelsResponse = {
   gemini: ModelInfo[];
@@ -21,9 +23,6 @@ export type AiModelData = {
   refreshModels: { mutate: () => void; isPending: boolean; isError: boolean };
 };
 
-export function isAiProvider(value: string): value is ProviderId {
-  return value === "gemini" || value === "openai" || value === "anthropic" || value === "deepseek" || value === "openai-compatible";
-}
 
 export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Record<string, boolean>): AiModelData {
   const qc = useQueryClient();

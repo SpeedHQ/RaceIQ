@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeDiagnostic, withLlmDiagnostics } from "@raceiq/backend-core/ai/diagnostic-logging";
-import { runGeminiRequest, runOpenAiCompatible } from "@raceiq/backend-core/ai/providers";
+import { normalizeDiagnostic, withLlmDiagnostics } from "@raceiq/assistant/ai/diagnostic-logging";
+import { runGeminiRequest, runOpenAiCompatible } from "@raceiq/assistant/ai/providers";
 import { readRecentLogText } from "@raceiq/backend-core/runtime/logger";
 
 describe("diagnostic normalization", () => {

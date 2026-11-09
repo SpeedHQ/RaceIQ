@@ -17,9 +17,9 @@ import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consis
 import { selectCleanLaps } from "../../experiments/lap-evidence/selection";
 import { fastestLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "@raceiq/backend-core/lap-analysis/metrics";
-import { tuneSessionThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
-import { nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
-import { resolveLapF1Setup, f1SetupFingerprint, summarizeF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
+import { tuneSessionThreadId, saveChatMessages } from "@raceiq/assistant/ai/chat-agent";
+import { nextFreeLabel } from "@raceiq/assistant/ai/version-label";
+import { resolveLapF1Setup, f1SetupFingerprint, summarizeF1Setup } from "@raceiq/assistant/ai/f1-setup-identity";
 
 const ImportLapsSchema = z.object({
   lapIds: z.array(z.number().int()).min(1).max(500),

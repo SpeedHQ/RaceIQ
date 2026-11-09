@@ -4,10 +4,10 @@ import { buildDriverCoachInstructions, driverCoachAgent, DRIVER_COACH_INSTRUCTIO
 import { setupEngineerAgent } from "../../../src/mastra/agents/setup-engineer";
 import { sessionAgentForFocus } from "../../../src/ai/agents";
 import { buildSetupEngineerSystemPrompt } from "../../../src/mastra/agents/setup-engineer";
-import { createModelContext } from "../../../src/ai/model-provider";
-import { resolveAi } from "../../../src/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/assistant/ai/chat-message-context";
 /**
  * Two specialists, one session, no coordinator.
  *

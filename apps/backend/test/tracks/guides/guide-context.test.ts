@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "@raceiq/backend-core/ai/track-guides";
+import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "@raceiq/assistant/ai/track-guides";
 
 initGameAdapters();
 initServerGameAdapters();

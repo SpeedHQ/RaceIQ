@@ -16,6 +16,8 @@ Shared AI prompt utilities for chat, setup guidance, and UI-facing diagnostics.
   - `aiLanguageInstruction`
 - `context-window.ts`
   - `contextWindowFor`
+- `providers.ts`
+  - `AI_PROVIDERS`, `AiProvider`, and `isAiProvider` define browser-safe provider metadata.
 
 ## Browser vs Node boundary
 - All modules are pure and can run in browser bundles.
@@ -33,4 +35,5 @@ Shared AI prompt utilities for chat, setup guidance, and UI-facing diagnostics.
 - Add new prompt policy text as a new named export in `prompt-snippets.ts`.
 - Keep `aiLanguageInstruction` strict: return empty string for English baseline unless a translated language is requested.
 - Add/adjust context limits in `context-window.ts` only for explicit provider/model behavior, return `undefined` when unknown.
+- When adding a provider, register its metadata in `providers.ts` and implement its adapter and Mastra model mapping in `packages/assistant`. Unsupported providers must fail rather than fall back to another provider.
 - Prefer leaf imports, e.g. `import { ADJUSTMENT_FORMAT_PROMPT } from "@shared/integrations/ai/prompt-snippets"`.

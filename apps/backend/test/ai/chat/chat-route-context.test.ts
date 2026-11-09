@@ -5,14 +5,14 @@ import type { ProcessLLMRequestArgs } from "@mastra/core/processors";
 import { db } from "@raceiq/backend-core/db/index";
 import { lapAnalyses, laps, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { getAnalysis, saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
-import { chatThreadId } from "@raceiq/backend-core/ai/chat-agent";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+import { chatThreadId } from "@raceiq/assistant/ai/chat-agent";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/assistant/ai/chat-message-context";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
 import { buildLapChatInstructions, lapChatGroundingProcessor, lapChatPrepareStep, requiresCornerMetricsLookup, requiresLapInsightsLookup } from "../../../src/mastra/agents/lap-chat";
-import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
-import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import { getLapInsightsToolFor } from "@raceiq/assistant/mastra/tools/lap-insights";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import { tuneChatRoutes } from "../../../src/routes/tune-chat-routes";
 import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
 

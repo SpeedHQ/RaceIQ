@@ -10,7 +10,7 @@ import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/
 import { saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import { resolveLapCorners } from "../../../src/tracks/corner-resolution";
 import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
 

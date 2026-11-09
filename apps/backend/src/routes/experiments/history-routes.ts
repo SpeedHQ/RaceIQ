@@ -4,7 +4,7 @@ import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { listActions } from "@raceiq/backend-core/db/experiment-action-queries";
 import { undoLastAction } from "@raceiq/backend-core/experiments/undo";
-import { tuneSessionThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
+import { tuneSessionThreadId, saveChatMessages } from "@raceiq/assistant/ai/chat-agent";
 
 export const experimentHistoryRoutes = new Hono()
   // GET /api/experiments/:id/actions — session action log, newest-first

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createUIMessageStreamResponse } from "ai";
-import { buildReplayStream, getRun } from "@raceiq/backend-core/ai/chat-run-registry";
+import { buildReplayStream, getRun } from "@raceiq/assistant/ai/chat-run-registry";
 
 /**
  * Detached-run status/resume/cancel endpoints, generic across every chat

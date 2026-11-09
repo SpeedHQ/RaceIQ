@@ -1,5 +1,5 @@
 import { describe, test, expect, mock } from "bun:test";
-import { NothingToCompactError } from "@raceiq/backend-core/ai/compact-thread";
+import { NothingToCompactError } from "@raceiq/assistant/ai/compact-thread";
 import { createChatsRoutes } from "../../src/routes/chats-routes";
 
 const forkThreadWithSummary = mock(async (threadId: string) => ({

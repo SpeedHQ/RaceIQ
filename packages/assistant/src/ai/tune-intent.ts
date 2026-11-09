@@ -1,0 +1,171 @@
+/**
+ * requestTuneIntents — pass 2 of the auto-tune pipeline.
+ *
+ * Feeds the deterministic symptom report to the configured AI provider and
+ * gets back structured `TuneIntent`s (which knob, which way, how much). The
+ * model is grammar-constrained to `TuneIntentsSchema` — no free-form numbers.
+ * Provider selection and structured generation use the shared AI runtime.
+ */
+import type { GameId } from "@raceiq/shared/games/ids";
+import { resolveAi } from "./ai-runtime";
+import {
+  getTuneIntentJsonSchema,
+  parseTuneIntents,
+  type TuneIntents,
+} from "@raceiq/backend-core/ai/schemas";
+import { knownComponents, renderKnobLimitsBlock } from "@raceiq/backend-core/setups/rules/catalog";
+import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
+import { formatTireTempSymptoms } from "@raceiq/backend-core/ai/tune-tire-symptoms";
+import { formatDamperSymptoms } from "@raceiq/backend-core/ai/tune-damper-symptoms";
+import { formatWeightTransferSymptoms } from "@raceiq/backend-core/ai/tune-weight-transfer";
+
+/** Render the deterministic symptom report as compact prompt text. */
+function renderSymptomReport(symptoms: TuneSymptoms): string {
+  const agg = symptoms.aggregate;
+  const cornerLines = symptoms.corners
+    .map((c) => {
+      const phases = c.phases
+        .map(
+          (p) =>
+            `${p.phase}: ${p.balance}` +
+            (p.brakeLockup ? " +lockup" : "") +
+            (p.bottoming ? " +bottoming" : ""),
+        )
+        .join("; ");
+      const lltd =
+        c.load?.lltdFront != null ? ` [LLTD ${(c.load.lltdFront * 100).toFixed(0)}% front]` : "";
+      return `  ${c.label} — ${phases}${lltd}`;
+    })
+    .join("\n");
+
+  const pressure = agg.tyrePressure
+    ? `Tyre pressure delta vs target (psi): FL ${agg.tyrePressure.FL.toFixed(1)}, FR ${agg.tyrePressure.FR.toFixed(1)}, RL ${agg.tyrePressure.RL.toFixed(1)}, RR ${agg.tyrePressure.RR.toFixed(1)}`
+    : "Tyre pressure data unavailable for this game.";
+
+  return `Overall balance: ${agg.balance}
+Understeer corners: ${agg.understeerCorners.join(", ") || "none"}
+Oversteer corners: ${agg.oversteerCorners.join(", ") || "none"}
+Brake lockup corners: ${agg.lockupCorners.join(", ") || "none"}
+Suspension bottoming corners: ${agg.bottomingCorners.join(", ") || "none"}
+${pressure}
+${formatTireTempSymptoms(agg.tyreTemp)}
+${formatDamperSymptoms(agg.damper)}
+${formatWeightTransferSymptoms(agg.weightTransfer)}
+
+Per-corner detail:
+${cornerLines || "  (no corners detected)"}`;
+}
+
+/** Build the structured prompt embedding the symptom report + allowed knobs. */
+export function buildTunePrompt(
+  gameId: GameId,
+  symptoms: TuneSymptoms,
+  trackName?: string,
+  carModel?: string,
+): string {
+  const components = knownComponents(gameId, carModel);
+
+  return `You are a race engineer tuning a car in ${gameId.toUpperCase()}${trackName ? ` at ${trackName}` : ""}.
+
+Below is a deterministic symptom report derived from the driver's telemetry.
+Recommend setup changes as a list of intents. You may ONLY use these component
+names (exact strings) — any other component will be ignored:
+${components.map((c) => `  - ${c}`).join("\n")}
+
+For each intent choose a direction ("increase" or "decrease") and a magnitude
+("small", "medium", or "large"). Never output raw setup numbers. Prefer a small
+number of high-confidence changes over many speculative ones.
+
+${renderKnobLimitsBlock(gameId, carModel)}
+
+=== SYMPTOM REPORT ===
+${renderSymptomReport(symptoms)}
+
+Respond with JSON matching the schema: { "summary": string, "intents": [ { "component", "direction", "magnitude", "reason" } ] }.`;
+}
+
+/**
+ * Build the intent prompt for the PRE-DRIVE "Generate setup from chat" flow.
+ *
+ * No telemetry required: the driver's stated feel in the conversation (plus the
+ * current setup values as evidence, and the symptom report when a lap exists)
+ * drives the picks. Same guardrail as `buildTunePrompt` — the model names a
+ * component + direction + magnitude only; the deterministic rules own the clicks.
+ */
+export function buildTuneChatIntentPrompt(
+  gameId: GameId,
+  opts: {
+    conversation: string;
+    currentSetupSummary: string | null;
+    symptoms?: TuneSymptoms | null;
+    trackName?: string;
+    carModel?: string;
+  },
+): string {
+  const components = knownComponents(gameId, opts.carModel);
+
+  const setupBlock = opts.currentSetupSummary
+    ? `\n=== CURRENT SETUP VALUES (evidence only — do NOT echo these back as targets) ===\n${opts.currentSetupSummary}\n`
+    : "";
+  const symptomBlock = opts.symptoms
+    ? `\n=== TELEMETRY SYMPTOM REPORT (from a driven lap) ===\n${renderSymptomReport(opts.symptoms)}\n`
+    : "";
+
+  return `You are a GT3 / endurance race engineer tuning a car in ${gameId.toUpperCase()}${opts.trackName ? ` at ${opts.trackName}` : ""}.
+
+The driver has been discussing how the car feels in the conversation below. Turn
+that discussion — together with the current setup values and any telemetry — into
+concrete setup CHANGES expressed as intents.
+
+You may ONLY use these component names (exact strings) — any other component is
+ignored:
+${components.map((c) => `  - ${c}`).join("\n")}
+
+For each intent choose a direction ("increase" or "decrease") and a magnitude
+("small", "medium", or "large"), with a one-line reason tied to what the driver
+said. NEVER output raw setup numbers — a deterministic engine converts your
+intents into exact clicks. Prefer a few high-confidence changes driven by the
+driver's stated feel over many speculative ones. If the conversation gives no
+actionable direction, return an empty intents array.
+
+${renderKnobLimitsBlock(gameId, opts.carModel)}
+${setupBlock}${symptomBlock}
+=== CONVERSATION (oldest first) ===
+${opts.conversation}
+
+Respond with JSON matching the schema: { "summary": string, "intents": [ { "component", "direction", "magnitude", "reason" } ] }.`;
+}
+
+/**
+ * Dispatch a single grammar-constrained intent turn to the configured auto-tune
+ * provider. Returns the raw model text + resolved model id.
+ */
+async function runTuneIntentProvider(
+  prompt: string,
+  schema: object,
+): Promise<{ raw: string; model: string }> {
+  const ai = await resolveAi("autoTune");
+  const result = await ai.generateStructured({ prompt, schema, schemaName: "tune_intents" });
+  return { raw: result.analysis, model: result.usage.model };
+}
+
+/**
+ * Run the intent request against the configured provider and parse the result.
+ * Throws (with a user-facing message) when the provider fails or the model
+ * returns unparseable output.
+ */
+export async function requestTuneIntents(
+  gameId: GameId,
+  symptoms: TuneSymptoms,
+  trackName?: string,
+  carModel?: string,
+): Promise<{ intents: TuneIntents; model: string }> {
+  const prompt = buildTunePrompt(gameId, symptoms, trackName, carModel);
+  const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
+
+  const parsed = parseTuneIntents(raw);
+  if (!parsed.success) {
+    throw new Error("AI returned an invalid tune-intent response. Try again or switch models.");
+  }
+  return { intents: parsed.data, model };
+}

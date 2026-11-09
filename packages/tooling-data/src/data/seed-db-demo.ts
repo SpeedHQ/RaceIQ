@@ -1,7 +1,7 @@
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "@raceiq/backend-core/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { chatThreadId, compareChatThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
+import { chatThreadId, compareChatThreadId, saveChatMessages } from "@raceiq/assistant/ai/chat-agent";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { SEED_MARKER } from "./seed-db-options";
 

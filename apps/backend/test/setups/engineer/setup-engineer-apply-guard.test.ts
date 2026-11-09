@@ -27,7 +27,7 @@ import { setupEngineerTools } from "../../../src/mastra/tools/setup-engineer";
 import * as RealSetupIo from "../../../src/setups/io";
 import * as RealTestQueries from "@raceiq/backend-core/db/experiment-version-queries";
 import * as RealSessionQueries from "@raceiq/backend-core/db/experiment-queries";
-import * as RealChatAgent from "@raceiq/backend-core/ai/chat-agent";
+import * as RealChatAgent from "@raceiq/assistant/ai/chat-agent";
 import * as RealAppliedMarkdown from "@raceiq/backend-core/setups/applied-change-markdown";
 import * as RealRepresentativeLap from "../../../src/experiments/representative-lap";
 import * as RealTrackConditions from "@raceiq/backend-core/ai/track-conditions";
@@ -40,7 +40,7 @@ import * as RealConsult from "../../../src/ai/consult-lap-analyst";
 import * as RealCleanLap from "../../../src/experiments/lap-evidence/aggregate";
 import * as RealComparison from "@raceiq/backend-core/lap-analysis/comparison"
 import * as RealSettings from "@raceiq/backend-core/runtime/config/settings";
-import * as RealMastraModel from "../../../src/mastra/model";
+import * as RealMastraModel from "@raceiq/assistant/mastra/model";
 
 let stubsActive = false;
 beforeAll(() => {
@@ -149,7 +149,7 @@ mock.module("@raceiq/backend-core/db/experiment-queries", () => ({
   setSessionHead: gate(RealSessionQueries.setSessionHead, setSessionHead),
   getExperiment: gate(RealSessionQueries.getExperiment, mock(async (id: number) => ({ ...fakeCtx.session, id }))),
 }));
-mock.module("@raceiq/backend-core/ai/chat-agent", () => ({
+mock.module("@raceiq/assistant/ai/chat-agent", () => ({
   ...RealChatAgent,
   saveAssistantChatMessage: gate(RealChatAgent.saveAssistantChatMessage, mock(async () => {})),
   getChatMemory: gate(RealChatAgent.getChatMemory, mock(() => null)),
@@ -204,7 +204,7 @@ mock.module("@raceiq/backend-core/runtime/config/settings", () => ({
   ...RealSettings,
   loadSettings: gate(RealSettings.loadSettings, mock(() => ({ ai: {} }))),
 }));
-mock.module("../../../src/mastra/model", () => ({
+mock.module("@raceiq/assistant/mastra/model", () => ({
   ...RealMastraModel,
   getMastraModelId: gate(RealMastraModel.getMastraModelId, mock(() => "fake/model")),
 }));

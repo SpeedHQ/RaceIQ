@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
 import { lapAnalystAgent } from "../../../src/mastra/agents/lap-analyst";
-import { getMastraModelId } from "../../../src/mastra/model";
-import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../../../src/ai/resolved-ai-internals";
+import { getMastraModelId } from "@raceiq/assistant/mastra/model";
+import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "@raceiq/assistant/ai/resolved-ai-internals";
 
 type ModelLookupAgent = {
   getModel(options: { requestContext: RequestContext }): Promise<unknown>;

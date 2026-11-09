@@ -15,23 +15,23 @@ import { describe, test, expect, beforeAll } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
+import { buildAnalystPrompt } from "@raceiq/assistant/ai/analyst-prompt";
 import { AnalystOutputSchema } from "@raceiq/backend-core/ai/output-schema";
-import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
+import { compareLapHeader } from "@raceiq/assistant/ai/compare-engineer";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
   resolveEvalModelId,
-} from "../../../src/mastra/evals/eval-agents";
+} from "@raceiq/assistant/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "../../../src/mastra/evals/fixtures";
+} from "@raceiq/assistant/mastra/evals/fixtures";
 import {
   analystScorers,
   compareScorers,
@@ -39,7 +39,7 @@ import {
   scoreOutput,
   SCORER_THRESHOLDS,
   type ScoreResult,
-} from "../../../src/mastra/evals/index";
+} from "@raceiq/assistant/mastra/evals/index";
 
 const HAS_API_KEY = (process.env.EVALS_PROVIDER ?? "gemini") === "deepseek"
   ? Boolean(process.env.DEEPSEEK_API_KEY)

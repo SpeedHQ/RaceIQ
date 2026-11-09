@@ -10,8 +10,8 @@ import { createExperimentVersion } from "@raceiq/backend-core/db/experiment-vers
 import { db } from "@raceiq/backend-core/db/index";
 import { experiments, experimentVersions } from "@raceiq/backend-core/db/schema";
 import { resolveExperimentChatBranch } from "../../src/experiments/chat-branch-context";
-import { deleteChatLineage, getChatMemory, saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
-import { finishRun, getActiveRun } from "@raceiq/backend-core/ai/chat-run-registry";
+import { deleteChatLineage, getChatMemory, saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/assistant/ai/chat-agent";
+import { finishRun, getActiveRun } from "@raceiq/assistant/ai/chat-run-registry";
 import type { ExperimentChatBranchContext } from "../../src/experiments/chat-branch-context";
 import { sessionAgentForFocus } from "../../src/ai/agents";
 import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";

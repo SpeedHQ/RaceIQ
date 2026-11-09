@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildTuneChatIntentPrompt } from "@raceiq/backend-core/ai/tune-intent";
+import { buildTuneChatIntentPrompt } from "@raceiq/assistant/ai/tune-intent";
 import { applyIntents } from "@raceiq/backend-core/setups/rules/engine";
 import { knownComponents } from "@raceiq/backend-core/setups/rules/catalog";
 import type { TuneIntent } from "@raceiq/backend-core/ai/schemas";

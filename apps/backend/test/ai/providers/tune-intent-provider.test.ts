@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { requestTuneIntents } from "@raceiq/backend-core/ai/tune-intent";
+import { requestTuneIntents } from "@raceiq/assistant/ai/tune-intent";
 import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
+import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
 
 type CapturedRequest = { url: string; init: RequestInit };
 
@@ -61,6 +61,25 @@ describe("requestTuneIntents with an OpenAI-compatible endpoint", () => {
       expect(body).not.toHaveProperty("reasoning_effort");
     } finally {
       restore();
+    }
+  });
+
+  test("routes DeepSeek auto-tune to DeepSeek with its selected model", async () => {
+    const originalKey = await getSecret("deepseek-api-key");
+    saveSettings({ ...original, autoTuneProvider: "deepseek", autoTuneModel: "deepseek-flash" });
+    await setSecret("deepseek-api-key", "deepseek-test-key");
+    const requests: CapturedRequest[] = [];
+    const restore = installFetchStub(requests);
+    try {
+      const result = await requestTuneIntents("acc", symptoms);
+      expect(result.intents).toEqual({ summary: "ok", intents: [] });
+      expect(requests).toHaveLength(1);
+      expect(requests[0].url).toBe("https://api.deepseek.com/chat/completions");
+      expect(new Headers(requests[0].init.headers).get("authorization")).toBe("Bearer deepseek-test-key");
+      expect(JSON.parse(String(requests[0].init.body)).model).toBe("deepseek-flash");
+    } finally {
+      restore();
+      await setSecret("deepseek-api-key", originalKey ?? "");
     }
   });
 

@@ -16,23 +16,23 @@ import { resolve } from "node:path";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
-import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
+import { buildAnalystPrompt } from "@raceiq/assistant/ai/analyst-prompt";
+import { compareLapHeader } from "@raceiq/assistant/ai/compare-engineer";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
   resolveEvalModelId,
-} from "../../src/mastra/evals/eval-agents";
+} from "@raceiq/assistant/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "../../src/mastra/evals/fixtures";
-import { analystScorers, compareScorers, scoreOutput } from "../../src/mastra/evals/index";
+} from "@raceiq/assistant/mastra/evals/fixtures";
+import { analystScorers, compareScorers, scoreOutput } from "@raceiq/assistant/mastra/evals/index";
 
 const evalsProvider = process.env.EVALS_PROVIDER ?? "gemini";
 const hasEvalKey = evalsProvider === "deepseek"
