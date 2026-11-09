@@ -1,4 +1,5 @@
 ### Features
+- Show F1 2026 active aero, overtake, and energy availability in live telemetry and lap analysis.
 - Decode experimental F1 2026 UDP telemetry and preserve its additional packet data in recordings for replay.
 - Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 

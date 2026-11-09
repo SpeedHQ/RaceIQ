@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { f1Parser } from "../src/game-parser";
 import { F1StateAccumulator } from "../src/f1-state";
 import { decodeGenericSparseFrame, encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/capture-formats/session/generic-sparse";
+import { getTelemetryVariable, isTelemetryEnumValue } from "@raceiq/shared/telemetry/catalog/query";
+import { f1ServerAdapter } from "../src/index";
 
 // Synthetic wire data, NOT a real game recording. Offsets from EA's attached
 // "2026 Season Pack Telemetry Output Structures (1).txt"; see the audit doc.
@@ -44,6 +46,149 @@ function baseFrames(): Buffer[] {
   telemetry[1447] = 6;
   return [session, motion, lap, telemetry];
 }
+
+test("AI context distinguishes 2026 UDP from cars not using 2026 regulations", () => {
+  const state = f1Parser.createParserState();
+  for (const buf of baseFrames()) f1Parser.tryParse(buf, state);
+  const extra = frame(16, 269);
+  extra[29 + 23 * 10 + 8] = 0;
+  const packet = f1Parser.tryParse(extra, state);
+  if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+  const context = f1ServerAdapter.buildAiContext([packet]);
+  expect(context).toContain("UDP Format: 2026");
+  expect(context).toContain("2026 Car Regulations: false");
+  expect(context).not.toContain("Active Aero at Last Observation:");
+  expect(context).not.toContain("Overtake at Last Observation:");
+});
+
+test("AI context keeps missing regulations unavailable but accepts a later native observation", () => {
+  const state = f1Parser.createParserState();
+  const packets = [];
+  for (const buf of baseFrames()) {
+    const packet = f1Parser.tryParse(buf, state);
+    if (packet) packets.push(packet);
+  }
+  expect(f1ServerAdapter.buildAiContext(packets)).toContain("2026 Car Regulations: unavailable");
+  const extra = frame(16, 269);
+  extra[29 + 23 * 10 + 8] = 1;
+  const later = f1Parser.tryParse(extra, state);
+  if (!later) throw new Error("Synthetic telemetry did not produce a snapshot");
+  packets.push(later);
+  expect(f1ServerAdapter.buildAiContext(packets)).toContain("2026 Car Regulations: true");
+});
+
+test("AI context preserves recorded zero energy and keeps the native harvest limit distinct from capacity", () => {
+  const state = f1Parser.createParserState();
+  for (const buf of baseFrames()) f1Parser.tryParse(buf, state);
+  const status = frame(7, 1445);
+  status.writeFloatLE(6_600_000, 29 + 23 * 59 + 50);
+  const packet = f1Parser.tryParse(status, state);
+  if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+  const context = f1ServerAdapter.buildAiContext([packet]);
+  expect(context).toContain("ERS Energy: 0 kJ -> 0 kJ (delta: 0 kJ)");
+  expect(context).toContain("ERS Deployed This Lap: 0 kJ");
+  expect(context).toContain("ERS Harvested This Lap: 0 kJ");
+  expect(context).toContain("ERS Harvest Limit This Lap: 6600 kJ (not battery capacity)");
+});
+
+test("missing native car status does not manufacture zero ERS readings for AI or telemetry consumers", () => {
+  const state = f1Parser.createParserState();
+  const packets = baseFrames().flatMap((buf) => {
+    const packet = f1Parser.tryParse(buf, state);
+    return packet ? [packet] : [];
+  });
+  const packet = packets.at(-1);
+  if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+  expect(packet.ErsStoreEnergy).toBeUndefined();
+  expect(packet.ErsDeployMode).toBeUndefined();
+  expect(packet.ErsDeployed).toBeUndefined();
+  expect(packet.ErsHarvested).toBeUndefined();
+  expect(packet.f1?.ersStoreEnergy).toBeUndefined();
+  expect(packet.f1?.ersDeployMode).toBeUndefined();
+  expect(packet.f1?.ersDeployedThisLap).toBeUndefined();
+  expect(packet.f1?.ersHarvestedThisLap).toBeUndefined();
+  expect(f1ServerAdapter.buildAiContext(packets)).not.toContain("ERS Energy:");
+  expect(f1ServerAdapter.buildAiContext(packets)).not.toContain("ERS Deployed This Lap:");
+  expect(f1ServerAdapter.buildAiContext(packets)).not.toContain("ERS Harvested This Lap:");
+});
+
+test("AI retains a known end-of-lap energy reading without inventing a missing start value", () => {
+  const state = f1Parser.createParserState();
+  const packets = baseFrames().flatMap((buf) => {
+    const packet = f1Parser.tryParse(buf, state);
+    return packet ? [packet] : [];
+  });
+  const status = frame(7, 1445);
+  status.writeFloatLE(1_500_000, 29 + 23 * 59 + 37);
+  const packet = f1Parser.tryParse(status, state);
+  if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+  packets.push(packet);
+  const context = f1ServerAdapter.buildAiContext(packets);
+  expect(context).toContain("ERS Energy at Last Sample: 1500 kJ (start unavailable; delta unavailable)");
+  expect(context).not.toContain("0 kJ -> 1500 kJ");
+});
+
+test("AI uses the documented 2026 Boost enum even when car regulations are unavailable", () => {
+  const state = f1Parser.createParserState();
+  for (const buf of baseFrames()) f1Parser.tryParse(buf, state);
+  const status = frame(7, 1445);
+  status[29 + 23 * 59 + 41] = 3;
+  const packet = f1Parser.tryParse(status, state);
+  if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+  const context = f1ServerAdapter.buildAiContext([packet]);
+  expect(context).toContain("ERS Deploy Mode: boost (3)");
+  expect(context).toContain("2026 Car Regulations: unavailable");
+});
+
+test("AI receives native active aero and overtake separately, including false and zero readings", () => {
+  const state = f1Parser.createParserState();
+  for (const buf of baseFrames()) f1Parser.tryParse(buf, state);
+  const extra = frame(16, 269);
+  const o = 29 + 23 * 10;
+  extra[o] = 1;
+  extra[o + 1] = 1;
+  extra.writeUInt16LE(120, o + 2);
+  extra[o + 4] = 1;
+  extra[o + 8] = 1;
+  const packet = f1Parser.tryParse(extra, state);
+  if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+  const context = f1ServerAdapter.buildAiContext([packet]);
+  expect(context).toContain("Active Aero at Last Observation: straight (1), available=true, activationDistance=120 m");
+  expect(context).toContain("Overtake at Last Observation: available=true, active=false, activationDistance=unavailable (native 0)");
+});
+
+test("AI does not present non-finite native energy values as measurements", () => {
+  for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    const state = f1Parser.createParserState();
+    for (const buf of baseFrames()) f1Parser.tryParse(buf, state);
+    const status = frame(7, 1445);
+    for (const offset of [37, 42, 46, 50, 54]) status.writeFloatLE(value, 29 + 23 * 59 + offset);
+    const packet = f1Parser.tryParse(status, state);
+    if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+    expect(f1ServerAdapter.buildAiContext([packet])).not.toMatch(/NaN|Infinity/);
+  }
+});
+
+test("analyst instructions keep 2026 energy and aero interpretation inside the evidence", () => {
+  expect(f1ServerAdapter.aiSystemPrompt).toContain("harvest limit is not battery capacity");
+  expect(f1ServerAdapter.aiSystemPrompt).toContain("Do not grade 2026 battery reserve using a fixed 4 MJ denominator");
+  expect(f1ServerAdapter.aiSystemPrompt).toContain("Active aero and overtake are not DRS");
+  expect(f1ServerAdapter.aiSystemPrompt).toContain("Do not infer missed activation or lap-time gains from the last observation");
+});
+
+test("AI context identifies the native session type rather than assuming qualifying", () => {
+  const state = f1Parser.createParserState();
+  const packets = baseFrames().flatMap((buf) => {
+    const packet = f1Parser.tryParse(buf, state);
+    return packet ? [packet] : [];
+  });
+  expect(f1ServerAdapter.buildAiContext(packets)).toContain("Session Type: time-trial");
+});
+
+test("ERS enum accepts only the four deployment modes documented by EA", () => {
+  for (const mode of [0, 1, 2, 3]) expect(isTelemetryEnumValue("fuel.ers-deploy-mode", mode)).toBe(true);
+  expect(isTelemetryEnumValue("fuel.ers-deploy-mode", 4)).toBe(false);
+});
 
 test("2026 wire telemetry decodes car 24 without treating it as a 2025 packet", () => {
   const state = f1Parser.createParserState();
@@ -111,9 +256,14 @@ test("2026 active aero and overtake are distinct from legacy DRS", () => {
   expect(packet?.f1).toMatchObject({
     drsActivated: false,
     carTelemetry2: {
-      activeAeroMode: 1, activeAeroAvailable: true, activeAeroActivationDistance: 120,
-      overtakeAvailable: true, overtakeActive: true, overtakeActivationDistance: 250,
-      regulations2026: true, drivingWrongWay: false,
+      activeAeroMode: 1,
+      activeAeroAvailable: true,
+      activeAeroActivationDistance: 120,
+      overtakeAvailable: true,
+      overtakeActive: true,
+      overtakeActivationDistance: 250,
+      regulations2026: true,
+      drivingWrongWay: false,
     },
   });
 });
@@ -132,7 +282,10 @@ test("indexed replay restores 2026 aero state and never mixes wire formats withi
   // Same game UID, switched output format/player: discard stale 2026 caches.
   const oldMotion = frame(0, 29 + 22 * 60, 2025, 0);
   expect(f1Parser.tryParse(oldMotion, restored)).toBeNull();
-  for (const [id, size] of [[1, 29 + 9], [2, 29 + 57]] as const) {
+  for (const [id, size] of [
+    [1, 29 + 9],
+    [2, 29 + 57],
+  ] as const) {
     f1Parser.tryParse(frame(id, size, 2025, 0), restored);
   }
   const legacy = f1Parser.tryParse(frame(6, 29 + 60, 2025, 0), restored);
@@ -147,10 +300,7 @@ test("unsupported or truncated 2026 datagrams cannot mutate a valid accumulated 
   const before = state.captureCheckpoint();
   const unknownVersion = frame(6, 1448);
   unknownVersion[5] = 2;
-  for (const buf of [
-    Buffer.alloc(0), Buffer.alloc(28), frame(0, 1325).subarray(0, 1324),
-    frame(6, 1449), frame(6, 1448, 2026, 24), frame(6, 1448, 2027), unknownVersion,
-  ]) {
+  for (const buf of [Buffer.alloc(0), Buffer.alloc(28), frame(0, 1325).subarray(0, 1324), frame(6, 1449), frame(6, 1448, 2026, 24), frame(6, 1448, 2027), unknownVersion]) {
     expect(f1Parser.tryParse(buf, state)).toBeNull();
     expect(state.captureCheckpoint()).toEqual(before);
   }
@@ -181,7 +331,31 @@ test("2026 session keeps strategy windows and native sector boundaries at their 
   session.writeFloatLE(1500, 29 + 716);
   session.writeFloatLE(3200, 29 + 720);
   expect(f1Parser.tryParse(session, state)?.f1).toMatchObject({
-    pitStopWindowIdealLap: 14, pitStopWindowLatestLap: 18,
-    sector2LapDistanceStart: 1500, sector3LapDistanceStart: 3200,
+    pitStopWindowIdealLap: 14,
+    pitStopWindowLatestLap: 18,
+    sector2LapDistanceStart: 1500,
+    sector3LapDistanceStart: 3200,
   });
+});
+
+test("catalog distinguishes 2026 aero modes, distances, energy limits and regulations", () => {
+  for (const [id, unit, path] of [
+    ["identity.telemetry-wire-format", "enum", "f1.packetFormat"],
+    ["fuel.ers-harvest-limit-per-lap", "J", "f1.ersHarvestLimitPerLap"],
+    ["aero.active-aero-mode", "enum", "f1.carTelemetry2.activeAeroMode"],
+    ["aero.active-aero-available", "boolean", "f1.carTelemetry2.activeAeroAvailable"],
+    ["aero.active-aero-activation-distance", "m", "f1.carTelemetry2.activeAeroActivationDistance"],
+    ["electronics.overtake-available", "boolean", "f1.carTelemetry2.overtakeAvailable"],
+    ["electronics.overtake-active", "boolean", "f1.carTelemetry2.overtakeActive"],
+    ["electronics.overtake-activation-distance", "m", "f1.carTelemetry2.overtakeActivationDistance"],
+    ["identity.f1-regulations-2026", "boolean", "f1.carTelemetry2.regulations2026"],
+    ["race.driving-wrong-way", "boolean", "f1.carTelemetry2.drivingWrongWay"],
+  ]) {
+    const variable = getTelemetryVariable(id);
+    expect(variable.canonicalUnit).toBe(unit);
+    expect(variable.games["f1-2025"]).toMatchObject({ kind: "direct", nativeUnit: unit, sources: [path] });
+  }
+  expect(isTelemetryEnumValue("aero.active-aero-mode", 0)).toBe(true);
+  expect(isTelemetryEnumValue("aero.active-aero-mode", 1)).toBe(true);
+  expect(isTelemetryEnumValue("aero.active-aero-mode", 7)).toBe(false);
 });
