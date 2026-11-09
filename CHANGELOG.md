@@ -1,10 +1,10 @@
-## Unreleased
+## v0.22.0 - 2026-11-08
 
 ### Features
 - Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 
 ### Fixes
-- Restore Replay links for older recordings whose saved lap frames and parser setup can be verified.
+- Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
 
 ### Internal
 - Require an explicitly configured model for AI evaluation runs.
