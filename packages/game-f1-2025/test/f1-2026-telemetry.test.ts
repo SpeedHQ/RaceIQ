@@ -185,4 +185,3 @@ test("2026 session keeps strategy windows and native sector boundaries at their 
     sector2LapDistanceStart: 1500, sector3LapDistanceStart: 3200,
   });
 });
-
