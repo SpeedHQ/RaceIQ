@@ -10,7 +10,6 @@ import { LibSQLStore } from "@mastra/libsql";
 import { resolve } from "node:path";
 import { cancelChatRun } from "./chat-run-registry";
 import type { ChatTurnMessage } from "./chat-message-context";
-import { AiProviderError } from "./provider-error";
 
 /**
  * Resolve the chat memory db path. Uses DATA_DIR env override when set,
@@ -73,36 +72,6 @@ export async function collectDiagnosticChatContext(mem = memory): Promise<Diagno
   return output;
 }
 
-/**
- * Map app settings (aiProvider + aiModel) to a Mastra model ID string.
- * Mastra uses the format "provider/model-name".
- */
-export function getMastraModelId(
-  aiProvider: string,
-  aiModel: string,
-): string {
-  switch (aiProvider) {
-    case "gemini":
-      return `google/${aiModel || "gemini-flash-latest"}`;
-    case "openai":
-      return `openai/${aiModel || "gpt-4o-mini"}`;
-    case "anthropic":
-      return `anthropic/${aiModel || "claude-haiku-5-5"}`;
-    case "deepseek": {
-      // Mastra has a native DeepSeek provider; the key comes from DEEPSEEK_API_KEY.
-      return `deepseek/${aiModel || "deepseek-flash"}`;
-    }
-    case "openai-compatible": {
-      // Local models use OpenAI-compatible API; model ID passed through
-      return `openai/${aiModel || "local-model"}`;
-    }
-    default:
-      throw new AiProviderError(`Unsupported AI provider: ${aiProvider}`, {
-        code: "unsupported-provider",
-        provider: aiProvider,
-      });
-  }
-}
 
 /** Build the threadId for a lap's chat. */
 export function chatThreadId(lapId: number): string {

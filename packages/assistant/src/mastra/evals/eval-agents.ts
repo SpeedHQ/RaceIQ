@@ -11,17 +11,27 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "@raceiq/assistant/ai/compare-engineer";
-import { DEEPSEEK_AGENT_DEFAULTS } from "@raceiq/assistant/mastra/model";
+import { DEEPSEEK_AGENT_DEFAULTS, getMastraModelId } from "@raceiq/assistant/mastra/model";
+import { getAiProviderApiKey } from "@raceiq/assistant/ai/openai-compatible-provider";
+
+export function resolveEvalProvider(): "gemini" | "openai" | "deepseek" {
+  const provider = process.env.EVALS_PROVIDER ?? "gemini";
+  if (provider === "gemini" || provider === "openai" || provider === "deepseek") return provider;
+  throw new Error(`Unsupported EVALS_PROVIDER: ${provider}`);
+}
+
+export function getEvalApiKey(): Promise<string | undefined> {
+  return getAiProviderApiKey(resolveEvalProvider());
+}
 
 /** Label used in baseline filenames and eval output. */
 export function resolveEvalModelId(): string {
-  const provider = process.env.EVALS_PROVIDER ?? "gemini";
+  const provider = resolveEvalProvider();
   const model = process.env.EVALS_MODEL?.trim();
   if (!model) throw new Error("EVALS_MODEL must be set to run AI evaluations.");
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
-  if (provider === "deepseek") return `deepseek/${model}`;
-  throw new Error(`Unsupported EVALS_PROVIDER: ${provider}`);
+  return `deepseek/${model}`;
 }
 
 
@@ -29,24 +39,28 @@ const EVAL_LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing 
 
 Be specific and concrete. Cite numbers where helpful. Refer to the driver as "you". Use the units provided in the prompt.`;
 
-export function buildEvalLapAnalystAgent(): Agent {
+export function buildEvalLapAnalystAgent(apiKey: string): Agent {
   const modelId = resolveEvalModelId();
+  if (!apiKey) throw new Error("AI evaluation API key not set. Configure it in Settings.");
+  const model = getMastraModelId({ provider: resolveEvalProvider(), model: modelId.slice(modelId.indexOf("/") + 1), apiKey });
   return new Agent({
     id: "eval-lap-analyst",
     name: "Eval Lap Analyst",
     instructions: EVAL_LAP_ANALYST_INSTRUCTIONS,
-    model: () => modelId,
+    model: () => model,
     defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   });
 }
 
-export function buildEvalCompareEngineerAgent(unit: "metric" | "imperial" = "metric"): Agent {
+export function buildEvalCompareEngineerAgent(unit: "metric" | "imperial", apiKey: string): Agent {
   const modelId = resolveEvalModelId();
+  if (!apiKey) throw new Error("AI evaluation API key not set. Configure it in Settings.");
+  const model = getMastraModelId({ provider: resolveEvalProvider(), model: modelId.slice(modelId.indexOf("/") + 1), apiKey });
   return new Agent({
     id: "eval-compare-engineer",
     name: "Eval Compare Engineer",
     instructions: compareEngineerPersona(unit),
-    model: () => modelId,
+    model: () => model,
     defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   });
 }

@@ -8,14 +8,15 @@ import { MessageList } from "@mastra/core/agent";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,
-  getMastraModelId,
   parseThreadGeneration,
   generationThreadId,
 } from "./chat-agent";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { configureAiProviderEnvironment, requireAiProviderApiKey } from "./openai-compatible-provider";
+import { getAiProviderApiKey, requireAiProviderApiKey } from "./openai-compatible-provider";
+import { getMastraModelId } from "../mastra/model";
 import { baseUrlFor } from "./provider-endpoints";
 import { runOpenAiCompatible } from "./providers";
+import { AiProviderError } from "./provider-error";
 export const MIN_COMPACT_MESSAGES = 6;
 const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
 
@@ -61,24 +62,24 @@ export async function summarizeWithDeepSeek(
 
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
-  // Bridge provider env the same way the chat routes do — Mastra resolves
-  // `openai/...` model ids from process.env, so without this a compact with
-  // a local/OpenAI provider fails with "Could not find API key
-  // process.env.OPENAI_API_KEY".
-  if (s.chatProvider) await configureAiProviderEnvironment(s.chatProvider, s.localEndpoint || "http://localhost:1234/v1");
   if (s.chatProvider === "deepseek") {
-    // The "openai/<model>" id resolves through the stock OpenAI provider, which
-    // cannot express DeepSeek's thinking/json_object rules — the summary would
-    // run with thinking on and a 900-token budget. Use the adapter path that
-    // applies those rules.
+    // DeepSeek summaries need its provider-specific thinking rules.
     const apiKey = await requireAiProviderApiKey("deepseek");
     return summarizeWithDeepSeek(transcript, { model: s.chatModel || "deepseek-flash", apiKey });
   }
+  if (!s.chatProvider) throw new AiProviderError("No AI provider selected. Choose one in Settings → AI Chat.", { code: "missing-provider" });
+  const apiKey = await getAiProviderApiKey(s.chatProvider);
+  const model = getMastraModelId({
+    provider: s.chatProvider,
+    model: s.chatModel,
+    localEndpoint: s.localEndpoint || "http://localhost:1234/v1",
+    apiKey,
+  });
   const compactor = new Agent({
     id: "compactor",
     name: "Compactor",
     instructions: SUMMARY_SYSTEM,
-    model: () => getMastraModelId(s.chatProvider, s.chatModel),
+    model: () => model,
   });
   const result = await compactor.generate(transcript, {
     modelSettings: { maxOutputTokens: 900, temperature: 0 },

@@ -6,8 +6,7 @@
  * threshold in `mastra/evals/index.ts::SCORER_THRESHOLDS`.
  *
  * Skipped entirely when:
- *   - No `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` — fresh clones
- *     and PRs from forks without secrets won't flake.
+ *   - No API key saved for the evaluation provider in Settings.
  *   - No fixture zip files present — scaffolding ships without packets so
  *     contributors can opt in by exporting their own laps.
  */
@@ -23,6 +22,7 @@ import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-na
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
+  getEvalApiKey,
   resolveEvalModelId,
 } from "@raceiq/assistant/mastra/evals/eval-agents";
 import {
@@ -41,12 +41,8 @@ import {
   type ScoreResult,
 } from "@raceiq/assistant/mastra/evals/index";
 
-const HAS_API_KEY = (process.env.EVALS_PROVIDER ?? "gemini") === "deepseek"
-  ? Boolean(process.env.DEEPSEEK_API_KEY)
-  : Boolean(process.env.GEMINI_API_KEY) ||
-    Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-
-const describeIf = HAS_API_KEY ? describe : describe.skip;
+const evalApiKey = await getEvalApiKey();
+const describeIf = evalApiKey ? describe : describe.skip;
 
 /**
  * Model-graded (LLM-as-judge) scorers only run when a local LM Studio judge
@@ -81,7 +77,7 @@ describeIf("AI quality — Lap Analyst", () => {
         deriveCornerDefs(fx),
         fx.units,
       );
-      const agent = buildEvalLapAnalystAgent();
+      const agent = buildEvalLapAnalystAgent(evalApiKey!);
       const response = await agent.generate(prompt, {
         structuredOutput: {
           schema: AnalystOutputSchema,
@@ -128,7 +124,7 @@ describeIf("AI quality — Compare Engineer", () => {
 
     runOrSkip(`${fx.id} (model=${resolveEvalModelId()})`, async () => {
       const prompt = buildMinimalComparePrompt(fx, packetsA!, packetsB!);
-      const agent = buildEvalCompareEngineerAgent(fx.units);
+      const agent = buildEvalCompareEngineerAgent(fx.units, evalApiKey!);
       const response = await agent.generate(prompt);
       const output = response.text ?? "";
 

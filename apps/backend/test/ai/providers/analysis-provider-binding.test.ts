@@ -26,4 +26,20 @@ describe("lap analyst provider binding", () => {
     expect(model.provider).toBe("openai.chat");
     expect(model.modelId).toBe("request-model");
   });
+
+  test.each([
+    ["gemini", "GOOGLE_GENERATIVE_AI_API_KEY"],
+    ["openai", "OPENAI_API_KEY"],
+    ["anthropic", "ANTHROPIC_API_KEY"],
+    ["deepseek", "DEEPSEEK_API_KEY"],
+  ])("rejects inherited %s credentials without a bound key", (provider, name) => {
+    const original = process.env[name];
+    try {
+      process.env[name] = "untrusted-environment-key";
+      expect(() => getMastraModelId(provider, "test-model")).toThrow("API key not set");
+    } finally {
+      if (original === undefined) delete process.env[name];
+      else process.env[name] = original;
+    }
+  });
 });

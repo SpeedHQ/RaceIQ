@@ -26,7 +26,7 @@ export async function requireAiProviderApiKey(provider: Exclude<ConfiguredAiProv
 
 export async function configureAiProviderEnvironment(
   provider: ConfiguredAiProvider,
-  localEndpoint = "http://localhost:1234/v1",
+  _localEndpoint = "http://localhost:1234/v1",
 ): Promise<string | undefined> {
   const apiKey = await getAiProviderApiKey(provider);
   if (provider !== "openai-compatible" && !apiKey) {
@@ -35,20 +35,7 @@ export async function configureAiProviderEnvironment(
       provider,
     });
   }
-  // Agents that build their model from settings (setup engineer, driver coach)
-  // read the OpenAI-compatible key from here; clear it for other providers.
-  delete process.env.OPENAI_COMPATIBLE_API_KEY;
-  const environmentKey = AI_PROVIDERS[provider].environmentKey;
-  if (provider === "openai-compatible") {
-    process.env.OPENAI_API_KEY = apiKey || "local";
-    process.env.OPENAI_BASE_URL = localEndpoint;
-    if (apiKey) process.env.OPENAI_COMPATIBLE_API_KEY = apiKey;
-  } else if (environmentKey) {
-    process.env[environmentKey] = apiKey;
-    delete process.env.OPENAI_BASE_URL;
-  } else {
-    throw new AiProviderError(`Unsupported AI provider: ${provider}`, { code: "unsupported-provider", provider });
-  }
+  // Model callbacks resolve credentials from the keystore, not process.env.
   return apiKey;
 }
 

@@ -23,6 +23,8 @@ import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-na
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
+  getEvalApiKey,
+  resolveEvalProvider,
   resolveEvalModelId,
 } from "@raceiq/assistant/mastra/evals/eval-agents";
 import {
@@ -34,14 +36,9 @@ import {
 } from "@raceiq/assistant/mastra/evals/fixtures";
 import { analystScorers, compareScorers, scoreOutput } from "@raceiq/assistant/mastra/evals/index";
 
-const evalsProvider = process.env.EVALS_PROVIDER ?? "gemini";
-const hasEvalKey = evalsProvider === "deepseek"
-  ? Boolean(process.env.DEEPSEEK_API_KEY)
-  : Boolean(process.env.GEMINI_API_KEY) || Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-if (!hasEvalKey) {
-  console.error(evalsProvider === "deepseek"
-    ? "Missing DEEPSEEK_API_KEY (EVALS_PROVIDER=deepseek)"
-    : "Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");
+const evalApiKey = await getEvalApiKey();
+if (!evalApiKey) {
+  console.error(`Missing ${resolveEvalProvider()} API key. Configure it in Settings.`);
   process.exit(1);
 }
 
@@ -78,7 +75,7 @@ for (const fx of listLapFixtures()) {
     deriveCornerDefs(fx),
     fx.units,
   );
-  const agent = buildEvalLapAnalystAgent();
+  const agent = buildEvalLapAnalystAgent(evalApiKey);
   const response = await agent.generate(prompt);
   const output = response.text ?? "";
   const gt = {
@@ -104,7 +101,7 @@ for (const fx of listComparePairFixtures()) {
   }
   console.log(`[run]  ${fx.id} (compare)`);
   const prompt = buildComparePrompt(fx, packetsA, packetsB);
-  const agent = buildEvalCompareEngineerAgent(fx.units);
+  const agent = buildEvalCompareEngineerAgent(fx.units, evalApiKey);
   const response = await agent.generate(prompt);
   const output = response.text ?? "";
   const gt = {

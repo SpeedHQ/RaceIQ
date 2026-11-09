@@ -27,10 +27,10 @@
 import { createScorer } from "@mastra/core/evals";
 import { parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
 import type { AnalystOutput } from "@raceiq/backend-core/ai/output-schema";
+import { getLocalApiKey } from "@raceiq/assistant/ai/openai-compatible-provider";
 
 const JUDGE_BASE_URL = process.env.EVAL_JUDGE_BASE_URL ?? "http://localhost:1234/v1";
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "google/gemma-4-e2b";
-const JUDGE_API_KEY = process.env.EVAL_JUDGE_API_KEY ?? "lm-studio"; // LM Studio ignores the value
 
 interface JudgeVerdict {
   faithful: boolean;
@@ -90,11 +90,12 @@ function stringifyAnalyst(a: AnalystOutput): string {
 }
 
 async function judge(source: string, answer: string): Promise<JudgeVerdict> {
+  const apiKey = await getLocalApiKey();
   const res = await fetch(`${JUDGE_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${JUDGE_API_KEY}`,
+      Authorization: `Bearer ${apiKey || "lm-studio"}`,
     },
     body: JSON.stringify({
       model: JUDGE_MODEL,

@@ -43,7 +43,7 @@ fill in, unlike the OpenAI-compatible provider.
 
 ## AI quality evaluations
 
-Set `DEEPSEEK_API_KEY` in your environment, then select the evaluation model explicitly:
+Save the DeepSeek API key in **Settings → AI**, then select the evaluation model explicitly:
 
 ```sh
 EVALS_PROVIDER=deepseek EVALS_MODEL=deepseek-flash bun run test:ai
@@ -52,6 +52,8 @@ EVALS_PROVIDER=deepseek EVALS_MODEL=deepseek-flash bun run ai:baseline
 
 `EVALS_MODEL` is required; evaluation runs do not select a fallback model. DeepSeek evaluation
 requests disable thinking, matching production analysis requests.
+
+In Linux source checkouts, the development keystore is process-local and in memory. A key saved in a running server is unavailable to a separate evaluation CLI process, so these CLI commands cannot authenticate using that key. macOS and Windows use their OS credential stores.
 
 ## Troubleshooting
 
