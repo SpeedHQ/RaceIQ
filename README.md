@@ -136,6 +136,10 @@ Want to run AI entirely on your own PC? See the [Local AI setup guide](docs/user
 
 ## Sponsorship
 
+<p align="center">
+  <a href="https://marscontrol.dev/?ref=raceiq"><img src="https://marscontrol.dev/mars-icon.svg" alt="MARS" width="120"><br>MARS</a>
+</p>
+
 Looking to sponsor this project or interested in a commercial license? Contact **Snazzie** on [Discord](https://discord.gg/ZNXKyYPumT) or find my socials on [GitHub](https://github.com/Snazzie).
 
 ## Contributing
