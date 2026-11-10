@@ -13,6 +13,7 @@ import { loadSettings } from "../runtime/config/settings";
 import { getAiProviderApiKey, requireAiProviderApiKey } from "./openai-compatible-provider";
 import { runGemini, runOpenAi, runOpenAiCompatible } from "./providers";
 import { ANTHROPIC_OPENAI_BASE_URL } from "./openai-compatible-headers";
+import { baseUrlFor } from "./provider-endpoints";
 import {
   getTuneIntentJsonSchema,
   parseTuneIntents,
@@ -166,6 +167,12 @@ async function runTuneIntentProvider(
     case "anthropic": {
       const key = await requireAiProviderApiKey("anthropic");
       const r = await runOpenAiCompatible({ prompt, apiKey: key, endpoint: ANTHROPIC_OPENAI_BASE_URL, model: tuneModel, schema, schemaName: "tune_intents" });
+      return { raw: r.analysis, model: r.usage.model };
+    }
+    case "deepseek": {
+      const key = await requireAiProviderApiKey("deepseek");
+      const endpoint = baseUrlFor("deepseek") ?? "https://api.deepseek.com";
+      const r = await runOpenAiCompatible({ prompt, apiKey: key, endpoint, model: tuneModel, schema, schemaName: "tune_intents" });
       return { raw: r.analysis, model: r.usage.model };
     }
     case "openai-compatible": {

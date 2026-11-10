@@ -97,7 +97,7 @@ export class StreamingCaptureSplitter {
     if (!candidateId || this.candidates.has(candidateId) || !Number.isSafeInteger(lapNumber) || lapNumber < 0 ||
         !Number.isSafeInteger(startByteOffset) || startByteOffset < this.resumeOffset ||
         !(parserCheckpoint instanceof Uint8Array) || parserCheckpoint.byteLength > 1024 * 1024 ||
-        (["ac-evo", "f1-2025", "iracing"].includes(this.options.gameId) && parserCheckpoint.byteLength === 0)) throw new Error("Invalid streaming candidate initialization");
+        (["ac-evo", "ams2", "f1-2025", "iracing"].includes(this.options.gameId) && parserCheckpoint.byteLength === 0)) throw new Error("Invalid streaming candidate initialization");
     if (preparationOnly) {
       for (const [id, candidate] of this.candidates) {
         if (candidate.preparationOnly && !candidate.window) {

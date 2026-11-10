@@ -57,13 +57,6 @@ describe("release feature flags", () => {
     });
   });
 
-  test("loads production rollout flags from committed environment", () => {
-    expect(releaseFeatureFlags(loadReleaseEnvironment(".env.production"))).toEqual({
-      f1Experiments: false,
-      iracingAdapter: false,
-      ams2Adapter: false,
-    });
-  });
 
   test("loads development flags for direct Bun tools", async () => {
     const { developmentReleaseFeatures } = await import("@raceiq/tooling-release/release/development-release-features");

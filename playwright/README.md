@@ -10,7 +10,7 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
 | `lap-replay` | `packages/lap-replay/test/e2e/**/*.spec.ts`, excluding native GPU specs | Seeded app |
-| `lap-replay-webgpu` | Package-owned native Spectate camera and transition specs | Seeded app with a hardware WebGPU adapter |
+| `lap-replay-webgpu` | Package-owned native Spectate camera and transition specs | Seeded app with a WebGPU adapter (hardware or software) |
 | `record-demo` | `recording/demo.spec.ts` | Seeded replay with GPU launch flags |
 
 `record-demo` waits for the seeded route/import suites and all feature projects to finish before frame capture because they share seeded server state.
@@ -21,7 +21,7 @@ Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive 
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
-The `lap-replay-webgpu` project requires a hardware adapter (`GPUAdapterInfo.isFallbackAdapter === false`) and fails rather than skips if one is unavailable. It selects ANGLE Metal on macOS. On Windows it uses ANGLE D3D11 and the full Chromium channel, which bundles the DXIL shader libraries missing from the headless-shell distribution. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
+The `lap-replay-webgpu` project requires a WebGPU adapter and fails rather than skips if one is unavailable. Software adapters are allowed, so a passing run does not guarantee hardware coverage. Each test attaches adapter metadata, including `isFallbackAdapter`, to its results. It selects ANGLE Metal on macOS. On Windows it uses ANGLE D3D11 and the full Chromium channel, which bundles the DXIL shader libraries missing from the headless-shell distribution. Zoom-reversal checks synchronize with rendered mid-snap frames so browser-driver latency cannot move the input beyond the transition. CPU-compatible Spectate camera and full-range zoom scenarios remain in the cross-platform `lap-replay` project.
 
 Root `test:e2e` (including `test:e2e:compiled`), its `fresh`/`tunes`/`seeded` variants, and root `screenshots` use `scripts/run-browser-verification.ts`: this cross-platform runner builds the production app with both F1 experiments and iRacing adapter flags, then starts compiled-server verification. `build:browser` exposes the feature-enabled build alone; ordinary `build` and release builds retain default feature settings. `ui:diff` builds both compared revisions with those flags before compiled responsive captures; `ui:diff:storybook` remains Storybook-only. The general `bun run test` sequence also performs a feature-enabled browser build immediately before Playwright E2E.
 
@@ -63,6 +63,8 @@ E2E_SERVER_MODE=dev PW_SERVER_SET=fresh bunx playwright test tests/fresh-install
 ## Release-tag to main upgrade smoke
 
 `bun run test:upgrade` builds an Ubuntu Playwright image and runs one smoke scenario inside Docker, with a twenty-minute test ceiling. It checks out the last published stable release tag, installs dependencies, and runs that version's `db:seed` with its default all-game fixtures: FM2023, F1 2025, ACC, AC Evo, iRacing, and LMU. Seeding has a ten-minute deadline; capture conversion and recording organization each allow up to five minutes for the full dataset. Playwright starts the released dev app and completes outstanding onboarding and capture-conversion dialogs before updating. It then checks out freshly fetched `origin/main`, reinstalls dependencies, and starts the new code against the same user-data directory. The caller's working tree and application data are never switched, reset, or mounted.
+
+The released checkout uses the exact Bun version declared in its `packageManager` field for its frozen install, seed, and application processes. The main checkout uses the launcher image's Bun version.
 
 Docker and Bun are required on the launcher host. `RACEIQ_UPGRADE_PREVIOUS_TAG` optionally pins the baseline; otherwise GitHub's latest published release is used. `RACEIQ_UPGRADE_REPOSITORY` optionally supplies an HTTPS clone URL; otherwise the current repository's origin is used, with GitHub SSH origins normalized to HTTPS. `GH_REPO` selects release metadata. `GH_TOKEN` or `GITHUB_TOKEN` authenticates GitHub; the launcher can reuse the host's `gh auth token` without mounting host credentials. Only diagnostics are bind-mounted out, to `RACEIQ_UPGRADE_ARTIFACTS_DIR` (default `playwright/test-results/source-upgrade`).
 

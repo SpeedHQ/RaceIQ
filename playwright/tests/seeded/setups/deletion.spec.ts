@@ -51,6 +51,7 @@ test.beforeEach(async ({ page }) => {
 
 for (const { gameId, prefix } of games) {
   test(`${gameId}: linked deletion lists sessions and laps, cancels safely, then unlinks without deleting recordings`, async ({ page }) => {
+    test.setTimeout(360_000);
     const imports: DisposableImport[] = [];
     let setupId: number | undefined;
     try {

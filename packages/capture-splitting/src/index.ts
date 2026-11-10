@@ -15,7 +15,7 @@ import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-rec
 import { MAX_CAPTURE_MANIFEST_BYTES, ChunkSchema, ManifestSchema, PublishedManifestSchema, type Chunk, type PublishedManifest, type GameId, type LapWindow, type Progress } from "./contract";
 import { openCaptureArchive } from "./archive";
 import { encodeStreamingFrame, matchesNativeRecord } from "./streaming";
-const STATEFUL_GAME_IDS = new Set<GameId>(["ac-evo", "f1-2025", "iracing"]);
+const STATEFUL_GAME_IDS = new Set<GameId>(["ac-evo", "ams2", "f1-2025", "iracing"]);
 const MAX_AUXILIARY_MEMBER_BYTES = 64 * 1024 * 1024;
 
 

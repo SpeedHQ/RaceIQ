@@ -704,6 +704,7 @@
       "dependencies": {
         "@babel/parser": "^8.0.5",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/shared": "workspace:*",
         "@raceiq/tooling-build": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
         "libsql": "^0.5.29",

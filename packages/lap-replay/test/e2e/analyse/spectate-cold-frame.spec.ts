@@ -122,7 +122,7 @@ test("tire labels retain playback wear history, cap refreshes and reset on a sma
     for (const frame of replay.envelopes) {
       const time = frame.values.find(value => value.semanticId === "timing.current-lap")?.value;
       const wear = frame.values.find(value => value.semanticId === "tires.tire-wear");
-      if (wear && typeof time === "number") wear.value = [0, 0, 0, 0].map(() => 1 - time * 0.005);
+      if (wear && typeof time === "number") wear.value = [0, 0, 0, 0].map(() => time * 0.005);
     }
     await route.fulfill({ response, contentType: SEMANTIC_REPLAY_MEDIA_TYPE, json: packSemanticLapTelemetry(replay) });
   });

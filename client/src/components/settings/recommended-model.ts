@@ -11,9 +11,14 @@ export function recommendedFirst<T extends { id: string }>(models: T[]): T[] {
   return [...models.filter((model) => isRecommendedModel(model.id)), ...models.filter((model) => !isRecommendedModel(model.id))];
 }
 
-/** Model to preselect after switching provider: the recommended Claude model, otherwise none. */
+/** DeepSeek model suggested for RaceIQ: the fast chat model. */
+export const RECOMMENDED_DEEPSEEK_MODEL = "deepseek-flash";
+
+/** Model to preselect after switching provider: a recommended model when the provider has one. */
 export function defaultModelForProvider(provider: string): string {
-  return provider === "anthropic" ? RECOMMENDED_CLAUDE_MODEL : "";
+  if (provider === "anthropic") return RECOMMENDED_CLAUDE_MODEL;
+  if (provider === "deepseek") return RECOMMENDED_DEEPSEEK_MODEL;
+  return "";
 }
 
 /** Shown for Claude until (or if) the live model list loads, so selection never waits on the fetch. */

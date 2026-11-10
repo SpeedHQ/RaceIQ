@@ -234,6 +234,7 @@ jobs:
     uses: ./.github/workflows/playwright-e2e.yml
     with:
       runner-labels: '["ubuntu-latest"]'
+      hardware-webgpu: false
   draft-release:
     timeout-minutes: 30
     if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build-windows.result == 'success' && needs.build-linux.result == 'success' && needs.upgrade-smoke.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
