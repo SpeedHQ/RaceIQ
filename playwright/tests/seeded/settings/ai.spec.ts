@@ -69,7 +69,7 @@ test("AI settings classify empty models and recover from controlled API error", 
     await expect.poll(() => savedKeyPayload).toEqual({ provider: "openai-compatible", apiKey: "gateway-secret" });
     await expect(page.getByLabel("OpenAI-compatible API Key (optional)")).toHaveAttribute("placeholder", /.+/);
     await expect(page.getByTitle("Clear stored key").first()).toBeVisible();
-    await expect(page.getByText("No models returned for this provider.")).toBeVisible();
+    await expect(page.getByText("No models returned for this provider.").first()).toBeVisible();
 
     await page.unroute("**/api/ai-models**");
     await page.route("**/api/ai-models**", async (route) => {
@@ -86,7 +86,7 @@ test("AI settings classify empty models and recover from controlled API error", 
         body: JSON.stringify({ gemini: [], openai: [], "openai-compatible": [], _errors: {} }),
       });
     });
-    await expect(page.getByText("No models returned for this provider.")).toBeVisible();
+    await expect(page.getByText("No models returned for this provider.").first()).toBeVisible();
     expect(
       browserErrors.errors.filter((error) => !error.includes("/api/ai-models") && error !== "console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"),
     ).toEqual([]);
