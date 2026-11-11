@@ -1,6 +1,6 @@
 import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
 import { useState } from "react";
-import { Switch } from "@/components/ui/switch";
+import { LaunchOnLoginControl } from "./LaunchOnLoginControl";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
@@ -11,6 +11,8 @@ export function GeneralSection() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
   const [languageError, setLanguageError] = useState("");
+  const desktopOwned = displaySettings.launchOnLoginOwner === "desktop";
+  const startupSupported = displaySettings.launchOnLoginSupported ?? !!displaySettings.isCompiled;
 
   return (
     <section>
@@ -45,22 +47,19 @@ export function GeneralSection() {
         )}
       </div>
       <div className="max-w-xs">
-        <Label htmlFor="launch-on-login" className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>
+        <Label htmlFor={desktopOwned ? undefined : "launch-on-login"} className={startupSupported && !desktopOwned ? "text-app-text-secondary" : "text-app-text-muted"}>
           {m.label_launch_on_login()}
         </Label>
-        <div className="flex items-center gap-3 mt-1.5">
-          <Switch
+        <div className="mt-1.5">
+          <LaunchOnLoginControl
             id="launch-on-login"
-            aria-label={m.label_launch_on_login()}
-            disabled={!displaySettings.isCompiled}
+            desktopOwned={desktopOwned}
+            supported={startupSupported}
             checked={!!displaySettings.launchOnLogin}
-            onCheckedChange={(checked) => displaySettings.isCompiled && saveSettings.mutate({ launchOnLogin: checked })}
+            onChange={(checked) => saveSettings.mutate({ launchOnLogin: checked })}
           />
-          <span className="text-sm text-app-text-muted">
-            {!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}
-          </span>
         </div>
-        <p className="text-app-text-muted text-xs mt-1">{m.settings_launch_on_login_desc()}</p>
+        {!desktopOwned && <p className="text-app-text-muted text-xs mt-1">{m.settings_launch_on_login_desc()}</p>}
       </div>
     </section>
   );
