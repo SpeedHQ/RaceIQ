@@ -14,6 +14,43 @@ use tauri_plugin_dialog::DialogExt;
 pub struct Backend {
     child: Mutex<Option<Child>>,
     pub quitting: AtomicBool,
+    pub keep_running_when_closed: AtomicBool,
+}
+
+pub fn load_keep_running(app: &AppHandle) -> Result<bool, String> {
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| error.to_string())?
+        .join("desktop-settings.json");
+    Ok(std::fs::read_to_string(path)
+        .ok()
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(&value).ok())
+        .and_then(|value| {
+            value
+                .get("keepRunningWhenClosed")
+                .and_then(|value| value.as_bool())
+        })
+        .unwrap_or(false))
+}
+
+pub fn save_keep_running(app: &AppHandle, enabled: bool) -> Result<(), String> {
+    let directory = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| error.to_string())?;
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    std::fs::write(
+        directory.join("desktop-settings.json"),
+        serde_json::json!({ "keepRunningWhenClosed": enabled }).to_string(),
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn ensure_server_port_available(port: u16) -> Result<(), String> {
+    std::net::TcpListener::bind(("0.0.0.0", port))
+        .map(|listener| drop(listener))
+        .map_err(|_| format!("Port {port} is already in use. Close the existing RaceIQ server before launching the desktop app."))
 }
 
 #[derive(Deserialize)]
@@ -26,24 +63,22 @@ struct Ready {
 }
 
 fn data_directory(app: &AppHandle) -> Result<PathBuf, String> {
-    let path = match std::env::var_os("RACEIQ_DESKTOP_DATA_DIR") {
-        Some(value) => PathBuf::from(value),
-        None => app
-            .path()
-            .data_dir()
-            .map_err(|error| error.to_string())?
-            .join("RaceIQ"),
-    };
-    if !path.is_absolute() {
-        return Err("RaceIQ data directory must be absolute".into());
-    }
     let legacy = app
         .path()
         .home_dir()
         .map_err(|error| error.to_string())?
         .join("RaceIQ");
-    if legacy != path && legacy.join("app.db").exists() && !path.join("app.db").exists() {
-        return Err(format!("Existing RaceIQ data found at {}. Choose that directory using RACEIQ_DESKTOP_DATA_DIR, or migrate it before starting. No data was moved or overwritten.", legacy.display()));
+    let path = match std::env::var_os("RACEIQ_DESKTOP_DATA_DIR") {
+        Some(value) => PathBuf::from(value),
+        None if legacy.join("app.db").exists() => legacy,
+        None => app
+            .path()
+            .app_data_dir()
+            .map_err(|error| error.to_string())?
+            .join("RaceIQ"),
+    };
+    if !path.is_absolute() {
+        return Err("RaceIQ data directory must be absolute".into());
     }
     std::fs::create_dir_all(&path).map_err(|error| error.to_string())?;
     Ok(path)
@@ -67,15 +102,18 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
     if state.quitting.load(Ordering::SeqCst) {
         return Err("Launch cancelled".into());
     }
+    let configured_port = std::env::var("SERVER_PORT")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .filter(|port| *port != 0)
+        .unwrap_or(3117);
+    ensure_server_port_available(configured_port)?;
     let mut child = Command::new(resources.join("raceiq"))
         .current_dir(&resources)
         .env("RACEIQ_DESKTOP", "1")
         .env("DATA_DIR", directory)
         .env("SERVER_PORT", "0")
-        .env("SERVER_HOST", "127.0.0.1")
         .env("RACEIQ_DISABLE_IN_APP_UPDATE", "1")
-        .env_remove("SERVER_ALLOWED_ORIGINS")
-        .env_remove("SERVER_PASSWORD")
         .env_remove("RACEIQ_TEST_MODE")
         .env_remove("RACEIQ_E2E")
         .env_remove("RACEIQ_DEV_UDP_PORT")

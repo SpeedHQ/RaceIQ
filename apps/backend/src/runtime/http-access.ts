@@ -18,7 +18,9 @@ export function endRequestAuthorization(request: Request): void {
 export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
   const network = auth ? await auth.getNetwork() : undefined;
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
-  const hosts = env.RACEIQ_DESKTOP === "1" ? ["127.0.0.1"] : env.SERVER_HOST ? [env.SERVER_HOST] : (network?.hosts ?? ["0.0.0.0"]);
+  const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : [...(network?.hosts ?? ["0.0.0.0"])];
+  // Keep the native window connected locally while preserving saved LAN listeners.
+  if (env.RACEIQ_DESKTOP === "1" && !hosts.some((host) => ["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0", "::"].includes(host))) hosts.push("127.0.0.1");
   const hostname = hosts[0];
   const password = auth ? "" : env.SERVER_PASSWORD || "";
   // Release builds replace this exact process.env expression. An installed
@@ -68,6 +70,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
       const url = new URL(origin);
       if (url.origin !== origin || !["http:", "https:"].includes(url.protocol)) return false;
       // An explicit list replaces compatibility rules, independently of auth.
+      if (env.RACEIQ_DESKTOP === "1" && origin === new URL(request.url).origin) return true;
       if (origins.size > 0) return origins.has(origin) || (!env.SERVER_ALLOWED_ORIGINS && development && (localHost(url.hostname) || listenerHosts.has(url.hostname)));
       const target = new URL(request.url);
       const forwardedHost = request.headers.get("x-forwarded-host");
@@ -105,7 +108,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
     if (host && host.toLowerCase() !== url.host.toLowerCase()) {
       return new Response("Forbidden", { status: 403 });
     }
-    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
+    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname)) && !(env.RACEIQ_DESKTOP === "1" && ["localhost", "127.0.0.1", "::1"].includes(url.hostname))) return new Response("Forbidden", { status: 403 });
     const origin = request.headers.get("origin");
     if (origin !== null && !allowsOrigin(origin, request)) return new Response("Forbidden", { status: 403 });
     if (!origin && request.headers.get("sec-fetch-site") === "cross-site") {
