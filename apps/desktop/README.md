@@ -25,24 +25,28 @@ does not depend on an externally installed Bun at runtime.
 ## Runtime contract
 
 Rust starts only the bundled backend with `RACEIQ_DESKTOP=1`, an absolute
-`DATA_DIR`, `SERVER_HOST=127.0.0.1` and `SERVER_PORT=0`. The OS allocates an
-unused port; desktop mode never clears an occupied port. A standalone JSON
+`DATA_DIR` and `SERVER_PORT=0`. The OS allocates an unused HTTP port; desktop
+mode never clears an occupied port. Saved dashboard listener settings remain
+active for other devices, with loopback added for the native window. A standalone JSON
 stdout record `{type:"raceiq-ready",protocolVersion:1,url,udpPort,udpListening}`
 announces readiness after initialization. Rust validates the loopback URL before
 navigating the window. Startup failure and unexpected exit produce native error
 dialogs. UDP bind failure leaves historical data usable and is reported in
 readiness and existing backend diagnostics.
 
-Closing the window or choosing Quit requests SIGTERM and waits for Bun's
+The tray menu controls whether the app starts at login and whether closing the
+window hides RaceIQ or quits it. Quit requests SIGTERM and waits for Bun's
 recording/worker/database drains. The shell does not hard-kill capture work.
 Only one instance is admitted; launching again focuses the existing window.
 The application page has no Tauri shell, filesystem or general IPC capabilities.
 
-Default data: `~/Library/Application Support/RaceIQ`. For isolated testing,
-set `RACEIQ_DESKTOP_DATA_DIR` to an absolute directory before launching. Existing
-`~/RaceIQ/app.db` is detected before creating a new database; automatic legacy
-migration is not implemented yet. The app refuses that ambiguous startup and
-explains the existing location rather than overwriting data.
+Default data: existing `~/RaceIQ` when it contains `app.db`; otherwise the
+platform app data directory. For isolated testing, set
+`RACEIQ_DESKTOP_DATA_DIR` to an absolute directory before launching. The shell
+preserves saved dashboard network listeners and origin rules, and adds local
+loopback access for its own window. It refuses startup when the configured
+server port is already occupied so it cannot start a second backend beside an
+existing server.
 
 ## Verification
 
