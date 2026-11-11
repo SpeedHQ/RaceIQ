@@ -52,7 +52,9 @@ mod tests {
         let path = dir.join("agent.plist");
         let calls = RefCell::new(Vec::<Vec<String>>::new());
         let runner = |args: &[&str]| {
-            calls.borrow_mut().push(args.iter().map(|s| s.to_string()).collect());
+            calls
+                .borrow_mut()
+                .push(args.iter().map(|s| s.to_string()).collect());
             Ok(true)
         };
         set_startup(&path, "gui/501", false, "", &runner).unwrap();
@@ -62,13 +64,17 @@ mod tests {
         set_startup(&path, "gui/501", true, "plist", &runner).unwrap();
         assert!(path.exists());
         let commands: Vec<String> = calls.borrow().iter().map(|args| args[0].clone()).collect();
-        assert_eq!(commands, ["disable", "disable", "enable", "print", "disable", "enable", "print"]);
+        assert_eq!(
+            commands,
+            ["disable", "disable", "enable", "print", "disable", "enable", "print"]
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn absent_service_is_bootstrapped_and_failures_are_reported() {
-        let dir = std::env::temp_dir().join(format!("raceiq-startup-absent-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("raceiq-startup-absent-{}", std::process::id()));
         let path = dir.join("agent.plist");
         let calls = RefCell::new(Vec::new());
         let result = set_startup(&path, "gui/501", true, "plist", |args| {
