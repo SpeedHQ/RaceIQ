@@ -1,8 +1,134 @@
 mod backend;
 
 use std::sync::atomic::Ordering;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
 use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
+
+#[cfg(target_os = "macos")]
+fn set_login_startup(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let path = app
+        .path()
+        .home_dir()
+        .map_err(|error| error.to_string())?
+        .join("Library/LaunchAgents/com.speedhq.raceiq.plist");
+    if enabled {
+        let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+        let escape = |value: &str| {
+            value
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;")
+        };
+        let plist = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>Label</key><string>com.speedhq.raceiq</string><key>ProgramArguments</key><array><string>{}</string></array><key>RunAtLoad</key><true/></dict></plist>\n",
+            escape(&executable.to_string_lossy()),
+        );
+        std::fs::create_dir_all(path.parent().ok_or("Invalid LaunchAgent path")?)
+            .map_err(|error| error.to_string())?;
+        std::fs::write(&path, plist).map_err(|error| error.to_string())?;
+        let result = std::process::Command::new("launchctl")
+            .args(["load", "-w"])
+            .arg(&path)
+            .status()
+            .map_err(|error| error.to_string())?;
+        if !result.success() {
+            return Err(format!("launchctl load failed: {result}"));
+        }
+    } else if path.exists() {
+        let result = std::process::Command::new("launchctl")
+            .args(["unload", "-w"])
+            .arg(&path)
+            .status()
+            .map_err(|error| error.to_string())?;
+        if !result.success() {
+            return Err(format!("launchctl unload failed: {result}"));
+        }
+        std::fs::remove_file(path).map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+fn add_tray(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let show = MenuItem::with_id(app, "show", "Open RaceIQ", true, None::<&str>)?;
+    let keep_open = MenuItem::with_id(
+        app,
+        "keep-open",
+        "Keep running when window closes",
+        true,
+        None::<&str>,
+    )?;
+    let close_app = MenuItem::with_id(
+        app,
+        "close-app",
+        "Quit when window closes",
+        true,
+        None::<&str>,
+    )?;
+    let startup = MenuItem::with_id(app, "startup", "Start RaceIQ at login", true, None::<&str>)?;
+    let no_startup = MenuItem::with_id(
+        app,
+        "no-startup",
+        "Disable start at login",
+        true,
+        None::<&str>,
+    )?;
+    let quit = MenuItem::with_id(app, "quit", "Quit RaceIQ", true, None::<&str>)?;
+    let menu = Menu::with_items(
+        app,
+        &[&show, &keep_open, &close_app, &startup, &no_startup, &quit],
+    )?;
+    TrayIconBuilder::new()
+        .menu(&menu)
+        .icon(
+            app.default_window_icon()
+                .ok_or("Missing application icon")?
+                .clone(),
+        )
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "show" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            "keep-open" => {
+                app.state::<backend::Backend>()
+                    .keep_running_when_closed
+                    .store(true, Ordering::SeqCst);
+                if let Err(error) = backend::save_keep_running(app, true) {
+                    eprintln!("Unable to save desktop close preference: {error}");
+                }
+            }
+            "close-app" => {
+                app.state::<backend::Backend>()
+                    .keep_running_when_closed
+                    .store(false, Ordering::SeqCst);
+                if let Err(error) = backend::save_keep_running(app, false) {
+                    eprintln!("Unable to save desktop close preference: {error}");
+                }
+            }
+            "startup" =>
+            {
+                #[cfg(target_os = "macos")]
+                if let Err(error) = set_login_startup(app, true) {
+                    eprintln!("Unable to enable app startup: {error}");
+                }
+            }
+            "no-startup" =>
+            {
+                #[cfg(target_os = "macos")]
+                if let Err(error) = set_login_startup(app, false) {
+                    eprintln!("Unable to disable app startup: {error}");
+                }
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .build(app)?;
+    Ok(())
+}
 
 fn main() {
     tauri::Builder::default()
@@ -15,6 +141,11 @@ fn main() {
             }
         }))
         .setup(|app| {
+            app.state::<backend::Backend>().keep_running_when_closed.store(
+                backend::load_keep_running(app.handle()).unwrap_or(false),
+                Ordering::SeqCst,
+            );
+            add_tray(app.handle())?;
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 match backend::start(&handle) {
@@ -34,7 +165,11 @@ fn main() {
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                window.app_handle().exit(0);
+                if window.app_handle().state::<backend::Backend>().keep_running_when_closed.load(Ordering::SeqCst) {
+                    let _ = window.hide();
+                } else {
+                    window.app_handle().exit(0);
+                }
             }
         })
         .build(tauri::generate_context!())
