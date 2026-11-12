@@ -35,6 +35,7 @@ import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-pr
 import { notifyDriverProfileLap } from "../driver-profile/runner";
 import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
+import { readDesktopHostOptions } from "./desktop-host";
 
 export interface BootOptions {
   httpPort?: number;
@@ -55,6 +56,7 @@ function recordingGameIdFromArgs(args: readonly string[]): string | null {
 }
 
 export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
+  const desktop = readDesktopHostOptions();
   const upgradingAccess = !isFirstRun();
   initGameAdapters(serverReleaseFeatures);
   initServerGameAdapters(serverReleaseFeatures);
@@ -67,9 +69,9 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
   const devPublicDir = !IS_COMPILED ? PUBLIC_DIR : null;
 
-  preventMacSleep();
+  if (!desktop) preventMacSleep();
 
-  const httpPort = options.httpPort ?? (Number(process.env.SERVER_PORT) || 3117);
+  const httpPort = options.httpPort ?? desktop?.httpPort ?? (Number(process.env.SERVER_PORT) || 3117);
   const onboardingOverride = getOnboardingOverride();
   if (onboardingOverride !== null) {
     console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
@@ -107,8 +109,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   // Empty-session cleanup runs after repair so pending candidates remain available.
 
   console.log("[Server] Starting RaceIQ Server...");
-  clearHttpPort(httpPort);
-  console.log("[Boot] Port cleared");
+  // A native app may never kill another listener to claim a port.
+  if (!desktop && httpPort !== 0) {
+    clearHttpPort(httpPort);
+    console.log("[Boot] Port cleared");
+  }
 
   // Dynamic import is required here: dev-studio pulls @mastra/hono and the
   // DuckDB-backed Mastra instance, which must stay out of the production bundle.
@@ -163,8 +168,10 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
   setDumpOnlyTelemetryRouting(dumpMode);
+  let udpListening = false;
   try {
     await udpListener.start(udpPort);
+    udpListening = true;
   } catch (error) {
     console.error(`[UDP] Unable to listen on port ${udpPort}; recording processing remains available:`, error);
   }
@@ -178,15 +185,19 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   const trayUrl = trayCandidates.find((url) => httpAccess.allowsOrigin(url, new Request(url)))
     ?? process.env.SERVER_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).find(Boolean)
     ?? trayCandidates[0];
-  startTray(trayUrl);
+  if (!desktop) startTray(trayUrl);
 
-  if (firstRun) {
+  if (firstRun && !desktop) {
     openFirstRunDashboard(boundHttpPort);
   }
 
   if (!dumpMode) startMaintenanceJobs();
 
   console.log("[Server] RaceIQ Server is ready!");
+  if (desktop) {
+    // Unadorned machine-readable stdout, independent of diagnostic log formatting.
+    process.stdout.write(`${JSON.stringify({ type: "raceiq-ready", protocolVersion: 1, url: `http://${desktop.hostname}:${boundHttpPort}`, udpPort, udpListening })}\n`);
+  }
   process.send?.({ type: "shutdown-ready" });
 
   return { httpServer, httpPort: boundHttpPort, udpPort };
