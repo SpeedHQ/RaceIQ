@@ -81,6 +81,57 @@
     }
   },
   "tasks": {
+    "browser:fresh:impact": {},
+    "browser:tunes:impact": {},
+    "browser:tunes-unseeded:impact": {},
+    "browser:seeded:impact": {},
+    "visual:responsive:impact": {},
+    "visual:storybook:impact": {},
+    "ci:browser": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:responsive-current": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:responsive-base": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:storybook-base": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:storybook-current": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:check-shards": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:check-locales": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:check-db-upgrade": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
+    "ci:check-telemetry": {
+      "cache": false,
+      "outputs": [],
+      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
+    },
     "transit": {
       "dependsOn": [
         "^transit"
@@ -799,6 +850,9 @@
         "$TURBO_ROOT$/playwright/config/**",
         "$TURBO_ROOT$/playwright/support/**",
         "$TURBO_ROOT$/playwright/tests/support/**",
+        "$TURBO_ROOT$/playwright/tests/setup/**",
+        "$TURBO_ROOT$/packages/tooling-data/src/data/**",
+        "$TURBO_ROOT$/apps/backend/scripts/data/**",
         "$TURBO_ROOT$/playwright/playwright.config.ts",
         "$TURBO_ROOT$/packages/tooling-build/**",
         "$TURBO_ROOT$/test/artifacts/**",

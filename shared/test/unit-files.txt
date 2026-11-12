@@ -1,0 +1,2 @@
+shared/test/integrations/ai/chat-vision.test.ts
+shared/test/integrations/ai/context-window.test.ts

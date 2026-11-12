@@ -56,6 +56,18 @@ on:
         description: "Branch or ref to test"
         required: false
         type: string
+      verification-mode:
+        type: string
+        required: false
+        default: full
+      base-ref:
+        type: string
+        required: false
+        default: ""
+      head-ref:
+        type: string
+        required: false
+        default: ""
 
 
 jobs:
@@ -67,6 +79,7 @@ jobs:
         with:
           ref: ${{ inputs.target-ref || github.ref }}
           fetch-depth: 0
+          filter: blob:none
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
@@ -136,7 +149,10 @@ jobs:
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
           PW_SEEDED_DATABASE: ${{ inputs.server-set == 'seeded' && inputs.seed-database-artifact != '' && 'playwright/test-data-seed-artifact/app.db' || '' }}
-        run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
+          CI_VERIFICATION_MODE: ${{ inputs.verification-mode }}
+          TURBO_SCM_BASE: ${{ inputs.base-ref }}
+          TURBO_SCM_HEAD: ${{ inputs.head-ref }}
+        run: bun run ../scripts/ci/run-affected-browser.ts ci:browser ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
       - name: Upload Playwright artifacts
         if: always()

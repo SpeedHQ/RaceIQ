@@ -48,24 +48,23 @@ test("equal valid SCM refs select full test and quality task graph", () => {
   }
 });
 
-test("unavailable or empty SCM ranges select full requested graph", () => {
+test.each(["empty", "unavailable", "equal"])("%s SCM range selects full requested graph", (rangeKind) => {
   const script = resolve(import.meta.dir, "../run-turbo.ts");
   const cwd = resolve(import.meta.dir, "../../..");
   const ref = Bun.spawnSync(["git", "rev-parse", "HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-  for (const range of [
-    { TURBO_SCM_BASE: "", TURBO_SCM_HEAD: "" },
-    { TURBO_SCM_BASE: "missing-base", TURBO_SCM_HEAD: "missing-head" },
-    { TURBO_SCM_BASE: ref, TURBO_SCM_HEAD: ref },
-  ]) {
-    const result = Bun.spawnSync([
-      process.execPath, script, "test:unit", "test:tooling", "test:integration", "lint", "typecheck", "--affected", "--dry=json",
-    ], { cwd, env: { ...process.env, ...range }, stdout: "pipe", stderr: "pipe" });
-    expect(result.exitCode, result.stderr.toString()).toBe(0);
-    const selection = JSON.parse(result.stdout.toString()) as { packages: string[]; tasks: Array<{ task: string }> };
-    expect(selection.packages.length).toBeGreaterThan(0);
-    for (const task of ["test:unit", "test:tooling", "test:integration", "lint", "typecheck"]) {
-      expect(selection.tasks.some((selected) => selected.task === task), `${task} must be executable`).toBe(true);
-    }
+  const range = rangeKind === "empty"
+    ? { TURBO_SCM_BASE: "", TURBO_SCM_HEAD: "" }
+    : rangeKind === "unavailable"
+      ? { TURBO_SCM_BASE: "missing-base", TURBO_SCM_HEAD: "missing-head" }
+      : { TURBO_SCM_BASE: ref, TURBO_SCM_HEAD: ref };
+  const result = Bun.spawnSync([
+    process.execPath, script, "test:unit", "test:tooling", "test:integration", "lint", "typecheck", "--affected", "--dry=json",
+  ], { cwd, env: { ...process.env, ...range }, stdout: "pipe", stderr: "pipe" });
+  expect(result.exitCode, result.stderr.toString()).toBe(0);
+  const selection = JSON.parse(result.stdout.toString()) as { packages: string[]; tasks: Array<{ task: string }> };
+  expect(selection.packages.length).toBeGreaterThan(0);
+  for (const task of ["test:unit", "test:tooling", "test:integration", "lint", "typecheck"]) {
+    expect(selection.tasks.some((selected) => selected.task === task), `${task} must be executable`).toBe(true);
   }
 });
 
@@ -89,5 +88,16 @@ test("distinct valid SCM refs retain raw Turbo affected selection", () => {
     const selection = JSON.parse(output) as { tasks: Array<{ task: string; package: string }> };
     return selection.tasks.map(({ task, package: packageName }) => `${packageName}#${task}`).sort();
   };
-  expect(tasks(runner.stdout.toString())).toEqual(tasks(raw.stdout.toString()));
+  const shallow = Bun.spawnSync(["git", "rev-parse", "--is-shallow-repository"], { cwd, stdout: "pipe" });
+  const commonHistory = Bun.spawnSync(["git", "merge-base", base!, head!], { cwd, stdout: "ignore", stderr: "ignore" }).exitCode === 0;
+  if (shallow.stdout.toString().trim() !== "false" || !commonHistory) {
+    expect(runner.stderr.toString()).toContain("running full task selection");
+    const full = Bun.spawnSync([
+      process.execPath, resolve(cwd, "node_modules/turbo/bin/turbo"), "run", "lint", "typecheck", "--dry=json",
+    ], { cwd, env, stdout: "pipe", stderr: "pipe" });
+    expect(full.exitCode, full.stderr.toString()).toBe(0);
+    expect(tasks(runner.stdout.toString())).toEqual(tasks(full.stdout.toString()));
+  } else {
+    expect(tasks(runner.stdout.toString())).toEqual(tasks(raw.stdout.toString()));
+  }
 });

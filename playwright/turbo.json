@@ -5,6 +5,30 @@
     "test": {
       "dependsOn": ["@raceiq/tooling-build#build"],
       "env": ["NODE_ENV", "RACEIQ_*", "BUN_TEST_WORKERS", "E2E_SERVER_MODE", "PW_*"]
+    },
+    "browser:fresh:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["$TURBO_ROOT$/playwright/config/**", "$TURBO_ROOT$/playwright/support/**", "$TURBO_ROOT$/playwright/tests/support/**", "$TURBO_ROOT$/playwright/tests/fresh-install/**", "$TURBO_ROOT$/playwright/playwright.config.ts", "$TURBO_ROOT$/packages/tooling-data/src/data/seed-db-options.ts"]
+    },
+    "browser:tunes:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["$TURBO_ROOT$/playwright/config/**", "$TURBO_ROOT$/playwright/support/**", "$TURBO_ROOT$/playwright/tests/support/**", "$TURBO_ROOT$/playwright/tests/tunes/**", "$TURBO_ROOT$/playwright/tests/setup/**", "$TURBO_ROOT$/playwright/playwright.config.ts", "$TURBO_ROOT$/packages/tooling-data/src/data/**", "$TURBO_ROOT$/apps/backend/scripts/data/**"]
+    },
+    "browser:tunes-unseeded:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["$TURBO_ROOT$/playwright/config/**", "$TURBO_ROOT$/playwright/support/**", "$TURBO_ROOT$/playwright/tests/support/**", "$TURBO_ROOT$/playwright/tests/tunes/**", "$TURBO_ROOT$/playwright/playwright.config.ts", "$TURBO_ROOT$/packages/tooling-data/src/data/seed-db-options.ts"]
+    },
+    "browser:seeded:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["$TURBO_ROOT$/playwright/config/**", "$TURBO_ROOT$/playwright/support/**", "$TURBO_ROOT$/playwright/tests/support/**", "$TURBO_ROOT$/playwright/tests/seeded/**", "$TURBO_ROOT$/playwright/tests/setup/**", "$TURBO_ROOT$/packages/game-lmu/test/e2e/**", "$TURBO_ROOT$/playwright/playwright.config.ts", "$TURBO_ROOT$/packages/tooling-data/src/data/**", "$TURBO_ROOT$/apps/backend/scripts/data/**"]
+    },
+    "visual:responsive:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["$TURBO_ROOT$/playwright/**", "$TURBO_ROOT$/client/**", "$TURBO_ROOT$/apps/backend/**", "$TURBO_ROOT$/packages/tooling-data/src/data/**", "$TURBO_ROOT$/scripts/run-browser-verification.ts"]
+    },
+    "visual:storybook:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["$TURBO_ROOT$/client/**", "$TURBO_ROOT$/packages/**", "$TURBO_ROOT$/playwright/**", "$TURBO_ROOT$/scripts/run-browser-verification.ts"]
     }
   }
 }

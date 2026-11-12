@@ -108,6 +108,7 @@
   },
   "scripts": {
     "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
+    "test:unit": "bun ../scripts/test/run-suite.ts unit --package @raceiq/shared",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

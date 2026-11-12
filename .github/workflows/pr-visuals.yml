@@ -12,6 +12,18 @@ on:
         required: false
         type: string
         default: ""
+      verification-mode:
+        type: string
+        required: false
+        default: full
+      base-ref:
+        type: string
+        required: false
+        default: ""
+      head-ref:
+        type: string
+        required: false
+        default: ""
   workflow_dispatch:
     inputs:
       pr:
@@ -34,6 +46,9 @@ jobs:
     uses: ./.github/workflows/pr-screenshots.yml
     with:
       pr: ${{ inputs.pr }}
+      verification-mode: ${{ inputs.verification-mode }}
+      base-ref: ${{ inputs.base-ref }}
+      head-ref: ${{ inputs.head-ref }}
 
   storybook:
     name: Storybook
@@ -41,12 +56,16 @@ jobs:
     with:
       pr: ${{ inputs.pr }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
+      verification-mode: ${{ inputs.verification-mode }}
+      base-ref: ${{ inputs.base-ref }}
+      head-ref: ${{ inputs.head-ref }}
 
   combine-previews:
     name: Combine previews
     needs:
       - responsive
       - storybook
+    if: needs.responsive.outputs.selected != 'false' || needs.storybook.outputs.selected != 'false'
     runs-on:
       - mars-ubuntu-2vcpu-6g
       - mars-retry-3

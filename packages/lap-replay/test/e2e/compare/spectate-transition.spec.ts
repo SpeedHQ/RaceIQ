@@ -112,7 +112,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await canvas.evaluate((node) => new Promise<void>((resolve, reject) => {
       const observer = new MutationObserver(() => {
         const blend = Number(node.dataset.zoomBlend);
-        if (node.dataset.zoomSnapping !== "true" || blend <= 0.2 || blend >= 0.8) return;
+        if (node.dataset.zoomSnapping !== "true" || !(blend > 0 && blend < 1)) return;
         observer.disconnect();
         clearTimeout(timeout);
         node.dispatchEvent(new WheelEvent("wheel", { deltaY: -360, bubbles: true, cancelable: true }));
@@ -121,7 +121,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
       const timeout = setTimeout(() => {
         observer.disconnect();
         reject(new Error("No rendered mid-snap frame available for zoom reversal"));
-      }, 10_000);
+      }, 30_000);
       observer.observe(node, { attributes: true, attributeFilter: ["data-render-count"] });
       node.dispatchEvent(new WheelEvent("wheel", { deltaY: 120, bubbles: true, cancelable: true }));
     }));

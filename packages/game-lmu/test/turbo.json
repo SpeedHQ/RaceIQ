@@ -7,17 +7,17 @@
       "inputs": ["$TURBO_EXTENDS$", "!fixtures/**"]
     },
     "test": {
-      "inputs": ["$TURBO_EXTENDS$", "fixtures/**/*.bin.gz", "fixtures/**/*.part*"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "fixtures/**/*.bin.gz", "fixtures/**/*.part*"]
     },
     "test:unit": {
       "inputs": ["$TURBO_EXTENDS$", "!fixtures/**", "fixtures/sessions/*.bin.gz", "!e2e/**"]
     },
     "test:integration": {
-      "inputs": ["$TURBO_EXTENDS$", "!fixtures/**", "fixtures/sessions/*.bin.gz", "!unit/**", "!e2e/browser/**", "!e2e/recordings/**"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "!fixtures/**", "fixtures/sessions/*.bin.gz", "!unit/**", "!e2e/browser/**", "!e2e/recordings/**"]
     },
     "test:e2e:recordings": {
       "cache": false,
-      "inputs": ["$TURBO_EXTENDS$", "fixtures/**/*.bin.gz", "fixtures/**/*.part*"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "fixtures/**/*.bin.gz", "fixtures/**/*.part*"]
     }
   }
 }
