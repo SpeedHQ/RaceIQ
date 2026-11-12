@@ -79,6 +79,7 @@ jobs:
         with:
           ref: ${{ inputs.target-ref || github.ref }}
           fetch-depth: 0
+          filter: blob:none
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4

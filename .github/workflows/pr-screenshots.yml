@@ -85,6 +85,7 @@ jobs:
         with:
           ref: ${{ inputs.head-ref || format('refs/pull/{0}/head', github.event.pull_request.number || inputs.pr) }}
           fetch-depth: 0
+          filter: blob:none
 
       - uses: oven-sh/setup-bun@v2
         with:

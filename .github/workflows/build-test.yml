@@ -41,6 +41,11 @@ jobs:
         with:
           ref: ${{ inputs.target_ref || inputs.head_ref || github.ref }}
           fetch-depth: 0
+          # Exclude unused LMU recordings. Sparse checkout enables blob:none; an explicit filter overrides it.
+          sparse-checkout: |
+            /*
+            !/packages/game-lmu/test/fixtures/laps/
+          sparse-checkout-cone-mode: false
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -78,6 +83,11 @@ jobs:
         with:
           ref: ${{ inputs.target_ref || github.ref }}
           fetch-depth: 0
+          # Exclude unused LMU recordings. Sparse checkout enables blob:none; an explicit filter overrides it.
+          sparse-checkout: |
+            /*
+            !/packages/game-lmu/test/fixtures/laps/
+          sparse-checkout-cone-mode: false
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -111,6 +121,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.target_ref || inputs.head_ref || github.ref }}
           fetch-depth: 0
+          filter: blob:none
       - name: Validate manual affected checkout
         if: github.event_name == 'workflow_dispatch' && inputs.verification_mode == 'affected'
         env:
@@ -218,6 +229,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          # Exclude unused LMU recordings. Sparse checkout enables blob:none; an explicit filter overrides it.
+          sparse-checkout: |
+            /*
+            !/packages/game-lmu/test/fixtures/laps/
+          sparse-checkout-cone-mode: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
