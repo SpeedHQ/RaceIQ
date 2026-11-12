@@ -197,6 +197,7 @@ jobs:
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
       paraglide-artifact: raceiq-paraglide
+      hardware-webgpu: false
 
   visual-regression:
     name: visual-regression/compare

@@ -469,13 +469,16 @@ test("getDashboard includes over 128 clean published boundary sessions without l
     gameId: "acc" as GameId,
   };
   try {
-    for (let index = 0; index < 150; index++) {
-      const id = await addSession("acc" as GameId, "2026-10-09T00:30:00.000Z");
-      ids.push(id);
-      await addLap(id, 1, 90, true, "2026-10-09T00:31:00.000Z");
-      await addLap(id, 2, 92, true, "2026-10-09T00:32:00.000Z");
-      await addLap(id, 3, 94, true, "2026-10-09T00:46:00.000Z");
-    }
+    const sessionRows = await db.insert(sessions).values(Array.from({ length: 150 }, () => ({
+      gameId: "acc", carId: "7", trackId: "8", ownership: "mine" as const, createdAt: "2026-10-09T00:30:00.000Z",
+    }))).returning({ id: sessions.id }).all();
+    ids.push(...sessionRows.map(({ id }) => id));
+    ownedSessionIds.push(...ids);
+    await db.insert(laps).values(sessionRows.flatMap(({ id }) => [
+      { sessionId: id, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2026-10-09T00:31:00.000Z" },
+      { sessionId: id, lapNumber: 2, lapTime: 92, isValid: true, createdAt: "2026-10-09T00:32:00.000Z" },
+      { sessionId: id, lapNumber: 3, lapTime: 94, isValid: true, createdAt: "2026-10-09T00:46:00.000Z" },
+    ])).run();
     for (const [index, id] of ids.entries()) {
       const candidate = await prepareDashboardPublicationCandidate(id);
       if (!candidate || !(await publishDashboardSession(candidate, {

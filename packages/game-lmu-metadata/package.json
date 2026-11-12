@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./index": "./src/index.ts",
+    "./session-identity": "./src/session-identity.ts",
     "./catalog": "./src/catalog.ts",
     "./track-boundaries": "./src/track-boundaries.ts",
     "./cars.json": "./src/cars.json",

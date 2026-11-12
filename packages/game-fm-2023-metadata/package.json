@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./index": "./src/index.ts",
+    "./session-identity": "./src/session-identity.ts",
     "./racing/cars/fm": "./src/racing/cars/fm.ts",
     "./racing/tracks/catalogs/fm": "./src/racing/tracks/catalogs/fm.ts"
   },

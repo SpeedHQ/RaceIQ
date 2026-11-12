@@ -4,7 +4,6 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { PreparedKunosMotecCapture } from "./kunos-synthesis";
 import { MOTEC_STEER_LOCK_DEG } from "./kunos-synthesis";
 import type { MotecCarTrack } from "./types";
-import { parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 type KunosGameId = Extract<GameId, "acc" | "ac-evo">;
 type WheelValues = [number, number, number, number];
@@ -20,6 +19,7 @@ export interface KunosMotecPacketProfile {
   currentSectorIndex: number;
   trackGripStatus: string;
   includeUnknownCarModel: boolean;
+  packetIdentity?: (carTrack: MotecCarTrack) => Pick<TelemetryPacket, "acEvoIdentity">;
 }
 
 const finite = (value: number): number => Number.isFinite(value) ? value : 0;
@@ -119,16 +119,7 @@ export function convertPreparedKunosMotecPackets(
     const temperatures = wheelSample(prepared.tyreTemperature, index);
     const brakeTemperatures = wheelSample(prepared.brakeTemperature, index);
     const wheelSpeed = wheelSample(prepared.wheelSpeed, index);
-    const nativeTrack = profile.gameId === "ac-evo" ? parseAcEvoTrackId(carTrack.trackId) : undefined;
-    const packetIdentity = profile.gameId === "ac-evo"
-      ? {
-          acEvoIdentity: {
-            carName: carTrack.carModel,
-            trackName: nativeTrack?.trackName ?? carTrack.trackName,
-            trackConfiguration: nativeTrack?.trackConfiguration ?? "",
-          },
-        }
-      : {};
+    const packetIdentity = profile.packetIdentity?.(carTrack);
     const packet: TelemetryPacket = {
       ...packetIdentity,
       gameId: profile.gameId,

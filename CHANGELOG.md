@@ -1,3 +1,8 @@
+## Unreleased
+
+### Internal
+- Refactor game-owned catalog validation and MoTeC integration.
+
 ## v0.22.0 - 2026-11-08
 
 ### Features
@@ -7,7 +12,6 @@
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
 
 ### Internal
-- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 

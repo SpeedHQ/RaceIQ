@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./index": "./src/index.ts",
+    "./session-identity": "./src/session-identity.ts",
     "./racing/cars/acc": "./src/racing/cars/acc.ts",
     "./racing/cars/acc-specs": "./src/racing/cars/acc-specs.ts",
     "./racing/tracks/catalogs/acc": "./src/racing/tracks/catalogs/acc.ts",

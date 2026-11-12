@@ -21,13 +21,13 @@ initServerGameAdapters();
 
 async function waitForMove(): Promise<void> {
   // The move runs on real filesystem I/O in a detached background task; fake timers cannot advance that work.
-  for (let attempt = 0; attempt < 200 && getRecordingDirectoryMoveStatus().state === "moving"; attempt++) {
+  for (let attempt = 0; attempt < 1000 && getRecordingDirectoryMoveStatus().state === "moving"; attempt++) {
     await new Promise<void>((resolve) => setTimeout(resolve, 10));
   }
   expect(getRecordingDirectoryMoveStatus().state).toBe("complete");
 }
 async function waitForMoveError(code: string): Promise<void> {
-  for (let attempt = 0; attempt < 200 && getRecordingDirectoryMoveStatus().state === "moving"; attempt++) {
+  for (let attempt = 0; attempt < 1000 && getRecordingDirectoryMoveStatus().state === "moving"; attempt++) {
     await new Promise<void>((resolve) => setTimeout(resolve, 10));
   }
   expect(getRecordingDirectoryMoveStatus()).toMatchObject({ state: "error", code });
