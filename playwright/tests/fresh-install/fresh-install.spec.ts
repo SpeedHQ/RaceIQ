@@ -94,7 +94,11 @@ test.describe
       await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
       await page.getByRole("button", { name: "Next" }).click();
 
-      // Step 7: Native chooser selection applies immediately without a dialog.
+      // Recording explains automatic telemetry capture before storage settings.
+      await expect(page.getByRole("heading", { name: "Automatic recording" })).toBeVisible();
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Storage: Native chooser selection applies immediately without a dialog.
       await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
       const frequencyGroup = page.getByRole("group", { name: "Recording frequency", exact: true });
       await expect(frequencyGroup.getByRole("button")).toHaveText(["50 Hz", "60 Hz", "70 Hz", "80 Hz", "90 Hz", "100 Hz"]);
@@ -129,7 +133,7 @@ test.describe
       }, { timeout: 60_000 }).toBe(true);
       await page.getByRole("button", { name: "Next" }).click();
 
-      // Step 8: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
+      // Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
       await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
       const saveSettings = page.waitForResponse((response) => {
         if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
@@ -167,7 +171,7 @@ test.describe
       await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
       await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
       await page.getByRole("button", { name: "Next", exact: true }).click();
-      for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
+      for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login", "Automatic recording"]) {
         await expect(page.getByRole("heading", { name: heading })).toBeVisible();
         await page.getByRole("button", { name: "Next" }).click();
       }
@@ -459,6 +463,8 @@ test("setup wizard applies native recording-folder choices immediately and safel
   await page.goto("/onboarding?welcome=true", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Get Started", exact: true }).click();
   for (let step = 0; step < 6; step++) await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Automatic recording", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Storage", exact: true })).toBeVisible();
   const initialStatus = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
   const nestedDestination = resolve(initialStatus.directory, "raceiq");
