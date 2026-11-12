@@ -294,6 +294,7 @@ test("opponent render pose omits native height while source values remain intact
   });
   const player = prepareSpectateLap(playerReplay);
   const preparedOpponent = prepareSpectateLap(opponent);
+  expect(sampleLap(preparedOpponent, 0.025, false)?.pose?.y).toBe(0);
   const controller = createSpectateController(player, preparedOpponent);
   try {
     expect(controller.sample(0).b?.pose?.y).toBe(0);
@@ -303,6 +304,27 @@ test("opponent render pose omits native height while source values remain intact
     expect(opponent.envelopes.map((frame) => frame.values.find((value) => value.semanticId === "motion.position-y")?.value))
       .toEqual([2, 5, 8]);
     expect(controller.sample(0).a?.pose?.y).toBe(2);
+    expect(controller.sample(0.025).a?.pose?.y).toBeCloseTo(3.5);
+  } finally { controller.dispose(); }
+});
+test("non-LMU opponent replay retains native elevation", () => {
+  const replay = recordedLap(0.1, (time) => time * 20).replay;
+  replay.envelopes.forEach((frame, index) => {
+    frame.values = [
+      { semanticId: "motion.position-x", value: index },
+      { semanticId: "motion.position-y", value: 2 + index * 3 },
+      { semanticId: "motion.position-z", value: index * 2 },
+      { semanticId: "motion.yaw", value: 0.5 },
+    ];
+  });
+  const opponent: OpponentSemanticLapTelemetry = {
+    opponentLapId: "other-game",
+    sourceRevision: "source-revision",
+    requestedSemanticIds: [],
+    envelopes: replay.envelopes,
+  };
+  const controller = createSpectateController(prepareSpectateLap(opponent), null);
+  try {
     expect(controller.sample(0.025).a?.pose?.y).toBeCloseTo(3.5);
   } finally { controller.dispose(); }
 });
@@ -874,6 +896,36 @@ describe("iRacing Spectate scene geometry", () => {
     expect(sampleLap(gapped, 0.025, false)?.pose).toBeNull();
     expect(sampleLap(gapped, 0.05, false)?.pose).toBeNull();
     expect(sampleLap(gapped, 0.1, false)?.pose?.z).toBe(100);
+  });
+  test("exact frame seeks retain measured, projected, and missing placements across coalesced ticks", () => {
+    const replay = recording([
+      { "motion.latitude": 53, "motion.longitude": -2 },
+      { "motion.latitude": 53.0001, "motion.longitude": -2 },
+      { "motion.latitude": 53.0002, "motion.longitude": -2 },
+      {},
+    ]);
+    replay.envelopes[2]!.values.find(value => value.semanticId === "timing.current-lap")!.value = 0.05;
+    const native = prepareSpectateLap(replay);
+    const [placed] = placeIRacingSpectateLaps([native, native], projection);
+    const controller = createSpectateController(placed, null);
+    try {
+      controller.seekFrame("a", 1);
+      expect(controller.getSnapshot().a?.frame).toBe(replay.envelopes[1]);
+      expect(controller.getSnapshot().a?.pose?.z).toBeCloseTo(11.132, 2);
+      controller.seekFrame("a", 2);
+      expect(controller.getSnapshot().a?.pose?.z).toBeCloseTo(22.264, 2);
+      controller.seekFrame("a", 3);
+      expect(controller.getSnapshot().a?.pose).toBeNull();
+    } finally { controller.dispose(); }
+
+    const projected = prepareSpectateLap(recording([0, 0.125, 0.25].map(fraction => ({ "timing.lap-fraction": fraction }))));
+    const [placedProjected] = placeIRacingSpectateLaps([projected, projected], projection);
+    const projectedController = createSpectateController(placedProjected, null);
+    try {
+      projectedController.seekFrame("a", 1);
+      expect(projectedController.getSnapshot().a?.pose).toEqual(placedProjected.samples[1]!.scenePose);
+      expect(projectedController.getSnapshot().a?.pose?.z).toBe(50);
+    } finally { projectedController.dispose(); }
   });
   test("iRacing measured replay keeps map positions when recorded compass heading is absent", () => {
     const replay = recording([

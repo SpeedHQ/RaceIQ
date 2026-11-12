@@ -160,9 +160,8 @@ function captureFileName(memberName: string): string {
 
 function fileNamesForZip(files: Record<string, Uint8Array>): string[] {
   return Object.keys(files)
-    .filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip") || name.toLowerCase().endsWith(".ibt"))
     .filter((name) => !name.endsWith(".opponents.bin.gz") &&
-      (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip")))
+      (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip") || name.toLowerCase().endsWith(".ibt")))
     .sort();
 }
 function hasPartitionPrimary(bytes: Buffer): boolean {

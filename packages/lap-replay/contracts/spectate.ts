@@ -18,6 +18,8 @@ export interface SpectateLap {
   /** Maximum interval interpolated within a continuous recorded run. */
   maximumGapSeconds?: number;
   samples: readonly SpectateSample[];
+  /** Placed poses for exact frame seeks, including coalesced samples. */
+  frameScenePoses?: ReadonlyMap<SemanticReplayFrame, SpectatePose | null>;
   /** Distinct F1 motion updates; telemetry samples retain every native channel update. */
   motionSamples?: readonly SpectateSample[];
   duration: number;

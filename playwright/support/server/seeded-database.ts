@@ -16,7 +16,9 @@ type SeedAsset = { input: string; portable: string };
 
 export function portableCapturePath(path: string): string {
   const normalized = path.replaceAll("\\", "/");
-  if (!/^sessions\/(?:(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2)\/(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?|iracing\/(?:(?:own|others)\/)?[^/]+\.ibt)$/.test(normalized)) {
+  const legacyCapture = /^sessions\/(?:(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2)\/(?:(?:own|others)\/)?[^/:\0]+\.bin(?:\.gz)?|iracing\/(?:(?:own|others)\/)?[^/:\0]+\.ibt)$/;
+  const lmuManifest = /^sessions\/lmu\/(?:(?:own|others)\/(?:(?!\.{1,2}\/)[^/:\0]+\/)*)?(?:capture-manifest\.json|manifest\.json|capture\.bin\.gz|[^/:\0]+\.bin(?:\.gz)?\.opponents-removed\.capture-manifest\.json)$/;
+  if (!legacyCapture.test(normalized) && !lmuManifest.test(normalized)) {
     throw new Error(`Invalid seeded capture path: ${path}`);
   }
   return normalized;

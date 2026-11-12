@@ -65,6 +65,10 @@
 - Persist the iRacing automatic IBT capture opt-in and restore capture after backend restart.
 - Keep iRacing telemetry flowing when native lap timing stalls; mark unresolved lap data incomplete instead of stopping capture.
 - Replace iRacing comparison-map yaw ticks with lap-colored travel-direction chevrons and align follow view to the plotted path; retain plain dots when nearby positions cannot establish direction.
+- Preserve iRacing automatic capture and import original IBT recordings from exported or mixed-format ZIP archives.
+- On iRacing replay and Compare, preserve exact sought car positions and show measured GPS paths without track calibration.
+- On iRacing session review, show incident reports even when no valid laps are available.
+
 - Capture LMU opponents by default in a separate removable companion recording; opt out for the next live session, preview and explicitly compare an exact recorded opponent through session, driver, and lap filters with car details and without coverage or telemetry status labels, switch Driver to Me to browse every player lap in the session, export its full interval, or irreversibly remove session-wide opponent data while preserving player telemetry. Compare partial opponent laps even when scoring updates lag behind the player's lap boundary. Keep stale, removed, missing and unrecorded references distinct.
 - Expand an LMU session on the Sessions page to see recorded opponents immediately, without choosing a player lap, as collapsible driver rows showing their fastest recorded lap and its sector splits. Sort recorded opponents by fastest valid best lap by default. Browse opponents in a scrollable child table that stays within the session table, with lap warnings behind compact info indicators. Expand a driver to replay or compare an exact recorded lap without duplicating recordings, keeping opponent laps together across player recording splits. Opponent Replay fills the available workspace. Keep opponent cars and paths on the flat track plane without changing recorded elevation.
 - Use black backgrounds for recorded opponent tables and expanded opponent lap rows on the Sessions page.
@@ -228,9 +232,6 @@
 
 
 ### Internal
-- Align seeded E2E capability and dialog checks with production behavior, isolate native game discovery, and use release-pinned Bun for historical upgrade fixtures.
-- Remove the stale tire-pressure capability snapshot assertion; retain parser/resolver coverage that prevents iRacing cold setup pressures from appearing as live readings.
-- Run workspace lint through the installed Oxlint CLI and isolate native database test fixtures in subprocesses to keep Windows pre-commit checks reliable.
 - Fail AppImage releases when packaged smoke checks fail, and run full manual CI gates when no meaningful change range exists.
 - Run responsive screenshot comparisons with a baseline-compatible harness and report failed baseline captures as unavailable evidence.
 - Route AMS2 diagnostic dumps through the shared safe launcher and accept native absolute executable paths in the compiled-browser harness.

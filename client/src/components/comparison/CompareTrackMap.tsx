@@ -298,7 +298,7 @@ export function CompareTrackMap({
     }
 
     return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
-  }, [displayOutline, traces, displayBoundaries, gameId]);
+  }, [displayOutline, traces, displayBoundaries, gameId, measuredMapPaths]);
   const mapTraces = useMemo(() => {
     if (gameId !== "iracing") return traces;
     const measuredA = measuredMapPaths[0];
@@ -306,16 +306,17 @@ export function CompareTrackMap({
     const projected = projectIRacingDistanceToOutline(traces.distance, alignedOutline);
     const pathA = measuredA ? measuredA.map((point) => point && flip ? { ...point, x: -point.x } : point) : projected;
     const pathB = measuredB ? measuredB.map((point) => point && flip ? { ...point, x: -point.x } : point) : projected;
-    const xs = (path: typeof pathA, fallback: number[]) => path ? path.map((point) => point?.x ?? Number.NaN) : fallback;
-    const zs = (path: typeof pathA, fallback: number[]) => path ? path.map((point) => point?.z ?? Number.NaN) : fallback;
+    const xs = (path: typeof pathA) => path ? path.map((point) => point?.x ?? Number.NaN) : traces.distance.map(() => Number.NaN);
+    const zs = (path: typeof pathA) => path ? path.map((point) => point?.z ?? Number.NaN) : traces.distance.map(() => Number.NaN);
     return {
       ...traces,
-      positionXA: xs(pathA, traces.positionXA),
-      positionZA: zs(pathA, traces.positionZA),
-      positionXB: xs(pathB, traces.positionXB),
-      positionZB: zs(pathB, traces.positionZB),
+      positionXA: xs(pathA),
+      positionZA: zs(pathA),
+      positionXB: xs(pathB),
+      positionZB: zs(pathB),
     };
   }, [gameId, measuredMapPaths, traces, alignedOutline, flip]);
+  const hasDrawableMap = alignedOutline.length >= 2 || (gameId === "iracing" && hasMeasuredMapPath);
 
 
   const drawBoth = useCallback(() => {
@@ -324,7 +325,7 @@ export function CompareTrackMap({
     // Draw overview
     const oc = overviewCanvasRef.current;
     const ocont = overviewContainerRef.current;
-    if (oc && ocont && alignedOutline.length >= 2) {
+    if (oc && ocont && hasDrawableMap) {
       const rect = ocont.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       oc.width = rect.width * dpr;
@@ -350,7 +351,7 @@ export function CompareTrackMap({
     // Draw zoomed view
     const zc = zoomCanvasRef.current;
     const zcont = zoomContainerRef.current;
-    if (zc && zcont && alignedOutline.length >= 2) {
+    if (zc && zcont && hasDrawableMap) {
       const rect = zcont.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       zc.width = rect.width * dpr;
@@ -360,7 +361,7 @@ export function CompareTrackMap({
       const ctx = getSemanticCanvasContext(zc);
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const zoom = hd != null ? computeZoom(mapTraces, hd, trackRange, telXFn, alignedOutline) : null;
+        const zoom = hd != null ? computeZoom(mapTraces, hd, trackRange, telXFn, alignedOutline, gameId === "iracing") : null;
         drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true, true, gameId === "iracing", gameId === "iracing");
 
         if (hd != null) {
@@ -391,7 +392,7 @@ export function CompareTrackMap({
         prevActiveSegRef.current = activeIdx;
       }
     }
-  }, [alignedOutline, mapTraces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange, gameId]);
+  }, [alignedOutline, mapTraces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange, gameId, hasDrawableMap]);
   const redrawFrameRef = useRef<number | null>(null);
   const scheduleDraw = useCallback(() => {
     if (redrawFrameRef.current != null) return;
@@ -424,7 +425,7 @@ export function CompareTrackMap({
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 z-10 text-app-caption text-app-text-dim uppercase tracking-wider">{m.compare_overview()}</span>
-        {alignedOutline.length < 2 ? (
+        {!hasDrawableMap ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
           <canvas ref={overviewCanvasRef} className="absolute inset-0" />
@@ -446,7 +447,7 @@ export function CompareTrackMap({
           />
           <span className="text-app-caption text-app-text-muted">{followCar ? m.compare_follow_view() : m.compare_fixed_view()}</span>
         </div>
-        {alignedOutline.length < 2 ? (
+        {!hasDrawableMap ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
           <canvas ref={zoomCanvasRef} className="absolute inset-0" />
