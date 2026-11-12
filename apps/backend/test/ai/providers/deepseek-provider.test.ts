@@ -1,14 +1,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { Agent } from "@mastra/core/agent";
 import { z } from "zod";
-import { getProviders } from "@raceiq/backend-core/ai/providers";
-import { DEEPSEEK_AGENT_DEFAULTS } from "../../../src/mastra/model";
-import { DeepSeekProviderAdapter, resolvedAiFromAdapter } from "../../../src/ai/provider-adapters";
-import { createModelContext, getModel } from "../../../src/ai/model-provider";
+import { getProviders } from "@raceiq/assistant/ai/providers";
+import { DEEPSEEK_AGENT_DEFAULTS } from "@raceiq/assistant/mastra/model";
+import { DeepSeekProviderAdapter, resolvedAiFromAdapter } from "@raceiq/assistant/ai/provider-adapters";
+import { createModelContext, getModel } from "@raceiq/assistant/ai/model-provider";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import {
   buildEvalCompareEngineerAgent,
   buildEvalLapAnalystAgent,
-} from "../../../src/mastra/evals/eval-agents";
+} from "@raceiq/assistant/mastra/evals/eval-agents";
 
 const environment = {
   DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
@@ -48,6 +50,26 @@ const adapter = () =>
 describe("DeepSeek provider", () => {
   test("is offered as a provider", () => {
     expect(getProviders()).toContainEqual({ id: "deepseek", name: "DeepSeek" });
+  });
+
+  test("dispatches the configured local provider to its selected endpoint", async () => {
+    const requests: CapturedRequest[] = [];
+    const restore = installFetchStub(requests, completion);
+    try {
+      const ai = await resolveAi("chat", {
+        ...loadSettings(),
+        chatProvider: "openai-compatible",
+        chatModel: "local-test",
+        localEndpoint: "http://localhost:4321/v1",
+      });
+      expect(ai.provider).toBe("openai-compatible");
+      expect(ai.model).toBe("local-test");
+      await ai.generateText({ prompt: "ping" });
+      expect(requests[0].url).toBe("http://localhost:4321/v1/chat/completions");
+      expect(JSON.parse(String(requests[0].init.body)).model).toBe("local-test");
+    } finally {
+      restore();
+    }
   });
 
   test("direct requests go to the DeepSeek endpoint with thinking off", async () => {
@@ -146,17 +168,17 @@ describe("eval model selection", () => {
     process.env.EVALS_PROVIDER = "deepseek";
     if (model === undefined) delete process.env.EVALS_MODEL;
     else process.env.EVALS_MODEL = model;
-    expect(() => buildEvalLapAnalystAgent()).toThrow("EVALS_MODEL");
-    expect(() => buildEvalCompareEngineerAgent()).toThrow("EVALS_MODEL");
+    expect(() => buildEvalLapAnalystAgent("eval-key")).toThrow("EVALS_MODEL");
+    expect(() => buildEvalCompareEngineerAgent("metric", "eval-key")).toThrow("EVALS_MODEL");
   });
 
   test.each([
-    ["analyst", buildEvalLapAnalystAgent],
-    ["comparison", buildEvalCompareEngineerAgent],
+    ["analyst", () => buildEvalLapAnalystAgent("eval-key")],
+    ["comparison", () => buildEvalCompareEngineerAgent("metric", "eval-key")],
   ] as const)("%s eval generation disables DeepSeek thinking", async (_name, build) => {
     process.env.EVALS_PROVIDER = "deepseek";
     process.env.EVALS_MODEL = "deepseek-v4-pro";
-    process.env.DEEPSEEK_API_KEY = "eval-key";
+    process.env.DEEPSEEK_API_KEY = "untrusted-environment-key";
     const requests: CapturedRequest[] = [];
     const restore = installFetchStub(requests, completion);
     try {
@@ -164,6 +186,7 @@ describe("eval model selection", () => {
       expect(result.text).toBe('{"ok":true}');
       const body = JSON.parse(String(requests[0].init.body));
       expect(body.model).toBe("deepseek-v4-pro");
+      expect(new Headers(requests[0].init.headers).get("authorization")).toBe("Bearer eval-key");
       expect(body.thinking).toEqual({ type: "disabled" });
     } finally {
       restore();

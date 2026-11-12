@@ -36,13 +36,14 @@ fill in, unlike the OpenAI-compatible provider.
 - DeepSeek is **not** handled by the OpenAI-compatible provider. It has its own endpoint and its
   own request rules: thinking is switched off, and structured requests ask for `json_object` with
   the schema in the prompt, because DeepSeek rejects `json_schema`.
+- Auto-tune uses the provider and model selected for auto-tune, or the analysis settings when those fields are empty. Unsupported providers produce an error instead of switching providers.
 - If **Load models** fails, the picker falls back to the built-in list so you can still pick a
   model and save. The failure reason is logged under `[AI]` in the app log.
 - Key storage uses the OS credential store, same as the other providers.
 
 ## AI quality evaluations
 
-Set `DEEPSEEK_API_KEY` in your environment, then select the evaluation model explicitly:
+Save the DeepSeek API key in **Settings → AI**, then select the evaluation model explicitly:
 
 ```sh
 EVALS_PROVIDER=deepseek EVALS_MODEL=deepseek-flash bun run test:ai
@@ -51,6 +52,8 @@ EVALS_PROVIDER=deepseek EVALS_MODEL=deepseek-flash bun run ai:baseline
 
 `EVALS_MODEL` is required; evaluation runs do not select a fallback model. DeepSeek evaluation
 requests disable thinking, matching production analysis requests.
+
+In Linux source checkouts, the development keystore is process-local and in memory. A key saved in a running server is unavailable to a separate evaluation CLI process, so these CLI commands cannot authenticate using that key. macOS and Windows use their OS credential stores.
 
 ## Troubleshooting
 

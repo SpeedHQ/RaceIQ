@@ -1003,7 +1003,8 @@ export class SpectateSceneRuntime {
     const interval = 1000 / this.fpsCap;
     const current = this.controller.getSnapshot();
     if (!current.seeking && !this.interactionPending && !this.resizePending && !this.pendingFrames.length && now - this.lastRender < interval) {
-      if (current.playing || this.settleFrames > 0 || this.dirty) this.raf = requestAnimationFrame(this.drawFrame);
+      // Keep the idle timer and snap animation alive across FPS-capped frames.
+      if (current.playing || this.settleFrames > 0 || this.dirty || this.zoomIdleUntil > 0 || this.zoomSnap) this.raf = requestAnimationFrame(this.drawFrame);
       return;
     }
     this.drawing = true;
@@ -1087,6 +1088,11 @@ export class SpectateSceneRuntime {
     }
     this.camera.position.setFromSpherical(this.sphericalScratch).add(this.controls.target);
     this.camera.lookAt(this.controls.target);
+    // OrbitControls caches its last camera position when update() runs.  The
+    // direction lock and pair-fit adjustment above move the camera afterwards;
+    // synchronize that cache so the next wheel event is not mistaken for a
+    // duplicate of the previous, pre-constraint position.
+    this.controls.update();
     this.camera.updateMatrixWorld();
     if (this.dirty) {
       try {

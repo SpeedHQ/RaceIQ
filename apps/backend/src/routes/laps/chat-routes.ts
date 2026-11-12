@@ -1,4 +1,4 @@
-import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
@@ -12,12 +12,12 @@ import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
 import { getAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
-import { setupContextForLap } from "../../ai/lap-setup-context";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { buildChatSystemPrompt } from "@raceiq/backend-core/ai/chat-prompt";
-import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
-import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
+import { buildChatSystemPrompt } from "@raceiq/assistant/ai/chat-prompt";
+import { buildGoogleReasoningProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
+import { streamAgentTurnResponse } from "@raceiq/assistant/ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
 import {
   CHAT_RESOURCE_ID,
@@ -27,9 +27,9 @@ import {
   ensureSystemPrompt,
   listThreadGenerations,
   resolveActiveThread,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-agent";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/assistant/ai/chat-message-context";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
 

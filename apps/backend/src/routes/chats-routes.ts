@@ -13,8 +13,8 @@ import {
   listThreadGenerations,
   truncateChatAfterUserMessage,
   deleteChatLineage,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { forkThreadWithSummary, NothingToCompactError } from "@raceiq/backend-core/ai/compact-thread";
+} from "@raceiq/assistant/ai/chat-agent";
+import { forkThreadWithSummary, NothingToCompactError } from "@raceiq/assistant/ai/compact-thread";
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 
 const ChatsQuerySchema = z.object({

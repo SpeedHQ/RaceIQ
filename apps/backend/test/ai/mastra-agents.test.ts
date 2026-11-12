@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { liveAnalystScorers, liveCoachScorers, scorerRegistry } from "../../src/mastra/evals/index";
+import { liveAnalystScorers, liveCoachScorers, scorerRegistry } from "@raceiq/assistant/mastra/evals/index";
 import { isMastraSignalMigrationRequiredError, shouldUseMastraRuntime } from "../../src/ai/agents";
 
 describe("shouldUseMastraRuntime", () => {

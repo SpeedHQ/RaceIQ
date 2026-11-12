@@ -96,15 +96,27 @@ switch (operation) {
     `);
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync([
-      "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
-      `--config=${config}`, `--shard=${env.SHARD}/4`,
-    ], {
-      cwd: basePlaywright,
-      env: { ...env, RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
-      stdout: "inherit",
-      stderr: "inherit",
-    }).exitCode;
+    const baseSpec = join(basePlaywright, "tests/responsive/mobile-screenshots.spec.ts");
+    const originalBaseSpec = readFileSync(baseSpec, "utf8");
+    let status: number | null;
+    try {
+      // Older baseline specs use the obsolete menu label even when the baseline app says Actions.
+      writeFileSync(baseSpec, originalBaseSpec.replace(
+        'getByRole("button", { name: "Overlays", exact: true })',
+        'getByRole("button", { name: /^(Actions|Overlays)$/ })',
+      ));
+      status = Bun.spawnSync([
+        "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
+        `--config=${config}`, `--shard=${env.SHARD}/4`,
+      ], {
+        cwd: basePlaywright,
+        env: { ...env, RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+        stdout: "inherit",
+        stderr: "inherit",
+      }).exitCode;
+    } finally {
+      writeFileSync(baseSpec, originalBaseSpec);
+    }
     const saved = join(env.RUNNER_TEMP!, "base-responsive");
     rmSync(saved, { recursive: true, force: true });
     if (existsSync(output)) cpSync(output, saved, { recursive: true });

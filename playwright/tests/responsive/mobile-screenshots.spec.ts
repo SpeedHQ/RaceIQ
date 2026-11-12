@@ -97,7 +97,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
         } else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
           // Base revision can overlap this trigger at phone width; keyboard still opens the menu for comparison.
-          await p.getByRole("button", { name: "Overlays", exact: true }).focus();
+          await p.getByRole("button", { name: "Actions", exact: true }).focus();
           await p.keyboard.press("Enter");
           await expect(p.getByRole("menu")).toBeVisible();
         } else {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { symptomsToIntents } from "@raceiq/backend-core/ai/tune-recommend";
+import { symptomsToIntents } from "@raceiq/assistant/ai/tune-recommend";
 import {
   classifySpeedBand,
   type Balance,

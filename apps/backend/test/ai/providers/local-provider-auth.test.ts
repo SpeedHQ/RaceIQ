@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { generateText, type LanguageModel } from "ai";
-import { getOpenAiCompatibleModelsDetailed } from "@raceiq/backend-core/ai/providers";
-import { OpenAiCompatibleProviderAdapter } from "../../../src/ai/provider-adapters";
+import { getOpenAiCompatibleModelsDetailed } from "@raceiq/assistant/ai/providers";
+import { OpenAiCompatibleProviderAdapter } from "@raceiq/assistant/ai/provider-adapters";
 
 const endpoint = "http://local.test/v1";
 

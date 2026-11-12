@@ -6,8 +6,8 @@ import {
   getCatalogDisplayName,
   normalizePacketSetup,
   topCatalogReferences,
-} from "@raceiq/backend-core/ai/f1-setup-catalog";
-import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
+} from "@raceiq/assistant/ai/f1-setup-catalog";
+import { resolveLapF1Setup } from "@raceiq/assistant/ai/f1-setup-identity";
 
 export const CompareParamsSchema = z.object({
   id1: z.string().transform((val) => parseInt(val, 10)),

@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-import { writeSetupFile } from "@raceiq/backend-core/ai/tune-writer";
+import { writeSetupFile } from "@raceiq/assistant/ai/tune-writer";
 import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
 import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 import { patchCarSetup } from "@raceiq/game-ac-evo/carsetup-writer";

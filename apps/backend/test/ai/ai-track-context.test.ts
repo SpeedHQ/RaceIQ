@@ -5,7 +5,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
-import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
+import { buildAnalystPrompt } from "@raceiq/assistant/ai/analyst-prompt";
 
 initGameAdapters();
 initServerGameAdapters();

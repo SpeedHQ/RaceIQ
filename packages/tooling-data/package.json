@@ -18,6 +18,7 @@
     "typecheck": "bun check --project tsconfig.json"
   },
   "dependencies": {
+    "@raceiq/assistant": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-acc": "workspace:*",

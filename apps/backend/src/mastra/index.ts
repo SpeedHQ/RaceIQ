@@ -23,11 +23,11 @@ import { lapChatAgent } from "./agents/lap-chat";
 import { compareEngineerAgent } from "./agents/compare-engineer";
 import { compareChatAgent } from "./agents/compare-chat";
 import { setupEngineerAgent } from "./agents/setup-engineer";
-import { driverProfilerAgent } from "./agents/driver-profiler";
+import { driverProfilerAgent } from "@raceiq/assistant/mastra/agents/driver-profiler";
 import { driverCoachAgent } from "./agents/driver-coach";
-import { compareAnalyseWorkflow } from "./workflows/compare-analyse";
+import { compareAnalyseWorkflow } from "@raceiq/assistant/mastra/workflows/compare-analyse";
 import { setupEngineerTurnWorkflow } from "./workflows/setup-engineer-turn";
-import { scorerRegistry } from "./evals/index";
+import { scorerRegistry } from "@raceiq/assistant/mastra/evals/index";
 
 /**
  * DuckDB observability store — anchored on an absolute path (DATA_DIR or

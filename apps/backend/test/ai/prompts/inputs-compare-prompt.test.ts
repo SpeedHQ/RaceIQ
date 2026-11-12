@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { buildInputsComparePrompt } from "@raceiq/backend-core/ai/inputs-compare-prompt";
+import { buildInputsComparePrompt } from "@raceiq/assistant/ai/inputs-compare-prompt";
 
 initGameAdapters();
 initServerGameAdapters();

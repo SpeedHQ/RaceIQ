@@ -4,7 +4,7 @@ import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { listExperimentVersions, updateExperimentVersionSetupSnapshot } from "@raceiq/backend-core/db/experiment-version-queries";
-import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
+import { resolveLapF1Setup } from "@raceiq/assistant/ai/f1-setup-identity";
 import { resolveGuardedSetupFile, type AccGameId } from "../setups/file-guard";
 
 export type ExperimentGameId = AccGameId | "f1-2025";

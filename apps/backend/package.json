@@ -57,6 +57,7 @@
     "meshoptimizer": "1.2.0",
     "@mastra/hono": "^1.7.9",
     "mitata": "^1.0.34",
+    "@raceiq/assistant": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/lap-replay": "workspace:*",
     "@raceiq/sessions-page": "workspace:*",

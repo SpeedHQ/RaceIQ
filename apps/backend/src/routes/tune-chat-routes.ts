@@ -1,5 +1,5 @@
-import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
-import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/backend-core/ai/chat-run-registry";
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
+import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/assistant/ai/chat-run-registry";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
@@ -23,16 +23,16 @@ import {
   getChatSystemPrompt,
   ensureSystemPrompt,
   deleteChatLineage,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
-import { startDetachedAgentTurn } from "@raceiq/backend-core/ai/agent-stream";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-agent";
+import { buildGoogleReasoningProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
+import { startDetachedAgentTurn } from "@raceiq/assistant/ai/agent-stream";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/assistant/ai/chat-message-context";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
 import { setupEngineerTurnWorkflow } from "../mastra/workflows/setup-engineer-turn";
 import { resolveExperimentChatBranch } from "../experiments/chat-branch-context";
 import { Hono } from "hono";

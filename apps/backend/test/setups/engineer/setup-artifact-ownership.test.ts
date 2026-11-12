@@ -9,7 +9,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { experimentActions, experiments, experimentVersions } from "@raceiq/backend-core/db/schema";
 import { createExperiment, getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
-import { writeSetupFile } from "@raceiq/backend-core/ai/tune-writer";
+import { writeSetupFile } from "@raceiq/assistant/ai/tune-writer";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";

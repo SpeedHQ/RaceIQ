@@ -4,12 +4,12 @@ import { Hono } from "hono";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { deleteAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { generateLapAnalysis } from "../../ai/generate-lap-analysis";
-import { toClientAiError } from "@raceiq/backend-core/ai/provider-error";
+import { toClientAiError } from "@raceiq/assistant/ai/provider-error";
 import {
   beginAnalysisRun,
   finishAnalysisRun,
   getAnalysisRun,
-} from "@raceiq/backend-core/ai/analysis-run-registry";
+} from "@raceiq/assistant/ai/analysis-run-registry";
 import { AnalyseQuerySchema } from "./support";
 
 const analysisRunKey = (lapId: number) => `lap-analysis:${lapId}`;

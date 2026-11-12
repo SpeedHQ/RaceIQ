@@ -1,4 +1,5 @@
-type AiProvider = "" | "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
+import type { AiProvider as RegisteredAiProvider } from "@raceiq/shared/integrations/ai/providers";
+type AiProvider = "" | RegisteredAiProvider;
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
