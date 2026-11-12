@@ -1,5 +1,5 @@
 ### Features
-- Decode experimental F1 2026 UDP telemetry and preserve its additional packet data in recordings for replay.
+- Record and replay F1 2026 Season Pack telemetry, including its new car, circuit, energy-recovery, active-aero, and overtake data.
 - Run RaceIQ in the native macOS app with existing lap data and saved network access; control login startup and whether closing the window quits the app.
 - Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
 

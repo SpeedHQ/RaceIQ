@@ -19,8 +19,18 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
   const network = auth ? await auth.getNetwork() : undefined;
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
   const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : [...(network?.hosts ?? ["0.0.0.0"])];
-  // Keep the native window connected locally while preserving saved LAN listeners.
-  if (env.RACEIQ_DESKTOP === "1" && !hosts.some((host) => ["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0", "::"].includes(host))) hosts.push("127.0.0.1");
+  // The native URL uses IPv4 explicitly. Resolve localhost to IPv4 in desktop
+  // mode rather than binding it twice if the runtime already resolves it there.
+  if (env.RACEIQ_DESKTOP === "1") {
+    for (let i = hosts.length - 1; i >= 0; i--) {
+      if (hosts[i] !== "localhost") continue;
+      if (hosts.includes("127.0.0.1") || hosts.includes("0.0.0.0")) hosts.splice(i, 1);
+      else hosts[i] = "127.0.0.1";
+    }
+    // Preserve LAN listeners; an IPv4 wildcard already covers the native URL.
+    // Treat the IPv6 wildcard as dual-stack to avoid overlapping binds.
+    if (!hosts.some((host) => host === "127.0.0.1" || host === "0.0.0.0" || host === "::")) hosts.push("127.0.0.1");
+  }
   const hostname = hosts[0];
   const password = auth ? "" : env.SERVER_PASSWORD || "";
   // Release builds replace this exact process.env expression. An installed

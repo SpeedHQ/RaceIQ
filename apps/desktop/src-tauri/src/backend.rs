@@ -13,7 +13,7 @@ use tauri_plugin_dialog::DialogExt;
 #[derive(Default)]
 pub struct Backend {
     child: Mutex<Option<Child>>,
-    pub quitting: AtomicBool,
+    pub shutdown: crate::shutdown::Shutdown,
     pub keep_running_when_closed: AtomicBool,
 }
 
@@ -99,7 +99,7 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
     };
     let state = app.state::<Backend>();
     let mut owned_child = state.child.lock().map_err(|_| "Backend lock poisoned")?;
-    if state.quitting.load(Ordering::SeqCst) {
+    if state.shutdown.is_started() {
         return Err("Launch cancelled".into());
     }
     let configured_port = std::env::var("SERVER_PORT")
@@ -172,7 +172,7 @@ fn validate_url(value: &str) -> Result<Url, String> {
 pub fn monitor(app: &AppHandle) {
     loop {
         let state = app.state::<Backend>();
-        if state.quitting.load(Ordering::SeqCst) {
+        if state.shutdown.is_started() {
             return;
         }
         let exited = state.child.lock().ok().and_then(|mut child| {
@@ -189,7 +189,7 @@ pub fn monitor(app: &AppHandle) {
 }
 
 pub fn report_failure(app: &AppHandle, message: &str) {
-    if app.state::<Backend>().quitting.load(Ordering::SeqCst) {
+    if app.state::<Backend>().shutdown.is_started() {
         return;
     }
     app.dialog()

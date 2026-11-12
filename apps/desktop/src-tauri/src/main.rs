@@ -1,4 +1,7 @@
 mod backend;
+mod shutdown;
+#[cfg(any(target_os = "macos", test))]
+mod startup;
 
 use std::sync::atomic::Ordering;
 use tauri::menu::{Menu, MenuItem};
@@ -25,27 +28,23 @@ fn set_login_startup(app: &tauri::AppHandle, enabled: bool) -> Result<(), String
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>Label</key><string>com.speedhq.raceiq</string><key>ProgramArguments</key><array><string>{}</string></array><key>RunAtLoad</key><true/></dict></plist>\n",
             escape(&executable.to_string_lossy()),
         );
-        std::fs::create_dir_all(path.parent().ok_or("Invalid LaunchAgent path")?)
-            .map_err(|error| error.to_string())?;
-        std::fs::write(&path, plist).map_err(|error| error.to_string())?;
-        let result = std::process::Command::new("launchctl")
-            .args(["load", "-w"])
-            .arg(&path)
-            .status()
-            .map_err(|error| error.to_string())?;
-        if !result.success() {
-            return Err(format!("launchctl load failed: {result}"));
-        }
-    } else if path.exists() {
-        let result = std::process::Command::new("launchctl")
-            .args(["unload", "-w"])
-            .arg(&path)
-            .status()
-            .map_err(|error| error.to_string())?;
-        if !result.success() {
-            return Err(format!("launchctl unload failed: {result}"));
-        }
-        std::fs::remove_file(path).map_err(|error| error.to_string())?;
+        let domain = format!("gui/{}", unsafe { libc::geteuid() });
+        startup::set_startup(&path, &domain, true, &plist, |args| {
+            std::process::Command::new("launchctl")
+                .args(args)
+                .status()
+                .map(|status| status.success())
+                .map_err(|error| error.to_string())
+        })?;
+    } else {
+        let domain = format!("gui/{}", unsafe { libc::geteuid() });
+        startup::set_startup(&path, &domain, false, "", |args| {
+            std::process::Command::new("launchctl")
+                .args(args)
+                .status()
+                .map(|status| status.success())
+                .map_err(|error| error.to_string())
+        })?;
     }
     Ok(())
 }
@@ -177,18 +176,23 @@ fn main() {
         .run(|app, event| {
             if let RunEvent::ExitRequested { api, code, .. } = event {
                 let state = app.state::<backend::Backend>();
-                if !state.quitting.swap(true, Ordering::SeqCst) {
-                    api.prevent_exit();
-                    let handle = app.clone();
-                    std::thread::spawn(move || {
-                        let mut exit_code = code.unwrap_or(0);
-                        if let Err(error) = backend::stop(&handle) {
-                            exit_code = 1;
-                            handle.dialog().message(format!("Recording shutdown failed: {error}\nCheck RaceIQ's logs before restarting."))
-                                .title("RaceIQ shutdown").blocking_show();
-                        }
-                        handle.exit(exit_code);
-                    });
+                match state.shutdown.request() {
+                    shutdown::ExitAction::Allow => {}
+                    shutdown::ExitAction::Prevent => api.prevent_exit(),
+                    shutdown::ExitAction::StartShutdown => {
+                        api.prevent_exit();
+                        let handle = app.clone();
+                        std::thread::spawn(move || {
+                            let mut exit_code = code.unwrap_or(0);
+                            if let Err(error) = backend::stop(&handle) {
+                                exit_code = 1;
+                                handle.dialog().message(format!("Recording shutdown failed: {error}\nCheck RaceIQ's logs before restarting."))
+                                    .title("RaceIQ shutdown").blocking_show();
+                            }
+                            handle.state::<backend::Backend>().shutdown.complete();
+                            handle.exit(exit_code);
+                        });
+                    }
                 }
             }
         });
