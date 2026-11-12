@@ -68,6 +68,33 @@ jobs:
           retention-days: 1
         continue-on-error: true
 
+  macos-desktop:
+    name: macOS desktop
+    timeout-minutes: 45
+    if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
+    runs-on: mars-macos-2vcpu-6g
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # The Tauri build generates dist/, which the native host tests require as a bundle resource.
+      - name: Build macOS desktop app
+        run: bun run desktop:build
+
+      - name: Test native host
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+
   test:
     timeout-minutes: 30
     if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))

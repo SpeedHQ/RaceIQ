@@ -1,2 +1,2 @@
 // Stamped alongside root package.json by scripts/ci/update-release-version.ts.
-export const APP_VERSION = "0.21.1";
+export const APP_VERSION = "0.22.0";

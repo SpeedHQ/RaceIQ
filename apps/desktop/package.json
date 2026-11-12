@@ -1,0 +1,10 @@
+{
+  "name": "@raceiq/desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "native:build": "tauri build --bundles app",
+    "native:dev": "tauri dev"
+  },
+  "devDependencies": { "@tauri-apps/cli": "^2.11.0" }
+}

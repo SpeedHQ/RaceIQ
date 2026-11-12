@@ -3,6 +3,7 @@ scripts/test/tests/affected-verification.test.ts
 scripts/test/tests/bench-compare.test.ts
 scripts/test/tests/dev-dashboard-network.test.ts
 scripts/test/tests/feature-boundaries.test.ts
+scripts/test/tests/macos-desktop-workflow.test.ts
 scripts/test/tests/paraglide-cache.test.ts
 scripts/test/tests/paraglide-declarations.test.ts
 scripts/test/tests/paraglide-lifecycle.test.ts
