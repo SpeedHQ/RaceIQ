@@ -91,3 +91,5 @@ test/e2e/output/
 /artifacts/*Pak*.txt
 /artifacts/*HashCode.cs.txt
 /artifacts/ScribeDecrypt.cs.txt
+/apps/desktop/src-tauri/target/
+/apps/desktop/src-tauri/gen/

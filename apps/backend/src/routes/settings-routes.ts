@@ -14,7 +14,7 @@ import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backe
 import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
-import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "@raceiq/backend-core/runtime/platform/launch-on-login";
+import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir, isDesktopStartupOwned, isLaunchOnLoginSupported } from "@raceiq/backend-core/runtime/platform/launch-on-login";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { getRunningGame } from "@raceiq/backend-core/games/registry";
@@ -99,6 +99,8 @@ export const settingsRoutes = new Hono()
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
       isCompiled: IS_COMPILED,
+      launchOnLoginSupported: isLaunchOnLoginSupported(),
+      launchOnLoginOwner: isDesktopStartupOwned() ? "desktop" : "server",
     });
   })
 
@@ -325,6 +327,9 @@ export const settingsRoutes = new Hono()
     for (const key of Object.keys(body)) {
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
+    if (provided.launchOnLogin === true && isDesktopStartupOwned()) {
+      return c.json({ error: "Backend launch on login is not supported", code: "LAUNCH_ON_LOGIN_UNSUPPORTED" }, 409);
+    }
     const merged = { ...current, ...provided };
     if (!isRecordingRetentionPolicyValid(merged)) {
       return c.json({
@@ -344,7 +349,7 @@ export const settingsRoutes = new Hono()
       if (typeof merged.cacheMaxMB === "number") {
         setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
       }
-      if ("launchOnLogin" in provided) {
+      if ("launchOnLogin" in provided && isLaunchOnLoginSupported()) {
         if (merged.launchOnLogin) {
           enableLaunchOnLogin(getLaunchOnLoginExeDir());
         } else {

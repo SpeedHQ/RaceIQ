@@ -70,6 +70,7 @@
   "settings_setup_wizard": "स्थापना विज़ार्ड",
   "settings_language_search_placeholder": "भाषा खोजें...",
   "settings_launch_installed_only": "केवल इंस्टॉल किए गए ऐप में उपलब्ध है",
+  "settings_launch_desktop_owned": "लॉगिन पर शुरू होने की सेटिंग को RaceIQ डेस्कटॉप ऐप के मेनू बार आइकन से प्रबंधित करें।",
   "settings_launch_on_login_desc": "जब आप विंडोज़ में लॉग इन करते हैं तो रेसआईक्यू स्वचालित रूप से प्रारंभ हो जाता है।",
   "settings_connection_title": "फोर्ज़ा कनेक्शन",
   "settings_connection_desc": "सुनने के लिए यूडीपी पोर्ट सेट करें। फोर्ज़ा में: सेटिंग्स > गेमप्ले > डेटा आउट > इस मशीन के पते और नीचे दिए गए पोर्ट पर आईपी सेट करें।",
