@@ -70,6 +70,7 @@
   "ob_community_body": "RaceIQ es un proyecto de código abierto que depende de su comunidad. Tanto si ayudas a difundirlo, envías solicitudes de funciones o informes de errores, como si contribuyes al código fuente, cada aportación ayuda a mejorar la aplicación para todos.",
   "settings_port_range_error": "El puerto debe estar entre 1024 y 65535",
   "settings_launch_installed_only": "Solo disponible en la aplicación instalada",
+  "settings_launch_desktop_owned": "Gestiona el inicio al iniciar sesión desde el icono de la aplicación de escritorio de RaceIQ en la barra de menús.",
   "settings_launch_on_login_desc": "Iniciar RaceIQ automáticamente al iniciar sesión en Windows.",
   "settings_connection_title": "Conexión con Forza",
   "settings_connection_desc": "Configura el puerto UDP de escucha. En Forza: Ajustes > Jugabilidad > Salida de datos > establece la IP con la dirección de este equipo y el puerto indicado abajo.",

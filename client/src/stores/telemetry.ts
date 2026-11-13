@@ -60,6 +60,10 @@ export interface DisplaySettings {
   language?: string;
   /** True when running as compiled exe, false in dev (bun run dev) */
   isCompiled?: boolean;
+  /** Whether the backend can manage launch on login on this host. */
+  launchOnLoginSupported?: boolean;
+  /** Which process owns launch on login. */
+  launchOnLoginOwner?: "desktop" | "server";
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
