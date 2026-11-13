@@ -83,7 +83,7 @@ function CarModelPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} source={source} outline={null} carId={carId} minimal />
+        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} source={source} carId={carId} minimal />
       </div>
     </div>
   );

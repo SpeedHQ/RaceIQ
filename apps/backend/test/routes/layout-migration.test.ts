@@ -306,7 +306,7 @@ describe("recording layout migration", () => {
     expect((await migration).status).toBe(202);
     expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
   });
-  test("rejects a symlinked migration journal without reading its external target", async () => {
+  test("rejects a linked migration journal without reading its external target", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-layout-journal-root-"));
     const external = await mkdtemp(join(tmpdir(), "raceiq-layout-journal-external-"));
     temporary.push(root, external);

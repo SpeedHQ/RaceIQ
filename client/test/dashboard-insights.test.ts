@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
-import { dashboardInsights } from "../src/components/home/dashboard-insights";
+import { dashboardInsights, sessionCleanDrivingScore } from "../src/components/home/dashboard-insights";
 import { dashboardPeriodStart } from "../src/hooks/dashboard";
 
 test("dashboard periods use UTC boundaries independent of DST dates", () => {
@@ -9,6 +9,26 @@ test("dashboard periods use UTC boundaries independent of DST dates", () => {
   expect(dashboardPeriodStart(now, "week").toISOString()).toBe("2026-10-25T07:30:00.000Z");
   expect(dashboardPeriodStart(now, "month").toISOString()).toBe("2026-10-02T07:30:00.000Z");
   expect(dashboardPeriodStart(now, "year").toISOString()).toBe("2025-11-01T07:30:00.000Z");
+});
+
+describe("session clean driving score", () => {
+  test("scores valid timed laps and excludes untimed rows", () => {
+    expect(sessionCleanDrivingScore([
+      { lapTimeSec: 90, isValid: true },
+      { lapTimeSec: 91, isValid: true },
+      { lapTimeSec: 95, isValid: false },
+      { lapTimeSec: 0, isValid: false },
+      { lapTimeSec: -1, isValid: true },
+      { lapTimeSec: Number.NaN, isValid: false },
+    ])).toEqual({ clean: 2, completed: 3, score: 67 });
+  });
+
+  test("distinguishes no timed laps from a fully invalid session", () => {
+    expect(sessionCleanDrivingScore([])).toEqual({ clean: 0, completed: 0, score: null });
+    expect(sessionCleanDrivingScore([{ lapTimeSec: 0, isValid: true }])).toEqual({ clean: 0, completed: 0, score: null });
+    expect(sessionCleanDrivingScore([{ lapTimeSec: 90, isValid: false }])).toEqual({ clean: 0, completed: 1, score: 0 });
+    expect(sessionCleanDrivingScore([{ lapTimeSec: 90, isValid: true }])).toEqual({ clean: 1, completed: 1, score: 100 });
+  });
 });
 
 const response = {

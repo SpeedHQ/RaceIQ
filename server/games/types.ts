@@ -2,6 +2,13 @@ import type { GameAdapter } from "@raceiq/shared/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapDetectorFactory } from "../lap-detection/types";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
+
+/** Decoded original-format import source. Array indices are persisted lap coordinates. */
+export interface ImportedTelemetrySource {
+  packets: TelemetryPacket[];
+  /** Original channel values aligned one-to-one with packets, when provided. */
+  nativeValues?: readonly Readonly<Record<string, unknown>>[];
+}
 /** Server-only runtime behavior owned by each game implementation. */
 export interface ServerGameRuntimePolicy {
   /** Pit strategy behavior and history seeding strategy. */
@@ -58,6 +65,9 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Restore parser state from a game-owned checkpoint payload. */
   restoreParserCheckpoint?(state: unknown, payload: Uint8Array): unknown;
+
+  /** Decode an original imported file without converting it into a BIN capture. */
+  loadImportedSource?(path: string): Promise<ImportedTelemetrySource>;
 
   /**
    * True only when parser state is stateless/frame-local and an empty checkpoint

@@ -29,6 +29,7 @@
     "./wireframe/TireTrails": "./src/wireframe/TireTrails.tsx",
     "./wireframe/CurbMarkers": "./src/wireframe/CurbMarkers.tsx",
     "./wireframe/DimensionLines": "./src/wireframe/DimensionLines.tsx",
+    "./wireframe/ScenePlacement": "./src/wireframe/ScenePlacement.ts",
     "./wireframe/SuspensionSpring": "./src/wireframe/SuspensionSpring.tsx"
   },
   "scripts": {

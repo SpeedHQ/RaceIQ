@@ -140,11 +140,29 @@ describe("seeded database capture paths", () => {
     ["sessions\\lmu\\own\\session-id\\capture-manifest.json", "sessions/lmu/own/session-id/capture-manifest.json"],
     ["sessions\\fm-2023\\own\\capture.bin", "sessions/fm-2023/own/capture.bin"],
     ["sessions\\lmu\\others\\spa.bin.gz", "sessions/lmu/others/spa.bin.gz"],
+    ["sessions\\iracing\\own\\navarra.ibt", "sessions/iracing/own/navarra.ibt"],
+    ["sessions/iracing/others/navarra.ibt", "sessions/iracing/others/navarra.ibt"],
     ["sessions/lmu/own/session-7/attempt/manifest.json", "sessions/lmu/own/session-7/attempt/manifest.json"],
     ["sessions/lmu/own/session-7/attempt/capture.bin.gz", "sessions/lmu/own/session-7/attempt/capture.bin.gz"],
     ["sessions/lmu/own/capture.bin.gz.opponents-removed.capture-manifest.json", "sessions/lmu/own/capture.bin.gz.opponents-removed.capture-manifest.json"],
-  ])("accepts portable capture %s", (input, expected) => {
+  ])("accepts organized capture %s", (input, expected) => {
     expect(portableCapturePath(input)).toBe(expected);
+  });
+
+  test("rejects LMU paths outside the capture directory and uncombined parts", () => {
+    for (const path of [
+      "sessions/lmu/../../app.db.bin.gz",
+      "/sessions/lmu/spa.bin.gz",
+      "sessions/lmu/spa.bin.gz.part1",
+      "sessions/lmu/own/../../app.db.bin.gz",
+      "sessions/lmu/unknown/spa.bin",
+      "sessions/lmu/own/nested/spa.bin",
+      "sessions/iracing/own/../../navarra.ibt",
+      "sessions/iracing/own/nested/navarra.ibt",
+      "sessions/acc/own/navarra.ibt",
+    ]) {
+      expect(() => portableCapturePath(path)).toThrow("Invalid seeded capture path");
+    }
   });
 
   test("normalizes every session reference and restores companion-backed replay without producer files", async () => {
@@ -295,6 +313,8 @@ describe("seeded database capture paths", () => {
     "sessions/lmu/../../app.db.bin.gz", "/sessions/lmu/spa.bin.gz", "sessions/lmu/spa.bin.gz.part1",
     "sessions/lmu/own/../../app.db.bin.gz", "sessions/lmu/unknown/spa.bin", "sessions/lmu/own/nested/spa.bin",
     "sessions/lmu/unknown/capture-manifest.json", "sessions/lmu/own/../capture-manifest.json", "sessions/lmu/own/C:/capture-manifest.json",
+    "sessions/lmu/own/session/../manifest.json", "sessions/lmu/own/session/./capture.bin.gz",
+    "sessions/lmu/own/session/secret.json", "sessions/acc/own/session/manifest.json",
   ])("rejects invalid portable capture %s", (path) => {
     expect(() => portableCapturePath(path)).toThrow("Invalid seeded capture path");
   });

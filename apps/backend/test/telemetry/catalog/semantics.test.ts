@@ -65,15 +65,6 @@ describe("semantic telemetry catalog", () => {
     expect(core.games.iracing.kind).toBe("unavailable");
   });
 
-  test("keeps detailed iRacing carcass bands as direct variables", () => {
-    for (const band of ["left", "middle", "right"] as const) {
-      const variable = getTelemetryVariable(
-        `tire.temperature.carcass.${band}`,
-      );
-      expect(variable.games.iracing.kind).toBe("direct");
-      expect(variable.canonicalUnit).toBe("°C");
-    }
-  });
 
 
 

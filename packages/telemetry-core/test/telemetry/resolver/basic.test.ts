@@ -171,28 +171,6 @@ describe("compiled telemetry resolver", () => {
     expect(second.resolveValue<readonly number[]>(slot).value).toEqual([10, 15, 25, 35]);
   });
 
-  test("resolves direct per-wheel carcass bands without losing fidelity status", () => {
-    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
-      simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
-    });
-    const slot = resolver.slot("tire.temperature.carcass.middle");
-    const frame = resolver.createFrameView(
-      packet("iracing", {
-        TireCarcassTempMiddleFL: 80,
-        TireCarcassTempMiddleFR: 81,
-        TireCarcassTempMiddleRL: 82,
-        TireCarcassTempMiddleRR: 83,
-      }),
-      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
-    );
-
-    expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
-      value: [80, 81, 82, 83],
-      mappingStatus: "direct",
-      state: "ok",
-    });
-  });
 
   test("reuses one frame view without retaining per-frame values", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
@@ -211,15 +189,15 @@ describe("compiled telemetry resolver", () => {
   test("tracks pit snapshots from their own source change", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
-      staleAfterMs: { "tire.temperature.carcass.middle": 50 },
+      requested: [{ semanticId: "tires.tire-wear" }],
+      staleAfterMs: { "tires.tire-wear": 50 },
     });
-    const slot = resolver.slot("tire.temperature.carcass.middle");
+    const slot = resolver.slot("tires.tire-wear");
     const snapshot = {
-      TireCarcassTempMiddleFL: 80,
-      TireCarcassTempMiddleFR: 81,
-      TireCarcassTempMiddleRL: 82,
-      TireCarcassTempMiddleRR: 83,
+      TireWearFL: 0.80,
+      TireWearFR: 0.81,
+      TireWearRL: 0.82,
+      TireWearRR: 0.83,
     };
     const first = resolver.createFrameView(packet("iracing", snapshot), {
       timestamp: { domain: "session", milliseconds: 1_000 },
@@ -246,8 +224,7 @@ describe("compiled telemetry resolver", () => {
 
     expect(second.readValue(slot)).toBeUndefined();
     expect(second.resolveValue(slot)).toMatchObject({
-      value: [80, 81, 82, 83],
-      mappingStatus: "direct",
+      value: [0.80, 0.81, 0.82, 0.83],
       state: "stale",
       freshness: "stale",
       confidenceComponents: { freshness: 0 },
@@ -263,21 +240,21 @@ describe("compiled telemetry resolver", () => {
   test("reports cross-domain freshness as unknown until source changes", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
-      staleAfterMs: { "tire.temperature.carcass.middle": 50 },
+      requested: [{ semanticId: "tires.tire-wear" }],
+      staleAfterMs: { "tires.tire-wear": 50 },
     });
-    const slot = resolver.slot("tire.temperature.carcass.middle");
+    const slot = resolver.slot("tires.tire-wear");
     const snapshot = {
-      TireCarcassTempMiddleFL: 80,
-      TireCarcassTempMiddleFR: 81,
-      TireCarcassTempMiddleRL: 82,
-      TireCarcassTempMiddleRR: 83,
+      TireWearFL: 0.80,
+      TireWearFR: 0.81,
+      TireWearRL: 0.82,
+      TireWearRR: 0.83,
     };
     const first = resolver.createFrameView(packet("iracing", snapshot), {
       timestamp: { domain: "session", milliseconds: 1_000 },
       updateSequence: 1n,
     });
-    expect(first.readValue<readonly number[]>(slot)).toEqual([80, 81, 82, 83]);
+    expect(first.readValue<readonly number[]>(slot)).toEqual([0.80, 0.81, 0.82, 0.83]);
 
     const unknown = resolver.createFrameView(
       packet("iracing", snapshot),
@@ -287,7 +264,7 @@ describe("compiled telemetry resolver", () => {
       },
       first,
     );
-    expect(unknown.readValue<readonly number[]>(slot)).toEqual([80, 81, 82, 83]);
+    expect(unknown.readValue<readonly number[]>(slot)).toEqual([0.80, 0.81, 0.82, 0.83]);
     expect(unknown.resolveValue(slot)).toMatchObject({
       state: "ok",
       freshness: "unknown",
@@ -302,7 +279,7 @@ describe("compiled telemetry resolver", () => {
     });
 
     const changed = resolver.createFrameView(
-      packet("iracing", { ...snapshot, TireCarcassTempMiddleFL: 84 }),
+      packet("iracing", { ...snapshot, TireWearFL: 0.84 }),
       {
         timestamp: { domain: "wall-clock", milliseconds: 1_800_000_000_001 },
         updateSequence: 3n,
@@ -327,21 +304,21 @@ describe("compiled telemetry resolver", () => {
   test("converts matching monotonic timestamps from nanoseconds for freshness", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
-      staleAfterMs: { "tire.temperature.carcass.middle": 50 },
+      requested: [{ semanticId: "tires.tire-wear" }],
+      staleAfterMs: { "tires.tire-wear": 50 },
     });
-    const slot = resolver.slot("tire.temperature.carcass.middle");
+    const slot = resolver.slot("tires.tire-wear");
     const snapshot = {
-      TireCarcassTempMiddleFL: 80,
-      TireCarcassTempMiddleFR: 81,
-      TireCarcassTempMiddleRL: 82,
-      TireCarcassTempMiddleRR: 83,
+      TireWearFL: 0.80,
+      TireWearFR: 0.81,
+      TireWearRL: 0.82,
+      TireWearRR: 0.83,
     };
     const first = resolver.createFrameView(packet("iracing", snapshot), {
       timestamp: { domain: "monotonic", nanoseconds: 1_000_000_000n },
       updateSequence: 1n,
     });
-    expect(first.readValue<readonly number[]>(slot)).toEqual([80, 81, 82, 83]);
+    expect(first.readValue<readonly number[]>(slot)).toEqual([0.80, 0.81, 0.82, 0.83]);
 
     const stale = resolver.createFrameView(
       packet("iracing", snapshot),

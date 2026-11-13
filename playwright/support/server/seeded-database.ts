@@ -16,9 +16,9 @@ type SeedAsset = { input: string; portable: string };
 
 export function portableCapturePath(path: string): string {
   const normalized = path.replaceAll("\\", "/");
-  const parts = normalized.split("/");
-  if (parts.some((part) => !part || part === "." || part === ".." || /[:\0]/.test(part)) ||
-      !/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2)\/(?:(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?(?:\.opponents-removed\.capture-manifest\.json)?|capture-manifest\.json|(?:own|others)\/(?:[^/]+\/)+(?:capture-manifest\.json|manifest(?:\.live)?\.json|capture\.bin\.gz))$/.test(normalized)) {
+  const legacyCapture = /^sessions\/(?:(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2)\/(?:(?:own|others)\/)?[^/:\0]+\.bin(?:\.gz)?|iracing\/(?:(?:own|others)\/)?[^/:\0]+\.ibt)$/;
+  const lmuManifest = /^sessions\/lmu\/(?:(?:own|others)\/(?:(?!\.{1,2}\/)[^/:\0]+\/)*)?(?:capture-manifest\.json|manifest\.json|capture\.bin\.gz|[^/:\0]+\.bin(?:\.gz)?\.opponents-removed\.capture-manifest\.json)$/;
+  if (!legacyCapture.test(normalized) && !lmuManifest.test(normalized)) {
     throw new Error(`Invalid seeded capture path: ${path}`);
   }
   return normalized;

@@ -6,7 +6,7 @@ export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
+  source?: "motec" | "ibt" | null;
   units?: Readonly<Record<string, string | null | undefined>>;
   lmu?: LmuLiveContextWire;
   observedAtMs?: number;

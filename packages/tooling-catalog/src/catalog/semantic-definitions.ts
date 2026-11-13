@@ -11,8 +11,8 @@ import { SEMANTIC_DEFINITIONS_EXTENDED } from "./semantic-definitions-extended";
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS: Record<string, SemanticDefinition> = {
-  ...SEMANTIC_DEFINITIONS_LIVE,
   ...SEMANTIC_DEFINITIONS_COMPETITOR,
+  ...SEMANTIC_DEFINITIONS_LIVE,
   ...SEMANTIC_DEFINITIONS_EXTENDED,
 };
 

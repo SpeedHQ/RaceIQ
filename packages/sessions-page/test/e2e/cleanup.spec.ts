@@ -42,10 +42,8 @@ test("confirmed cleanup removes disposable capture while preserving session and 
       const preview = await response.json() as SessionCleanupPreview;
       return [...preview.candidateSessionIds].sort((a, b) => a - b);
     }, { timeout: 60_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
- const captures = captureFiles(capturesDir).filter(
-  (path) => !capturesBefore.has(path),
-);
-expect(captures.length, "import creates disposable capture files").toBeGreaterThan(0);
+    const captures = captureFiles(capturesDir).filter((path) => !capturesBefore.has(path));
+    expect(captures.length, "import creates disposable capture files").toBeGreaterThan(0);
     const bytes = captures.reduce((total, path) => total + statSync(path).size, 0);
     expect(bytes).toBeGreaterThan(0);
 
@@ -67,13 +65,15 @@ expect(captures.length, "import creates disposable capture files").toBeGreaterTh
     expect(previewHttp.ok()).toBe(true);
     const preview = (await previewHttp.json()) as SessionCleanupPreview;
     expect(new Set(preview.candidateSessionIds)).toEqual(new Set(sessionIds));
-    expect(preview.fileCount).toBe(captures.length);
-    expect(preview.reclaimableBytes).toBe(bytes);
-    await expect(page.getByRole("dialog")).toBeVisible();
+    const cleanupDialog = page.getByRole("dialog", { name: "Free space", exact: true });
+    // Cleanup preview includes imported sources and published bundle members.
+    expect(preview.fileCount).toBeGreaterThanOrEqual(captures.length);
+    expect(preview.reclaimableBytes).toBeGreaterThanOrEqual(bytes);
+    await expect(cleanupDialog).toBeVisible();
     expect(captures.every(existsSync), "preview must not delete captures").toBe(true);
 
     const cleanupResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/storage/session-cleanup");
-    await page.getByRole("button", { name: "Remove raw telemetry", exact: true }).click();
+    await cleanupDialog.getByRole("button", { name: "Remove raw telemetry", exact: true }).click();
     const cleanupHttp = await cleanupResponse;
     expect(cleanupHttp.ok()).toBe(true);
     const result = (await cleanupHttp.json()) as SessionCleanupResult;
@@ -81,7 +81,7 @@ expect(captures.length, "import creates disposable capture files").toBeGreaterTh
     expect(result.deletedFiles).toBe(captures.length);
     expect(result.freedBytes).toBe(bytes);
     expect(result.failed).toEqual([]);
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(cleanupDialog).toHaveCount(0);
     expect(captures.some(existsSync), "cleanup deletes disposable captures").toBe(false);
     expect([...capturesBefore].every(existsSync), "seeded captures stay untouched").toBe(true);
 
@@ -129,7 +129,7 @@ for (const favorite of ["session", "lap"] as const) {
       const preview = (await previewHttp.json()) as SessionCleanupPreview;
       expect(preview.protectedSessionIds).toContain(sessionId);
       expect(preview.candidateSessionIds).toEqual([]);
-      await expect(page.getByRole("dialog").getByRole("button", { name: "Remove raw telemetry", exact: true })).toBeDisabled();
+      await expect(page.getByRole("dialog", { name: "Free space", exact: true }).getByRole("button", { name: "Remove raw telemetry", exact: true })).toBeDisabled();
 
       const cleanupHttp = await request.post("/api/storage/session-cleanup", { data: { mode: "selected", sessionIds: [sessionId] } });
       expect(cleanupHttp.ok()).toBe(true);
@@ -187,7 +187,7 @@ test("selected-session cleanup previews protection and waits for confirmation", 
   const first = sessionRows(page).first();
   await first.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Free space", exact: true }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "Free space", exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Removes .bin recording files to free disk space. Session and lap details remain, and favorite sessions and laps are protected.", { exact: true })).toBeVisible();
   await expect(dialog.getByText("Protected sessions", { exact: true })).toBeVisible();
@@ -238,7 +238,7 @@ test("missing capture can be cleaned when no file bytes remain", async ({ page }
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
   await sessionRows(page).first().getByRole("checkbox").check();
   await page.getByRole("button", { name: "Free space", exact: true }).click();
-  const confirm = page.getByRole("button", { name: "Remove raw telemetry", exact: true });
+  const confirm = page.getByRole("dialog", { name: "Free space", exact: true }).getByRole("button", { name: "Remove raw telemetry", exact: true });
   await expect(confirm).toBeEnabled();
   await confirm.click();
   await expect.poll(() => executeCalls).toBe(1);

@@ -22,6 +22,7 @@ export interface SyntheticRow {
   lastLapTime?: number;
   currentLapTime?: number;
   brakeLinePressure?: number;
+  brakeBias?: number;
 }
 
 export interface SyntheticIdentity {
@@ -67,8 +68,8 @@ function descriptor(
   return buffer;
 }
 
-function telemetryRow(row: SyntheticRow): Buffer {
-  const buffer = Buffer.alloc(ROW_LENGTH);
+function telemetryRow(row: SyntheticRow, includeBrakeBias: boolean): Buffer {
+  const buffer = Buffer.alloc(ROW_LENGTH + (includeBrakeBias ? 4 : 0));
   buffer.writeDoubleLE(row.sessionTime, 0);
   buffer.writeInt32LE(row.sessionTick, 8);
   buffer.writeInt32LE(2, 12);
@@ -80,6 +81,7 @@ function telemetryRow(row: SyntheticRow): Buffer {
   buffer.writeFloatLE(row.lastLapTime ?? 0, 32);
   buffer.writeFloatLE(row.currentLapTime ?? row.sessionTime, 36);
   buffer.writeFloatLE(row.brakeLinePressure ?? 1200.25, 40);
+  if (includeBrakeBias) buffer.writeFloatLE(row.brakeBias ?? NaN, ROW_LENGTH);
   return buffer;
 }
 
@@ -118,23 +120,6 @@ export function writeSyntheticIbt(
   suppliedRows?: SyntheticRow[],
   identity: SyntheticIdentity = DEFAULT_IDENTITY,
 ): void {
-  const variableHeaders = Buffer.concat([
-    descriptor(IRSDKVariableType.Double, 0, "SessionTime"),
-    descriptor(IRSDKVariableType.Int, 8, "SessionTick"),
-    descriptor(IRSDKVariableType.Int, 12, "SessionNum"),
-    descriptor(IRSDKVariableType.Bool, 16, "IsOnTrack"),
-    descriptor(IRSDKVariableType.Bool, 17, "OnPitRoad"),
-    descriptor(IRSDKVariableType.Float, 20, "Speed"),
-    descriptor(IRSDKVariableType.Int, 24, "Lap"),
-    descriptor(IRSDKVariableType.Float, 28, "LapDistPct"),
-    descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
-    descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
-    descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
-  ]);
-  const sessionInfo = Buffer.from(
-    `${syntheticSessionInfo(identity)}\0`,
-    "utf8",
-  );
   const sourceRows: SyntheticRow[] = suppliedRows ?? [
     {
       sessionTime: 10,
@@ -151,7 +136,26 @@ export function writeSyntheticIbt(
       brakeLinePressure: 1201.5,
     },
   ];
-  const rows = sourceRows.map(telemetryRow);
+  const includeBrakeBias = sourceRows.some((row) => row.brakeBias !== undefined);
+  const variableHeaders = Buffer.concat([
+    descriptor(IRSDKVariableType.Double, 0, "SessionTime"),
+    descriptor(IRSDKVariableType.Int, 8, "SessionTick"),
+    descriptor(IRSDKVariableType.Int, 12, "SessionNum"),
+    descriptor(IRSDKVariableType.Bool, 16, "IsOnTrack"),
+    descriptor(IRSDKVariableType.Bool, 17, "OnPitRoad"),
+    descriptor(IRSDKVariableType.Float, 20, "Speed"),
+    descriptor(IRSDKVariableType.Int, 24, "Lap"),
+    descriptor(IRSDKVariableType.Float, 28, "LapDistPct"),
+    descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
+    descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
+    descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
+    ...(includeBrakeBias ? [descriptor(IRSDKVariableType.Float, ROW_LENGTH, "dcBrakeBias")] : []),
+  ]);
+  const sessionInfo = Buffer.from(
+    `${syntheticSessionInfo(identity)}\0`,
+    "utf8",
+  );
+  const rows = sourceRows.map((row) => telemetryRow(row, includeBrakeBias));
 
   const sessionInfoOffset =
     DISK_HEADER_SIZE + variableHeaders.length;
@@ -167,7 +171,7 @@ export function writeSyntheticIbt(
   );
   header.writeInt32LE(DISK_HEADER_SIZE, 28);
   header.writeInt32LE(1, 32);
-  header.writeInt32LE(ROW_LENGTH, 36);
+  header.writeInt32LE(ROW_LENGTH + (includeBrakeBias ? 4 : 0), 36);
   header.writeBigInt64LE(1_757_390_931n, 112);
   header.writeDoubleLE(sourceRows[0]?.sessionTime ?? 0, 120);
   header.writeDoubleLE(

@@ -1,6 +1,6 @@
 # iRacing scripts
 
-Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and seeding shared iRacing car/track catalogs.
+Domain tooling for inspecting IBT recordings, rebuilding synthetic recorder fixtures, and seeding shared iRacing car/track catalogs.
 
 ## Commands
 
@@ -12,7 +12,10 @@ Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and
 | `bun packages/tooling-data/src/iracing/seed-tracks.ts` | Seed track layout catalog | Reads track and asset JSON sources; writes `packages/game-iracing-metadata/src/tracks.csv` |
 | `bun packages/tooling-data/src/iracing/seed-track-maps.ts` | Seed bundled official track maps | Downloads official SVG layers; writes parsed JSON to `packages/game-iracing-metadata/src/track-maps/` |
 | `bun packages/tooling-data/src/iracing/generate-recording-fixture.ts` | Rebuild deterministic recorder fixture | Writes `test/artifacts/sessions/iracing-road-america-gt3.bin.gz` |
-| `bun packages/tooling-data/src/iracing/generate-seed-fixture.ts <recording.ibt>` | Build compact real-telemetry fixture | Reads IBT; writes `test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz` |
+
+App seeding imports the original `test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt` through the production Import preview/commit workflow. The stored session source remains a byte-identical IBT at its native cadence; no derived BIN is produced. Native raw recordings may also be seeded when available. The synthetic Road America and IBT-derived Daytona recordings remain parser/import regression fixtures, not default app seed data.
+
+IBT files use the application's Import flow, like MoTeC logs. There is no IBT-to-seed conversion command or preconverted Navarra `.bin.gz` fixture.
 
 ## Seeder options
 

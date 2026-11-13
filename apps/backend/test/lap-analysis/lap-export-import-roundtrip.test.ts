@@ -28,7 +28,7 @@ import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-fr
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
-import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../src/laps/archive";
+import { buildLapsZip, detectLapsZip, importLapsZip, type LapsZipManifest } from "../../src/laps/archive";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
@@ -44,6 +44,8 @@ import { initMotecTargets } from "../../src/games/motec-init";
 import { decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { LMU_SHARED_MEMORY_SIZE, LMU_GAME_VERSION_OFFSET, LMU_SESSION_EVENT_OFFSET, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY, LMU_SCORING_INFO, LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLES_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
+import { stageIbtUpload, commitStagedIbt } from "../../src/imports/iracing-ibt";
+import { createRecording, drivenRows } from "@raceiq/game-iracing/test-support/games/iracing-ibt";
 import { encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { readLmuOpponentCaptureFrames, indexLmuOpponentLaps } from "@raceiq/backend-core/lap-analysis/lmu-opponent-laps";
@@ -178,6 +180,64 @@ describe("lap export → import round-trip (real capture)", () => {
 
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
+  }, 120000);
+  test("IBT ZIP export and import retain original source bytes", async () => {
+    const recording = createRecording("archive-source.ibt", drivenRows());
+    try {
+      const sourceBytes = readFileSync(recording.path);
+      const staged = await stageIbtUpload(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(sourceBytes);
+          controller.close();
+        },
+      }), "archive-source.ibt", sourceBytes.byteLength);
+      expect(staged.token).not.toBeNull();
+      const imported = await commitStagedIbt(staged.token!);
+      createdSessions.push(...new Set(imported.laps.map((lap) => lap.sessionId)));
+      const session = await db.select({ rawFile: sessions.rawFile }).from(sessions)
+        .where(eq(sessions.id, imported.laps[0]!.sessionId)).get();
+      if (session?.rawFile) tmpFiles.push(session.rawFile);
+
+      const exported = await buildLapsZip([imported.laps[0]!.lapId]);
+      const members = unzipSync(exported.bytes);
+      const ibtName = Object.keys(members).find((name) => name.toLowerCase().endsWith(".ibt"));
+      expect(ibtName).toBeDefined();
+      expect(Buffer.from(members[ibtName!]!)).toEqual(sourceBytes);
+      expect(detectLapsZip(exported.bytes)).toMatchObject({ captureCount: 1, gameIds: ["iracing"] });
+
+
+      const roundTrip = await importLapsZip(exported.bytes);
+      expect(roundTrip.errors).toEqual([]);
+      expect(roundTrip.imported).toBeGreaterThan(0);
+      createdSessions.push(...new Set(roundTrip.laps.map((lap) => lap.sessionId)));
+      for (const sessionId of new Set(roundTrip.laps.map((lap) => lap.sessionId))) {
+        const row = await db.select({ rawFile: sessions.rawFile }).from(sessions)
+          .where(eq(sessions.id, sessionId)).get();
+        if (row?.rawFile) tmpFiles.push(row.rawFile);
+      }
+      const { rows: binRows } = await seedSession({ minimumLaps: 1 });
+      const mixed = await buildLapsZip([imported.laps[0]!.lapId, binRows[0]!.id]);
+      const mixedMembers = unzipSync(mixed.bytes);
+      mixedMembers["notes.txt"] = new TextEncoder().encode("not telemetry");
+      const mixedBytes = zipSync(mixedMembers);
+      expect(detectLapsZip(mixedBytes).captureCount).toBe(2);
+      const mixedImport = await importLapsZip(mixedBytes);
+      createdSessions.push(...new Set(mixedImport.laps.map((lap) => lap.sessionId)));
+      for (const sessionId of new Set(mixedImport.laps.map((lap) => lap.sessionId))) {
+        const row = await db.select({ rawFile: sessions.rawFile }).from(sessions)
+          .where(eq(sessions.id, sessionId)).get();
+        if (row?.rawFile) tmpFiles.push(row.rawFile);
+      }
+      expect(mixedImport.errors).toEqual([]);
+      const restoredSessions = await db.select({ gameId: sessions.gameId }).from(sessions)
+        .where(inArray(sessions.id, mixedImport.laps.map((lap) => lap.sessionId))).all();
+      expect(restoredSessions.map((session) => session.gameId)).toEqual(expect.arrayContaining(["iracing", "fm-2023"]));
+      await expect(importLapsZip(zipSync({
+        ...mixedMembers, "orphan.opponents.bin.gz": new Uint8Array([1]),
+      }))).rejects.toThrow("Archive contains an unassociated opponent companion");
+    } finally {
+      recording.cleanup();
+    }
   }, 120000);
 
   for (const gameId of KNOWN_GAME_IDS) {

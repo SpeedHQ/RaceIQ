@@ -1,6 +1,6 @@
 import { useSessionAnalyseHost } from "./host";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { evaluationReasonLabel, selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 
@@ -25,9 +25,15 @@ export function SessionLapSelectionDialog({ open, onOpenChange, laps, selectedLa
   const [filter, setFilter] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("lapTime");
   const [sortDescending, setSortDescending] = useState(false);
-
+  const wasOpen = useRef(false);
+ 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      wasOpen.current = false;
+      return;
+    }
+    if (wasOpen.current) return;
+    wasOpen.current = true;
     setDraftIds([...selectedLapIds]);
     setDraftPrimary(primaryLapId);
     setSortDescending(false);

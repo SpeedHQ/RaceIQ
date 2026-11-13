@@ -42,6 +42,7 @@ import { Route as F125TunesRouteImport } from './routes/f125/tunes'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
+import { Route as IracingLiveRouteImport } from './routes/iracing/live'
 import { Route as LiveIndexRouteImport } from './routes/live.index'
 import { Route as LivePitRouteImport } from './routes/live.pit'
 import { Route as LmuIndexRouteImport } from './routes/lmu/index'
@@ -239,6 +240,11 @@ const IracingIndexRoute = IracingIndexRouteImport.update({
   path: '/',
   getParentRoute: () => IracingRoute,
 } as any)
+const IracingLiveRoute = IracingLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => IracingRoute,
+} as any)
 const LiveIndexRoute = LiveIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -428,6 +434,7 @@ export interface FileRoutesByFullPath {
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
+  '/iracing/live': typeof IracingLiveRoute
   '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
@@ -478,6 +485,7 @@ export interface FileRoutesByTo {
   '/$gameid/compare': typeof GameidCompareRoute
   '/$gameid/driver': typeof GameidDriverRoute
   '/$gameid/raw': typeof GameidRawRoute
+  '/iracing/live': typeof IracingLiveRoute
   '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
@@ -545,6 +553,7 @@ export interface FileRoutesById {
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
+  '/iracing/live': typeof IracingLiveRoute
   '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
@@ -613,6 +622,7 @@ export interface FileRouteTypes {
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/setups'
+    | '/iracing/live'
     | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
@@ -663,6 +673,7 @@ export interface FileRouteTypes {
     | '/$gameid/compare'
     | '/$gameid/driver'
     | '/$gameid/raw'
+    | '/iracing/live'
     | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
@@ -729,6 +740,7 @@ export interface FileRouteTypes {
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/setups'
+    | '/iracing/live'
     | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
@@ -1019,6 +1031,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/iracing/'
       preLoaderRoute: typeof IracingIndexRouteImport
+      parentRoute: typeof IracingRoute
+    }
+    '/iracing/live': {
+      id: '/iracing/live'
+      path: '/live'
+      fullPath: '/iracing/live'
+      preLoaderRoute: typeof IracingLiveRouteImport
       parentRoute: typeof IracingRoute
     }
     '/live/': {
@@ -1458,10 +1477,12 @@ const Fm23RouteChildren: Fm23RouteChildren = {
 const Fm23RouteWithChildren = Fm23Route._addFileChildren(Fm23RouteChildren)
 
 interface IracingRouteChildren {
+  IracingLiveRoute: typeof IracingLiveRoute
   IracingIndexRoute: typeof IracingIndexRoute
 }
 
 const IracingRouteChildren: IracingRouteChildren = {
+  IracingLiveRoute: IracingLiveRoute,
   IracingIndexRoute: IracingIndexRoute,
 }
 

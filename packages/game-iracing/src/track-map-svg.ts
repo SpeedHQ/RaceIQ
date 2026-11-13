@@ -14,11 +14,19 @@ export interface IRacingPitLine {
   kind: IRacingPitLineKind;
   points: IRacingMapPoint[];
 }
+export interface IRacingMapEdges {
+  leftEdge: IRacingMapPoint[];
+  rightEdge: IRacingMapPoint[];
+}
 
 export interface IRacingSvgTrackMap {
   points: IRacingMapPoint[];
   labels: IRacingMapLabel[];
   pitLines: IRacingPitLine[];
+  startFinishAligned: boolean;
+  forwardDirectionKnown: boolean;
+  /** Published map ribbon edges, not surveyed track-width telemetry. */
+  ribbonEdges: IRacingMapEdges | null;
 }
 type PitPathHint = IRacingPitLineKind | "ignore" | null;
 
@@ -622,6 +630,49 @@ function allContours(svg: string): SvgPoint[][] {
     (pathData) => parsePathData(pathData).contours,
   );
 }
+function startFinishMarkerContours(svg: string): SvgPoint[] {
+  const symbols = new Map<string, SvgPoint>();
+  for (const match of svg.matchAll(/<symbol\b([^>]*)>([\s\S]*?)<\/symbol>/gi)) {
+    const id = svgAttribute(match[1]!, "id");
+    const viewBox = svgAttribute(match[1]!, "viewBox");
+    if (!id || !/start[_-]?finish/i.test(id) || !viewBox) continue;
+    const values = numberTokens(viewBox);
+    if (values.length >= 4) symbols.set(id, { x: values[0]! + values[2]! / 2, y: values[1]! + values[3]! / 2 });
+  }
+  const markers: SvgPoint[] = [];
+  for (const match of svg.matchAll(/<use\b[^>]*>/gi)) {
+    const tag = match[0];
+    const href = svgAttribute(tag, "href") ?? svgAttribute(tag, "xlink:href");
+    if (!href || !/start[_-]?finish/i.test(href)) continue;
+    const id = href.replace(/^#/, "");
+    const point = symbols.get(id);
+    if (!point) continue;
+    let { x, y } = point;
+    const transforms = [...(svgAttribute(tag, "transform") ?? "").matchAll(/(translate|rotate|scale)\(([^)]*)\)/gi)].reverse();
+    for (const transform of transforms) {
+      const values = numberTokens(transform[2]!);
+      switch (transform[1]!.toLowerCase()) {
+        case "translate":
+          x += values[0] ?? 0; y += values[1] ?? 0;
+          break;
+        case "scale":
+          x *= values[0] ?? 1; y *= values[1] ?? values[0] ?? 1;
+          break;
+        case "rotate": {
+          const angle = (values[0] ?? 0) * Math.PI / 180;
+          const cx = values[1] ?? 0, cy = values[2] ?? 0;
+          const dx = x - cx, dy = y - cy;
+          x = cx + dx * Math.cos(angle) - dy * Math.sin(angle);
+          y = cy + dx * Math.sin(angle) + dy * Math.cos(angle);
+          break;
+        }
+      }
+    }
+    if (Number.isFinite(x) && Number.isFinite(y)) markers.push({ x, y });
+  }
+  return markers;
+}
+
 
 function closedPerimeter(points: readonly SvgPoint[]): number {
   let total = 0;
@@ -803,10 +854,14 @@ export function parseIRacingActiveSvg(
   const first = resampleClosed(contours[0], SAMPLE_COUNT);
   if (first.length !== SAMPLE_COUNT) return null;
   let centerline = first;
+  let firstEdge: SvgPoint[] | null = null;
+  let secondEdge: SvgPoint[] | null = null;
   if (contours.length >= 2) {
     const second = resampleClosed(contours[1], SAMPLE_COUNT);
     if (second.length === SAMPLE_COUNT) {
       const aligned = alignBoundary(first, second);
+      firstEdge = first;
+      secondEdge = aligned;
       centerline = first.map((point, index) => ({
         x: (point.x + aligned[index].x) / 2,
         y: (point.y + aligned[index].y) / 2,
@@ -814,13 +869,17 @@ export function parseIRacingActiveSvg(
     }
   }
 
+  let startFinishAligned = false;
   if (startFinishSvg) {
-    const markerPoints = allContours(startFinishSvg).flat();
+    const markerPoints = [...allContours(startFinishSvg).flat(), ...startFinishMarkerContours(startFinishSvg)];
     if (markerPoints.length > 0) {
-      centerline = rotateToIndex(
-        centerline,
-        nearestPointIndex(centerline, markerPoints),
-      );
+      const startIndex = nearestPointIndex(centerline, markerPoints);
+      centerline = rotateToIndex(centerline, startIndex);
+      if (firstEdge && secondEdge) {
+        firstEdge = rotateToIndex(firstEdge, startIndex);
+        secondEdge = rotateToIndex(secondEdge, startIndex);
+      }
+      startFinishAligned = true;
     }
   }
 
@@ -830,12 +889,37 @@ export function parseIRacingActiveSvg(
     .sort((a, b) => Number(a.text) - Number(b.text))
     .slice(0, 2)
     .map((label) => ({ x: -label.x, y: label.z }));
+  const turn1Index = numericLabels.length === 2 ? nearestPointIndex(centerline, [numericLabels[0]]) : -1;
+  const turn2Index = numericLabels.length === 2 ? nearestPointIndex(centerline, [numericLabels[1]]) : -1;
+  const forwardDirectionKnown = turn1Index >= 0 && turn2Index >= 0 && turn1Index !== turn2Index;
   if (
-    numericLabels.length === 2 &&
-    nearestPointIndex(centerline, [numericLabels[0]]) >
-      nearestPointIndex(centerline, [numericLabels[1]])
+    forwardDirectionKnown &&
+    turn1Index > turn2Index
   ) {
     centerline = [centerline[0], ...centerline.slice(1).reverse()];
+    if (firstEdge && secondEdge) {
+      firstEdge = [firstEdge[0], ...firstEdge.slice(1).reverse()];
+      secondEdge = [secondEdge[0], ...secondEdge.slice(1).reverse()];
+    }
+  }
+
+  let ribbonEdges: IRacingMapEdges | null = null;
+  if (firstEdge && secondEdge) {
+    let firstSide = 0;
+    for (let index = 0; index < centerline.length; index++) {
+      const previous = centerline[(index + centerline.length - 1) % centerline.length];
+      const next = centerline[(index + 1) % centerline.length];
+      // X is mirrored below; positive means the first edge is on the driver's left.
+      firstSide += (firstEdge[index].x - centerline[index].x) * (next.y - previous.y)
+        - (firstEdge[index].y - centerline[index].y) * (next.x - previous.x);
+    }
+    if (Number.isFinite(firstSide) && firstSide !== 0) {
+      const mapPoint = (point: SvgPoint): IRacingMapPoint => ({ x: -point.x, z: point.y });
+      ribbonEdges = {
+        leftEdge: (firstSide > 0 ? firstEdge : secondEdge).map(mapPoint),
+        rightEdge: (firstSide > 0 ? secondEdge : firstEdge).map(mapPoint),
+      };
+    }
   }
 
   return {
@@ -844,5 +928,8 @@ export function parseIRacingActiveSvg(
     points: centerline.map((point) => ({ x: -point.x, z: point.y })),
     labels: rawLabels,
     pitLines: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [],
+    startFinishAligned,
+    forwardDirectionKnown,
+    ribbonEdges,
   };
 }
