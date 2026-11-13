@@ -19,10 +19,8 @@ export type SessionDesktopTableProps = {
   carNames: Record<string, string>;
   isLoading: boolean;
   sessionsError: boolean;
-  showSessionType: boolean;
   gameId: GameId | null;
   emptyMessage: string;
-  colCount: number;
   pageItems: SessionMeta[];
   sortKey: SortKey;
   sortDir: SortDir;
@@ -50,10 +48,8 @@ export function SessionDesktopTable({
   carNames,
   isLoading,
   sessionsError,
-  showSessionType,
   gameId,
   emptyMessage,
-  colCount,
   pageItems,
   sortKey,
   sortDir,
@@ -74,6 +70,7 @@ export function SessionDesktopTable({
   saveSessionNotes,
   analyseSession,
 }: SessionDesktopTableProps) {
+  const colCount = 9;
   const { m, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead, FavoriteToggleButton, RaceResultLedger, SessionTypeBadge, formatLapTime, getLocale } = useSessionsPageHost();
   const pageLapIds = pageItems.flatMap((session) => (lapsBySession.get(session.id) ?? []).map((lap) => lap.id));
   const allSelected = pageItems.length > 0 && pageItems.every((session) => selectedSessions.has(session.id)) && pageLapIds.every((id) => selectedLaps.has(id));
@@ -119,7 +116,7 @@ export function SessionDesktopTable({
                 ["track", m.label_track()],
                 ["car", m.label_car()],
                 ["result", m.label_result()],
-                ...(showSessionType ? [["type", m.label_type()] as const] : []),
+                ["type", m.label_type()],
               ] as const
             ).map(([field, label]) => (
               <SortableTableHead key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
@@ -192,7 +189,7 @@ export function SessionDesktopTable({
                       <SessionResultMeta session={session} />
                       <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} processing={session.processing} onRefreshProcessing={refreshProcessingStatus} />
                     </TableCell>
-                    {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
+                    <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>
                     <TableCell>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TableCell>

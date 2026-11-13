@@ -241,8 +241,6 @@ export function SessionsPage() {
     },
     [queryClient],
   );
-  const showSessionType = gameId === "f1-2025" || gameId === "lmu" || gameId === "acc" || gameId === "ac-evo";
-  const colCount = showSessionType ? 9 : 8;
   const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
@@ -301,7 +299,6 @@ export function SessionsPage() {
         carNames={carNames}
         isLoading={isLoading}
         sessionsError={sessionsError}
-        showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
         selectedSessions={selectedSessions}
@@ -324,10 +321,8 @@ export function SessionsPage() {
         carNames={carNames}
         isLoading={isLoading}
         sessionsError={sessionsError}
-        showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
-        colCount={colCount}
         pageItems={pageItems}
         sortKey={sortKey}
         sortDir={sortDir}

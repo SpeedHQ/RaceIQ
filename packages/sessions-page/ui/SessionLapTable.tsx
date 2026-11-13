@@ -18,10 +18,6 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const queryClient = useQueryClient();
 
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
-  const sessionType = session.sessionType?.trim();
-  const sessionTypeLabel = sessionType && sessionType.toLowerCase() !== "unknown"
-    ? sessionType.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
-    : m.common_unknown();
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const classificationLabels = {
     pace: m.sessions_lap_classification_pace(),
@@ -59,7 +55,6 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             <SortableTableHead className="w-1 min-w-32" direction={lapSortKey === "time" ? (lapSortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleLapSort("time")}>
               {m.label_time()}
             </SortableTableHead>
-            <TableHead className="w-1 min-w-28">{m.review_session()}</TableHead>
             <TableHead className="w-1 min-w-28">{m.sessions_col_classification()}</TableHead>
             {sectorLabels.map((label, index) => (
               <SortableTableHead key={label} className="w-1 min-w-24 text-right" direction={lapSortKey === index ? (lapSortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleLapSort(index)}>
@@ -122,9 +117,6 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       </span>
                     )}
                   </div>
-                </TableCell>
-                <TableCell className="w-1 min-w-28 whitespace-nowrap text-app-label text-app-text-secondary">
-                  {sessionTypeLabel}
                 </TableCell>
                 <TableCell className="w-1 min-w-28 whitespace-nowrap text-app-label text-app-text-secondary">
                   {lap.classification != null
