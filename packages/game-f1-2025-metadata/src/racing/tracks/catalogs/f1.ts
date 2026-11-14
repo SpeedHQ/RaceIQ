@@ -8,6 +8,7 @@ export interface F1TrackInfo {
   location: string;
   country: string;
   variant: string;
+  /** Zero denotes an unknown catalog length; consumers must not display it as measured. */
   lengthKm: number;
   commonTrackName: string;
 }

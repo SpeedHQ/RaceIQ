@@ -8,14 +8,14 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.22.0`
 - Generator source SHA-256: `a1c55ed39fd6cb5c8dff2f5b00cf9e7daf2b38662ae4b236f33be3b2fd9cf6f1`
-- Content SHA-256: `88d941a7416323146ad9b0c6fcb13e072dfe522960588d246a5074f32ff743ed`
+- Content SHA-256: `98281458ae00b4b1bfd8ab041e762c3e973cc50717a0069560c891aa0598108a`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
-| f1-2025 | 292 | 292 | 119 | 173 | 0 | 0 | 0 |
+| f1-2025 | 302 | 302 | 119 | 183 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
 | ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
@@ -26,6 +26,8 @@
 
 | Semantic ID | Label | Value type | Dimensions | Unit | Cardinality | Ordering | Value schema | Limitations |
 |---|---|---|---|---|---|---|---|---|
+| `aero.car-telemetry2-active-aero-available` | Car Telemetry2 active Aero Available | boolean | dimensionless | boolean | scalar |  |  |  |
+| `aero.car-telemetry2-active-aero-mode` | Car Telemetry2 active Aero Mode | boolean | dimensionless | boolean | scalar |  |  |  |
 | `aero.drs-active` | DRS active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `aero.drs-available` | DRS available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `aero.drs-zone-approaching` | DRS Zone Approaching | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -218,6 +220,7 @@
 | `fuel.dp-fuel-fill` | Dp Fuel Fill | number | length^3 | L | scalar |  |  |  |
 | `fuel.ers-deploy-mode` | ERS Deploy Mode | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4 |  |
 | `fuel.ers-deployed` | ERS Deployed | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
+| `fuel.ers-harvest-limit-per-lap` | ERS Harvest Limit Per Lap | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-harvested` | ERS Harvested | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.ers-store-energy` | ERS Store Energy | number | mass × length^2 × time^-2 | J | scalar |  |  |  |
 | `fuel.fuel` | RaceIQ packet fuel value | number | dimensionless | game-native | scalar |  |  |  |
@@ -249,6 +252,9 @@
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
+| `identity.car-telemetry2-overtake-active` | Car Telemetry2 overtake Active | boolean | dimensionless | boolean | scalar |  |  |  |
+| `identity.car-telemetry2-overtake-available` | Car Telemetry2 overtake Available | boolean | dimensionless | boolean | scalar |  |  |  |
+| `identity.car-telemetry2-regulations2026` | Car Telemetry2 regulations2026 | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.competitor.car-name` | Scoring snapshot competitor car name | string | dimensionless | text | scalar |  |  |  |
 | `identity.competitor.driver-name` | Scoring snapshot competitor driver name | string | dimensionless | text | scalar |  |  |  |
 | `identity.competitor.vehicle-class` | Competitor vehicle class | string | dimensionless | text | scalar |  |  |  |
@@ -360,6 +366,7 @@
 | `motion.yaw` | Yaw | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-north` | Yaw North | number | angle | rad | scalar |  |  |  |
 | `motion.yaw-rate-st` | Yaw Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
+| `race.car-telemetry2-driving-wrong-way` | Car Telemetry2 driving Wrong Way | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.competitor.best-lap-time` | Scoring snapshot competitor best lap time | number | time | s | scalar |  |  |  |
 | `race.competitor.best-sector-1` | Competitor best sector 1 | number | time | s | scalar |  |  |  |
 | `race.competitor.best-sector-2-cumulative` | Competitor best cumulative sector 2 | number | time | s | scalar |  |  |  |
@@ -546,6 +553,7 @@
 | `session.maximum-drivers` | Max Drivers | number | dimensionless | count | scalar |  |  |  |
 | `session.minimum-drivers` | Min Drivers | number | dimensionless | count | scalar |  |  |  |
 | `session.official` | Official | boolean | dimensionless | boolean | scalar |  |  |  |
+| `session.packet-format` | Packet Format | number | unit:unitless | unitless | scalar |  |  |  |
 | `session.physics-packet-id` | Physics Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.qualifier-must-start-race` | Qualifier Must Start Race | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.race-week` | Race Week | number | dimensionless | count | scalar |  |  |  |
@@ -670,6 +678,8 @@
 | `timing.best-lap-number` | Best lap number | number | dimensionless | count | scalar |  |  |  |
 | `timing.car-dist-ahead` | Car Dist Ahead | number | length | m | scalar |  |  |  |
 | `timing.car-dist-behind` | Car Dist Behind | number | length | m | scalar |  |  |  |
+| `timing.car-telemetry2-active-aero-activation-distance` | Car Telemetry2 active Aero Activation Distance | boolean | dimensionless | boolean | scalar |  |  |  |
+| `timing.car-telemetry2-overtake-activation-distance` | Car Telemetry2 overtake Activation Distance | number | length | m | scalar |  |  |  |
 | `timing.competitor.best-lap-number` | Competitor best lap number | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.best-lap-time` | Competitor best lap time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.class-estimated-lap-time` | Car Class Est Lap Time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
