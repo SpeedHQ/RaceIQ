@@ -82,6 +82,13 @@ function parseNative(
   return f1Parser.tryParse(nativePacket(header(packetId, sessionTime, sessionUID), data), state);
 }
 
+test("zero session UID packet keeps last known session identity", () => {
+  const state = nativeAccumulator();
+  const packet = parseNative(state, F1_PACKET_IDS.CAR_STATUS, Buffer.alloc(55), 11, 0n);
+
+  expect(packet?.sessionUID).toBe("1");
+});
+
 test("native session packet decodes current F1 25 session IDs and preserves unknown values", () => {
   const sessionType = (code: number): string => {
     const state = nativeAccumulator();
