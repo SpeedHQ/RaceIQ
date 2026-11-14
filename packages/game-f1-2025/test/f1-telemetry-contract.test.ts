@@ -72,6 +72,13 @@ function parseNative(state: F1StateAccumulator, packetId: number, data: Buffer, 
   return f1Parser.tryParse(nativePacket(header(packetId, sessionTime, sessionUID), data), state);
 }
 
+test("zero session UID packet keeps last known session identity", () => {
+  const state = nativeAccumulator();
+  const packet = parseNative(state, F1_PACKET_IDS.CAR_STATUS, Buffer.alloc(55), 11, 0n);
+
+  expect(packet?.sessionUID).toBe("1");
+});
+
 test("2025 ERS is unavailable before car status, while recorded zeros remain available", () => {
   const state = nativeAccumulator();
   const before = parseNative(state, F1_PACKET_IDS.CAR_TELEMETRY, Buffer.alloc(60), 10);
