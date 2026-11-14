@@ -255,7 +255,7 @@ export class F1StateAccumulator {
     const data = buf.subarray(F1_HEADER_SIZE);
     switch (header.packetId) {
       case F1_PACKET_IDS.MOTION:
-        this.motion = decodeF1Motion(data, this.playerCarIndex) ?? this.motion;
+        this.motion = decodeF1Motion(data, this.playerCarIndex, header.packetFormat) ?? this.motion;
         break;
       case F1_PACKET_IDS.SESSION: {
         const session = decodeF1Session(data);
@@ -266,19 +266,19 @@ export class F1StateAccumulator {
         break;
       }
       case F1_PACKET_IDS.LAP_DATA:
-        this.lapData = decodeF1LapData(data, this.playerCarIndex) ?? this.lapData;
+        this.lapData = decodeF1LapData(data, this.playerCarIndex, header.packetFormat) ?? this.lapData;
         break;
       case F1_PACKET_IDS.PARTICIPANTS:
-        this.participants = decodeF1Participants(data);
+        this.participants = decodeF1Participants(data, header.packetFormat);
         break;
       case F1_PACKET_IDS.CAR_SETUP:
         this.carSetup = decodeF1CarSetup(data, this.playerCarIndex) ?? this.carSetup;
         break;
       case F1_PACKET_IDS.CAR_TELEMETRY:
-        this.carTelemetry = decodeF1CarTelemetry(data, this.playerCarIndex) ?? this.carTelemetry;
+        this.carTelemetry = decodeF1CarTelemetry(data, this.playerCarIndex, header.packetFormat) ?? this.carTelemetry;
         break;
       case F1_PACKET_IDS.CAR_STATUS: {
-        const carStatus = decodeF1CarStatus(data, this.playerCarIndex);
+        const carStatus = decodeF1CarStatus(data, this.playerCarIndex, header.packetFormat);
         if (carStatus) {
           this.carStatus = carStatus;
           this.carStatusUpdatedAt = header.sessionTime;

@@ -9,6 +9,7 @@ import { registerGame } from "@raceiq/shared/games/registry";
 import { f1ServerAdapter } from "../src/index";
 import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../src/f1-state";
+import { decodeF1CarStatus, decodeF1Motion, decodeF1Participants } from "../src/f1-packet-decoders";
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { processLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
@@ -19,9 +20,9 @@ import {
   type F1Header,
 } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
-function header(packetId: number, sessionTime = 10, sessionUID = 1n): F1Header {
+function header(packetId: number, sessionTime = 10, sessionUID = 1n, packetFormat = 2025, playerCarIndex = 0): F1Header {
   return {
-    packetFormat: 2025,
+    packetFormat,
     gameYear: 25,
     gameMajorVersion: 1,
     gameMinorVersion: 0,
@@ -31,7 +32,7 @@ function header(packetId: number, sessionTime = 10, sessionUID = 1n): F1Header {
     sessionTime,
     frameIdentifier: 1,
     overallFrameIdentifier: 1,
-    playerCarIndex: 0,
+    playerCarIndex,
     secondaryPlayerCarIndex: 255,
   };
 }
@@ -98,6 +99,64 @@ test("native session packet decodes current F1 25 session IDs and preserves unkn
   expect(sessionType(17)).toBe("race-3");
   expect(sessionType(18)).toBe("time-trial");
   expect(sessionType(19)).toBe("unknown");
+});
+
+test("F1 parser accepts the 2026 Season Pack packet format", () => {
+  const packet = nativePacket(header(F1_PACKET_IDS.SESSION, 0, 1n, 2026), Buffer.alloc(0));
+
+  expect(f1Parser.canHandle(packet)).toBe(true);
+});
+
+test("2026 Season Pack classification reports player finish and grid positions", () => {
+  const state = f1Parser.createParserState();
+  const index = 23;
+  const feed = (packetId: number, data: Buffer) => f1Parser.tryParse(
+    nativePacket(header(packetId, 1, 1n, 2026, index), data), state,
+  );
+  const session = Buffer.alloc(9);
+  session[6] = 15;
+
+  feed(F1_PACKET_IDS.MOTION, Buffer.alloc(24 * 54));
+  feed(F1_PACKET_IDS.SESSION, session);
+  feed(F1_PACKET_IDS.LAP_DATA, Buffer.alloc(24 * 57));
+  feed(F1_PACKET_IDS.CAR_TELEMETRY, Buffer.alloc(24 * 59 + 3));
+
+  const classification = Buffer.alloc(1 + 24 * 46);
+  classification[0] = 24;
+  const player = 1 + index * 46;
+  classification[player] = 3;
+  classification[player + 2] = 3;
+  const packet = feed(F1_PACKET_IDS.FINAL_CLASSIFICATION, classification);
+
+  expect(packet?.RacePosition).toBe(3);
+  expect(packet?.f1?.gridPosition).toBe(3);
+  expect(packet?.f1?.resultSource).toBe("final-classification");
+});
+
+test("2026 Season Pack packet layouts decode 24 cars and updated field encodings", () => {
+  const carIndex = 23;
+  const motion = Buffer.alloc(24 * 54);
+  const motionOffset = carIndex * 54;
+  motion.writeInt16LE(1250, motionOffset + 36);
+  motion.writeFloatLE(2.5, motionOffset + 42);
+  expect(decodeF1Motion(motion, carIndex, 2026)).toMatchObject({ gForceX: 1.25, yaw: 2.5 });
+
+  const status = Buffer.alloc(24 * 59);
+  status.writeFloatLE(12.5, carIndex * 59 + 54);
+  expect(decodeF1CarStatus(status, carIndex, 2026)?.ersDeployedThisLap).toBe(12.5);
+  expect(decodeF1CarStatus(status, carIndex, 2026)?.allCars).toHaveLength(24);
+
+  const participants = Buffer.alloc(1 + 24 * 60);
+  participants[0] = 24;
+  const participantOffset = 1 + carIndex * 60;
+  participants.writeUInt16LE(300, participantOffset + 1);
+  participants.writeUInt16LE(500, participantOffset + 5);
+  participants.write("PLAYER", participantOffset + 10, "ascii");
+  expect(decodeF1Participants(participants, 2026)[carIndex]).toEqual({
+    driverId: 300,
+    teamId: 500,
+    name: "PLAYER",
+  });
 });
 
 function wireFrame(packetId: number, sessionTime: number, frameId: number, data: Buffer): Buffer {
