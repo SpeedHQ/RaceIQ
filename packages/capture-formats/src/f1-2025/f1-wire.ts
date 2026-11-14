@@ -1,10 +1,10 @@
 export interface F1Header {
-  packetFormat: number; // u16 — 2025
+  packetFormat: number; // u16 — 2025 or 2026, not a car/season identity
   gameYear: number; // u8 — last two digits e.g. 25
   gameMajorVersion: number; // u8
   gameMinorVersion: number; // u8
   packetVersion: number; // u8
-  packetId: number; // u8 (0-15)
+  packetId: number; // u8 (0-16)
   sessionUID: bigint; // u64
   sessionTime: number; // f32
   frameIdentifier: number; // u32
@@ -14,6 +14,18 @@ export interface F1Header {
 }
 
 export const F1_HEADER_SIZE = 29;
+
+export type F1PacketFormat = 2025 | 2026;
+
+export function isF1PacketFormat(value: number): value is F1PacketFormat {
+  return value === 2025 || value === 2026;
+}
+
+/** EA structures attachment; source hash and limitations in the telemetry audit. */
+export const F1_2026_PACKET_SIZES: Readonly<Record<number, number>> = {
+  0: 1325, 1: 926, 2: 1399, 3: 45, 4: 1470, 5: 1233, 6: 1448,
+  7: 1445, 8: 1134, 10: 1133, 11: 1460, 13: 273, 16: 269,
+};
 
 export const F1_PACKET_IDS = {
   MOTION: 0,
@@ -28,6 +40,7 @@ export const F1_PACKET_IDS = {
   CAR_DAMAGE: 10,
   SESSION_HISTORY: 11,
   MOTION_EX: 13,
+  CAR_TELEMETRY_2: 16,
 } as const;
 
 export type F1PacketId = (typeof F1_PACKET_IDS)[keyof typeof F1_PACKET_IDS];

@@ -36,5 +36,5 @@ export const LIVE_GAME_SEMANTIC_IDS = {
 } as const;
 
 export function liveSemanticIds(gameId: GameId): readonly string[] {
-  return [...new Set([...LIVE_CORE_SEMANTIC_IDS, ...(LIVE_GAME_SEMANTIC_IDS[gameId] ?? [])])];
+  return [...new Set([...LIVE_CORE_SEMANTIC_IDS, ...(LIVE_GAME_SEMANTIC_IDS[gameId] ?? []), ...(gameId === "f1-2025" ? ["identity.telemetry-wire-format", "identity.f1-regulations-2026"] : [])])];
 }

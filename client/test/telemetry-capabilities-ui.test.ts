@@ -16,6 +16,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
 import { buildChartData } from "../src/components/analyse/chart-data";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
+import { F1LiveErsSection } from "../src/components/f1/F1LiveDashboard";
 import { AnalyseDataContent, buildAnalyseClipboardJson } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
@@ -31,7 +32,9 @@ import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
 import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
-import { fakeAccPacket, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
+import { fakeAccPacket, fakeAccSemanticFixture, fakeF1Packet, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
+import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import { buildLiveTelemetryView } from "../src/lib/live-telemetry-view";
 import { DEFAULT_DISPLAY_SETTINGS } from "../src/stores/telemetry";
 import { m } from "../src/paraglide/messages";
 
@@ -201,6 +204,45 @@ function renderTireDiagram(value: TelemetryPacket): string {
 }
 
 describe("telemetry capability UI", () => {
+  test("2026 live energy stays in kJ and legacy DRS remains separate", () => {
+    const ers = { storeJ: 2_000_000, deployedThisLapJ: 0, deployMode: 3 };
+    const modern = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: { drsActive: true }, wireFormat: 2026, regulations: true }));
+    expect(modern).toContain("2000 kJ");
+    expect(modern).toContain("0 kJ");
+    expect(modern).toContain("Boost");
+    expect(modern).not.toContain("50%");
+    expect(modern).not.toContain("OPEN");
+    const oldCar = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: { drsActive: true }, wireFormat: 2026, regulations: false }));
+    expect(oldCar).toContain("OPEN");
+    const legacy = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: {}, wireFormat: 2025 }));
+    expect(legacy).toContain("50%");
+  });
+  test("2026 wire identity reaches the actual live projection", () => {
+    const sample = { ...fakeF1Packet, f1: { ...fakeF1Packet.f1, packetFormat: 2026 as const, carTelemetry2: { activeAeroMode: 0, activeAeroAvailable: false, activeAeroActivationDistance: 0, overtakeAvailable: false, overtakeActive: false, overtakeActivationDistance: 0, regulations2026: true, drivingWrongWay: false } } };
+    const { schema, frame } = new LiveTelemetryProjector().project({ packet: sample, receivedAtMs: 1000 });
+    expect(schema).toBeDefined();
+    expect(frame).toBeDefined();
+    const view = buildLiveTelemetryView(schema!, frame!)!;
+    expect(view.statusBySemanticId["identity.telemetry-wire-format"]).toMatchObject({ resolution: "ok", freshness: "fresh" });
+    expect(Number(view.valuesBySemanticId["identity.telemetry-wire-format"])).toBe(2026);
+    expect(view.valuesBySemanticId["identity.f1-regulations-2026"]).toBe(true);
+  });
+  test("2026 replay shows measured energy without assuming battery capacity or legacy DRS", () => {
+    expect(analyseSemanticIds(getGame("f1-2025"))).toContain("identity.telemetry-wire-format");
+    expect(analyseSemanticIds(getGame("f1-2025"))).toContain("identity.f1-regulations-2026");
+    const markup = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: semanticFrame({ "identity.telemetry-wire-format": 2026, "identity.f1-regulations-2026": true, "fuel.ers-store-energy": 2_000_000, "fuel.ers-deployed": 0, "fuel.ers-deploy-mode": 3 }) }));
+    expect(markup).toContain("2000 kJ");
+    expect(markup).toContain("0 kJ");
+    expect(markup).toContain("Boost");
+    expect(markup).not.toContain("50.0%");
+    expect(markup).not.toContain("DRS");
+    expect(markup).toContain("—");
+    const olderCar = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: semanticFrame({ "identity.telemetry-wire-format": 2026, "identity.f1-regulations-2026": false, "aero.drs-active": true }) }));
+    expect(olderCar).toContain("DRS");
+    expect(olderCar).toContain("OPEN");
+    const stale = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: { ...semanticFrame({ "identity.telemetry-wire-format": 2026, "fuel.ers-store-energy": 2_000_000 }), freshness: { "fuel.ers-store-energy": "stale" } } }));
+    expect(stale).not.toContain("2000 kJ");
+  });
   test("renders complete adapter-gated F1 DRS/ERS panel", () => {
     const markup = renderToStaticMarkup(
       createElement(AnalyseF1ErsPanel, {
