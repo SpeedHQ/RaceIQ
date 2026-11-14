@@ -241,7 +241,7 @@ export class F1StateAccumulator {
   }
 
   private applyState(header: F1Header, buf: Buffer): boolean {
-    if (header.sessionUID !== this.sessionUID) {
+    if (header.sessionUID !== 0n && header.sessionUID !== this.sessionUID) {
       this.reset();
       this.sessionUID = header.sessionUID;
     }
@@ -539,7 +539,7 @@ export class F1StateAccumulator {
 
     const packet: TelemetryPacket = {
       gameId: "f1-2025",
-      sessionUID: header.sessionUID.toString(),
+      sessionUID: this.sessionUID === 0n ? undefined : this.sessionUID.toString(),
       f1,
       IsRaceOn: 1,
       TimestampMS: Math.round(header.sessionTime * 1000),
