@@ -16,11 +16,22 @@ interface RawTelemetryMetadata {
 }
 
 const variablesByPacketField = new Map<string, TelemetryVariableDefinition[]>();
+const variablesById = new Map(TELEMETRY_CATALOG.variables.map((variable) => [variable.id, variable]));
+const extensionVariablesByGameAndField = new Map<string, TelemetryVariableDefinition>();
 for (const variable of TELEMETRY_CATALOG.variables) {
   for (const packetField of variable.packetFields ?? []) {
     const matches = variablesByPacketField.get(packetField) ?? [];
     matches.push(variable);
     variablesByPacketField.set(packetField, matches);
+  }
+}
+// packetFields names only top-level normalized fields. Extension paths live in
+// the game-scoped source inventory (e.g. f1.carTelemetry2.activeAeroMode).
+for (const [gameId, sources] of Object.entries(TELEMETRY_CATALOG.sources)) {
+  for (const source of sources) {
+    if (source.sourceKind !== "extension") continue;
+    const variable = variablesById.get(source.semanticId);
+    if (variable) extensionVariablesByGameAndField.set(`${gameId}:${source.path}`, variable);
   }
 }
 
@@ -37,7 +48,8 @@ function categoryForLink(link: Exclude<TelemetryGameLink, { kind: "unavailable" 
 }
 
 function metadataForField(field: string, gameId: TelemetryPacket["gameId"]): RawTelemetryMetadata | null {
-  const variable = variablesByPacketField.get(field)?.[0];
+  const variable = variablesByPacketField.get(field)?.[0]
+    ?? extensionVariablesByGameAndField.get(`${gameId}:${field.replace(/\[\d+\]/g, "[]")}`);
   if (!variable || !gameId || !(gameId in variable.games)) return null;
   const link = variable.games[gameId];
   return link.kind === "unavailable" ? { variable, link, category: "unsupported" } : { variable, link, category: categoryForLink(link) };

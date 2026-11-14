@@ -7,6 +7,11 @@ import { packet } from "../support-resolver";
 import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
 
 describe("live telemetry semantics", () => {
+  test("F1 live projection requests format and regulations independently", () => {
+    expect(liveSemanticIds("f1-2025")).toContain("identity.telemetry-wire-format");
+    expect(liveSemanticIds("f1-2025")).toContain("identity.f1-regulations-2026");
+    expect(liveSemanticIds("acc")).not.toContain("identity.telemetry-wire-format");
+  });
   test("uses canonical per-wheel catalog shapes and direct Kunos mappings", () => {
     expect(getTelemetryVariable("damage.brake-pad-wear")).toMatchObject({ canonicalUnit: "mm", shape: "per-wheel", ordering: ["FL", "FR", "RL", "RR"] });
     expect(getTelemetryVariable("tires.tire-radius")).toMatchObject({ canonicalUnit: "m", shape: "per-wheel" });

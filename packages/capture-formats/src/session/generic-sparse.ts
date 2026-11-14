@@ -1,4 +1,5 @@
 import { readSourceFrameHeader, SOURCE_FRAME_HEADER_SIZE, SOURCE_FRAME_MAGIC } from "@raceiq/capture-formats/iracing/source-frame-codec";
+import { isF1PacketFormat } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
 // RQSD v1: [magic 4][version 1][checkpoint distance 4][source length 4]
 // [32-byte block bitmap][changed blocks]. Checkpoints are unmodified source frames.
@@ -19,7 +20,7 @@ export function genericFrameIdentity(frame: Buffer): string | null {
     return header && header.payloadLength + SOURCE_FRAME_HEADER_SIZE === frame.length
       ? `iracing:${header.schemaVersion}:${header.frameType}:${frame.length}` : null;
   }
-  if (frame.length >= 29 && frame.readUInt16LE(0) === 2025) {
+  if (frame.length >= 29 && isF1PacketFormat(frame.readUInt16LE(0))) {
     return `f1:${frame.subarray(0, 7).toString("hex")}:${frame.subarray(7, 15).toString("hex")}:${frame.length}`;
   }
   return frame.length >= 324 && frame.length <= 400 ? `fm:${frame.length}` : null;

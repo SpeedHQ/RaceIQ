@@ -42,6 +42,11 @@ function formatGap(gap: number): string {
   return gap > 0 ? `+${gap.toFixed(1)}` : `-${Math.abs(gap).toFixed(1)}`;
 }
 
+function freshSemantic(view: LiveTelemetryView, id: string): unknown {
+  const status = view.statusBySemanticId[id];
+  return status?.resolution === "ok" && status.freshness === "fresh" ? view.valuesBySemanticId[id] : undefined;
+}
+
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function F1LiveDashboard() {
@@ -80,7 +85,12 @@ export function F1LiveDashboard() {
             <WeatherWidget weather={view.weather} />
           </div>
           <div>
-            <ErsSection ers={view.ers} aero={view.aero} />
+            <F1LiveErsSection
+              ers={view.ers}
+              aero={view.aero}
+              wireFormat={Number(freshSemantic(view, "identity.telemetry-wire-format"))}
+              regulations={freshSemantic(view, "identity.f1-regulations-2026")}
+            />
           </div>
         </div>
         {/* Damage | Tyres */}
@@ -194,11 +204,13 @@ function CarDamageSection({ damage }: { damage: LiveTelemetryView["damage"] }) {
 
 // ── ERS Section ──────────────────────────────────────────────────────────────
 
-function ErsSection({ ers, aero }: { ers: LiveTelemetryView["ers"]; aero: LiveTelemetryView["aero"] }) {
-  const chargePct = ers.storeJ === undefined ? undefined : Math.min(100, (ers.storeJ / ERS_MAX_ENERGY) * 100);
+export function F1LiveErsSection({ ers, aero, wireFormat, regulations }: { ers: LiveTelemetryView["ers"]; aero: LiveTelemetryView["aero"]; wireFormat?: number; regulations?: unknown }) {
+  const format2026 = wireFormat === 2026;
+  const chargePct = format2026 || ers.storeJ === undefined ? undefined : Math.min(100, (ers.storeJ / ERS_MAX_ENERGY) * 100);
   const mode = ers.deployMode === undefined ? undefined : DEPLOY_MODES[ers.deployMode];
-  const deployedPct = ers.deployedThisLapJ === undefined ? undefined : Math.min(100, (ers.deployedThisLapJ / ERS_MAX_ENERGY) * 100);
-  const harvestedPct = ers.harvestedThisLapJ === undefined ? undefined : Math.min(100, (ers.harvestedThisLapJ / ERS_MAX_ENERGY) * 100);
+  const deployedPct = format2026 || ers.deployedThisLapJ === undefined ? undefined : Math.min(100, (ers.deployedThisLapJ / ERS_MAX_ENERGY) * 100);
+  const harvestedPct = format2026 || ers.harvestedThisLapJ === undefined ? undefined : Math.min(100, (ers.harvestedThisLapJ / ERS_MAX_ENERGY) * 100);
+  const energy = (value: number | undefined) => value === undefined || !Number.isFinite(value) ? "—" : `${(value / 1000).toFixed(0)} kJ`;
   const chargeColor = chargePct === undefined ? "var(--status-unavailable)" : severityColor(chargePct < 20 ? 3 : chargePct < 50 ? 1 : 0);
 
   return (
@@ -207,28 +219,28 @@ function ErsSection({ ers, aero }: { ers: LiveTelemetryView["ers"]; aero: LiveTe
         <h2 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_electronics()}</h2>
       </div>
       <div className="p-3 space-y-2">
-        <DrsIndicator aero={aero} />
+        {(!format2026 || regulations === false || regulations === 0) && <DrsIndicator aero={aero} />}
         <div className="flex items-center justify-between gap-2 mt-1">
           <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt tabular-nums" style={{ color: chargeColor }}>
-              {chargePct === undefined ? "—" : `${chargePct.toFixed(0)}%`}
+              {format2026 ? energy(ers.storeJ) : chargePct === undefined ? "—" : `${chargePct.toFixed(0)}%`}
             </span>
             <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt" style={{ color: mode?.color ?? "var(--status-unavailable)" }}>
-              {mode?.label ?? "—"}
+              {format2026 && ers.deployMode === 3 ? m.live_boost() : mode?.label ?? "—"}
             </span>
           </div>
         </div>
-        {chargePct === undefined ? (
+        {!format2026 && (chargePct === undefined ? (
           <div className="h-2 rounded-full border border-dashed border-app-border" />
         ) : (
           <div className="h-2 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all" style={{ backgroundColor: chargeColor, width: `${chargePct}%` }} />
           </div>
-        )}
+        ))}
         <div className="flex justify-between text-app-caption text-app-text-muted font-mono tabular-nums">
-          <span>↓ {deployedPct === undefined ? "—" : `${deployedPct.toFixed(0)}%`}</span>
-          <span>↑ {harvestedPct === undefined ? "—" : `${harvestedPct.toFixed(0)}%`}</span>
+          <span>↓ {format2026 ? energy(ers.deployedThisLapJ) : deployedPct === undefined ? "—" : `${deployedPct.toFixed(0)}%`}</span>
+          <span>↑ {format2026 ? energy(ers.harvestedThisLapJ) : harvestedPct === undefined ? "—" : `${harvestedPct.toFixed(0)}%`}</span>
         </div>
       </div>
     </div>

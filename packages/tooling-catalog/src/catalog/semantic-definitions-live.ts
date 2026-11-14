@@ -3,6 +3,46 @@ import { SETUP_CONCEPT_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
+  "identity.telemetry-wire-format": {
+    label: "Telemetry wire format", parentId: "identity", canonicalUnit: "enum", shape: "scalar",
+    description: "F1 UDP structure format, independent of the selected car's regulations; absent on legacy stored packets.",
+  },
+  "fuel.ers-harvest-limit-per-lap": {
+    label: "ERS harvest limit per lap", parentId: "fuel", canonicalUnit: "J", shape: "scalar",
+    description: "Native energy harvest limit for this lap in joules, reported by the 2026 UDP status layout; unavailable on 2025 packets.",
+  },
+  "aero.active-aero-mode": {
+    label: "Active aero mode", parentId: "aero", canonicalUnit: "enum", shape: "scalar",
+    description: "F1 active aero: 0 corner mode, 1 straight mode. Requires 2026 UDP packet 16; not legacy DRS.",
+  },
+  "aero.active-aero-available": {
+    label: "Active aero available", parentId: "aero", canonicalUnit: "boolean", shape: "scalar",
+    description: "Whether active aero is available, reported independently of DRS by 2026 UDP packet 16.",
+  },
+  "aero.active-aero-activation-distance": {
+    label: "Active aero activation distance", parentId: "aero", canonicalUnit: "m", shape: "scalar",
+    description: "Native metres until active aero is available; zero means unavailable. Requires 2026 UDP packet 16.",
+  },
+  "electronics.overtake-available": {
+    label: "Overtake mode available", parentId: "electronics", canonicalUnit: "boolean", shape: "scalar",
+    description: "Whether overtake mode is available according to 2026 UDP packet 16; not DRS availability.",
+  },
+  "electronics.overtake-active": {
+    label: "Overtake mode active", parentId: "electronics", canonicalUnit: "boolean", shape: "scalar",
+    description: "Whether overtake mode is active according to 2026 UDP packet 16; not DRS activation.",
+  },
+  "electronics.overtake-activation-distance": {
+    label: "Overtake mode activation distance", parentId: "electronics", canonicalUnit: "m", shape: "scalar",
+    description: "Native metres until overtake mode is available; zero means unavailable. Requires 2026 UDP packet 16.",
+  },
+  "identity.f1-regulations-2026": {
+    label: "2026 F1 regulations", parentId: "identity", canonicalUnit: "boolean", shape: "scalar",
+    description: "Whether the car conforms to 2026 regulations; a 2026 wire-format packet can also carry a pre-2026 car.",
+  },
+  "race.driving-wrong-way": {
+    label: "Driving wrong way", parentId: "race", canonicalUnit: "boolean", shape: "scalar",
+    description: "Native wrong-way driving flag from 2026 UDP packet 16; absent before that packet arrives.",
+  },
   "control.brake": {
     label: "Brake input (fraction)",
     description: "Native brake input as a fraction, distinct from RaceIQ's 0–255 control scale.",
