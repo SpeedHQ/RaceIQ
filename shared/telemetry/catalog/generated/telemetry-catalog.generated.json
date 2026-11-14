@@ -13,7 +13,7 @@
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
       "packages/game-ams2/src/normalizer.ts": "0b3a2c0b5cad95cf117d7bd9b2b16f4c3bcf57461f206936b3fdf26bc5680dde",
-      "packages/game-f1-2025/src/f1-state.ts": "d756eea8076db13e2c5ec242ff4dbaf976b3b7ad993b52be0f492c654107f643",
+      "packages/game-f1-2025/src/f1-state.ts": "b60d2d5a36e69b29f7dfab5e1043b96fe52cd0509f62fea350ac1d54c9630c34",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "6650d9b93f7ebb4fffd96b23ffc92ca2c45b8455b6ac21a5f76f36a6bf90d7b9"
+    "contentHash": "166d9fe9a06da9dba64ade84715e41df8c177ab19fe053dc7e56ffadb70f5730"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",

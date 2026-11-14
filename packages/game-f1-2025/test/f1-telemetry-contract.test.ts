@@ -133,6 +133,33 @@ test("2026 Season Pack classification reports player finish and grid positions",
   expect(packet?.f1?.resultSource).toBe("final-classification");
 });
 
+test("F1 zero session UID packet does not clear state before final classification", () => {
+  const state = f1Parser.createParserState();
+  const feed = (packetId: number, data: Buffer, sessionUID = 1n) => f1Parser.tryParse(
+    nativePacket(header(packetId, 10, sessionUID, 2026), data), state,
+  );
+  const session = Buffer.alloc(9);
+  session[6] = 15;
+
+  feed(F1_PACKET_IDS.MOTION, Buffer.alloc(24 * 54));
+  feed(F1_PACKET_IDS.SESSION, session);
+  feed(F1_PACKET_IDS.LAP_DATA, Buffer.alloc(24 * 57));
+  feed(F1_PACKET_IDS.CAR_TELEMETRY, Buffer.alloc(24 * 59 + 3));
+
+  const event = Buffer.from("SSTA");
+  feed(F1_PACKET_IDS.EVENT, event, 0n);
+
+  const classification = Buffer.alloc(1 + 24 * 46);
+  classification[0] = 24;
+  classification[1] = 3;
+  classification[3] = 4;
+  const packet = feed(F1_PACKET_IDS.FINAL_CLASSIFICATION, classification);
+
+  expect(packet?.RacePosition).toBe(3);
+  expect(packet?.f1?.gridPosition).toBe(4);
+  expect(packet?.f1?.resultSource).toBe("final-classification");
+});
+
 test("2026 Season Pack packet layouts decode 24 cars and updated field encodings", () => {
   const carIndex = 23;
   const motion = Buffer.alloc(24 * 54);

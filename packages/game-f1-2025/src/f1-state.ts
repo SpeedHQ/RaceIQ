@@ -241,7 +241,7 @@ export class F1StateAccumulator {
   }
 
   private applyState(header: F1Header, buf: Buffer): boolean {
-    if (header.sessionUID !== this.sessionUID) {
+    if (header.sessionUID !== 0n && header.sessionUID !== this.sessionUID) {
       this.reset();
       this.sessionUID = header.sessionUID;
     }
