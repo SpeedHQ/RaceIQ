@@ -100,6 +100,7 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   finishingPosition?: number | null;
   resultOutcomeStatus?: RaceResultOutcomeStatus | null;
   qualifyingPosition?: number | null;
+  gridPosition?: number | null;
   isPodium?: boolean | null;
   isFastestLap?: boolean | null;
   pitCount?: number | null;

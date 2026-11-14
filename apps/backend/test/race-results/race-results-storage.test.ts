@@ -31,6 +31,7 @@ describe("persisted race result metadata", () => {
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 2,
+      gridPosition: 1,
       qualifyingPosition: 5,
       isPodium: true,
       isFastestLap: false,
@@ -53,6 +54,8 @@ describe("persisted race result metadata", () => {
     ]);
     const result = await getSessionResult(sessionId, "f1-2025");
     expect(result?.id).toBe(first.id);
+    expect(result?.gridPosition).toBe(1);
+    expect(result?.qualifyingPosition).toBe(5);
     expect(result?.events.map((event) => event.sequence)).toEqual([1, 2, 3, 4, 5]);
     expect(result?.events[1]?.fuelAdded).toBe(5);
     expect(result?.provenance).toEqual(provenance);
@@ -82,6 +85,7 @@ describe("persisted race result metadata", () => {
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 1,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: null,
@@ -114,6 +118,7 @@ describe("persisted race result metadata", () => {
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 1,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: null,
@@ -140,6 +145,7 @@ describe("persisted race result metadata", () => {
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 1,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: null,
@@ -188,6 +194,7 @@ describe("persisted race result metadata", () => {
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 1,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: null,
@@ -224,6 +231,7 @@ describe("persisted race result metadata", () => {
       classification: "unknown",
       outcomeStatus: "unavailable",
       finishingPosition: null,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: null,
       isFastestLap: null,
@@ -249,6 +257,7 @@ describe("persisted race result metadata", () => {
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 1,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: null,

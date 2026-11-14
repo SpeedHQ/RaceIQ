@@ -2205,6 +2205,18 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE session_id IN (SELECT id FROM sessions WHERE ownership='mine')`,
     ],
   },
+  {
+    version: 83,
+    name: "separate grid from qualifying result position",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN grid_position INTEGER`,
+      `UPDATE session_results
+       SET grid_position = qualifying_position,
+           qualifying_position = NULL,
+           processor_version = 'race-result-v5'
+       WHERE session_id IN (SELECT id FROM sessions WHERE game_id = 'f1-2025')`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

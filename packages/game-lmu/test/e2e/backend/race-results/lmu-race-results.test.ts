@@ -13,7 +13,7 @@ const provenance: RaceResultProvenance = {
 };
 const source = (overrides: Partial<RaceSourceObservation> = {}): RaceSourceObservation => ({
   gameId: "lmu", provenance,
-  evidence: { fieldStatus: { sessionType: "unavailable", classification: "unavailable", finishingPosition: "unavailable", qualifyingPosition: "unavailable", isPodium: "unavailable", isFastestLap: "unavailable", pitEvents: "unavailable", tyreStrategy: "unavailable", fuelStrategy: "unavailable" }, conflicts: [] },
+  evidence: { fieldStatus: { sessionType: "unavailable", classification: "unavailable", finishingPosition: "unavailable", gridPosition: "unavailable", qualifyingPosition: "unavailable", isPodium: "unavailable", isFastestLap: "unavailable", pitEvents: "unavailable", tyreStrategy: "unavailable", fuelStrategy: "unavailable" }, conflicts: [] },
   reasons: [], ...overrides,
 });
 const packet = (overrides: Partial<TelemetryPacket> = {}): TelemetryPacket => ({

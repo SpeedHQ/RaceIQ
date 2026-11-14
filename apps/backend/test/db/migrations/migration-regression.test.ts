@@ -6,6 +6,25 @@ import {
 } from "@raceiq/backend-core/test-support/db/migrations";
 
 describe("migration regressions", () => {
+  test("moves legacy F1 grid rank out of qualifying result", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 82);
+      await client.execute("INSERT INTO sessions (id, car_id, track_id, game_id) VALUES (1, '10', '20', 'f1-2025')");
+      await client.execute(`INSERT INTO session_results
+        (session_id, session_type, classification, finishing_position, qualifying_position, processor_version)
+        VALUES (1, 'race', 'finished', 3, 1, 'race-result-v5')`);
+
+      await runMigrations(client);
+
+      const result = await client.execute("SELECT grid_position, qualifying_position, processor_version FROM session_results WHERE session_id=1");
+      expect(result.rows[0]).toMatchObject({ grid_position: 1, qualifying_position: null, processor_version: "race-result-v5" });
+    } finally {
+      client.close();
+    }
+  });
+
   test("AC Evo layout backfill queues every stored layout once without invalidating other games", async () => {
     const client = newClient();
     try {

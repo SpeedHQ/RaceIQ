@@ -5,6 +5,7 @@ export const evidence: RaceResultEvidence = {
     sessionType: "direct",
     classification: "direct",
     finishingPosition: "direct",
+    gridPosition: "unavailable",
     qualifyingPosition: "direct",
     isPodium: "derived",
     isFastestLap: "derived",

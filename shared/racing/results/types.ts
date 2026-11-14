@@ -134,6 +134,7 @@ export interface RaceResultEvidence {
     sessionType: RaceResultSourceStatus;
     classification: RaceResultSourceStatus;
     finishingPosition: RaceResultSourceStatus;
+    gridPosition: RaceResultSourceStatus;
     qualifyingPosition: RaceResultSourceStatus;
     isPodium: RaceResultSourceStatus;
     isFastestLap: RaceResultSourceStatus;
@@ -153,6 +154,7 @@ export interface RaceResult {
   sessionType: string;
   classification: RaceResultStatus;
   finishingPosition: number | null;
+  gridPosition: number | null;
   qualifyingPosition: number | null;
   isPodium: boolean | null;
   isFastestLap: boolean | null;

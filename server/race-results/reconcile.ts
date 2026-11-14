@@ -15,7 +15,7 @@ import type { RaceResultRawInputIdentity } from "@raceiq/shared/racing/results/t
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v5";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v6";
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
@@ -126,6 +126,7 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     existing.classification === derived.classification &&
     existing.outcomeStatus === derived.outcomeStatus &&
     existing.finishingPosition === derived.finishingPosition &&
+    existing.gridPosition === derived.gridPosition &&
     existing.qualifyingPosition === derived.qualifyingPosition &&
     existing.isPodium === derived.isPodium &&
     existing.isFastestLap === derived.isFastestLap &&
@@ -161,6 +162,7 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     classification: derived.classification,
     outcomeStatus: derived.outcomeStatus,
     finishingPosition: derived.finishingPosition,
+    gridPosition: derived.gridPosition,
     qualifyingPosition: derived.qualifyingPosition,
     isPodium: derived.isPodium,
     isFastestLap: derived.isFastestLap,
