@@ -13,11 +13,7 @@ import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/
 import { processLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import {
-  F1_HEADER_SIZE,
-  F1_PACKET_IDS,
-  type F1Header,
-} from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { F1_HEADER_SIZE, F1_PACKET_IDS, type F1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 
 function header(packetId: number, sessionTime = 10, sessionUID = 1n): F1Header {
   return {
@@ -72,15 +68,32 @@ function nativeAccumulator(sessionTime = 0, sessionUID = 1n): F1StateAccumulator
   return state;
 }
 
-function parseNative(
-  state: F1StateAccumulator,
-  packetId: number,
-  data: Buffer,
-  sessionTime: number,
-  sessionUID = 1n,
-): TelemetryPacket | null {
+function parseNative(state: F1StateAccumulator, packetId: number, data: Buffer, sessionTime: number, sessionUID = 1n): TelemetryPacket | null {
   return f1Parser.tryParse(nativePacket(header(packetId, sessionTime, sessionUID), data), state);
 }
+
+test("2025 ERS is unavailable before car status, while recorded zeros remain available", () => {
+  const state = nativeAccumulator();
+  const before = parseNative(state, F1_PACKET_IDS.CAR_TELEMETRY, Buffer.alloc(60), 10);
+  expect(before?.ErsStoreEnergy).toBeUndefined();
+  expect(before?.f1?.ersDeployMode).toBeUndefined();
+  const observed = parseNative(state, F1_PACKET_IDS.CAR_STATUS, Buffer.alloc(55), 10);
+  expect(observed).not.toBeNull();
+  expect(observed?.f1?.packetFormat).toBeUndefined();
+  expect(observed).toMatchObject({ ErsStoreEnergy: 0, ErsDeployMode: 0, ErsDeployed: 0, ErsHarvested: 0 });
+  expect(observed?.f1).toMatchObject({ ersStoreEnergy: 0, ersDeployMode: 0, ersDeployedThisLap: 0, ersHarvestedThisLap: 0 });
+});
+
+test("2025 AI context retains its native ERS mode names", () => {
+  const state = nativeAccumulator();
+  for (const [mode, name] of ["none", "medium", "hotlap", "overtake"].entries()) {
+    const status = Buffer.alloc(55);
+    status[41] = mode;
+    const packet = parseNative(state, F1_PACKET_IDS.CAR_STATUS, status, 10);
+    if (!packet) throw new Error("Synthetic telemetry did not produce a snapshot");
+    expect(f1ServerAdapter.buildAiContext([packet])).toContain(`ERS Deploy Mode: ${name} (${mode})`);
+  }
+});
 
 test("native session packet decodes current F1 25 session IDs and preserves unknown values", () => {
   const sessionType = (code: number): string => {
@@ -127,8 +140,7 @@ test("F1 parser checkpoint encodes bigint identity and restores accumulated stat
   const expected = continuous.feed(header(7), frame(status));
   const actual = restored.feed(header(7), frame(status));
   expect(actual).toEqual(expected);
-  expect(() => restored.restoreCheckpoint(Buffer.from('{"format":"raceiq:f1-2025-parser","version":2}')))
-    .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
+  expect(() => restored.restoreCheckpoint(Buffer.from('{"format":"raceiq:f1-2025-parser","version":2}'))).toThrow("Invalid or unsupported F1-2025 parser checkpoint");
 });
 
 test("F1 checkpoint rejects malformed nested fields before changing accumulator", () => {
@@ -138,20 +150,16 @@ test("F1 checkpoint rejects malformed nested fields before changing accumulator"
   const checkpoint = JSON.parse(new TextDecoder().decode(before));
   checkpoint.participants = [{ driverId: 1, teamId: 2 }];
   checkpoint.driverHistory = [[0, {}]];
-  expect(() => accumulator.restoreCheckpoint(Buffer.from(JSON.stringify(checkpoint))))
-    .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
+  expect(() => accumulator.restoreCheckpoint(Buffer.from(JSON.stringify(checkpoint)))).toThrow("Invalid or unsupported F1-2025 parser checkpoint");
   expect(accumulator.captureCheckpoint()).toEqual(before);
 });
 test("F1 checkpoint rejects malformed optional timestamps atomically", () => {
   const accumulator = nativeAccumulator(2);
   const baseline = accumulator.captureCheckpoint();
-  for (const key of [
-    "carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime",
-  ]) {
+  for (const key of ["carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime"]) {
     const malformed = JSON.parse(new TextDecoder().decode(baseline));
     malformed[key] = Number.NaN;
-    expect(() => accumulator.restoreCheckpoint(Buffer.from(JSON.stringify(malformed))))
-      .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
+    expect(() => accumulator.restoreCheckpoint(Buffer.from(JSON.stringify(malformed)))).toThrow("Invalid or unsupported F1-2025 parser checkpoint");
     expect(accumulator.captureCheckpoint()).toEqual(baseline);
   }
 });
@@ -216,8 +224,7 @@ describe("F1 telemetry contract", () => {
         data.writeFloatLE(angle, 168);
         return data;
       };
-      const add = (id: number, time: number, tick: number, data: Buffer) =>
-        sourceFrames.push(wireFrame(id, time, tick, data));
+      const add = (id: number, time: number, tick: number, data: Buffer) => sourceFrames.push(wireFrame(id, time, tick, data));
       add(0, 0, 0, motionData(0));
       add(1, 0, 0, Buffer.alloc(9));
       add(2, 0, 0, Buffer.alloc(57));
@@ -246,7 +253,9 @@ describe("F1 telemetry contract", () => {
               f1Parser.tryParse(frame, state);
               return f1Parser.canHandle(frame) && [0, 1, 2, 6, 13].includes(parseF1Header(frame).packetId);
             },
-            reset() { state.reset(); },
+            reset() {
+              state.reset();
+            },
           };
         },
         lapIndexes: [{ lapId: 1, rawByteOffset: 0, rawFrameCount: 35 }],
@@ -282,8 +291,7 @@ describe("F1 telemetry contract", () => {
         data.writeUInt16LE(speed, 0);
         return data;
       };
-      const add = (id: number, time: number, tick: number, data: Buffer) =>
-        sourceFrames.push(wireFrame(id, time, tick, data));
+      const add = (id: number, time: number, tick: number, data: Buffer) => sourceFrames.push(wireFrame(id, time, tick, data));
       add(0, 0, 0, Buffer.alloc(60));
       add(1, 0, 0, Buffer.alloc(9));
       add(2, 0, 0, Buffer.alloc(57));
@@ -294,8 +302,7 @@ describe("F1 telemetry contract", () => {
       add(2, 0.021, 4, Buffer.alloc(57));
       add(6, 0.03, 5, telemetryData(400));
       add(2, 0.031, 6, Buffer.alloc(57));
-      const lapOffset = sourceFrames.slice(0, 5).reduce((offset, value) =>
-        offset + encodeFrameLength(value.length).length + value.length, 0);
+      const lapOffset = sourceFrames.slice(0, 5).reduce((offset, value) => offset + encodeFrameLength(value.length).length + value.length, 0);
       const source = {
         gameId: "f1-2025" as const,
         records: async function* () {
@@ -313,7 +320,9 @@ describe("F1 telemetry contract", () => {
               f1Parser.tryParse(frame, state);
               return f1Parser.canHandle(frame);
             },
-            reset() { state.reset(); },
+            reset() {
+              state.reset();
+            },
           };
         },
         lapIndexes: [{ lapId: 1, rawByteOffset: lapOffset, rawFrameCount: 5 }],
@@ -407,7 +416,11 @@ describe("F1 telemetry contract", () => {
         status.writeFloatLE(Math.max(0, 100_000 * (1 - time)), 37);
         status.writeFloatLE(100_000 * Math.min(time, 1), 50);
         status.writeFloatLE(time >= 1 ? 1_000 : 120_000, 33);
-        for (const [packetId, data] of [[6, telemetry], [7, status], [0, motion]] as const) {
+        for (const [packetId, data] of [
+          [6, telemetry],
+          [7, status],
+          [0, motion],
+        ] as const) {
           const packet = accumulator.feed({ ...header(packetId), sessionTime: time }, frame(data));
           if (packet) packets.push(packet);
         }
@@ -455,7 +468,11 @@ describe("F1 telemetry contract", () => {
   test("native FIA flags and safety-car status distinguish yellow, non-yellow, and formation", () => {
     const state = nativeAccumulator();
     const lapPackets: TelemetryPacket[] = [];
-    for (const [time, flag] of [[1, 3], [2, 2], [3, 0]] as const) {
+    for (const [time, flag] of [
+      [1, 3],
+      [2, 2],
+      [3, 0],
+    ] as const) {
       const status = Buffer.alloc(55);
       status.writeInt8(flag, 28);
       const packet = parseNative(state, F1_PACKET_IDS.CAR_STATUS, status, time);
@@ -470,7 +487,11 @@ describe("F1 telemetry contract", () => {
     const clearLapPackets = [lapPackets[1]!, fresh];
     expect(classifyLapCategory(clearLapPackets, null, undefined, true)).toBe("pace");
 
-    for (const [statusValue, expected] of [[1, "caution"], [2, "caution"], [3, null]] as const) {
+    for (const [statusValue, expected] of [
+      [1, "caution"],
+      [2, "caution"],
+      [3, null],
+    ] as const) {
       const stateForStatus = nativeAccumulator();
       const session = Buffer.alloc(125);
       session.writeUInt8(1, 6);
@@ -589,12 +610,7 @@ describe("F1 telemetry contract", () => {
     expect(firstLap.LapNumber).toBe(1);
     expect(classifyLapCategory([firstLap], null, undefined, true)).toBe("grid_start");
 
-    const clearStatus = parseNative(
-      state,
-      F1_PACKET_IDS.CAR_STATUS,
-      Buffer.alloc(55),
-      90,
-    )!;
+    const clearStatus = parseNative(state, F1_PACKET_IDS.CAR_STATUS, Buffer.alloc(55), 90)!;
     const clearSessionData = Buffer.alloc(125);
     clearSessionData.writeUInt8(1, 6);
     const clearSession = parseNative(state, F1_PACKET_IDS.SESSION, clearSessionData, 90)!;

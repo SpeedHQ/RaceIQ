@@ -22,16 +22,20 @@ const wheelKeys = ["fl", "fr", "rl", "rr"] as const;
 const f1Surfaces = ["surfaceTypeFL", "surfaceTypeFR", "surfaceTypeRL", "surfaceTypeRR"] as const;
 function nativeInsight(aid: Aid, frames: number[], activeSeconds: number, demandSeconds: number, activeDemandSeconds: number, explicit: boolean): LapInsight | null {
   if (frames.length === 0) return null;
-  const duty = demandSeconds > 0
-    ? `; ${explicit ? "active" : "signal present"} during ${(100 * activeDemandSeconds / demandSeconds).toFixed(0)}% of ${demandSeconds.toFixed(1)}s observed ${aid === "ABS" ? "braking" : "acceleration"}`
-    : "";
+  const duty =
+    demandSeconds > 0
+      ? `; ${explicit ? "active" : "signal present"} during ${((100 * activeDemandSeconds) / demandSeconds).toFixed(0)}% of ${demandSeconds.toFixed(1)}s observed ${aid === "ABS" ? "braking" : "acceleration"}`
+      : "";
   return {
     id: aid === "ABS" ? "driving-abs-activation" : "driving-traction-control-activation",
-    category: "driving", severity: "info", label: `${explicit ? "" : "Possible "}${aid} Activation`,
+    category: "driving",
+    severity: "info",
+    label: `${explicit ? "" : "Possible "}${aid} Activation`,
     detail: explicit
       ? `${frames.length} ${aid} intervention${frames.length === 1 ? "" : "s"} reported by game's explicit aid-active flag, ${activeSeconds.toFixed(2)}s active${duty}`
       : `${frames.length} possible ${aid} intervention period${frames.length === 1 ? "" : "s"} inferred from physics aid signal, signal present for ${activeSeconds.toFixed(2)}s${duty}`,
-    frameIndices: frames, evidenceSource: explicit ? "native" : "inferred",
+    frameIndices: frames,
+    evidenceSource: explicit ? "native" : "inferred",
   };
 }
 
@@ -48,7 +52,6 @@ function inferredInsight(aid: Aid, eventFrames: number[], evidence: string): Lap
   };
 }
 
-
 function disturbed(packet: TelemetryPacket): boolean {
   if (packet.Clutch > 25 || packet.HandBrake > 25 || packet.Gear <= (packet.f1 ? 1 : 0)) return true;
   if (packet.IsRaceOn === 0 || packet.iracing?.onPitRoad || (packet.acc?.pitStatus !== undefined && packet.acc.pitStatus !== "out")) return true;
@@ -60,7 +63,6 @@ function disturbed(packet: TelemetryPacket): boolean {
   if (motion && (motion.wheelVertForceFL < 100 || motion.wheelVertForceFR < 100 || motion.wheelVertForceRL < 100 || motion.wheelVertForceRR < 100)) return true;
   return packet.acc?.wheelLoad?.some((load) => Number.isFinite(load) && load < 100) ?? false;
 }
-
 
 /** Source aid signals are observational; explicit flags alone confirm activation. */
 export function detectAbsActivation(telemetry: readonly TelemetryPacket[], options: AidDetectionOptions): LapInsight | null {
@@ -75,15 +77,34 @@ export function detectTractionControlActivation(telemetry: readonly TelemetryPac
 /** Required F1 channels must be present; absent pit/caution/control data is not a clean straight. */
 function f1Demand(packet: TelemetryPacket): boolean {
   const f1 = packet.f1;
-  return !!f1 && packet.IsRaceOn === 1 && packet.Speed >= 25 && packet.Accel >= 242 && packet.Brake <= 5 && packet.Clutch <= 5 && packet.HandBrake <= 5
-    && packet.Gear >= 2 && Math.abs(packet.Steer) <= 8 && packet.CurrentEngineRpm > 0 && packet.EngineMaxRpm > 0 && packet.CurrentEngineRpm < packet.EngineMaxRpm * 0.92
-    && f1.pitLimiterStatus === 0 && f1.pitLaneTimerActive === 0 && f1.safetyCarStatus === 0 && (f1.vehicleFIAFlags === 0 || f1.vehicleFIAFlags === 1)
-    && f1Surfaces.every((field) => f1[field] === 0);
+  return (
+    !!f1 &&
+    packet.IsRaceOn === 1 &&
+    packet.Speed >= 25 &&
+    packet.Accel >= 242 &&
+    packet.Brake <= 5 &&
+    packet.Clutch <= 5 &&
+    packet.HandBrake <= 5 &&
+    packet.Gear >= 2 &&
+    Math.abs(packet.Steer) <= 8 &&
+    packet.CurrentEngineRpm > 0 &&
+    packet.EngineMaxRpm > 0 &&
+    packet.CurrentEngineRpm < packet.EngineMaxRpm * 0.92 &&
+    f1.pitLimiterStatus === 0 &&
+    f1.pitLaneTimerActive === 0 &&
+    f1.safetyCarStatus === 0 &&
+    (f1.vehicleFIAFlags === 0 || f1.vehicleFIAFlags === 1) &&
+    f1Surfaces.every((field) => f1[field] === 0)
+  );
 }
 
 /** No source-packet age survives normalization. Value changes show sequential evidence, not known freshness. */
 function statusChanged(previous: F1ExtendedData, current: F1ExtendedData): boolean {
   return statusFields.some((field) => Number.isFinite(previous[field]) && Number.isFinite(current[field]) && previous[field] !== current[field]);
+}
+
+function hasErsStatus(value: F1ExtendedData | undefined): value is F1ExtendedData & Required<Pick<F1ExtendedData, "ersStoreEnergy" | "ersDeployMode" | "ersDeployedThisLap">> {
+  return value != null && [value.ersStoreEnergy, value.ersDeployMode, value.ersDeployedThisLap].every((field) => typeof field === "number" && Number.isFinite(field));
 }
 
 const statusFields = ["ersStoreEnergy", "ersDeployedThisLap", "ersHarvestedThisLap", "fuelRemainingLaps", "drsActivationDistance"] as const;
@@ -96,32 +117,53 @@ export function detectErsDepletion(telemetry: readonly TelemetryPacket[]): LapIn
   return insightAt(runSelectedInsightScan(telemetry, createElectronicScan(telemetry, { f1Enabled: true })), INSIGHT_ORDER.ersDepletion);
 }
 
-export function createElectronicScan(
-  telemetry: readonly TelemetryPacket[],
-  options: { abs?: AidDetectionOptions; tractionControl?: AidDetectionOptions; f1Enabled?: boolean },
-): InsightAccumulator {
+export function createElectronicScan(telemetry: readonly TelemetryPacket[], options: { abs?: AidDetectionOptions; tractionControl?: AidDetectionOptions; f1Enabled?: boolean }): InsightAccumulator {
   const absScan = options.abs ? createAidScan(telemetry, "ABS", options.abs) : undefined;
   const tcScan = options.tractionControl ? createAidScan(telemetry, "Traction Control", options.tractionControl) : undefined;
   const drsEvents = createOnlineEvents(1, 0);
   const ersEvents = createOnlineEvents(0.75, 0);
-  let armed = false, closedSeconds = 0, drsUnchangedSeconds = 0, ersUnchangedSeconds = 0;
+  let armed = false,
+    closedSeconds = 0,
+    drsUnchangedSeconds = 0,
+    ersUnchangedSeconds = 0;
   let previousPacket: TelemetryPacket | undefined;
-  let priorStore = 0, priorPower = 0, deployingSeconds = 0, deployedEnergy = 0, elapsed = 0, depletedAt = -1, deployedAtDepletion = 0;
+  let priorStore = 0,
+    priorPower = 0,
+    deployingSeconds = 0,
+    deployedEnergy = 0,
+    elapsed = 0,
+    depletedAt = -1,
+    deployedAtDepletion = 0;
   return {
     observe(i, seconds, previousSeconds, _wheelState) {
       absScan?.observe(i, seconds, previousSeconds, _wheelState);
       tcScan?.observe(i, seconds, previousSeconds, _wheelState);
       const packet = telemetry[i];
       if (options.f1Enabled) {
-        const f1 = packet.f1, previous = previousPacket?.f1;
+        const f1 = packet.f1,
+          previous = previousPacket?.f1;
         let drsFlag = false;
-        if (!(previousPacket && previousSeconds > 0 && seconds > 0 && f1 && previous
-          && f1.drsFault === 0 && previous.drsFault === 0 && typeof f1.drsAllowed === "boolean" && typeof f1.drsActivated === "boolean")) {
-          armed = false; closedSeconds = 0; drsUnchangedSeconds = 0;
+        if (
+          !(
+            previousPacket &&
+            previousSeconds > 0 &&
+            seconds > 0 &&
+            f1 &&
+            previous &&
+            f1.drsFault === 0 &&
+            previous.drsFault === 0 &&
+            typeof f1.drsAllowed === "boolean" &&
+            typeof f1.drsActivated === "boolean"
+          )
+        ) {
+          armed = false;
+          closedSeconds = 0;
+          drsUnchangedSeconds = 0;
         } else {
           drsUnchangedSeconds = statusChanged(previous, f1) ? 0 : drsUnchangedSeconds + previousSeconds;
           if (!f1.drsAllowed || f1.drsActivated || drsUnchangedSeconds > 0.5) {
-            armed = false; closedSeconds = 0;
+            armed = false;
+            closedSeconds = 0;
           } else {
             if (previous.drsAllowed === false) armed = true;
             if (!f1Demand(packet) || !f1Demand(previousPacket) || packet.Gear !== previousPacket.Gear) closedSeconds = 0;
@@ -135,19 +177,42 @@ export function createElectronicScan(
 
         let ersFlag = false;
         const prior = previousPacket?.f1;
-        const valid = previousPacket && previousSeconds > 0 && seconds > 0 && f1 && prior && f1Demand(packet) && f1Demand(previousPacket!)
-          && f1.ersFault === 0 && prior.ersFault === 0 && packet.Gear === previousPacket!.Gear
-          && f1.ersDeployMode > 0 && f1.ersDeployMode <= 3 && Number.isInteger(f1.ersDeployMode) && f1.ersDeployMode === prior.ersDeployMode
-          && Number.isFinite(f1.ersStoreEnergy) && f1.ersStoreEnergy >= 0 && Number.isFinite(prior.ersStoreEnergy) && prior.ersStoreEnergy >= 0
-          && Number.isFinite(f1.enginePowerMGUK) && f1.enginePowerMGUK! >= 0 && Number.isFinite(prior.enginePowerMGUK)
-          && Number.isFinite(f1.ersDeployedThisLap) && f1.ersDeployedThisLap >= 0 && Number.isFinite(prior.ersDeployedThisLap) && prior.ersDeployedThisLap >= 0
-          && f1.ersDeployedThisLap >= prior.ersDeployedThisLap && packet.LapNumber === previousPacket!.LapNumber;
+        const valid =
+          previousPacket &&
+          previousSeconds > 0 &&
+          seconds > 0 &&
+          hasErsStatus(f1) &&
+          hasErsStatus(prior) &&
+          f1Demand(packet) &&
+          f1Demand(previousPacket!) &&
+          f1.ersFault === 0 &&
+          prior.ersFault === 0 &&
+          packet.Gear === previousPacket!.Gear &&
+          f1.ersDeployMode > 0 &&
+          f1.ersDeployMode <= 3 &&
+          Number.isInteger(f1.ersDeployMode) &&
+          f1.ersDeployMode === prior.ersDeployMode &&
+          Number.isFinite(f1.ersStoreEnergy) &&
+          f1.ersStoreEnergy >= 0 &&
+          Number.isFinite(prior.ersStoreEnergy) &&
+          prior.ersStoreEnergy >= 0 &&
+          Number.isFinite(f1.enginePowerMGUK) &&
+          f1.enginePowerMGUK! >= 0 &&
+          Number.isFinite(prior.enginePowerMGUK) &&
+          Number.isFinite(f1.ersDeployedThisLap) &&
+          f1.ersDeployedThisLap >= 0 &&
+          Number.isFinite(prior.ersDeployedThisLap) &&
+          prior.ersDeployedThisLap >= 0 &&
+          f1.ersDeployedThisLap >= prior.ersDeployedThisLap &&
+          packet.LapNumber === previousPacket!.LapNumber;
         if (!valid || !f1 || !prior) {
-          priorStore = priorPower = deployingSeconds = deployedEnergy = elapsed = ersUnchangedSeconds = 0; depletedAt = -1;
+          priorStore = priorPower = deployingSeconds = deployedEnergy = elapsed = ersUnchangedSeconds = 0;
+          depletedAt = -1;
         } else {
           ersUnchangedSeconds = statusChanged(prior, f1) ? 0 : ersUnchangedSeconds + previousSeconds;
           if (ersUnchangedSeconds > 0.5) {
-            priorStore = priorPower = deployingSeconds = deployedEnergy = elapsed = 0; depletedAt = -1;
+            priorStore = priorPower = deployingSeconds = deployedEnergy = elapsed = 0;
+            depletedAt = -1;
           } else {
             elapsed += previousSeconds;
             if (depletedAt < 0 && f1.ersStoreEnergy > 0 && f1.enginePowerMGUK! > 0) {
@@ -156,11 +221,13 @@ export function createElectronicScan(
               deployingSeconds += previousSeconds;
               deployedEnergy += f1.ersDeployedThisLap - prior.ersDeployedThisLap;
             }
-            const exhausted = deployingSeconds >= 0.4 && deployedEnergy > 0 && priorStore > 0
-              && f1.ersStoreEnergy <= priorStore * 0.02 && f1.enginePowerMGUK! <= priorPower * 0.2;
+            const exhausted = deployingSeconds >= 0.4 && deployedEnergy > 0 && priorStore > 0 && f1.ersStoreEnergy <= priorStore * 0.02 && f1.enginePowerMGUK! <= priorPower * 0.2;
             if (!exhausted) depletedAt = -1;
             else {
-              if (depletedAt < 0) { depletedAt = elapsed; deployedAtDepletion = f1.ersDeployedThisLap; }
+              if (depletedAt < 0) {
+                depletedAt = elapsed;
+                deployedAtDepletion = f1.ersDeployedThisLap;
+              }
               const depletedSeconds = elapsed - depletedAt;
               const rate = depletedSeconds > 0 ? (f1.ersDeployedThisLap - deployedAtDepletion) / depletedSeconds : Infinity;
               ersFlag = depletedSeconds >= 0.25 && rate <= (deployedEnergy / deployingSeconds) * 0.2;
@@ -189,8 +256,14 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
   const nativeEvents = createOnlineEvents(0, 0);
   const frames: number[] = [];
   const observedWheelStates = aid === "Traction Control" && !options.wheelStates ? new Array<AllWheelStates | undefined>(telemetry.length) : undefined;
-  let activeSeconds = 0, demandSeconds = 0, activeDemandSeconds = 0;
-  let first = -1, last = -1, count = 0, gap = 0, nextIndex = 0;
+  let activeSeconds = 0,
+    demandSeconds = 0,
+    activeDemandSeconds = 0;
+  let first = -1,
+    last = -1,
+    count = 0,
+    gap = 0,
+    nextIndex = 0;
   const eligibility = new Uint8Array(telemetry.length);
   const dt = (i: number): number => {
     if (i < 0 || i + 1 >= telemetry.length) return 0;
@@ -205,12 +278,9 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
   };
   const evaluateEligibility = (i: number): boolean => {
     const p = telemetry[i];
-    const disabled = aid === "ABS" ? p.f1?.antiLockBrakes === 0 || p.acc?.abs === 0
-      : p.f1?.tractionControl === 0 || p.acc?.tc === 0;
-    if (!options.wheelRotationAvailable || (p.f1 && !p.f1.motionEx) || disabled || disturbed(p)
-      || (i > 0 && p.Gear !== telemetry[i - 1].Gear)) return false;
-    if (aid === "ABS" ? !(p.Brake >= 90 && p.Accel <= 30 && p.Speed >= 8)
-      : !(p.Accel >= 150 && p.Brake <= 25 && p.Speed >= 5 && p.CurrentEngineRpm > 0)) return false;
+    const disabled = aid === "ABS" ? p.f1?.antiLockBrakes === 0 || p.acc?.abs === 0 : p.f1?.tractionControl === 0 || p.acc?.tc === 0;
+    if (!options.wheelRotationAvailable || (p.f1 && !p.f1.motionEx) || disabled || disturbed(p) || (i > 0 && p.Gear !== telemetry[i - 1].Gear)) return false;
+    if (aid === "ABS" ? !(p.Brake >= 90 && p.Accel <= 30 && p.Speed >= 8) : !(p.Accel >= 150 && p.Brake <= 25 && p.Speed >= 5 && p.CurrentEngineRpm > 0)) return false;
     let elapsed = 0;
     for (let j = i - 1; j >= 0; j--) {
       const step = dt(j);
@@ -231,7 +301,8 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
   };
   const pulse = (i: number): boolean => {
     if (i <= 0 || i >= telemetry.length - 1) return false;
-    const p = telemetry[i], fields = aid === "ABS" ? wheelRotation : ["CurrentEngineRpm"] as const;
+    const p = telemetry[i],
+      fields = aid === "ABS" ? wheelRotation : (["CurrentEngineRpm"] as const);
     if (aid === "Traction Control") {
       const state = options.wheelStates?.[i - 1] ?? observedWheelStates?.[i - 1];
       if (!state || !wheelKeys.some((wheel) => state[wheel].state === "spin")) return false;
@@ -243,16 +314,22 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
       const swing = aid === "ABS" ? Math.max(1, current * 0.04) : Math.max(120, p.CurrentEngineRpm * 0.025);
       let valid = true;
       for (const direction of [-1, 1]) {
-        let elapsed = 0, recovered = false;
+        let elapsed = 0,
+          recovered = false;
         for (let j = i + direction; j >= 0 && j < telemetry.length; j += direction) {
           const step = dt(direction < 0 ? j : j - 1);
-          if (!(step > 0) || !eligible(j) || !Number.isFinite(telemetry[j][field])
-            || Math.abs(telemetry[j][input] - p[input]) > 15) break;
+          if (!(step > 0) || !eligible(j) || !Number.isFinite(telemetry[j][field]) || Math.abs(telemetry[j][input] - p[input]) > 15) break;
           elapsed += step;
           if (elapsed > 0.12 + 1e-9) break;
-          if (Math.abs(telemetry[j][field]) - current >= swing) { recovered = true; break; }
+          if (Math.abs(telemetry[j][field]) - current >= swing) {
+            recovered = true;
+            break;
+          }
         }
-        if (!recovered) { valid = false; break; }
+        if (!recovered) {
+          valid = false;
+          break;
+        }
       }
       if (valid) return true;
     }
@@ -260,7 +337,9 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
   };
   const troughCandidate = (i: number): boolean => {
     if (i <= 0 || i + 1 >= telemetry.length) return false;
-    const p = telemetry[i], before = telemetry[i - 1], after = telemetry[i + 1];
+    const p = telemetry[i],
+      before = telemetry[i - 1],
+      after = telemetry[i + 1];
     if (aid === "Traction Control") {
       const rpm = Math.abs(p.CurrentEngineRpm);
       return rpm < Math.abs(before.CurrentEngineRpm) && rpm <= Math.abs(after.CurrentEngineRpm);
@@ -274,14 +353,21 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
   const accept = (i: number, seconds: number, isEligible: boolean, isPulse: boolean) => {
     const flush = () => {
       if (count >= 2) frames.push(Math.round((first + last) / 2));
-      first = -1; count = 0; gap = 0;
+      first = -1;
+      count = 0;
+      gap = 0;
     };
-    if (!(seconds > 0) || !isEligible) { flush(); return; }
+    if (!(seconds > 0) || !isEligible) {
+      flush();
+      return;
+    }
     const maxGap = aid === "ABS" ? 0.3 : 0.5;
     if (count > 0 && gap > maxGap) flush();
     if (isPulse && (count === 0 || gap >= 0.03)) {
       if (count === 0) first = i;
-      last = i; count++; gap = 0;
+      last = i;
+      count++;
+      gap = 0;
     }
     gap += seconds;
   };
@@ -296,7 +382,10 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
         const active = valid && value! > 0;
         if (active) activeSeconds += seconds;
         const demand = aid === "ABS" ? p.Brake >= 90 && p.Speed >= 8 : p.Accel >= 150 && p.Speed >= 5;
-        if (valid && demand) { demandSeconds += seconds; if (active) activeDemandSeconds += seconds; }
+        if (valid && demand) {
+          demandSeconds += seconds;
+          if (active) activeDemandSeconds += seconds;
+        }
         // Captures can contain adjacent packets at the same simulator time.
         // They add no activity duration and must not end the episode.
         if (seconds > 0 || telemetry[i + 1]?.TimestampMS !== p.TimestampMS) {
@@ -307,9 +396,7 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
       while (nextIndex < i) {
         const j = nextIndex++;
         const p = telemetry[j];
-        const demand = aid === "ABS"
-          ? p.Brake >= 90 && p.Accel <= 30 && p.Speed >= 8
-          : p.Accel >= 150 && p.Brake <= 25 && p.Speed >= 5 && p.CurrentEngineRpm > 0;
+        const demand = aid === "ABS" ? p.Brake >= 90 && p.Accel <= 30 && p.Speed >= 8 : p.Accel >= 150 && p.Brake <= 25 && p.Speed >= 5 && p.CurrentEngineRpm > 0;
         const candidate = count > 0 || (demand && troughCandidate(j));
         const ok = candidate && eligible(j);
         accept(j, dt(j), ok, ok && pulse(j));
@@ -331,39 +418,58 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
 }
 
 function createOnlineEvents(minSeconds: number, mergeGap: number) {
-  let start = -1, end = -1, active = 0, gap = 0, eventSecondsTotal = 0;
+  let start = -1,
+    end = -1,
+    active = 0,
+    gap = 0,
+    eventSecondsTotal = 0;
   const frames: number[] = [];
   const flush = () => {
     if (start >= 0 && active + 1e-9 >= minSeconds) frames.push(Math.round((start + end) / 2));
-    start = -1; active = 0; gap = 0;
+    start = -1;
+    active = 0;
+    gap = 0;
   };
   return {
     observe(index: number, dt: number, flag: boolean) {
       if (!(dt > 0) || !Number.isFinite(dt)) flush();
       else if (flag) {
         if (start < 0) start = index;
-        end = index; active += dt; gap = 0; eventSecondsTotal += dt;
+        end = index;
+        active += dt;
+        gap = 0;
+        eventSecondsTotal += dt;
       } else if (start >= 0) {
         gap += dt;
         if (gap > mergeGap + 1e-9) flush();
       }
     },
-    finish() { flush(); return { frames, seconds: eventSecondsTotal }; },
+    finish() {
+      flush();
+      return { frames, seconds: eventSecondsTotal };
+    },
   };
 }
 
 function onlineEventInsight(event: { frames: number[]; seconds: number }, family: "drs" | "ers"): LapInsight | null {
   if (!event.frames.length) return null;
-  if (family === "drs") return {
-    id: "driving-unused-drs", category: "driving", severity: "info", label: "DRS Available but Closed",
-    detail: `DRS remained closed while reported available for ${event.seconds.toFixed(1)}s after a 0.5s response allowance on full-throttle straights; source packet ages are unavailable`,
-    frameIndices: event.frames, evidenceSource: "native",
-  };
+  if (family === "drs")
+    return {
+      id: "driving-unused-drs",
+      category: "driving",
+      severity: "info",
+      label: "DRS Available but Closed",
+      detail: `DRS remained closed while reported available for ${event.seconds.toFixed(1)}s after a 0.5s response allowance on full-throttle straights; source packet ages are unavailable`,
+      frameIndices: event.frames,
+      evidenceSource: "native",
+    };
   return {
-    id: "mech-ers-depletion", category: "mechanical", severity: "info", label: "ERS Depletion Under Load",
+    id: "mech-ers-depletion",
+    category: "mechanical",
+    severity: "info",
+    label: "ERS Depletion Under Load",
     detail: `Stored ERS energy approached zero with reduced electrical power and deployment rate for ${event.seconds.toFixed(1)}s at continued demand; deployment strategy and source packet ages are not known`,
-    frameIndices: event.frames, evidenceSource: "native",
+    frameIndices: event.frames,
+    evidenceSource: "native",
   };
 }
-
-

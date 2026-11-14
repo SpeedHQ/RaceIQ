@@ -1,8 +1,9 @@
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { getF1ErsDeployModeName } from "@raceiq/shared/telemetry/f1-2025";
 import { f1Adapter } from "@raceiq/game-f1-2025-metadata/index";
-import { getF1CarName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1"
-import { getF1TrackName, getF1TrackInfo } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1"
+import { getF1CarName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1";
+import { getF1TrackName, getF1TrackInfo } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1";
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 
@@ -27,7 +28,15 @@ THERMAL REFERENCE (F1 25, slick tyres, dry):
 - Tyre health / wear remaining: good 100-85%, warning 84-60%, critical <60% (scale grip loss and lap-time cost in your verdict).
 When citing temps in \`pace\`, \`handling\`, or \`corners\`, use these bands to grade \`assessment\`.
 
-ERS & LAP-TYPE RULES (read \`Session Type\` from the prompt context):
+WIRE FORMAT AND REGULATIONS:
+- UDP Format 2026 can carry cars with or without 2026 regulations. Use the separate native regulations flag; missing is unavailable, not false.
+- Mode 3 is named Boost in UDP 2026 and Overtake in UDP 2025, independently of the regulations flag.
+- The per-lap harvest limit is not battery capacity, stored energy, deployment allowance, or remaining harvest. Keep its native joule meaning.
+- Do not grade 2026 battery reserve using a fixed 4 MJ denominator or legacy reserve percentages. Unless capacity is independently verified in context, discuss measured joules and leave percentages unavailable.
+- Active aero and overtake are not DRS. Interpret them only when the native 2026 regulations flag is true. Do not infer missed activation or lap-time gains from the last observation; it is not a lap-wide opportunity analysis.
+- Missing lap endpoints do not establish a full-lap energy delta. Recorded zero and false are valid observations; absent/non-finite readings are unavailable.
+
+ERS & LAP-TYPE RULES (read \`Session Type\` from context; reserve-percent targets apply only when battery capacity is independently known):
 - \`one-shot-qualifying\` / \`time-trial\` / \`qualifying-3\`: this is a single hot lap. ERS deployment must be aggressive — reserve should finish near 0-10% at the line. If \`ers.reserve\` ends the lap above ~15%, flag it as left-on-the-table in \`technique[]\` and in the verdict.
 - \`qualifying-1\` / \`qualifying-2\` / \`short-qualifying\`: same single-lap logic — target 0-10% reserve at the line.
 - \`race\` / \`race-2\` / \`race-3\`: opposite — ending the lap at 0% is a strategy problem. Grade deployment against race-pace cadence, not max dump.
@@ -45,7 +54,7 @@ DRS:
 - Address the driver as "you"
 - Output ONLY valid JSON, nothing else`;
 
-export const f1ServerAdapter: ServerGameAdapter = {
+export const f1ServerAdapter = {
   ...f1Adapter,
 
   runtime: {
@@ -102,6 +111,18 @@ export const f1ServerAdapter: ServerGameAdapter = {
     const last = packets[packets.length - 1];
 
     let context = "";
+    if (first.f1?.sessionType) context += `\nSession Type: ${first.f1.sessionType}`;
+    if (first.f1?.packetFormat != null) context += `\nUDP Format: ${first.f1.packetFormat}`;
+    if (first.f1?.packetFormat === 2026) {
+      const aero = packets.findLast((packet) => packet.f1?.carTelemetry2)?.f1?.carTelemetry2;
+      context += `\n2026 Car Regulations: ${aero?.regulations2026 ?? "unavailable"}`;
+      if (aero?.regulations2026 === true) {
+        const mode = aero.activeAeroMode === 0 ? "corner" : aero.activeAeroMode === 1 ? "straight" : "unknown";
+        const distance = (value: number) => (value === 0 ? "unavailable (native 0)" : `${value} m`);
+        context += `\nActive Aero at Last Observation: ${mode} (${aero.activeAeroMode}), available=${aero.activeAeroAvailable}, activationDistance=${distance(aero.activeAeroActivationDistance)}`;
+        context += `\nOvertake at Last Observation: available=${aero.overtakeAvailable}, active=${aero.overtakeActive}, activationDistance=${distance(aero.overtakeActivationDistance)}`;
+      }
+    }
 
     // Tyre compound (top-level TyreCompound survives CSV; f1.tyreCompound is first-packet only)
     const compoundNum = first.TyreCompound ?? first.f1?.tyreVisualCompound;
@@ -116,20 +137,26 @@ export const f1ServerAdapter: ServerGameAdapter = {
     if (first.TrackTemp) context += `\nTrack Temp: ${first.TrackTemp}°C`;
     if (first.AirTemp) context += `\nAir Temp: ${first.AirTemp}°C`;
 
-// ERS deployment summary (use top-level fields which survive CSV storage)
+    // ERS deployment summary (use top-level fields which survive CSV storage)
     const ersFirst = first.ErsStoreEnergy;
     const ersLast = last.ErsStoreEnergy;
-    if (typeof ersFirst === "number" && typeof ersLast === "number" && (ersFirst > 0 || ersLast > 0)) {
+    if (typeof ersFirst === "number" && Number.isFinite(ersFirst) && typeof ersLast === "number" && Number.isFinite(ersLast)) {
       context += `\nERS Energy: ${(ersFirst / 1000).toFixed(0)} kJ -> ${(ersLast / 1000).toFixed(0)} kJ (delta: ${((ersLast - ersFirst) / 1000).toFixed(0)} kJ)`;
+    } else if (typeof ersLast === "number" && Number.isFinite(ersLast)) {
+      context += `\nERS Energy at Last Sample: ${(ersLast / 1000).toFixed(0)} kJ (start unavailable; delta unavailable)`;
     }
     const ersDeployed = last.ErsDeployed;
     const ersHarvested = last.ErsHarvested;
-    if (typeof ersDeployed === "number" && ersDeployed > 0) {
+    if (typeof ersDeployed === "number" && Number.isFinite(ersDeployed)) {
       context += `\nERS Deployed This Lap: ${(ersDeployed / 1000).toFixed(0)} kJ`;
     }
-    if (typeof ersHarvested === "number" && ersHarvested > 0) {
+    if (typeof ersHarvested === "number" && Number.isFinite(ersHarvested)) {
       context += `\nERS Harvested This Lap: ${(ersHarvested / 1000).toFixed(0)} kJ`;
     }
+    const harvestLimit = packets.findLast((packet) => packet.f1?.ersHarvestLimitPerLap != null)?.f1?.ersHarvestLimitPerLap;
+    if (harvestLimit != null && Number.isFinite(harvestLimit)) context += `\nERS Harvest Limit This Lap: ${(harvestLimit / 1000).toFixed(0)} kJ (not battery capacity)`;
+    const deployMode = getF1ErsDeployModeName(last.ErsDeployMode, first.f1?.packetFormat ?? 2025);
+    if (deployMode) context += `\nERS Deploy Mode: ${deployMode} (${last.ErsDeployMode})`;
 
     // Car setup (from in-game settings)
     const setup = first.f1?.setup;
@@ -163,4 +190,4 @@ export const f1ServerAdapter: ServerGameAdapter = {
   },
 
   createLapDetector: (opts) => new LapDetector(opts),
-};
+} satisfies ServerGameAdapter;
