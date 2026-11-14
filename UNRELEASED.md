@@ -4,6 +4,8 @@
 
 ### Fixes
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+- On Sessions, show F1 starting grid separately from qualifying result.
+- Read F1 25 2026 Season Pack telemetry so race results and positions appear correctly.
 
 ### Internal
 - Allow CI replay WebGPU tests to use software adapters; hardware coverage is not guaranteed.

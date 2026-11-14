@@ -124,6 +124,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   const sessionType = normalizeSessionType(source.sessionType);
   const practice = sessionType === "practice";
   const finishingPosition = practice ? null : source.finishingPosition ?? null;
+  const gridPosition = practice ? null : source.gridPosition ?? null;
   const qualifyingPosition = practice ? null : source.qualifyingPosition ?? null;
   const classificationInput = classificationEvidence(source, sessionType);
   const classificationDecision = arbitrateRaceResultClaim(
@@ -147,6 +148,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   fieldStatus.classification = classificationResult.status;
   if (practice) {
     fieldStatus.finishingPosition = "unavailable";
+    fieldStatus.gridPosition = "unavailable";
     fieldStatus.qualifyingPosition = "unavailable";
   }
 
@@ -175,6 +177,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     sessionType,
     classification,
     finishingPosition,
+    gridPosition,
     qualifyingPosition,
     isPodium,
     isFastestLap: source.isFastestLap ?? null,

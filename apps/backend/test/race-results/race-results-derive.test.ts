@@ -25,6 +25,7 @@ const source = (overrides: Partial<RaceSourceObservation> = {}): RaceSourceObser
       sessionType: "unavailable",
       classification: "unavailable",
       finishingPosition: "unavailable",
+      gridPosition: "unavailable",
       qualifyingPosition: "unavailable",
       isPodium: "unavailable",
       isFastestLap: "unavailable",

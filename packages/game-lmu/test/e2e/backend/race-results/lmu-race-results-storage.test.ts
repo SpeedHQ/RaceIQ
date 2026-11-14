@@ -17,6 +17,7 @@ import { evidence, provenance } from "@raceiq/backend/test-support/race-results"
       classification: "finished",
       outcomeStatus: "confirmed",
       finishingPosition: 1,
+      gridPosition: null,
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: false,

@@ -40,6 +40,7 @@ const evidence: RaceResultEvidence = {
     sessionType: "direct",
     classification: "direct",
     finishingPosition: "direct",
+    gridPosition: "unavailable",
     qualifyingPosition: "direct",
     isPodium: "derived",
     isFastestLap: "derived",
@@ -63,7 +64,7 @@ async function insertDetectorSession(rawFile: string | null, version: string | n
 async function insertResult(sessionId: number, processorVersion: string) {
   const input: SessionResultInput = {
     sessionId, processorVersion, sessionType: "race", classification: "finished", outcomeStatus: "confirmed",
-    finishingPosition: 1, qualifyingPosition: null, isPodium: true, isFastestLap: null, pitCount: 0,
+    finishingPosition: 1, gridPosition: null, qualifyingPosition: null, isPodium: true, isFastestLap: null, pitCount: 0,
     tyreStrategy: null, fuelStrategy: null, provenance, evidence, reasons: [],
   };
   await upsertSessionResult(input);

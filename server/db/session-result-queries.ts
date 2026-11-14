@@ -10,6 +10,7 @@ const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
     sessionType: "unavailable",
     classification: "unavailable",
     finishingPosition: "unavailable",
+    gridPosition: "unavailable",
     qualifyingPosition: "unavailable",
     isPodium: "unavailable",
     isFastestLap: "unavailable",
@@ -41,6 +42,7 @@ export type SessionResultInput = {
   classification: RaceResultStatus;
   outcomeStatus?: RaceResultOutcomeStatus;
   finishingPosition: number | null;
+  gridPosition: number | null;
   qualifyingPosition: number | null;
   isPodium: boolean | null;
   isFastestLap: boolean | null;
@@ -105,11 +107,12 @@ export async function upsertSessionResult(
       .where(eq(sessionResults.sessionId, input.sessionId)).get();
     const values = {
       sessionId: input.sessionId,
-      processorVersion: input.processorVersion ?? "race-result-v2",
+      processorVersion: input.processorVersion ?? "race-result-v6",
       sessionType: input.sessionType,
       classification: input.classification,
       outcomeStatus: input.outcomeStatus ?? "unavailable",
       finishingPosition: input.finishingPosition,
+      gridPosition: input.gridPosition,
       qualifyingPosition: input.qualifyingPosition,
       isPodium: input.isPodium,
       isFastestLap: input.isFastestLap,

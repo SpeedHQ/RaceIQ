@@ -108,6 +108,25 @@ describe("race result source extraction", () => {
     expect(derived.evidence.decisions?.classification.alternatives.map((alternative) => alternative.value)).toEqual(["finished", "dnf"]);
   });
 
+  test("keeps F1 grid position separate from qualifying classification", () => {
+    const source = extractRaceSource("f1-2025", [packet({
+      gameId: "f1-2025",
+      RacePosition: 3,
+      f1: { sessionType: "race", resultStatus: 3, resultSource: "final-classification", gridPosition: 1 } as never,
+    })]);
+
+    expect(source.gridPosition).toBe(1);
+    expect(source.finishingPosition).toBe(3);
+    expect(source.qualifyingPosition).toBeNull();
+    expect(source.evidence.fieldStatus.gridPosition).toBe("direct");
+    expect(source.evidence.fieldStatus.qualifyingPosition).toBe("unavailable");
+
+    const result = deriveRaceResult(source);
+    expect(result.gridPosition).toBe(1);
+    expect(result.finishingPosition).toBe(3);
+    expect(result.qualifyingPosition).toBeNull();
+  });
+
   test("consolidates position changes at lap boundaries", () => {
     const result = extractRaceSource("f1-2025", [
       packet({ gameId: "f1-2025", LapNumber: 1, RacePosition: 5 }),

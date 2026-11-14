@@ -141,11 +141,12 @@ export const sessionResults = sqliteTable(
 		sessionId: integer("session_id")
 			.notNull()
 			.references(() => sessions.id, { onDelete: "cascade" }),
-		processorVersion: text("processor_version").notNull().default("race-result-v2"),
+		processorVersion: text("processor_version").notNull().default("race-result-v6"),
 		sessionType: text("session_type").notNull().default("unknown"),
 		classification: text("classification").notNull().default("unknown"),
 		outcomeStatus: text("outcome_status").$type<RaceResultOutcomeStatus>().notNull().default("unavailable"),
 		finishingPosition: integer("finishing_position"),
+		gridPosition: integer("grid_position"),
 		qualifyingPosition: integer("qualifying_position"),
 		isPodium: integer("is_podium", { mode: "boolean" }),
 		isFastestLap: integer("is_fastest_lap", { mode: "boolean" }),

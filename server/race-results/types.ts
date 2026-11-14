@@ -42,6 +42,7 @@ export interface RaceSourceObservation {
   sessionType?: string | null;
   classification?: ResultClassification | null;
   finishingPosition?: number | null;
+  gridPosition?: number | null;
   qualifyingPosition?: number | null;
   isFastestLap?: boolean | null;
   fastestLapSource?: string | null;
@@ -60,6 +61,7 @@ export interface DerivedRaceResult {
   sessionType: ResultSessionType;
   classification: ResultClassification;
   finishingPosition: number | null;
+  gridPosition: number | null;
   qualifyingPosition: number | null;
   isPodium: boolean | null;
   isFastestLap: boolean | null;

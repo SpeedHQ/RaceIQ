@@ -83,7 +83,8 @@ export function buildRaceResultTimeline(
 ): RaceResultTimelineNode[] {
   const practice = result ? isPracticeSession(result.sessionType) : false;
   const qualifyingPosition = practice ? null : result?.qualifyingPosition ?? null;
-  let currentPosition = qualifyingPosition;
+  const gridPosition = practice ? null : result?.gridPosition ?? null;
+  let currentPosition = gridPosition ?? qualifyingPosition;
   const eventNodes: RaceResultTimelineNode[] = [];
   for (const event of result?.events.slice().sort((a, b) => a.sequence - b.sequence) ?? []) {
     if (event.eventType === "penalty") {
@@ -143,7 +144,7 @@ export function buildRaceResultTimeline(
   if (!result && eventNodes.length === 0) return [];
   return [
     ...(qualifyingPosition != null ? [{ kind: "qualifying" as const, position: qualifyingPosition }] : []),
-    { kind: "start", position: qualifyingPosition },
+    { kind: "start", position: gridPosition },
     ...eventNodes,
     ...(result ? [{
       kind: "finish" as const,

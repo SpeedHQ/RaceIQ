@@ -10,6 +10,7 @@ const result = {
   finishingPosition: 2,
   isPodium: true,
   isFastestLap: false,
+  gridPosition: 1,
   qualifyingPosition: 5,
   tyreStrategy: null,
   fuelStrategy: null,
@@ -77,9 +78,23 @@ describe("race result timeline", () => {
     const timeline = buildRaceResultTimeline(result);
     expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "pit", "finish"]);
     expect(timeline[0]).toMatchObject({ kind: "qualifying", position: 5 });
-    expect(timeline[1]).toMatchObject({ kind: "start", position: 5 });
+    expect(timeline[1]).toMatchObject({ kind: "start", position: 1 });
     expect(timeline[2]).toMatchObject({ lapNumber: 12, service: "tyres" });
     expect(timeline[3]).not.toHaveProperty("qualifyingPosition");
+  });
+
+  test("shows F1 grid position as start, separate from qualifying result", () => {
+    const timeline = buildRaceResultTimeline({ ...result, finishingPosition: 3, qualifyingPosition: 3, gridPosition: 1, events: [] });
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "finish"]);
+    expect(timeline[0]).toMatchObject({ kind: "qualifying", position: 3 });
+    expect(timeline[1]).toMatchObject({ kind: "start", position: 1 });
+    expect(timeline[2]).toMatchObject({ kind: "finish", finishingPosition: 3 });
+  });
+
+  test("does not call grid position a qualifying result when qualifying rank is unavailable", () => {
+    const timeline = buildRaceResultTimeline({ ...result, gridPosition: 1, qualifyingPosition: null, events: [] });
+    expect(timeline.map((node) => node.kind)).toEqual(["start", "finish"]);
+    expect(timeline[0]).toMatchObject({ kind: "start", position: 1 });
   });
 
   test("places penalty event in sequence without treating it as a pit stop", () => {
@@ -101,7 +116,7 @@ describe("race result timeline", () => {
   });
 
   test("omits qualifying when starting position is unknown", () => {
-    const timeline = buildRaceResultTimeline({ ...result, qualifyingPosition: null, events: [] });
+    const timeline = buildRaceResultTimeline({ ...result, gridPosition: null, qualifyingPosition: null, events: [] });
     expect(timeline.map((node) => node.kind)).toEqual(["start", "finish"]);
     expect(timeline[0]).toMatchObject({ kind: "start", position: null });
   });
@@ -109,6 +124,7 @@ describe("race result timeline", () => {
   test("renders position-change events as position nodes", () => {
     const timeline = buildRaceResultTimeline({
       ...result,
+      gridPosition: 5,
       events: [
         {
           ...result.events[0],
@@ -123,10 +139,11 @@ describe("race result timeline", () => {
     expect(timeline[2]).toMatchObject({ kind: "position", lapNumber: 4, direction: "up", position: 3 });
   });
 
-  test("does not show a false transition back to grid position", () => {
+  test("measures position changes from grid rather than qualifying result", () => {
     const timeline = buildRaceResultTimeline({
       ...result,
       qualifyingPosition: 3,
+      gridPosition: 1,
       events: [
         {
           ...result.events[0],
@@ -138,7 +155,8 @@ describe("race result timeline", () => {
         },
       ],
     });
-    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "finish"]);
+    expect(timeline.map((node) => node.kind)).toEqual(["qualifying", "start", "position", "finish"]);
+    expect(timeline[2]).toMatchObject({ kind: "position", direction: "down", position: 3 });
   });
   test("omits null optional event values", () => {
     const [pit] = buildRaceResultTimeline({ ...result, events: [{ ...result.events[0], lapNumber: null, durationSeconds: null, tyreChange: null }] }).filter((node) => node.kind === "pit");

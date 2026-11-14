@@ -13,7 +13,7 @@
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
       "packages/game-ams2/src/normalizer.ts": "0b3a2c0b5cad95cf117d7bd9b2b16f4c3bcf57461f206936b3fdf26bc5680dde",
-      "packages/game-f1-2025/src/f1-state.ts": "3a8a7354ef04ac1515ecccdfe12d37e8a8e160c762fdac10920646039c661cce",
+      "packages/game-f1-2025/src/f1-state.ts": "b60d2d5a36e69b29f7dfab5e1043b96fe52cd0509f62fea350ac1d54c9630c34",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "88d941a7416323146ad9b0c6fcb13e072dfe522960588d246a5074f32ff743ed"
+    "contentHash": "166d9fe9a06da9dba64ade84715e41df8c177ab19fe053dc7e56ffadb70f5730"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -13939,12 +13939,13 @@
           "kind": "derived",
           "nativeUnit": "W",
           "sources": [
+            "F1.Header.packetFormat",
             "F1.CarStatus.enginePowerICE",
             "F1.CarStatus.enginePowerMGUK"
           ],
           "freshness": "continuous",
           "normalization": "cs ? cs.enginePowerICE + cs.enginePowerMGUK : 0",
-          "description": "f1-2025 maps 2 native source channels into this value.",
+          "description": "f1-2025 maps 3 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
@@ -13956,11 +13957,12 @@
             "version": "0.22.0",
             "deterministic": true,
             "declaredInputs": [
+              "F1.Header.packetFormat",
               "F1.CarStatus.enginePowerICE",
               "F1.CarStatus.enginePowerMGUK"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "56c316f001a6caa46f4662248802272db2e0549cab27955e9843baf8935fa2dd"
+            "codeHash": "a8e83686ba82c45e3a94d8ed57ad559aaa3511f9049755a07d4b77e5e1785489"
           }
         },
         "acc": {
@@ -15651,12 +15653,13 @@
           "kind": "normalized",
           "nativeUnit": "fraction",
           "sources": [
+            "F1.Header.packetFormat",
             "F1.CarStatus.fuelCapacity",
             "F1.CarStatus.fuelRemaining"
           ],
           "freshness": "continuous",
           "normalization": "cs && cs.fuelCapacity > 0 ? cs.fuelRemaining / cs.fuelCapacity : 0",
-          "description": "f1-2025 maps 2 native source channels into this value.",
+          "description": "f1-2025 maps 3 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
@@ -15668,11 +15671,12 @@
             "version": "0.22.0",
             "deterministic": true,
             "declaredInputs": [
+              "F1.Header.packetFormat",
               "F1.CarStatus.fuelCapacity",
               "F1.CarStatus.fuelRemaining"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "9e666b12058a6d8bb4ac26b3e3f3b0cc403307ff39b8f9b9938fa6d3e307d969"
+            "codeHash": "cb82a8d195a9b9e04bf0d833d62e217c6d8d2e2badc5785ed5217b1bd32351fe"
           }
         },
         "acc": {
@@ -15837,11 +15841,12 @@
           "kind": "normalized",
           "nativeUnit": "L",
           "sources": [
+            "F1.Header.packetFormat",
             "F1.CarStatus.fuelCapacity"
           ],
           "freshness": "continuous",
           "normalization": "cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0 ? cs.fuelCapacity : undefined",
-          "description": "f1-2025 maps 1 native source channel into this value.",
+          "description": "f1-2025 maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
@@ -15853,10 +15858,11 @@
             "version": "0.22.0",
             "deterministic": true,
             "declaredInputs": [
+              "F1.Header.packetFormat",
               "F1.CarStatus.fuelCapacity"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "f1fdd665ea94d77398926b0fff22cde8599ffe78a24ff516f755bb594b23c66c"
+            "codeHash": "bbb70f90f2736e9987ed351e7fae3c3ea5d95a2d3da23ffa3fdd2482de6b7043"
           }
         },
         "acc": {
