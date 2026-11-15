@@ -26,7 +26,7 @@ export interface LiveWorkerOptions {
   readonly promoteCandidate?: (candidateId: string) => void;
   readonly discardCandidate?: (candidateId: string) => void;
 }
-const STATEFUL_GAME_IDS = new Set<GameId>(["ac-evo", "f1-2025", "iracing"]);
+const STATEFUL_GAME_IDS = new Set<GameId>(["ac-evo", "ams2", "f1-2025", "iracing"]);
 const MAX_LIVE_REPLAY_BATCH_RECORDS = 256;
 
 const MessageTypeSchema = Schema.Struct({ type: Schema.String });

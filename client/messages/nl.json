@@ -70,6 +70,7 @@
   "ob_community_body": "RaceIQ is een open-sourceproject dat afhankelijk is van de community. Of je nu het nieuws verspreidt, functieverzoeken of bugrapporten indient, of bijdraagt aan de broncode: elke bijdrage helpt de app voor iedereen beter te maken.",
   "settings_port_range_error": "Poort moet tussen 1024 en 65535 liggen",
   "settings_launch_installed_only": "Alleen beschikbaar in de geïnstalleerde app",
+  "settings_launch_desktop_owned": "Beheer starten bij inloggen via het menubalkpictogram van de RaceIQ-desktopapp.",
   "settings_launch_on_login_desc": "RaceIQ automatisch starten wanneer je je aanmeldt bij Windows.",
   "settings_connection_title": "Forza-verbinding",
   "settings_connection_desc": "Stel de UDP-poort in waarop geluisterd wordt. Ga in Forza naar Settings > Gameplay > Data Out > stel het IP-adres in op dat van deze machine en gebruik de onderstaande poort.",

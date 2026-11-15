@@ -70,6 +70,7 @@
   "ob_community_body": "O RaceIQ é um projeto de código aberto que depende da comunidade. Seja divulgando o projeto, enviando sugestões de recursos ou relatos de bugs, ou contribuindo com o código-fonte, toda ajuda torna o aplicativo melhor para todos.",
   "settings_port_range_error": "A porta deve estar entre 1024 e 65535",
   "settings_launch_installed_only": "Disponível apenas no aplicativo instalado",
+  "settings_launch_desktop_owned": "Gerencie a inicialização ao iniciar sessão pelo ícone do aplicativo RaceIQ para desktop na barra de menus.",
   "settings_launch_on_login_desc": "Iniciar o RaceIQ automaticamente ao entrar no Windows.",
   "settings_connection_title": "Conexão com o Forza",
   "settings_connection_desc": "Defina a porta UDP a ser monitorada. No Forza: Configurações > Jogabilidade > Saída de dados > defina o IP como o endereço desta máquina e informe a porta abaixo.",

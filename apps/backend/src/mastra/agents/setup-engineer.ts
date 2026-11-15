@@ -16,7 +16,7 @@ import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
 import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 import { getChatMemory } from "@raceiq/backend-core/ai/chat-agent";
 import { getChatTurnContext } from "@raceiq/backend-core/ai/chat-message-context";
-import { getMastraModelId } from "../model";
+import { DEEPSEEK_AGENT_DEFAULTS, getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
@@ -93,6 +93,7 @@ LAP DATA — a focused lap review may already be provided inline in this turn's 
 
 
 export const setupEngineerAgent = new Agent({
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   id: "setup-engineer",
   name: "Setup Engineer",
   instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,

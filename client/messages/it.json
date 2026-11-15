@@ -70,6 +70,7 @@
   "settings_setup_wizard": "Procedura guidata di configurazione",
   "settings_language_search_placeholder": "Cerca lingua...",
   "settings_launch_installed_only": "Disponibile solo nell'app installata",
+  "settings_launch_desktop_owned": "Gestisci l’avvio all’accesso dall’icona nella barra dei menu dell’app desktop RaceIQ.",
   "settings_launch_on_login_desc": "Avvia automaticamente RaceIQ quando accedi a Windows.",
   "settings_connection_title": "Connessione a Forza",
   "settings_connection_desc": "Imposta la porta UDP su cui restare in ascolto. In Forza: Impostazioni > Gameplay > Data Out > imposta l'IP sull'indirizzo di questo computer e la porta indicata qui sotto.",
