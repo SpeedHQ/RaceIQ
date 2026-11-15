@@ -6,6 +6,7 @@ import { settingsRoutes, shouldCheckCredentialStatus } from "../../src/routes/se
 import { getRecordingFrequencyHz, setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { RECORDING_FREQUENCIES_HZ } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { udpListener } from "../../src/runtime/udp-listener";
+import { disableLaunchOnLogin, enableLaunchOnLogin, isLaunchOnLoginEnabled, isLaunchOnLoginSupported } from "@raceiq/backend-core/runtime/platform/launch-on-login";
 
 // Follows DATA_DIR so this never mutates the real dev settings.json —
 // `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).
@@ -16,6 +17,85 @@ describe("E2E settings behavior", () => {
   test("skips credential status checks in E2E mode", () => {
     expect(shouldCheckCredentialStatus({ RACEIQ_E2E: "1" })).toBe(false);
     expect(shouldCheckCredentialStatus({ RACEIQ_E2E: "0" })).toBe(true);
+  });
+});
+describe("desktop startup ownership", () => {
+  let originalContent: string | null;
+  let originalDesktop: string | undefined;
+  let originalE2e: string | undefined;
+
+  beforeEach(() => {
+    mkdirSync(SETTINGS_DIR, { recursive: true });
+    originalContent = existsSync(SETTINGS_PATH) ? readFileSync(SETTINGS_PATH, "utf-8") : null;
+    originalDesktop = process.env.RACEIQ_DESKTOP;
+    originalE2e = process.env.RACEIQ_E2E;
+    process.env.RACEIQ_DESKTOP = "1";
+    process.env.RACEIQ_E2E = "1";
+  });
+
+  afterEach(() => {
+    if (originalDesktop === undefined) delete process.env.RACEIQ_DESKTOP;
+    else process.env.RACEIQ_DESKTOP = originalDesktop;
+    if (originalE2e === undefined) delete process.env.RACEIQ_E2E;
+    else process.env.RACEIQ_E2E = originalE2e;
+    rmSync(`${SETTINGS_PATH}.tmp`, { force: true });
+    if (originalContent === null) rmSync(SETTINGS_PATH, { force: true });
+    else writeFileSync(SETTINGS_PATH, originalContent);
+  });
+
+  test("reconciles a legacy preference without consulting or changing OS startup", () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ launchOnLogin: true, driverName: "Existing driver" }));
+    expect(isLaunchOnLoginSupported()).toBe(false);
+    expect(isLaunchOnLoginEnabled()).toBe(false);
+    enableLaunchOnLogin("unused");
+    disableLaunchOnLogin();
+    const settings = loadSettings({ syncLaunchOnLogin: false });
+    expect(settings.launchOnLogin).toBe(false);
+    expect(settings.driverName).toBe("Existing driver");
+    expect(JSON.parse(readFileSync(SETTINGS_PATH, "utf-8")).launchOnLogin).toBe(false);
+    saveSettings({ ...settings, launchOnLogin: true });
+    expect(JSON.parse(readFileSync(SETTINGS_PATH, "utf-8")).launchOnLogin).toBe(false);
+  });
+
+  test("exposes capability and rejects spoofed enable while allowing onboarding saves", async () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ launchOnLogin: true, udpPort: udpListener.port }));
+    const response = await settingsRoutes.request("/api/settings");
+    const settings = await response.json();
+    expect(settings.launchOnLoginSupported).toBe(false);
+    expect(settings.launchOnLoginOwner).toBe("desktop");
+    expect(settings.launchOnLogin).toBe(false);
+
+    const enable = await settingsRoutes.request("/api/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ launchOnLogin: true, launchOnLoginSupported: true, launchOnLoginOwner: "server" }),
+    });
+    expect(enable.status).toBe(409);
+    expect((await enable.json()).code).toBe("LAUNCH_ON_LOGIN_UNSUPPORTED");
+    const onboarding = await settingsRoutes.request("/api/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ launchOnLogin: false, onboardingComplete: true }),
+    });
+    expect(onboarding.status).toBe(200);
+    expect(loadSettings().launchOnLogin).toBe(false);
+  });
+
+  test("preserves standalone behavior on platforms without backend startup support", async () => {
+    delete process.env.RACEIQ_DESKTOP;
+    // Never touch a real Windows startup registration if run from a compiled binary.
+    if (isLaunchOnLoginSupported()) return;
+
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: udpListener.port }));
+    saveSettings({ ...loadSettings({ syncLaunchOnLogin: false }), launchOnLogin: true });
+    expect(loadSettings({ syncLaunchOnLogin: false }).launchOnLogin).toBe(true);
+    const getResponse = await settingsRoutes.request("/api/settings");
+    expect((await getResponse.json()).launchOnLoginOwner).toBe("server");
+
+    const response = await settingsRoutes.request("/api/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ launchOnLogin: true }),
+    });
+    expect(response.status).toBe(200);
+    expect(loadSettings({ syncLaunchOnLogin: false }).launchOnLogin).toBe(true);
   });
 });
 

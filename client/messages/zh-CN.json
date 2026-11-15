@@ -68,6 +68,7 @@
   "settings_setup_wizard": "设置向导",
   "settings_language_search_placeholder": "搜索语言...",
   "settings_launch_installed_only": "仅在已安装的应用中可用",
+  "settings_launch_desktop_owned": "通过 RaceIQ 桌面应用的菜单栏图标管理登录时启动设置。",
   "settings_launch_on_login_desc": "登录 Windows 时自动启动 RaceIQ。",
   "settings_connection_title": "Forza 连接",
   "settings_connection_desc": "设置要监听的 UDP 端口。在 Forza 中：设置 > 游戏玩法 > 数据输出 > 将 IP 设置为此设备的地址，并将端口设置为下方所示的端口。",
