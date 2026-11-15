@@ -72,7 +72,8 @@ export type PitEventInput = {
 async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
   const inlapNumbers = [...new Set(events.filter((event) => (event.eventType ?? "pit") === "pit" && event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
   if (inlapNumbers.length === 0) return;
-  const session = await readDb.select({ source: sessions.source }).from(sessions).where(eq(sessions.id, sessionId)).get();
+  const session = await readDb.select({ source: sessions.source, gameId: sessions.gameId })
+    .from(sessions).where(eq(sessions.id, sessionId)).get();
   if (session?.source === "motec") return;
 
   // Pit-event inference supplements telemetry categories; it must not turn an
@@ -88,19 +89,21 @@ async function markPitCycleLaps(sessionId: number, events: readonly PitEventInpu
       .set({ classification: "in_lap" })
       .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), inLapEligibleCategory, notIncomplete))
       .run();
-    // A pit event linked to an observed out-lap is already accounted for.
-    const observedOutLaps = await tx.select({ lapNumber: laps.lapNumber }).from(laps)
-      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), eq(laps.classification, "out_lap")))
-      .all();
-    const observedOutLapNumbers = new Set(observedOutLaps.map(lap => lap.lapNumber));
-    const inferredOutLapNumbers = inlapNumbers.filter(lapNumber => !observedOutLapNumbers.has(lapNumber))
-      .map(lapNumber => lapNumber + 1);
-    if (inferredOutLapNumbers.length === 0) return;
+    let inferredFromLapNumbers = inlapNumbers;
+    if (session?.gameId === "ac-evo") {
+      // AC EVO pit events can already be accounted for by the detected out-lap.
+      const observedOutLaps = await tx.select({ lapNumber: laps.lapNumber }).from(laps)
+        .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), eq(laps.classification, "out_lap")))
+        .all();
+      const observedOutLapNumbers = new Set(observedOutLaps.map(lap => lap.lapNumber));
+      inferredFromLapNumbers = inlapNumbers.filter(lapNumber => !observedOutLapNumbers.has(lapNumber));
+    }
+    if (inferredFromLapNumbers.length === 0) return;
     const outLapEligibleCategory = or(isNull(laps.classification), inArray(laps.classification, ["pace", "caution"]));
     await tx
       .update(laps)
       .set({ classification: "out_lap" })
-      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inferredOutLapNumbers), outLapEligibleCategory, notIncomplete))
+      .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inferredFromLapNumbers.map(lapNumber => lapNumber + 1)), outLapEligibleCategory, notIncomplete))
       .run();
   }));
 }
