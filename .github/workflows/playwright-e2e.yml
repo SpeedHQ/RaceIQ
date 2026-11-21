@@ -26,6 +26,18 @@ on:
         required: false
         type: boolean
         default: true
+      verification-mode:
+        type: string
+        required: false
+        default: full
+      base-ref:
+        type: string
+        required: false
+        default: ""
+      head-ref:
+        type: string
+        required: false
+        default: ""
 
 jobs:
   seed-database:
@@ -116,6 +128,9 @@ jobs:
       seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
       dist-artifact: ${{ inputs.dist-artifact }}
+      verification-mode: ${{ inputs.verification-mode }}
+      base-ref: ${{ inputs.base-ref }}
+      head-ref: ${{ inputs.head-ref }}
 
   playwright-webgpu:
     name: WebGPU (software allowed; hardware not guaranteed)
@@ -133,3 +148,6 @@ jobs:
       seed-database-artifact: playwright-seeded-database
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
       dist-artifact: ${{ inputs.dist-artifact }}
+      verification-mode: ${{ inputs.verification-mode }}
+      base-ref: ${{ inputs.base-ref }}
+      head-ref: ${{ inputs.head-ref }}
