@@ -73,7 +73,11 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
         </TableHeader>
         <TableBody>
           {sortedLaps.map((lap) => {
-            const isBest = (session.bestLapTime ?? 0) > 0 && Math.abs(lap.lapTime - (session.bestLapTime ?? 0)) < 0.001;
+            const hasRepeatedIncompleteTime = session.gameId === "ams2" && sessionType === "race" &&
+              !lap.isValid && lap.invalidReason === "incomplete" &&
+              laps.some(previous => previous.isValid && previous.lapNumber === lap.lapNumber - 1 &&
+                previous.lapTime === lap.lapTime);
+            const isBest = !hasRepeatedIncompleteTime && (session.bestLapTime ?? 0) > 0 && Math.abs(lap.lapTime - (session.bestLapTime ?? 0)) < 0.001;
             const isBlocked = lap.processing.state !== "ready";
             const isProcessing = lap.processing.state === "queued" || lap.processing.state === "processing";
             return (
@@ -113,7 +117,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 </TableCell>
                 <TableCell className="w-1 min-w-32 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
+                    <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{hasRepeatedIncompleteTime ? "—" : formatLapTime(lap.lapTime)}</span>
                     {lap.isValid ? (
                       <span className="text-status-success text-sm">&#10003;</span>
                     ) : (

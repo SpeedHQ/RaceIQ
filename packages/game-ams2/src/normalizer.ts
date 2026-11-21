@@ -27,6 +27,7 @@ export function normalizeAMS2Frame(raw: Buffer): TelemetryPacket | null {
     sessionUID: JSON.stringify([frame.epoch, memory.readUInt32LE(L.mSessionState), carName, trackName]),
     ams2: {carName, trackName, trackLengthM: f(L.mTrackLength), lapDistanceM: f(p + 80),
       sessionType: ["invalid","practice","test","qualifying","formation","race","time-attack"][memory.readUInt32LE(L.mSessionState)] ?? "unknown",
+      currentSectorTimes: [f(L.mCurrentSector1Time), f(L.mCurrentSector2Time), f(L.mCurrentSector3Time)],
       lapInvalidated: memory[L.mLapInvalidated] !== 0, inPits: memory.readUInt32LE(L.mPitMode) !== 0},
     FuelCapacity: f(L.mFuelCapacity),
     AirTemp: f(L.mAmbientTemperature),

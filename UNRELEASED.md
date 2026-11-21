@@ -4,6 +4,7 @@
 - Set the OpenAI reasoning level independently in AI Analysis and AI Chat using the same searchable picker as model selection. A star marks Medium as recommended. Supported levels vary by model.
 
 ### Fixes
+- Save AMS2 inlaps when the game clears the lap timer at pit entry, and keep complete timed laps from being mislabeled as outlaps.
 - Show the correct gear in the Portable Combo dashboard for Automobilista 2.
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
 - Run lap analysis and AI chat with OpenAI models that use function tools and reasoning together.
