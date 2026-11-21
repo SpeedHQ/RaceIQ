@@ -16,8 +16,11 @@ import {
   iterateSessionFrames,
 } from "@raceiq/capture-formats/session/framing";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
+import { ACEVO_STATUS, GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
+import { ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
-import { inArray } from "drizzle-orm";
+import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { enableParserInstrumentation, getParserInstrumentation, resetParserInstrumentation } from "@raceiq/backend-core/session-capture/test-instrumentation";
@@ -90,4 +93,35 @@ describe("indexed canonical import oracle", () => {
       await db.delete(sessions).where(inArray(sessions.id, [sid])).run();
     }
   }, 180000);
+
+  test.each([[-1, false], [0, false], [0, true]] as const)("AC EVO import corrects provisional mode %i unless edited (%s)", async (mode, edited) => {
+    const bytes = gunzipSync(readFileSync("test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"));
+    const first = iterateSessionFrames(bytes).next().value!;
+    const { carOrdinal, trackOrdinal, physics, graphics, staticData } = unpackTriplet(first)!;
+    graphics.writeInt32LE(ACEVO_STATUS.AC_LIVE, GRAPHICS_EVO.status.offset);
+    const { offset, size } = STATIC_EVO.session_name;
+    staticData.fill(0, offset, offset + size);
+    staticData.writeInt32LE(mode, STATIC_EVO.session.offset);
+    const startup = packTriplet(ACEVO_PACKED_MAGIC, carOrdinal, trackOrdinal, physics, graphics, staticData);
+    staticData.write("Practice", offset);
+    const named = packTriplet(ACEVO_PACKED_MAGIC, carOrdinal, trackOrdinal, physics, graphics, staticData);
+    const sessionSource = `ac-evo-phase-test-${mode}-${edited}`;
+    async function* frames() {
+      yield startup;
+      if (edited) {
+        await db.update(sessions).set({ sessionType: "qualifying" }).where(eq(sessions.source, sessionSource)).run();
+      }
+      yield named;
+    }
+    const { sessionIds } = await importSessionFrames(frames(), "ac-evo", { notifyDriverProfile: false, sessionSource });
+    try {
+      expect(sessionIds).toHaveLength(1);
+      const rows = await db.select({ sessionType: sessions.sessionType }).from(sessions)
+        .where(inArray(sessions.id, sessionIds)).all();
+      expect(rows).toEqual([{ sessionType: edited ? "qualifying" : "practice" }]);
+    } finally {
+      await db.delete(laps).where(inArray(laps.sessionId, sessionIds)).run();
+      await db.delete(sessions).where(inArray(sessions.id, sessionIds)).run();
+    }
+  });
 });

@@ -5,6 +5,7 @@
 ### Fixes
 - Show the correct gear in the Portable Combo dashboard for Automobilista 2.
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+- Show the correct session type on the Sessions page for recorded and imported AC EVO sessions, even when the game reports its name late. Prevent pit results from marking a second lap as an out-lap.
 
 ### Internal
 - Allow CI replay WebGPU tests to use software adapters; hardware coverage is not guaranteed.

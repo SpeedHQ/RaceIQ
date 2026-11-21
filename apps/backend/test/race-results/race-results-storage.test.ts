@@ -71,6 +71,41 @@ describe("persisted race result metadata", () => {
       { lapNumber: 8, isValid: true, invalidReason: null, classification: "out_lap" },
     ]);
   });
+  test("AC EVO pit event linked to an out-lap preserves the following pace lap", async () => {
+    const sessionId = await insertSession("evo-car", "evo-track", "ac-evo", "race");
+    await db.insert(laps).values([
+      { sessionId, lapNumber: 9, lapTime: 110, isValid: true, invalidReason: null, classification: "out_lap" },
+      { sessionId, lapNumber: 10, lapTime: 105, isValid: true, invalidReason: null, classification: "pace" },
+    ]);
+    const result = await upsertSessionResult({
+      sessionId,
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 2,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: false,
+      pitCount: 1,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    });
+    await replacePitEvents(result.id, [
+      { sequence: 1, lapNumber: 9, elapsedSeconds: 200, durationSeconds: null, service: "unknown", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
+    ]);
+    const storedLaps = await db.select({
+      lapNumber: laps.lapNumber,
+      classification: laps.classification,
+    }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
+    expect(storedLaps).toEqual([
+      { lapNumber: 9, classification: "out_lap" },
+      { lapNumber: 10, classification: "pace" },
+    ]);
+  });
+
   test("counts and lists only results from older processor versions", async () => {
     const staleSessionId = await insertSession("12", "13", "f1-2025", "race");
     const resultlessSessionId = await insertSession("12", "13", "f1-2025", "race");
