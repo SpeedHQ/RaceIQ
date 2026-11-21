@@ -4,6 +4,7 @@
 
 ### Fixes
 - Show session types for all supported games on the Sessions list and remove the repeated session type from expanded lap rows.
+- Show the correct gear in the Portable Combo dashboard for Automobilista 2.
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
 
 ### Internal
