@@ -25,6 +25,8 @@ test("OpenAI-compatible can be selected for every AI feature without a stored ke
     await option.click();
     await expect(picker).toHaveValue("OpenAI-compatible");
   }
+
+  await expect(page.getByRole("combobox", { name: /^(Thinking|Reasoning) level$/ })).toHaveCount(0);
 });
 
 test("AI settings classify empty models and recover from controlled API error", async ({ page, request }) => {
