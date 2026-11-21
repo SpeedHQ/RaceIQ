@@ -6,6 +6,7 @@ import { Hono } from "hono";
 
 import type { GameId } from "@raceiq/shared/games/ids";
 import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
@@ -190,7 +191,7 @@ export const comparisonRoutes = new Hono()
           temperature: 0,
         },
         providerOptions: {
-          openai: { reasoningEffort: "medium" },
+          openai: { reasoningEffort: openAiReasoningEffort(settings.aiProvider, settings.aiReasoningLevel) },
           google: buildGoogleThinkingProviderOptions(
             settings.aiModel || "gemini-flash-latest",
             settings.aiThinkingBudget,
@@ -382,7 +383,7 @@ export const comparisonRoutes = new Hono()
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: "medium" },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },

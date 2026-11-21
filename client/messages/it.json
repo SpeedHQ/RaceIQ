@@ -123,6 +123,7 @@
   "ai_model_recommended": "Consigliato",
   "ai_thinking_label": "Ragionamento",
   "ai_thinking_unsupported": "Questo modello non supporta il ragionamento. Verrà usato Nessuno.",
+  "ai_reasoning_enabled": "Livello di ragionamento",
   "ai_add_key_hint": "Aggiungi e salva una chiave API per caricare i modelli disponibili.",
   "ai_no_models": "Il provider non ha restituito modelli.",
   "ai_load_models_failed": "Caricamento dei modelli non riuscito. Controlla la chiave API e la connessione al provider.",
