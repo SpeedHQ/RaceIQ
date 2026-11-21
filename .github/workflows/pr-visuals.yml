@@ -12,18 +12,19 @@ on:
         required: false
         type: string
         default: ""
-      verification-mode:
+      head-ref:
         type: string
-        required: false
-        default: full
+        default: ""
       base-ref:
         type: string
         required: false
         default: ""
-      head-ref:
-        type: string
-        required: false
-        default: ""
+      responsive:
+        type: boolean
+        default: true
+      storybook:
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       pr:
@@ -43,34 +44,36 @@ permissions:
 jobs:
   responsive:
     name: Responsive
+    if: github.event_name == 'workflow_dispatch' || inputs.responsive
     uses: ./.github/workflows/pr-screenshots.yml
     with:
       pr: ${{ inputs.pr }}
-      verification-mode: ${{ inputs.verification-mode }}
-      base-ref: ${{ inputs.base-ref }}
       head-ref: ${{ inputs.head-ref }}
+      base-ref: ${{ inputs.base-ref }}
 
   storybook:
     name: Storybook
+    if: github.event_name == 'workflow_dispatch' || inputs.storybook
     uses: ./.github/workflows/pr-snapshots.yml
     with:
       pr: ${{ inputs.pr }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
-      verification-mode: ${{ inputs.verification-mode }}
-      base-ref: ${{ inputs.base-ref }}
       head-ref: ${{ inputs.head-ref }}
+      base-ref: ${{ inputs.base-ref }}
 
   combine-previews:
     name: Combine previews
     needs:
       - responsive
       - storybook
-    if: needs.responsive.outputs.selected != 'false' || needs.storybook.outputs.selected != 'false'
+    if: ${{ !cancelled() && (!(github.event_name == 'workflow_dispatch' || inputs.responsive) || needs.responsive.result == 'success') && (!(github.event_name == 'workflow_dispatch' || inputs.storybook) || needs.storybook.result == 'success') && (github.event_name == 'workflow_dispatch' || inputs.responsive || inputs.storybook) }}
     runs-on:
       - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head-ref || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
@@ -83,6 +86,10 @@ jobs:
       - name: Combine comparison previews
         env:
           PREVIEW_ROOT: ${{ runner.temp }}/pr-visual-previews
+          PREVIEW_PR: ${{ inputs.pr }}
+          PREVIEW_BASE: ${{ inputs.base-ref }}
+          PREVIEW_RESPONSIVE: ${{ github.event_name == 'workflow_dispatch' || inputs.responsive }}
+          PREVIEW_STORYBOOK: ${{ github.event_name == 'workflow_dispatch' || inputs.storybook }}
         run: bun scripts/ci/combine-pr-visual-previews.ts
       - name: Upload combined comparison preview
         uses: actions/upload-artifact@v7
@@ -90,3 +97,31 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+          if-no-files-found: error
+
+  visual-results:
+    name: Visual verification results
+    if: always()
+    needs: [responsive, storybook, combine-previews]
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Reject cancelled workflow
+        if: cancelled()
+        run: exit 1
+      - name: Verify selected visual job conclusions
+        if: ${{ !cancelled() }}
+        uses: actions/github-script@v9
+        env:
+          RESPONSIVE: ${{ needs.responsive.result }}
+          STORYBOOK: ${{ needs.storybook.result }}
+          COMBINE: ${{ needs.combine-previews.result }}
+          SELECT_RESPONSIVE: ${{ github.event_name == 'workflow_dispatch' || inputs.responsive }}
+          SELECT_STORYBOOK: ${{ github.event_name == 'workflow_dispatch' || inputs.storybook }}
+        with:
+          script: |
+            const responsive = process.env.SELECT_RESPONSIVE === "true";
+            const storybook = process.env.SELECT_STORYBOOK === "true";
+            for (const [job, selected] of Object.entries({ RESPONSIVE: responsive, STORYBOOK: storybook, COMBINE: responsive || storybook })) {
+              if (process.env[job] !== (selected ? "success" : "skipped")) throw new Error(`${job}: unexpected ${process.env[job]}`);
+            }

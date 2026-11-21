@@ -4,31 +4,42 @@ import { join } from "node:path";
 const root = process.env.PREVIEW_ROOT;
 if (!root) throw new Error("PREVIEW_ROOT is required");
 
-const previews = [
-  join(root, "pr-visual-responsive-preview"),
-  join(root, "pr-visual-storybook-preview"),
+const selected = [
+  { suite: "responsive", enabled: process.env.PREVIEW_RESPONSIVE },
+  { suite: "storybook", enabled: process.env.PREVIEW_STORYBOOK },
 ];
-const output = "pr-preview";
-mkdirSync(output, { recursive: true });
-
-const metadata = previews.map((directory) => ({
-  pr: readFileSync(join(directory, "pr-number.txt"), "utf8").trim(),
-  baseRef: readFileSync(join(directory, "base-ref.txt"), "utf8").trim(),
-}));
-const responsive = metadata[0]!;
-const storybook = metadata[1]!;
-if (responsive.pr !== storybook.pr || responsive.baseRef !== storybook.baseRef) {
-  throw new Error("Visual preview artifacts refer to different pull requests or base revisions");
+if (selected.some(({ enabled }) => enabled !== "true" && enabled !== "false")) {
+  throw new Error("Each visual suite requires an explicit selection");
 }
-
-writeFileSync(join(output, "pr-number.txt"), responsive.pr);
-writeFileSync(join(output, "base-ref.txt"), responsive.baseRef);
-for (const directory of previews) {
-  for (const name of ["base-responsive", "current-responsive", "base-storybook", "current-storybook"]) {
-    const source = join(directory, name);
-    if (!existsSync(source)) continue;
-    const target = join(output, name);
-    if (existsSync(target)) throw new Error(`Duplicate visual render directory: ${name}`);
-    cpSync(source, target, { recursive: true });
+const previews = selected.filter(({ enabled }) => enabled === "true").map(({ suite }) => {
+  const directory = join(root, `pr-visual-${suite}-preview`);
+  if (!["base", "current"].some((side) => existsSync(join(directory, `${side}-${suite}`)))) {
+    throw new Error(`Missing selected ${suite} render data`);
+  }
+  return {
+    suite,
+    directory,
+    pr: readFileSync(join(directory, "pr-number.txt"), "utf8").trim(),
+    base: readFileSync(join(directory, "base-ref.txt"), "utf8").trim(),
+  };
+});
+const first = previews[0];
+if (first) {
+  if (!/^[1-9]\d*$/.test(first.pr) || !/^[\da-f]{40,64}$/.test(first.base) ||
+      (process.env.PREVIEW_PR && process.env.PREVIEW_PR !== first.pr) ||
+      (process.env.PREVIEW_BASE && process.env.PREVIEW_BASE !== first.base) ||
+      previews.some(({ pr, base }) => pr !== first.pr || base !== first.base)) {
+    throw new Error("Visual preview artifacts refer to different pull requests or base revisions");
+  }
+  const output = "pr-preview";
+  mkdirSync(output);
+  writeFileSync(join(output, "pr-number.txt"), first.pr);
+  writeFileSync(join(output, "base-ref.txt"), first.base);
+  for (const { suite, directory } of previews) {
+    for (const side of ["base", "current"]) {
+      const name = `${side}-${suite}`;
+      const source = join(directory, name);
+      if (existsSync(source)) cpSync(source, join(output, name), { recursive: true });
+    }
   }
 }

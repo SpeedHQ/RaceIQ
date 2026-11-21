@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 # Select affected verification tasks before provisioning CI
 
@@ -13,8 +13,8 @@ The existing feature-package contract requires conservative coverage for unknown
 
 1. Preserve Turbo-native comparison for ordinary local calls without explicit SCM overrides. Preserve full manual/default verification and conservative fallback for untrustworthy ranges.
 2. Scope suite inputs to real production, test, fixture, runner, configuration, and dependency consumers. Keep transitive propagation and environment-sensitive cache invalidation; do not hide genuine graph edges.
-3. Restore the base CI dependency graph and existing shard layout. Run existing verification steps and shards through Turbo tasks with affected selection rather than a separate dynamic matrix-selection graph.
-4. Skip task commands only when a trustworthy affected comparison proves them unaffected. Invalid ranges, incomplete ownership, and selection failures execute full verification with a diagnostic.
+3. Select affected task IDs once before runner allocation. Turbo owns impact; GitHub Actions maps those IDs to eligible jobs, shards, and prerequisites. Preserve full-run inventory and shard identities, not unconditional provisioning.
+4. Skip jobs only when a validated comparison proves them unaffected. Include base-revision ownership for deletions and both owners for moves. Invalid comparisons and incomplete ownership select full verification with a diagnostic; failure to produce a valid plan cannot pass the required check.
 5. Preserve full entry points, test inventory, seeded and hardware prerequisites, required status behavior, and uncached browser and build results. Verify selected, unaffected, fallback, failure, and hosted execution paths before claiming completion.
 
 ## Rationale and consequences
@@ -30,4 +30,4 @@ This does not authorize package extraction, product changes, test deletion, remo
 - Related decision: [Feature-owned E2E boundaries](0015-e2e-aware-package-extraction.md).
 - Official guidance: [Constructing CI](https://turborepo.com/docs/crafting-your-repository/constructing-ci), [Configuring tasks](https://turborepo.com/docs/crafting-your-repository/configuring-tasks), [Affected query](https://turborepo.com/docs/reference/query#affected).
 
-Planning only. Proposed status does not imply implementation approval or passing verification.
+Accepted design. Implementation and hosted verification evidence are tracked in the plan.

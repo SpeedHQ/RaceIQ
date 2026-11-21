@@ -1,35 +1,48 @@
 import { describe, expect, test } from "bun:test";
-import { copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync, chmodSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "../../..");
 const selector = resolve(root, "scripts/ci/affected-verification.ts");
+const queryInventory = JSON.stringify({
+  tasks: [
+    ...Object.keys(JSON.parse(readFileSync(resolve(root, "playwright/turbo.json"), "utf8")).tasks as object)
+      .map((task) => `raceiq-e2e#${task}`),
+    ...["tracks-catalogue", "cars-catalogue", "lap-replay", "sessions-page", "session-analyse"].map((owner) => `@raceiq/${owner}#e2e:impact`),
+  ].map((taskId) => ({ taskId, directory: ".", inputs: { "scripts/i18n/check-message-keys.ts": "hash" }, dependencies: [] })),
+});
 
 function run(...args: string[]) {
   return Bun.spawnSync(["bun", selector, ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
 }
 
-function queryResult(items: unknown[]) {
-  return JSON.stringify({ data: { affectedTasks: { length: items.length, items } } });
-}
+const fakeGit = `#!/bin/sh
+case "$*" in
+  *--is-shallow-repository*) echo false;;
+  *not-a-ref*) echo 'invalid ref' >&2; exit 1;;
+  'rev-parse --verify HEAD') echo b;;
+  *base*'^{commit}') echo a;;
+  *'^{commit}') echo b;;
+  'merge-base --all '*) echo a;;
+  'status '*) ;;
+  'diff '*) printf 'M\\0scripts/i18n/check-message-keys.ts\\0';;
+esac
+`;
 
-function impact(name: string, owner: string) {
-  return { name, fullName: `${owner}#${name}`, package: { name: owner } };
-}
-
-function runWithQuery(output: string, args = ["--mode", "affected", "--base", "base", "--head", "head"], fail = false, git = "#!/bin/sh\ncase \"$*\" in *--is-shallow-repository*) echo false;; *not-a-ref*) echo 'invalid ref' >&2; exit 1;; *) case \"$1\" in diff) printf 'docs/example.md\\0';; *) case \"$*\" in *base*) echo a;; *) echo b;; esac;; esac;; esac\n") {
+function runWithQuery(output: string, args = ["--mode", "affected", "--base", "base", "--head", "head"], fail = false, git = fakeGit) {
   const directory = mkdtempSync(resolve(tmpdir(), "raceiq-selector-query-"));
   try {
-    writeFileSync(resolve(directory, "git"), git);
-    writeFileSync(resolve(directory, "bunx"), fail
-      ? "#!/bin/sh\nprintf 'injected query failure\\n' >&2\nexit 1\n"
-      : "#!/bin/sh\nprintf '%s' \"$SELECTOR_QUERY\"\n");
-    chmodSync(resolve(directory, "git"), 0o755);
-    chmodSync(resolve(directory, "bunx"), 0o755);
-    return Bun.spawnSync(["bun", selector, ...args], {
+    writeFileSync(resolve(directory, "git"), git, { mode: 0o755 });
+    writeFileSync(resolve(directory, "bunx"), `#!/bin/sh
+case "$*" in
+  *--dry=json*) printf '%s' "$SELECTOR_INVENTORY";;
+  *) ${fail ? "echo 'injected query failure' >&2; exit 1" : `printf '%s' "$SELECTOR_QUERY"`};;
+esac
+`, { mode: 0o755 });
+    return Bun.spawnSync([process.execPath, selector, ...args], {
       cwd: root,
-      env: { ...Bun.env, PATH: `${directory}:${Bun.env.PATH ?? ""}`, SELECTOR_QUERY: output },
+      env: { ...Bun.env, PATH: `${directory}:${Bun.env.PATH ?? ""}`, SELECTOR_QUERY: output, SELECTOR_INVENTORY: queryInventory },
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -37,75 +50,6 @@ function runWithQuery(output: string, args = ["--mode", "affected", "--base", "b
     rmSync(directory, { recursive: true, force: true });
   }
 }
-function runBrowserWrapper(selection: string, dryRun: string, shallow = "false", task = "ci:browser") {
-  const directory = mkdtempSync(resolve(tmpdir(), "raceiq-browser-wrapper-"));
-  try {
-    mkdirSync(resolve(directory, "scripts/ci"), { recursive: true });
-    copyFileSync(resolve(root, "scripts/ci/run-affected-browser.ts"), resolve(directory, "scripts/ci/run-affected-browser.ts"));
-    const bin = resolve(directory, "bin");
-    mkdirSync(bin);
-    writeFileSync(resolve(bin, "git"), "#!/bin/sh\nprintf '%s\\n' \"$SHALLOW\"\n");
-    writeFileSync(resolve(bin, "bun"), "#!/bin/sh\nprintf '%s\\n' \"$SELECTION\"\n");
-    writeFileSync(resolve(bin, "bunx"), "#!/bin/sh\ncase \"$*\" in *--dry=json*) printf '%s\\n' \"$DRY_RUN\";; *) printf '%s\\n' \"$*\" > \"$COMMAND_LOG\";; esac\n");
-    for (const name of ["git", "bun", "bunx"]) chmodSync(resolve(bin, name), 0o755);
-    const log = resolve(directory, "command");
-    const result = Bun.spawnSync([process.execPath, resolve(directory, "scripts/ci/run-affected-browser.ts"), task, "--shard=2/7"], {
-      cwd: directory,
-      env: { ...Bun.env, PATH: `${bin}:${Bun.env.PATH ?? ""}`, CI_VERIFICATION_MODE: "affected", TURBO_SCM_BASE: "base", TURBO_SCM_HEAD: "head", SHALLOW: shallow, SELECTION: selection, DRY_RUN: dryRun, COMMAND_LOG: log, GITHUB_OUTPUT: resolve(directory, "output") },
-      stdout: "pipe", stderr: "pipe",
-    });
-    return { result, command: readFileSync(log, "utf8"), output: readFileSync(resolve(directory, "output"), "utf8") };
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-}
-
-describe("CI browser Turbo execution", () => {
-  test("passes affected selection and the original shard to Turbo", () => {
-    const { result, command } = runBrowserWrapper('{"mode":"affected","browserMatrix":[{}],"responsive":false,"storybook":false}', '{"tasks":[{"taskId":"raceiq-e2e#ci:browser"}]}');
-    expect(result.exitCode).toBe(0);
-    expect(command).toContain("--affected");
-    expect(command).toContain("--shard=2/7");
-  });
-
-  test("uncertain selection, missing task, and shallow history run the full task", () => {
-    for (const [selection, dry, shallow] of [
-      ["invalid", "{}", "false"],
-      ['{"mode":"affected","browserMatrix":[{}],"responsive":false,"storybook":false}', '{"tasks":[]}', "false"],
-      ['{"mode":"affected","browserMatrix":[],"responsive":false,"storybook":false}', '{"tasks":[]}', "true"],
-    ]) {
-      const { result, command } = runBrowserWrapper(selection, dry, shallow);
-      expect(result.exitCode).toBe(0);
-      expect(command).not.toContain("--affected");
-      expect(result.stderr.toString()).toContain("running full browser task");
-    }
-  });
-
-  test("utility tasks fall back to full when affected inventory omits changed verification inputs", () => {
-    const { result, command } = runBrowserWrapper(
-      '{"mode":"affected","browserMatrix":[],"responsive":true,"storybook":false}',
-      '{"tasks":[]}',
-      "false",
-      "ci:check-locales",
-    );
-    expect(result.exitCode).toBe(0);
-    expect(command).not.toContain("--affected");
-    expect(command).toContain("ci:check-locales");
-  });
-
-  test("unaffected visual tasks expose a skipped selection for artifact handling", () => {
-    const { result, command, output } = runBrowserWrapper(
-      '{"mode":"affected","browserMatrix":[],"responsive":false,"storybook":false}',
-      '{"tasks":[]}',
-      "false",
-      "ci:responsive-current",
-    );
-    expect(result.exitCode).toBe(0);
-    expect(command).toContain("--affected");
-    expect(output).toContain("selected=false");
-  });
-});
-
 
 describe("affected verification selector", () => {
   test("full mode preserves the browser and visual inventory", () => {
@@ -188,104 +132,35 @@ describe("affected verification selector", () => {
     expect(process.stderr.toString()).toContain("injected query failure");
   });
 
-  test("any browser impact selects the complete browser matrix", () => {
-    for (const items of [
-      [impact("e2e:impact", "@raceiq/tracks-catalogue")],
-      [impact("browser:fresh:impact", "raceiq-e2e")],
-      [impact("browser:tunes:impact", "raceiq-e2e")],
-    ]) {
-      const process = runWithQuery(queryResult(items));
-      expect(process.exitCode).toBe(0);
-      const selection = JSON.parse(process.stdout.toString());
-      const full = JSON.parse(run("--mode", "full").stdout.toString());
-      expect(selection.mode).toBe("affected");
-      expect(selection.browserMatrix).toEqual(full.browserMatrix);
-      expect(selection.seedDatabase).toBe(true);
-      expect(selection.nativeWebgpu).toBe(true);
-      expect(selection.responsive).toBe(false);
-      expect(selection.storybook).toBe(false);
-    }
-  });
-
-  test("a proven empty selection skips every category", () => {
-    const process = runWithQuery(queryResult([]));
-    expect(process.exitCode).toBe(0);
-    const selection = JSON.parse(process.stdout.toString());
-    expect(selection.mode).toBe("affected");
-    expect(selection.browserMatrix).toHaveLength(0);
-    expect(selection.seedDatabase || selection.nativeWebgpu || selection.responsive || selection.storybook).toBe(false);
-  });
-  test("visual impacts select only their complete categories", () => {
-    for (const [task, responsive, storybook] of [
-      ["visual:responsive:impact", true, false],
-      ["visual:storybook:impact", false, true],
-    ] as const) {
-      const process = runWithQuery(queryResult([impact(task, "raceiq-e2e")]));
-      expect(process.exitCode).toBe(0);
-      const selection = JSON.parse(process.stdout.toString());
-      expect(selection.mode).toBe("affected");
-      expect(selection.browserMatrix).toEqual([]);
-      expect(selection.seedDatabase || selection.nativeWebgpu).toBe(false);
-      expect(selection.responsive).toBe(responsive);
-      expect(selection.storybook).toBe(storybook);
-    }
-  });
-
-  test("ignores inherited impact nodes without a consumer task", () => {
-    const process = runWithQuery(queryResult([
-      impact("e2e:impact", "@raceiq/analysis-core"),
-      impact("e2e:impact", "@raceiq/tracks-catalogue"),
-    ]));
-    expect(process.exitCode).toBe(0);
-    const selection = JSON.parse(process.stdout.toString());
-    expect(selection.mode).toBe("affected");
-    expect(selection.browserMatrix).toEqual(JSON.parse(run("--mode", "full").stdout.toString()).browserMatrix);
-  });
-
-
   test("malformed output and unknown impact ownership fall back to full", () => {
     for (const output of [
       "not json",
       JSON.stringify({ data: { affectedTasks: { length: 1, items: [] } } }),
-      queryResult([impact("e2e:impact", "@raceiq/not-a-workspace")]),
-      queryResult([impact("unknown:impact", "raceiq-e2e")]),
+      JSON.stringify({ data: { affectedTasks: { length: 1, items: [
+        { name: "e2e:impact", fullName: "@raceiq/not-a-workspace#e2e:impact", package: { name: "@raceiq/not-a-workspace" } },
+      ] } } }),
     ]) {
       const process = runWithQuery(output);
       expect(process.exitCode).toBe(0);
       expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
       expect(process.stderr.toString()).toContain("selecting full inventory");
     }
-  });
-  test("malformed or incomplete Turbo task inventories fail closed", () => {
-    const directory = mkdtempSync(resolve(tmpdir(), "raceiq-selector-inventory-"));
-    try {
-      writeFileSync(resolve(directory, "git"), "#!/bin/sh\ncase \"$*\" in *--is-shallow-repository*) echo false;; *) case \"$1\" in diff) printf 'src/input.ts\\0';; *) case \"$*\" in *base*) echo a;; *) echo b;; esac;; esac;; esac\n");
-      writeFileSync(resolve(directory, "bunx"), "#!/bin/sh\nprintf '%s' \"$SELECTOR_INVENTORY\"\n");
-      chmodSync(resolve(directory, "git"), 0o755);
-      chmodSync(resolve(directory, "bunx"), 0o755);
-      for (const [inventory, reason] of [
-        ["not json", "JSON"],
-        [JSON.stringify({ tasks: [] }), "missing Turbo task inventory:"],
-        [JSON.stringify({ tasks: [{ taskId: "invalid", directory: ".", inputs: [], dependencies: [] }] }), "malformed Turbo task inventory"],
-      ]) {
-        const process = Bun.spawnSync(["bun", selector, "--mode", "affected", "--base", "base", "--head", "head"], {
-          cwd: root,
-          env: { ...Bun.env, PATH: `${directory}:${Bun.env.PATH ?? ""}`, SELECTOR_INVENTORY: inventory },
-          stdout: "pipe",
-          stderr: "pipe",
-        });
-        expect(process.exitCode).toBe(0);
-        expect(JSON.parse(process.stdout.toString()).mode).toBe("full");
-        expect(process.stderr.toString()).toContain(reason);
-        expect(process.stderr.toString()).toContain("selecting full inventory");
-      }
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
+  }, 30_000);
+
+  test("a head differing from the checkout selects full", () => {
+    const result = runWithQuery("", undefined, false, fakeGit.replace("echo b;;\n  *base*", "echo c;;\n  *base*"));
+    expect(JSON.parse(result.stdout.toString()).mode).toBe("full");
+    expect(result.stderr.toString()).toContain("verification head does not match checkout");
   });
 
+  test("a valid but incomplete query cannot pass as unaffected", () => {
+    const result = runWithQuery(JSON.stringify({ data: { affectedTasks: { length: 0, items: [] } } }));
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout.toString()).mode).toBe("full");
+    expect(result.stderr.toString()).toContain("Turbo omitted an affected input consumer");
+  });
 
-  test("real Turbo ranges select feature, setup, documentation, and fresh inputs", () => {
+  test("real Turbo selects independent jobs, transitive consumers, and previous owners", () => {
     const fixture = mkdtempSync(resolve(tmpdir(), "raceiq-impact-real-"));
     const command = (args: string[], cwd = fixture) => {
       const result = Bun.spawnSync(args, { cwd, stdout: "pipe", stderr: "pipe" });
@@ -305,11 +180,21 @@ describe("affected verification selector", () => {
     try {
       // Preserve the real workspace graph and task configuration without hashing unrelated source files.
       const fixtureFiles = [
+        ".gitignore",
+        "UNRELEASED.md",
+        "client/src/main.tsx",
         "bun.lock",
         "scripts/ci/affected-verification.ts",
         "playwright/config/projects.ts",
         "playwright/config/runtime.ts",
         "packages/tracks-catalogue/ui/track/TrackCard.tsx",
+        "packages/tracks-catalogue/test/e2e/tracks.spec.ts",
+        "packages/lap-replay/test/e2e/compare/spectate-transition.spec.ts",
+        "playwright/tests/tunes/fm23.spec.ts",
+        "playwright/tests/responsive/mobile-screenshots.spec.ts",
+        "scripts/i18n/check-message-keys.ts",
+        "apps/desktop/src-tauri/Cargo.toml",
+        "client/.storybook/main.ts",
         "playwright/tests/setup/sparse-split-migration.spec.ts",
         "docs/adr/0016-task-level-affected-verification.md",
         "playwright/tests/fresh-install/fresh-install.spec.ts",
@@ -362,25 +247,62 @@ describe("affected verification selector", () => {
       };
       const projects = (selection: { browserMatrix: { projects: string[] }[] }) =>
         new Set(selection.browserMatrix.flatMap((row) => row.projects));
+      const assertAffected = (selection: { mode: string; reason: string }) => expect(selection.mode, selection.reason).toBe("affected");
       const feature = select("packages/tracks-catalogue/ui/track/TrackCard.tsx");
-      expect(feature.mode).toBe("affected");
+      assertAffected(feature);
       expect(projects(feature).has("tracks-catalogue")).toBe(true);
-      expect(projects(feature).has("cars-catalogue")).toBe(true);
+      expect(projects(feature).has("sessions-page")).toBe(true);
       const setup = select("playwright/tests/setup/sparse-split-migration.spec.ts");
-      expect(setup.mode).toBe("affected");
+      assertAffected(setup);
       expect(projects(setup).has("seeded-e2e")).toBe(true);
       expect(setup.seedDatabase).toBe(true);
       for (const name of ["tracks-catalogue", "cars-catalogue", "lap-replay", "sessions-page", "session-analyse"]) {
         expect(projects(setup).has(name)).toBe(true);
       }
       const docs = select("docs/adr/0016-task-level-affected-verification.md");
-      expect(docs.mode).toBe("affected");
+      assertAffected(docs);
       expect(docs.browserMatrix).toHaveLength(0);
-      expect(docs.seedDatabase || docs.nativeWebgpu || docs.responsive || docs.storybook).toBe(false);
+      expect(docs.seedDatabase || docs.nativeWebgpu || docs.responsive || docs.storybook || docs.build || docs.desktop).toBe(false);
+      expect(docs.expected.test).toBe(true);
+      const policyNote = select("UNRELEASED.md");
+      assertAffected(policyNote);
+      expect(policyNote.expected).toEqual(docs.expected);
+      const shared = select("client/src/main.tsx");
+      assertAffected(shared);
+      expect(shared.browserMatrix).toHaveLength(10);
+      expect(shared.build && shared.desktop && shared.nativeWebgpu && shared.responsive && shared.storybook).toBe(true);
       const fresh = select("playwright/tests/fresh-install/fresh-install.spec.ts");
-      expect(fresh.mode).toBe("affected");
-      expect(projects(fresh).has("fresh-install")).toBe(true);
-      expect(fresh.seedDatabase).toBe(true);
+      assertAffected(fresh);
+      expect(projects(fresh)).toEqual(new Set(["fresh-install"]));
+      expect(fresh.seedDatabase || fresh.nativeWebgpu || fresh.build || fresh.desktop || fresh.responsive || fresh.storybook).toBe(false);
+      const tracks = select("packages/tracks-catalogue/test/e2e/tracks.spec.ts");
+      assertAffected(tracks);
+      expect(projects(tracks)).toEqual(new Set(["tracks-catalogue"]));
+      expect(tracks.browserMatrix.map((row: { shard: string }) => row.shard)).toEqual(["1/7", "2/7", "3/7", "4/7", "5/7", "6/7", "7/7"]);
+      expect(tracks.seedDatabase).toBe(true);
+      expect(tracks.nativeWebgpu || tracks.build).toBe(false);
+      const webgpu = select("packages/lap-replay/test/e2e/compare/spectate-transition.spec.ts");
+      assertAffected(webgpu);
+      expect(webgpu.nativeWebgpu && webgpu.seedDatabase).toBe(true);
+      expect(webgpu.browserMatrix).toEqual([]);
+      const tune = select("playwright/tests/tunes/fm23.spec.ts");
+      assertAffected(tune);
+      expect(projects(tune)).toEqual(new Set(["tunes"]));
+      expect(tune.seedDatabase).toBe(false);
+      const desktop = select("apps/desktop/src-tauri/Cargo.toml");
+      assertAffected(desktop);
+      expect(desktop.desktop).toBe(true);
+      expect(desktop.build || desktop.browserMatrix.length > 0 || desktop.responsive || desktop.storybook).toBe(false);
+      const locale = select("scripts/i18n/check-message-keys.ts");
+      assertAffected(locale);
+      expect(locale.checks).toEqual({ shards: false, locales: true, dbUpgrade: false, telemetry: false });
+      expect(locale.desktop || locale.build || locale.browserMatrix.length > 0 || locale.responsive || locale.storybook).toBe(false);
+      const responsive = select("playwright/tests/responsive/mobile-screenshots.spec.ts");
+      assertAffected(responsive);
+      expect(responsive.artifacts.previews).toEqual(["responsive"]);
+      const storybook = select("client/.storybook/main.ts");
+      assertAffected(storybook);
+      expect(storybook.artifacts.previews).toEqual(["storybook"]);
       const unknown = resolve(fixture, "unknown-input.xyz");
       const featurePath = resolve(fixture, "packages/tracks-catalogue/ui/track/TrackCard.tsx");
       const originalFeature = readFileSync(featurePath);
@@ -394,17 +316,16 @@ describe("affected verification selector", () => {
         () => { rmSync(unknown); writeFileSync(featurePath, originalFeature); },
       );
       expect(mixed.mode).toBe("full");
-      const deleted = selectChanges(
-        () => rmSync(featurePath),
-        () => writeFileSync(featurePath, originalFeature),
-      );
-      expect(deleted.mode).toBe("full");
-      const renamedPath = `${featurePath}.renamed`;
-      const renamed = selectChanges(
-        () => renameSync(featurePath, renamedPath),
-        () => renameSync(renamedPath, featurePath),
-      );
-      expect(renamed.mode).toBe("full");
+      const owned = resolve(fixture, "packages/tracks-catalogue/test/e2e/tracks.spec.ts");
+      const originalSpec = readFileSync(owned);
+      const deleted = selectChanges(() => rmSync(owned), () => writeFileSync(owned, originalSpec));
+      assertAffected(deleted);
+      expect(projects(deleted)).toEqual(new Set(["tracks-catalogue"]));
+      const renamedPath = resolve(fixture, "playwright/tests/seeded/routes/tracks.spec.ts");
+      mkdirSync(dirname(renamedPath), { recursive: true });
+      const renamed = selectChanges(() => renameSync(owned, renamedPath), () => renameSync(renamedPath, owned));
+      assertAffected(renamed);
+      expect(projects(renamed)).toEqual(new Set(["tracks-catalogue", "seeded-routes"]));
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
@@ -420,6 +341,105 @@ describe("affected verification selector", () => {
       const process = run(...args);
       expect(process.exitCode).not.toBe(0);
       expect(process.stdout.toString()).toBe("");
+    }
+  });
+});
+
+describe("visual preview publication", () => {
+  test("combines only selected suites and rejects missing or inconsistent metadata", () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "raceiq-preview-"));
+    const output = resolve(directory, "pr-preview");
+    const base = "a".repeat(40);
+    const artifacts = resolve(directory, "artifacts");
+    const runCombine = (responsive: boolean, storybook: boolean) => {
+      rmSync(output, { recursive: true, force: true });
+      return Bun.spawnSync([process.execPath, resolve(root, "scripts/ci/combine-pr-visual-previews.ts")], {
+        cwd: directory,
+        env: { ...Bun.env, PREVIEW_ROOT: artifacts, PREVIEW_PR: "519", PREVIEW_BASE: base,
+          PREVIEW_RESPONSIVE: String(responsive), PREVIEW_STORYBOOK: String(storybook) },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+    };
+    try {
+      for (const suite of ["responsive", "storybook"]) {
+        const artifact = resolve(artifacts, `pr-visual-${suite}-preview`);
+        for (const side of ["base", "current"]) {
+          const render = resolve(artifact, `${side}-${suite}`);
+          mkdirSync(render, { recursive: true });
+          writeFileSync(resolve(render, "render.png"), `${side}-${suite}`);
+        }
+        writeFileSync(resolve(artifact, "pr-number.txt"), "519\n");
+        writeFileSync(resolve(artifact, "base-ref.txt"), `${base}\n`);
+      }
+      for (const [responsive, storybook] of [[true, false], [false, true], [true, true], [false, false]] as const) {
+        const result = runCombine(responsive, storybook);
+        expect(result.exitCode, result.stderr.toString()).toBe(0);
+        expect(existsSync(output)).toBe(responsive || storybook);
+        expect(existsSync(resolve(output, "current-responsive/render.png"))).toBe(responsive);
+        expect(existsSync(resolve(output, "base-storybook/render.png"))).toBe(storybook);
+      }
+      const storybookMeta = resolve(artifacts, "pr-visual-storybook-preview/base-ref.txt");
+      writeFileSync(storybookMeta, "b".repeat(40));
+      expect(runCombine(true, true).exitCode).toBe(1);
+      expect(runCombine(false, true).exitCode).toBe(1);
+      rmSync(storybookMeta);
+      expect(runCombine(true, false).exitCode).toBe(0);
+      expect(runCombine(true, true).exitCode).toBe(1);
+      expect(existsSync(output)).toBe(false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("required workflow conclusions", () => {
+  test("rejects failed, cancelled, and missing selected jobs or matrix rows", () => {
+    const workflow = (file: string, job: string, step: string) => {
+      const path = resolve(root, `.github/workflows/${file}.yml`);
+      const { jobs } = Bun.YAML.parse(readFileSync(path, "utf8")) as {
+        jobs: Record<string, { steps: { name: string; with?: { script: string } }[] }>;
+      };
+      const script = jobs[job]?.steps.find(({ name }) => name === step)?.with?.script;
+      if (!script) throw new Error(`Missing workflow gate: ${job}/${step}`);
+      return new Function("process", "require", script) as (process: { env: Record<string, string> }, load: NodeJS.Require) => void;
+    };
+    const aggregate = workflow("build-test", "verification", "Verify selected job conclusions");
+    const expected = { build: false, "macos-desktop": false, test: true, changelog: true, "playwright-e2e": true, "visual-regression": false };
+    const parentEnv = (browserConclusion: string) => ({
+      env: {
+        ELIGIBLE: "true",
+        PLAN: JSON.stringify({ expected }),
+        RESULTS: JSON.stringify({
+          plan: { result: "success" },
+          ...Object.fromEntries(Object.entries(expected).map(([name, run]) => [
+            name, { result: name === "playwright-e2e" ? browserConclusion : run ? "success" : "skipped" },
+          ])),
+        }),
+      },
+    });
+    expect(() => aggregate(parentEnv("success"), require)).not.toThrow();
+    for (const conclusion of ["failure", "cancelled", "skipped"]) {
+      expect(() => aggregate(parentEnv(conclusion), require)).toThrow(`playwright-e2e: expected success, got ${conclusion}`);
+    }
+    const invalid = parentEnv("skipped");
+    invalid.env.PLAN = "";
+    expect(() => aggregate(invalid, require)).toThrow();
+
+    const browser = workflow("playwright-e2e", "browser-results", "Verify selected browser jobs");
+    const receipts = mkdtempSync(resolve(tmpdir(), "raceiq-browser-receipts-"));
+    try {
+      const env = {
+        PLAN: JSON.stringify({ matrix: [{ name: "fresh", serverSet: "fresh" }], nativeWebgpu: false, seedDatabase: false }),
+        PREPARE: "skipped", STANDALONE: "false", SEED: "skipped", MATRIX: "success",
+        WEBGPU: "skipped", ENABLE_WEBGPU: "true", RECEIPTS: receipts,
+      };
+      expect(() => browser({ env }, require)).toThrow("fresh.txt");
+      writeFileSync(resolve(receipts, "fresh.txt"), "fresh");
+      expect(() => browser({ env }, require)).not.toThrow();
+      expect(() => browser({ env: { ...env, MATRIX: "skipped" } }, require)).toThrow("MATRIX: unexpected skipped");
+    } finally {
+      rmSync(receipts, { recursive: true, force: true });
     }
   });
 });

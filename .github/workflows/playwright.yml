@@ -56,22 +56,19 @@ on:
         description: "Branch or ref to test"
         required: false
         type: string
-      verification-mode:
+      seed-ready:
+        description: Whether a required upstream seed artifact completed successfully
+        type: boolean
+        default: true
+      verification-receipt:
+        description: Matrix row name for the browser aggregate
         type: string
-        required: false
-        default: full
-      base-ref:
-        type: string
-        required: false
-        default: ""
-      head-ref:
-        type: string
-        required: false
         default: ""
 
 
 jobs:
   playwright:
+    if: inputs.seed-ready
     timeout-minutes: 30
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
@@ -149,10 +146,7 @@ jobs:
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
           PW_SEEDED_DATABASE: ${{ inputs.server-set == 'seeded' && inputs.seed-database-artifact != '' && 'playwright/test-data-seed-artifact/app.db' || '' }}
-          CI_VERIFICATION_MODE: ${{ inputs.verification-mode }}
-          TURBO_SCM_BASE: ${{ inputs.base-ref }}
-          TURBO_SCM_HEAD: ${{ inputs.head-ref }}
-        run: bun run ../scripts/ci/run-affected-browser.ts ci:browser ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
+        run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
       - name: Upload Playwright artifacts
         if: always()
@@ -177,3 +171,17 @@ jobs:
             crash.log
           retention-days: 7
           if-no-files-found: warn
+
+      - name: Record successful browser row
+        if: inputs.verification-receipt != ''
+        env:
+          ROW: ${{ inputs.verification-receipt }}
+        run: bun -e 'await Bun.write(`playwright/${process.env.ROW}.txt`, process.env.ROW)'
+      - name: Upload successful browser row receipt
+        if: inputs.verification-receipt != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: verification-browser-${{ inputs.verification-receipt }}
+          path: playwright/${{ inputs.verification-receipt }}.txt
+          if-no-files-found: error
+          retention-days: 1

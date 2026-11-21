@@ -238,6 +238,18 @@ test("explicit valid ranges preserve selection", () => {
   } finally { f.cleanup(); }
 });
 
+test("CI's explicit docs and policy-note range does not select owned suites", () => {
+  const f = fixture();
+  try {
+    f.put("docs/verification.md", "Verification notes\n");
+    f.put("UNRELEASED.md", "### Internal\n- Document verification.\n");
+    const head = f.snapshot(f.head);
+    f.git("update-ref", "refs/heads/feature", head);
+    f.git("reset", "--mixed", head);
+    expect(f.selected({ TURBO_SCM_BASE: f.head, TURBO_SCM_HEAD: head }).packages).toEqual([]);
+  } finally { f.cleanup(); }
+});
+
 test("invalid and equal ranges select full", () => {
   const f = fixture();
   try {

@@ -130,21 +130,21 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-The compiled E2E workflow retains the existing jobs and shard layout, including
-fresh install, tunes, unseeded tunes, seven seeded shards, and optional native
-WebGPU. Each shard runs its existing command through an uncached Turbo task.
-Unaffected tasks skip their command; their jobs and prerequisites still run.
-`record-demo` remains outside the default gate.
+Build & Test selects verification jobs once, before runner allocation. It uses
+the PR base and head to select browser projects from Turbo task inputs. The
+compiled jobs run Playwright directly, without caching results. Fresh install,
+tunes, and unseeded tunes run independently. Selected seeded projects keep the
+existing seven shard indices and share one seed artifact. The WebGPU job keeps
+its existing runner eligibility and requests the seed separately. `record-demo`
+remains outside the default gate.
 
-PR workflows use affected selection with the PR base and head. Manual
-dispatch and reusable workflow calls default to full mode; manual affected
-mode requires resolvable, distinct base and head refs with common history and
-a head matching the checkout. Invalid ranges, missing impact coverage, or
-uncertain impact selection fall back to full inventory with a diagnostic. An
-incomplete Playwright project inventory fails rather than silently omitting work.
-Main-branch ordinary test suites remain full; Build & Test lint and typecheck
-use the push range when available. Local ordinary suite range behavior is
-documented in [`scripts/README.md`](../../scripts/README.md).
+Manual dispatch and standalone reusable verification default to full coverage
+for their eligible jobs. Manual affected mode requires distinct, resolvable
+refs with common history and a head matching the checkout. Untrusted ranges
+or incomplete ownership select full coverage with a diagnostic. An invalid
+Playwright inventory fails planning. Main-branch ordinary suites remain full;
+lint and typecheck still use the push range when available. See
+[`scripts/README.md`](../../scripts/README.md) for local ordinary suite selection.
 
 Inspect browser and visual selection without building or seeding:
 
@@ -153,15 +153,19 @@ bun scripts/ci/affected-verification.ts --mode full
 bun scripts/ci/affected-verification.ts --mode affected --base <base-ref> --head <head-ref>
 ```
 
-The selector writes one JSON object to stdout and diagnostics to stderr. It
-reports the mode and reason, browser matrix, seed requirement, native WebGPU,
-responsive capture, and Storybook capture flags. It queries Turbo impact tasks,
-not a file-to-test map. CI uses the selector to validate Turbo task selection;
-responsive and Storybook renders execute through separate uncached tasks.
-The comparison job combines only previews produced by selected renders.
-Docs-only changes under `docs/` can produce an empty selection; deleted,
-renamed, uncovered, or otherwise uncertain inputs conservatively select full
-verification. Full browser selection does not prove hosted jobs ran.
+The selector writes one JSON object to stdout and diagnostics to stderr. The
+plan includes the comparison refs, job and shard selections, required
+artifacts, and expected job results. It maps Turbo task IDs to jobs, not paths
+to jobs. Deleted inputs use the merge-base inventory. A move includes both
+the previous and current consumers, or falls back to full when either
+inventory is untrustworthy. Changes limited to unconsumed Markdown under
+`docs/` can select no build, desktop, browser, or visual jobs.
+
+The visual comparison job combines only the selected responsive or Storybook
+artifacts and checks their PR and base commit. Neither selected means no
+publication. The `Verification` check rejects failed, cancelled, or
+unexpectedly skipped selected jobs. Local selection does not prove runner
+allocation, artifact publication, or hardware rendering.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
 automatically. Adding a Playwright project or changing its boundary also requires

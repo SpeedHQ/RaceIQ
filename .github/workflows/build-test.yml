@@ -30,16 +30,80 @@ concurrency:
 
 
 jobs:
+  plan:
+    name: Select verification jobs
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v'))
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    outputs:
+      verification: ${{ steps.select.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.target_ref || inputs.head_ref || github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Select verification jobs
+        id: select
+        env:
+          MODE: ${{ (github.event_name == 'pull_request' || inputs.verification_mode == 'affected') && 'affected' || 'full' }}
+          SCOPE: ${{ github.event_name == 'pull_request' && 'pr' || 'non-pr' }}
+          BASE: ${{ github.event.pull_request.base.sha || inputs.base_ref }}
+          HEAD: ${{ github.event.pull_request.head.sha || inputs.head_ref }}
+        run: bun scripts/ci/affected-verification.ts --mode "$MODE" --scope "$SCOPE" --base "$BASE" --head "$HEAD"
+
+  verification:
+    name: Verification
+    if: always()
+    needs: [plan, build, macos-desktop, test, changelog, playwright-e2e, visual-regression]
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Reject cancelled workflow
+        if: cancelled()
+        run: exit 1
+      - name: Verify selected job conclusions
+        if: ${{ !cancelled() }}
+        env:
+          PLAN: ${{ needs.plan.outputs.verification }}
+          RESULTS: ${{ toJSON(needs) }}
+          ELIGIBLE: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')) }}
+          CHANGELOG: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release/v') }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const results = JSON.parse(process.env.RESULTS);
+            const eligible = process.env.ELIGIBLE === "true";
+            const expected = eligible ? JSON.parse(process.env.PLAN).expected : {
+              build: false, "macos-desktop": false, test: false,
+              changelog: process.env.CHANGELOG === "true",
+              "playwright-e2e": false, "visual-regression": false,
+            };
+            if (results.plan.result !== (eligible ? "success" : "skipped")) throw new Error("Verification planning did not complete as expected");
+            const jobs = Object.keys(results).filter(name => name !== "plan");
+            if (!expected || Object.keys(expected).length !== jobs.length) throw new Error("Invalid expected job inventory");
+            const failures = jobs.flatMap(name => {
+              if (typeof expected[name] !== "boolean") throw new Error(`Missing expected result: ${name}`);
+              const wanted = expected[name] ? "success" : "skipped";
+              return results[name].result === wanted ? [] : [`${name}: expected ${wanted}, got ${results[name].result}`];
+            });
+            if (failures.length) throw new Error(failures.join("\n"));
+
   build:
     timeout-minutes: 30
-    if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
+    needs: plan
+    if: fromJSON(needs.plan.outputs.verification).build
     runs-on:
       - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || inputs.head_ref || github.ref }}
+          ref: ${{ fromJSON(needs.plan.outputs.verification).head }}
           fetch-depth: 0
           # Exclude unused LMU recordings. Sparse checkout enables blob:none; an explicit filter overrides it.
           sparse-checkout: |
@@ -76,12 +140,13 @@ jobs:
   macos-desktop:
     name: macOS desktop
     timeout-minutes: 45
-    if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
+    needs: plan
+    if: fromJSON(needs.plan.outputs.verification).desktop
     runs-on: mars-macos-2vcpu-6g
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ fromJSON(needs.plan.outputs.verification).head }}
           fetch-depth: 0
           # Exclude unused LMU recordings. Sparse checkout enables blob:none; an explicit filter overrides it.
           sparse-checkout: |
@@ -107,33 +172,20 @@ jobs:
 
   test:
     timeout-minutes: 30
-    if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
+    needs: plan
     runs-on:
       - mars-ubuntu-2vcpu-6g
       - mars-retry-3
     env:
       BUN_TEST_WORKERS: "1"
-      TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && (github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'origin/main')) || inputs.base_ref }}
-      TURBO_SCM_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'push' && github.sha) || inputs.head_ref }}
-      CI_VERIFICATION_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.verification_mode != 'affected' && 'full' || 'affected' }}
+      TURBO_SCM_BASE: ${{ github.event_name == 'push' && (github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'origin/main') || fromJSON(needs.plan.outputs.verification).base }}
+      TURBO_SCM_HEAD: ${{ fromJSON(needs.plan.outputs.verification).head }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.target_ref || inputs.head_ref || github.ref }}
+          ref: ${{ fromJSON(needs.plan.outputs.verification).head }}
           fetch-depth: 0
           filter: blob:none
-      - name: Validate manual affected checkout
-        if: github.event_name == 'workflow_dispatch' && inputs.verification_mode == 'affected'
-        env:
-          REQUESTED_HEAD: ${{ inputs.head_ref }}
-        run: |
-          resolved=$(git rev-parse --verify --end-of-options "${REQUESTED_HEAD}^{commit}" 2>/dev/null) || resolved=
-          current=$(git rev-parse HEAD)
-          if [ -z "$resolved" ] || [ "$resolved" != "$current" ]; then
-            echo "Manual head is missing, invalid, or differs from checkout; selecting full tasks."
-            echo "TURBO_SCM_HEAD=" >> "$GITHUB_ENV"
-          fi
-
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
@@ -154,10 +206,12 @@ jobs:
             turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-turbo-2.11.7-
 
       - name: Check test shard coverage
-        run: bun scripts/ci/run-affected-browser.ts ci:check-shards
+        if: fromJSON(needs.plan.outputs.verification).checks.shards
+        run: bun run --cwd playwright ci:check-shards
 
       - name: Check locale message keys
-        run: bun scripts/ci/run-affected-browser.ts ci:check-locales
+        if: fromJSON(needs.plan.outputs.verification).checks.locales
+        run: bun run --cwd playwright ci:check-locales
 
       - name: Lint server, shared, scripts, tests, and client
         run: |
@@ -179,30 +233,22 @@ jobs:
         env:
           FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.verification_mode != 'affected' }}
       - name: Verify seeded database upgrade
-        if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+        if: fromJSON(needs.plan.outputs.verification).checks.dbUpgrade
         env:
           UPGRADE_DATA_DIR: ${{ runner.temp }}/raceiq-upgrade-data
-        run: bun scripts/ci/run-affected-browser.ts ci:check-db-upgrade
+        run: bun run --cwd playwright ci:check-db-upgrade
 
 
       - name: Check generated telemetry catalog
-        run: bun scripts/ci/run-affected-browser.ts ci:check-telemetry
+        if: fromJSON(needs.plan.outputs.verification).checks.telemetry
+        run: bun run --cwd playwright ci:check-telemetry
       - name: Run affected unit tests
-        env:
-          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
-          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
         run: bun scripts/test/run-turbo.ts test:unit --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run affected tooling tests
-        env:
-          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
-          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
         run: bun scripts/test/run-turbo.ts test:tooling --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run affected integration tests
-        env:
-          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
-          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
         run: bun scripts/test/run-turbo.ts test:integration --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run full test suites
@@ -248,31 +294,26 @@ jobs:
   # Playwright runners span architectures; build the compiled server on each runner
   # instead of sharing a dist artifact built for an arbitrary build-runner architecture.
   playwright-e2e:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
-    needs:
-      - build
-      - test
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.test.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && fromJSON(needs.plan.outputs.verification).expected['playwright-e2e'] }}
+    needs: [plan, build, test]
     uses: ./.github/workflows/playwright-e2e.yml
     with:
-      target-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (inputs.target_ref || inputs.head_ref || github.ref) }}
-      paraglide-artifact: ${{ github.event_name == 'pull_request' && 'raceiq-paraglide' || '' }}
-      verification-mode: affected
-      base-ref: ${{ github.event.pull_request.base.sha }}
-      head-ref: ${{ github.event.pull_request.head.sha }}
+      target-ref: ${{ fromJSON(needs.plan.outputs.verification).head }}
+      paraglide-artifact: ${{ fromJSON(needs.plan.outputs.verification).artifacts.paraglide }}
+      verification-plan: ${{ toJSON(fromJSON(needs.plan.outputs.verification).browser) }}
 
   visual-regression:
     name: visual-regression/compare
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
-    needs:
-      - build
-      - test
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.test.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && fromJSON(needs.plan.outputs.verification).expected['visual-regression'] }}
+    needs: [plan, build, test]
     permissions:
       contents: read
       pull-requests: read
     uses: ./.github/workflows/pr-visuals.yml
     with:
       pr: ${{ github.event.pull_request.number }}
-      paraglide-artifact: raceiq-paraglide
-      verification-mode: affected
+      paraglide-artifact: ${{ fromJSON(needs.plan.outputs.verification).artifacts.paraglide }}
+      head-ref: ${{ fromJSON(needs.plan.outputs.verification).head }}
       base-ref: ${{ github.event.pull_request.base.sha }}
-      head-ref: ${{ github.event.pull_request.head.sha }}
+      responsive: ${{ fromJSON(needs.plan.outputs.verification).responsive }}
+      storybook: ${{ fromJSON(needs.plan.outputs.verification).storybook }}

@@ -1,10 +1,51 @@
 # Precise Turbo affected verification
 
-Status: implementation in progress; hosted CI and hardware verification remain blocked.
+Status: PR #519 scheduling revision approved. Local implementation and verification evidence are below. Hosted verification remains open. Earlier verification results apply only to their respective revisions.
 
 Planned against commit `900faf29b`, 2026-11-03. Installed toolchain: Bun 1.4.4, Turbo 2.11.7.
 
 ADR: [Use task-level impact selection before verification provisioning](../../adr/0016-task-level-affected-verification.md).
+
+## Proposed revision: select jobs before runner allocation
+
+Baseline: PR #519 at `d3734dfb5`, Turbo 2.11.7. This approved revision supersedes the static workflow graph requirement below. Preserve the existing full inventory, compiled application journeys, replay fixes, runner labels, eligible events, and cache policy. No product changes, test deletions, remote cache, or branch-protection changes in this patch.
+
+### Implementation sequence
+
+1. Inventory the existing job/check names, required-check settings, Playwright projects, shard commands, artifact producers, and consumers. Confirm which checks must remain visible before changing job identities. If branch settings cannot be inspected, obtain maintainer confirmation before rollout.
+2. Use `turbo.json`, workspace Turbo configs, and existing owner manifests as the impact contract. Give browser families, visual suites, desktop verification, and utility checks distinct task identities and actual inputs. Replace repository-wide `ci:*` globs. Reuse feature impact nodes where a compiled application prerequisite would otherwise select unrelated features. Do not turn a runtime build prerequisite into an impact dependency. Keep ordinary suites on `scripts/test/run-turbo.ts --affected` with their existing full entry points.
+3. Run `scripts/ci/affected-verification.ts` once per workflow invocation, in a small job with the pinned tools and full Git history. Resolve immutable base/head commits and validate the checked-out tree. Query Turbo for affected task IDs; translate IDs to execution descriptors, never file paths to jobs. For deletions, inspect the merge-base inventory; for renames or ownership moves, union old and new consumers. Use each revision's inventory or fall back to full if either cannot be trusted. Unknown IDs, uncovered paths, invalid output, unavailable history, or query failure select the original eligible inventory with a reason. If the planner itself cannot emit a valid result, fail the required check; never interpret missing output as empty.
+4. Emit one validated plan containing mode, reason, matrix rows, artifact requirements, and expected checks. Use job-level conditions before matrix expansion. Keep existing row identities and shard numbering; select fresh/tunes rows independently, and pass only affected seeded projects to the existing seven shards. Gate WebGPU independently, respecting existing runner eligibility. Schedule seed production only for consumers requiring its artifact; ensure skipped producers do not suppress independent rows. Build only for affected build targets or selected consumers that require it. Preserve runner-local architecture-specific builds. Gate macOS desktop on desktop inputs and transitive dependencies; keep changelog enforcement on its existing policy. Standalone/manual entry points retain full defaults. Remove repeated selector/dry-run calls from selected jobs; execute the planned command directly.
+5. Gate responsive and Storybook workflows before setup. Pass selected suite names to `combine-pr-visual-previews.ts`; require each selected artifact and matching PR/base metadata, accept absent unselected artifacts, and skip publication when neither suite ran. Verify downstream preview publication accepts either subset.
+6. Add a stable required aggregate with `if: always()`. Compare the validated plan with actual job results. Fail for any selected failure, cancellation, or unexpected skip; allow only planned skips. A cancelled workflow must not produce a passing check. Keep existing required checks until hosted parity and an authorized protection cutover are confirmed.
+
+### Acceptance and end-to-end evidence
+
+Extend `scripts/test/tests/affected-selection.test.ts` and `affected-verification.test.ts` with isolated Git ranges using real Turbo. Run the existing compiled Playwright and visual workflows on controlled PRs or dispatches. Capture commit pairs, planner output, Actions job conclusions, allocated runners, and artifact names. A dry run is evidence of selection, not job provisioning or application behavior.
+
+| ID | Setup and action | Required observable outcome |
+|---|---|---|
+| JS01 | Submit a docs-only change under `docs/` with no verification consumers. | Planner reports valid empty selection. No browser, visual, seed, desktop, or build runner starts. Existing policy checks still run. Aggregate passes. |
+| JS02 | Change only a fresh-install spec, then only a feature-owned seeded spec in a separate run. Exercise the compiled workflows. | First run executes fresh only, without seed or WebGPU. Second run executes the owning seeded project across existing shard indices with one seed artifact. Discovery across shards matches that project's unsharded inventory. |
+| JS03 | Change a shared runtime input, desktop-only input, locale-check input, and WebGPU-only spec in separate ranges. Run the workflow for each. | All actual transitive consumers and prerequisites execute; independent rows stay unallocated. Utility changes do not trigger unrelated checks. WebGPU runs on its eligible runner with seed when required. Record hardware verification separately from software rendering. |
+| JS04 | Delete an owned spec; move a spec between owners; change an unowned path. Dispatch with shallow, missing, equal, invalid, or mismatched refs; inject query failure. | Known deletion selects old consumers; move selects both. Untrusted cases run the full eligible inventory and report why. No selector crash or missing output can produce a green empty run. |
+| JS05 | Exercise responsive-only, Storybook-only, both, and neither. Omit a selected artifact or supply mismatched metadata. | Each valid subset publishes only its selected previews; neither publishes nothing. Missing selected data or inconsistent metadata fails publication. |
+| JS06 | Run full manual verification and repeat selected browser jobs. Compare discovery and job inventory to the original full workflow. Exercise PR, main push, and manual affected event rules. | Full coverage and event eligibility match baseline. Browser/build results are not newly cached. Compiled journeys run, rather than only listing tests. |
+| JS07 | Fail, cancel, and unexpectedly skip a selected shard in controlled hosted runs; separately skip an unselected prerequisite. | Required status never passes the first three cases. The independent selected row still runs in the last case. Branch protection recognizes the intended check. |
+
+Completion requires recorded passing outcomes for JS01–JS07. Local results below do not replace hosted runner, workflow, publication, or required-check evidence.
+
+Local gates used Turbo 2.11.7 and the workstation's Bun 1.4.5 canary. All 51 affected-selection, verification, wrapper, and changelog tests passed, along with `bun run typecheck`, Actionlint for the changed workflows, and Oxlint for the changed scripts. The workflows pin Bun 1.4.4.
+
+| ID | Local verification | Hosted evidence still needed |
+|---|---|---|
+| JS01 | An isolated Git docs range selected no build, desktop, browser, seed, or visual jobs. `UNRELEASED.md` is a policy-only input for job selection. | Check runner allocation and aggregate on a docs PR with the note required by the unchanged changelog gate. If the PR omits that note, the changelog check must still fail. |
+| JS02 | Real Turbo selected fresh and seeded feature specs independently. The compiled onboarding journey and tracks shards `1/7` and `7/7` passed. Six tracks cases were assigned once across seven discovery runs; `7/7` contained no tracks case. | Inspect selected rows, skipped runners, and the single seed artifact in Actions. |
+| JS03 | Isolated Git ranges checked shared runtime, desktop, locale tooling, and WebGPU selection. The seed producer and compiled WebGPU consumer passed using the same portable database. Chromium reported vendor `apple` and `isFallbackAdapter: false` locally. | Verify macOS desktop and WebGPU runner eligibility and record the hosted adapter separately. |
+| JS04 | Real Git deletions and moves selected the old and new consumers as applicable. Unowned inputs, unusable refs, and injected query errors fell back to full. | Observe diagnostic fallback in hosted runs, including failure to emit a plan. |
+| JS05 | The real combiner accepted responsive-only, Storybook-only, both, and neither. Missing selected inputs and mismatched base metadata failed locally. | Observe actual artifact upload, download, and publication for each subset. |
+| JS06 | Full Playwright project discovery matched the baseline inventory. Compiled browser journeys ran. The compiled build completed with zero cache hits. | Observe full dispatch, main push, PR, manual affected, and unchanged runner/cache behavior. |
+| JS07 | The workflow aggregate scripts rejected failure, cancellation, unexpected skips, missing receipts, and missing plans. They accepted a successful fresh row with seed intentionally skipped. | Observe GitHub job conclusions and required-check behavior. The `main` ruleset listed no required status checks during inspection. No protection changes were made. |
 
 ## Revision: base CI graph with affected Turbo tasks
 

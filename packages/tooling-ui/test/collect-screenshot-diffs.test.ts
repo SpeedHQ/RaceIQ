@@ -289,28 +289,29 @@ describe("collect-screenshot-diffs", () => {
     const responsive = join(input, "pr-visual-responsive-preview");
     const storybook = join(input, "pr-visual-storybook-preview");
     const output = join(root, "pr-preview");
+    const base = "a".repeat(40);
     const storybookBase = join(root, "base-snapshots");
     const storybookCurrent = join(root, "current-snapshots");
     mkdirSync(responsive, { recursive: true });
     await Bun.write(join(responsive, "pr-number.txt"), "365\n");
-    await Bun.write(join(responsive, "base-ref.txt"), "main\n");
+    await Bun.write(join(responsive, "base-ref.txt"), `${base}\n`);
     await writePng(join(responsive, "base-responsive", "mobile", "screen.png"), { r: 255, g: 0, b: 0 });
     await writePng(join(responsive, "current-responsive", "mobile", "screen.png"), { r: 0, g: 255, b: 0 });
     await writePng(join(storybookBase, "button.png"), { r: 0, g: 0, b: 255 });
     await writePng(join(storybookCurrent, "button.png"), { r: 0, g: 0, b: 255 });
     const prepared = spawnSync(
       process.execPath,
-      [join(ROOT_DIR, "packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts"), storybook, storybookBase, storybookCurrent, "365", "main"],
+      [join(ROOT_DIR, "packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts"), storybook, storybookBase, storybookCurrent, "365", base],
       { cwd: root, encoding: "utf8" },
     );
     expect(prepared.status).toBe(0);
 
     const combined = spawnSync(process.execPath, [join(ROOT_DIR, "scripts/ci/combine-pr-visual-previews.ts")], {
       cwd: root,
-      env: { ...process.env, PREVIEW_ROOT: input },
+      env: { ...process.env, PREVIEW_ROOT: input, PREVIEW_PR: "365", PREVIEW_BASE: base, PREVIEW_RESPONSIVE: "true", PREVIEW_STORYBOOK: "true" },
       encoding: "utf8",
     });
-    expect(combined.status).toBe(0);
+    expect(combined.status, combined.stderr).toBe(0);
     expect(existsSync(join(output, "base-responsive", "mobile", "screen.png"))).toBe(true);
     expect(existsSync(join(output, "current-responsive", "mobile", "screen.png"))).toBe(true);
     expect(existsSync(join(output, "base-storybook", "button.png"))).toBe(true);
@@ -362,7 +363,7 @@ describe("collect-screenshot-diffs", () => {
         PREVIEW_BRANCH: "pr-previews",
         CHANGED: "true",
         SUBDIR: "pr-365/run-1",
-        BASE_REF: "main",
+        BASE_REF: base,
         GH_TOKEN: "test-token",
         CAPTURE_BODY: commentBodyPath,
       },

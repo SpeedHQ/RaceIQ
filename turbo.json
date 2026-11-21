@@ -81,57 +81,23 @@
     }
   },
   "tasks": {
+    "browser:runtime:impact": {},
+    "browser:seed:impact": {},
     "browser:fresh:impact": {},
     "browser:tunes:impact": {},
     "browser:tunes-unseeded:impact": {},
-    "browser:seeded:impact": {},
+    "browser:seeded-e2e:impact": {},
+    "browser:seeded-routes:impact": {},
+    "browser:seeded-imports:impact": {},
+    "browser:webgpu:impact": {},
     "visual:responsive:impact": {},
     "visual:storybook:impact": {},
-    "ci:browser": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:responsive-current": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:responsive-base": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:storybook-base": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:storybook-current": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:check-shards": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:check-locales": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:check-db-upgrade": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
-    "ci:check-telemetry": {
-      "cache": false,
-      "outputs": [],
-      "inputs": ["$TURBO_ROOT$/**", "!$TURBO_ROOT$/docs/**/*.md"]
-    },
+    "verify:build:impact": {},
+    "verify:desktop:impact": {},
+    "ci:check-shards": { "cache": false },
+    "ci:check-locales": { "cache": false },
+    "ci:check-db-upgrade": { "cache": false },
+    "ci:check-telemetry": { "cache": false },
     "transit": {
       "dependsOn": [
         "^transit"
