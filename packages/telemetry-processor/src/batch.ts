@@ -5,7 +5,7 @@ import type { SectorComputationOptions } from "@raceiq/telemetry-core/processor/
 import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { OrdinalDetectorEngine } from "@raceiq/telemetry-core/processor/ordinal-engine";
+import { incompleteLapElapsed, OrdinalDetectorEngine } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-core/processor/kunos-engine";
 import { IRacingDetectorEngine } from "@raceiq/telemetry-core/processor/iracing-engine";
 import { mergePitCycleReason, assessLapRecording, DEFAULT_LAP_DETECTOR_POLICY, LMU_LAP_DETECTOR_POLICY, type LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
@@ -144,9 +144,11 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
       return true;
     },
     finalizeIncompleteLap: async s => {
-      const last = s.lapBuffer.at(-1);
-      if (!last || last.CurrentLap < 10) return;
-      push(s.session!.sessionKey, s.lapNumber, last.CurrentLap, s.lapBuffer, false, s.invalidReason ?? "incomplete at end of input", s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, false);
+      const time = incompleteLapElapsed(s.lapBuffer);
+      if (time < 10) return;
+      const pitReason = gameId === "ams2" ? classifyPitCycleLap(s.lapBuffer) : null;
+      const classification = pitReason ? classifyLapCategory(s.lapBuffer, pitReason, undefined, false) : null;
+      push(s.session!.sessionKey, s.lapNumber, time, s.lapBuffer, false, s.invalidReason ?? "incomplete at end of input", s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, false, classification);
     },
     finalizeStaleLap: async (time, complete, _silence, s) => {
       if (time < 10) return;

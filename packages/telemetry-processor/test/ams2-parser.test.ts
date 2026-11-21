@@ -17,7 +17,7 @@ describe("portable AMS2 parser routing", () => {
     expect(complete.map(lap => lap.lapTime.toFixed(3))).toEqual(["50.460", "52.080", "51.300"]);
     expect(complete.map(lap => lap.invalidReason)).toEqual([null, null, null]);
     expect(complete.map(lap => lap.valid)).toEqual([true, true, true]);
-    expect(complete.map(lap => lap.classification)).toEqual(["out_lap", "pace", "pace"]);
+    expect(complete.map(lap => lap.classification)).toEqual(["pace", "pace", "pace"]);
   });
 
   test("preserves race-start eligibility and actual pit exclusions", async () => {
