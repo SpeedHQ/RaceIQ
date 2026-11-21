@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -12,7 +14,7 @@ import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/r
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 import { partitionLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
-import { META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import type { DetectorOwnershipTransition, DetectorOwnershipWindow } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import * as livePipeline from "@raceiq/backend-core/telemetry/live-pipeline";
 import type { Manifest } from "@raceiq/capture-splitting";
@@ -94,6 +96,82 @@ async function verifyReplay(source: RepairRecording) {
 }
 
 describe("direct capture repair through recording maintenance", () => {
+  test("restores a lap after the recorded driving prefix in a legacy AMS2 capture", async () => {
+    saveSettings({ ...loadSettings(), sessionCleanupEnabled: false, sessionDownsampleEnabled: false });
+    const directory = join(resolveRecordingDirectory(), "ams2", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+    directories.push(directory);
+    await mkdir(directory, { recursive: true });
+    const path = join(directory, "capture-manifest.json");
+    const session = await db.insert(sessions).values({
+      gameId: "ams2", carId: "fixture-car", trackId: "fixture-track", rawFile: path, captureFormatVersion: 1,
+    }).returning().get();
+    sessionIds.push(session.id);
+    const lap = await db.insert(laps).values({
+      sessionId: session.id, lapNumber: 1, lapTime: 52.990020751953125, isValid: true,
+      rawByteOffset: 223699588, rawFrameCount: 4157,
+    }).returning().get();
+    const bytes = gunzipSync(await readFile(fixturePath("sessions/ams2-legacy-owned-offset.bin.gz")));
+    const chunkId = crypto.randomUUID();
+    const chunkPath = join(directory, "lap.bin");
+    // Native coordinates come from the original manifest. The stored offset reflects redaction.
+    const manifest: Manifest = {
+      version: 3, gameId: "ams2", sourceRevision: crypto.randomUUID(),
+      sourceByteLength: 325978416, sourceRecordCount: 13249, sourceCoordinates: "native-wire-v1",
+      chunks: [{
+        id: chunkId, kind: "lap", lapId: String(lap.id), lapNumber: 1, path: "lap.bin",
+        byteLength: bytes.length, firstOrdinal: 0, recordCount: 13249, sourceStart: 0,
+        sourceEnd: 13249, sourceByteStart: 12, sourceByteEnd: 325978416, sourceRecordByteOffset: 28,
+        firstTimestamp: 1792901330632, ownedFrameByteOffset: 8599036, ownedFrameCount: 4157,
+        trailingContextFrameCount: 0,
+      }],
+    };
+    await writeFile(chunkPath, bytes);
+    await writeFile(path, JSON.stringify(manifest));
+    expect(lap.captureChunkId).toBeNull();
+
+    await runSessionCaptureMaintenanceNow();
+    const expected = { ...lap, captureChunkId: chunkId, sourceFrameStart: 9092, sourceFrameCount: 4157 };
+    expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(expected);
+    expect(await readFile(chunkPath)).toEqual(bytes);
+
+    await runSessionCaptureMaintenanceNow();
+    expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(expected);
+  });
+
+  test("publishes a legacy EVO capture with a recorded inline parser bootstrap", async () => {
+    saveSettings({ ...loadSettings(), sessionCleanupEnabled: false, sessionDownsampleEnabled: false });
+    const directory = join(resolveRecordingDirectory(), "ac-evo", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+    directories.push(directory);
+    await mkdir(directory, { recursive: true });
+    const path = join(directory, "capture-manifest.json");
+    const session = await db.insert(sessions).values({
+      gameId: "ac-evo", carId: "fixture-car", trackId: "fixture-track", rawFile: path, captureFormatVersion: 1,
+    }).returning().get();
+    sessionIds.push(session.id);
+    const bytes = gunzipSync(await readFile(fixturePath("sessions/evo-inline-bootstrap.bin.gz")));
+    const chunkPath = join(directory, "auxiliary.bin");
+    const manifest: Manifest = {
+      version: 3, gameId: "ac-evo", sourceRevision: crypto.randomUUID(),
+      sourceByteLength: 934, sourceRecordCount: 1, sourceCoordinates: "native-wire-v1",
+      chunks: [{
+        id: crypto.randomUUID(), kind: "auxiliary", path: "auxiliary.bin", byteLength: bytes.length,
+        firstOrdinal: 0, recordCount: 1, sourceStart: 0, sourceEnd: 1,
+        sourceByteStart: 12, sourceByteEnd: 934, sourceRecordByteOffset: 28,
+        firstTimestamp: 1794105597066, lastTimestamp: 1794105597066, trailingContextFrameCount: 1,
+        parserBootstrapHash: "d789516d96571e9b1bad0e626c9874d1df0cb59d9b55ce44fba1fe2fa0f83029",
+      }],
+    };
+    await writeFile(chunkPath, bytes);
+    await writeFile(path, JSON.stringify(manifest));
+    expect(session.captureManifestFile).toBeNull();
+
+    await runSessionCaptureMaintenanceNow();
+    expect(await db.select().from(sessions).where(eq(sessions.id, session.id)).get())
+      .toEqual({ ...session, captureManifestFile: path, captureLayoutVersion: 1 });
+    expect(await readFile(chunkPath)).toEqual(bytes);
+    await runSessionCaptureMaintenanceNow();
+  });
+
   for (const damage of ["missing", "malformed", "invalid-schema"] as const) {
     test(`restores ${damage} manifest, publication and exact replay without changing saved lap`, async () => {
       const source = await recording();
@@ -108,6 +186,72 @@ describe("direct capture repair through recording maintenance", () => {
       await verifyReplay(source);
       await runSessionCaptureMaintenanceNow();
       await verifyReplay(source);
+    });
+  }
+  for (const scenario of ["inline bootstrap", "invalid owned offset", "invalid bootstrap hash", "duplicate auxiliary boundary", "mismatched auxiliary boundary"] as const) {
+    test(`validates legacy recording with ${scenario}`, async () => {
+      const directory = join(resolveRecordingDirectory(), "ac-evo", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+      directories.push(directory);
+      await mkdir(directory, { recursive: true });
+      const path = join(directory, "capture-manifest.json");
+      const chunkPath = join(directory, "lap.bin");
+      const payload = Buffer.from("legacy parser state");
+      const bootstrap = encodeParserBootstrapFrame("ac-evo", payload);
+      const frames = [Buffer.from([1]), Buffer.from([2]), Buffer.from([3])];
+      const records = frames.map((frame) => Buffer.concat([encodeFrameLength(frame.length), frame]));
+      const context = Buffer.concat([encodeSegmentContextFrame(), records[0]!, encodeSegmentContextEndFrame()]);
+      const split = scenario === "duplicate auxiliary boundary" || scenario === "mismatched auxiliary boundary";
+      const sourcePrefix = Buffer.concat([bootstrap, context, records[0]!]);
+      const bytes = Buffer.concat(split ? [encodeMetaFrame(), ...records.slice(1)] : [encodeMetaFrame(), sourcePrefix, ...records.slice(1)]);
+      const ownedOffset = META_FRAME_BYTES + bootstrap.length + context.length + records[0]!.length;
+      const session = await db.insert(sessions).values({
+        gameId: "ac-evo", carId: "repair-car", trackId: "repair-track", rawFile: path, captureFormatVersion: 1,
+      }).returning().get();
+      sessionIds.push(session.id);
+      const lap = await db.insert(laps).values({
+        sessionId: session.id, lapNumber: 1, lapTime: 90, isValid: true, rawByteOffset: ownedOffset, rawFrameCount: 2,
+      }).returning().get();
+      const sourceByteLength = ownedOffset + records[1]!.length + records[2]!.length;
+      const bootstrapHash = createHash("sha256").update(scenario === "invalid bootstrap hash" ? "wrong state" : payload).digest("hex");
+      const chunk = {
+        id: "legacy-lap", path: "lap.bin", kind: "lap", lapId: String(lap.id), lapNumber: 1, byteLength: bytes.length,
+        firstOrdinal: split ? 5 : 0, recordCount: split ? 2 : 7, sourceStart: split ? 5 : 0, sourceEnd: 7,
+        sourceByteStart: split ? ownedOffset : META_FRAME_BYTES, sourceByteEnd: sourceByteLength, sourceRecordByteOffset: META_FRAME_BYTES,
+        ownedFrameByteOffset: (split ? META_FRAME_BYTES : ownedOffset) + (scenario === "invalid owned offset" ? 1 : 0), ownedFrameCount: 2,
+        ...(split ? {} : { parserBootstrapHash: bootstrapHash }),
+      } as const;
+      let manifest: Manifest = {
+        version: 3, gameId: "ac-evo", sourceRevision: crypto.randomUUID(), sourceCoordinates: "native-wire-v1",
+        sourceByteLength, sourceRecordCount: 7, chunks: [chunk],
+      };
+      if (split) {
+        const boundary = scenario === "mismatched auxiliary boundary" ? records[2]! : records[1]!;
+        const auxiliary = Buffer.concat([encodeMetaFrame(), sourcePrefix, boundary]);
+        await writeFile(join(directory, "auxiliary.bin"), auxiliary);
+        manifest = { ...manifest, chunks: [{
+          id: "legacy-auxiliary", kind: "auxiliary", path: "auxiliary.bin", byteLength: auxiliary.length,
+          firstOrdinal: 0, recordCount: 5, sourceStart: 0, sourceEnd: 5,
+          sourceByteStart: META_FRAME_BYTES, sourceByteEnd: ownedOffset, sourceRecordByteOffset: META_FRAME_BYTES,
+          parserBootstrapHash: bootstrapHash,
+        }, chunk] };
+      }
+      await writeFile(chunkPath, bytes);
+      await writeFile(`${path}.recovery`, JSON.stringify(manifest));
+      if (scenario === "inline bootstrap" || scenario === "duplicate auxiliary boundary") {
+        await runSessionCaptureMaintenanceNow();
+        expect(JSON.parse(await readFile(path, "utf8"))).toEqual(manifest);
+        const restored = await db.select().from(laps).where(eq(laps.id, lap.id)).get();
+        expect(restored).toMatchObject({
+          captureChunkId: chunk.id, sourceFrameStart: 1, sourceFrameCount: 2, rawByteOffset: ownedOffset,
+        });
+        await runSessionCaptureMaintenanceNow();
+        expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(restored);
+      } else {
+        await expect(runSessionCaptureMaintenanceNow()).rejects.toThrow();
+        expect(await Bun.file(path).exists()).toBe(false);
+        expect(await db.select().from(laps).where(eq(laps.id, lap.id)).get()).toEqual(lap);
+      }
+      expect(await readFile(chunkPath)).toEqual(bytes);
     });
   }
   test("reconciles valid primary without replacing it with stale recovery snapshot", async () => {
