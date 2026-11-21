@@ -28,9 +28,11 @@ const AppSettingsSchema = z.object({
   aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
+  aiReasoningEnabled: z.boolean().default(true),
   chatProvider: AiProviderSchema.default(""),
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
+  chatReasoningEnabled: z.boolean().default(true),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
   // provider (aiProvider) so the user can point auto-tune at a different
   // model. Reuses the same stored API keys as the analysis section.

@@ -121,6 +121,8 @@
   "ai_model_recommended": "Suositeltu",
   "ai_thinking_label": "Päättely",
   "ai_thinking_unsupported": "Tämä malli ei tue päättelyä. Käytetään vaihtoehtoa Ei mitään.",
+  "ai_reasoning_enabled": "Ota päättely käyttöön",
+  "ai_reasoning_required": "Tämä malli vaatii päättelyä.",
   "ai_add_key_hint": "Lisää ja tallenna API-avain, jotta saatavilla olevat mallit voidaan ladata.",
   "ai_no_models": "Palveluntarjoaja ei palauttanut malleja.",
   "ai_load_models_failed": "Mallien lataus epäonnistui. Tarkista API-avain ja yhteys palveluntarjoajaan.",

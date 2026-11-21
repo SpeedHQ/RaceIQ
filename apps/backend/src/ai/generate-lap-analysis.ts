@@ -1,5 +1,6 @@
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import { setupContextForLap, type LinkedLapTuneSetup } from "./lap-setup-context";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { resolveLapCorners } from "../tracks/corner-resolution";
@@ -281,7 +282,9 @@ export async function generateLapAnalysis(
       },
       providerOptions: {
         openai: ai.provider === "anthropic" ? {} : {
-          reasoningEffort: ai.provider === "openai-compatible" ? "none" : "medium",
+          reasoningEffort: ai.provider === "openai-compatible"
+            ? "none"
+            : openAiReasoningEffort(ai.provider, model, settings.aiReasoningEnabled),
         },
         google: buildGoogleThinkingProviderOptions(
           model,

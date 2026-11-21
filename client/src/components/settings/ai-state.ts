@@ -20,6 +20,8 @@ export interface AiAnalysisState {
   setModel: (value: string) => void;
   thinkingBudget: number | null;
   setThinkingBudget: (value: number | null) => void;
+  reasoningEnabled: boolean;
+  setReasoningEnabled: (value: boolean) => void;
   apiKey: string;
   setApiKey: (value: string) => void;
   localEndpoint: string;
@@ -51,6 +53,8 @@ export interface AiChatState {
   setChatModel: (value: string) => void;
   chatThinkingBudget: number | null;
   setChatThinkingBudget: (value: number | null) => void;
+  chatReasoningEnabled: boolean;
+  setChatReasoningEnabled: (value: boolean) => void;
   chatApiKey: string;
   setChatApiKey: (value: string) => void;
   keyStatus: Record<string, boolean>;

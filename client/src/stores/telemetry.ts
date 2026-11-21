@@ -17,9 +17,11 @@ export interface DisplaySettings {
   aiProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   aiModel: string;
   aiThinkingBudget: number | null;
+  aiReasoningEnabled: boolean;
   chatProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   chatModel: string;
   chatThinkingBudget: number | null;
+  chatReasoningEnabled: boolean;
   autoTuneProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   autoTuneModel: string;
   localEndpoint: string;
@@ -75,9 +77,11 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   aiProvider: "gemini",
   aiModel: "",
   aiThinkingBudget: null,
+  aiReasoningEnabled: true,
   chatProvider: "gemini",
   chatModel: "",
   chatThinkingBudget: null,
+  chatReasoningEnabled: true,
   autoTuneProvider: "gemini",
   autoTuneModel: "",
   localEndpoint: "http://localhost:1234/v1",
