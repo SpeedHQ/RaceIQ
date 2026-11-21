@@ -67,7 +67,7 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
     TireWearRL: physics.readFloatLE(EVO_PHYSICS.tyreWearRL.offset),
     TireWearRR: physics.readFloatLE(EVO_PHYSICS.tyreWearRR.offset),
     RacePosition: racePosition,
-    acc: { isValidLap, pitStatus, flagStatus, acEvo: { sessionType } as Pick<NonNullable<NonNullable<LapIndexPacket["acc"]>["acEvo"]>, "sessionType"> } as NonNullable<LapIndexPacket["acc"]>,
+    acc: { isValidLap, pitStatus, flagStatus, acEvo: { sessionType, sessionName } as Pick<NonNullable<NonNullable<LapIndexPacket["acc"]>["acEvo"]>, "sessionType" | "sessionName"> } as NonNullable<LapIndexPacket["acc"]>,
     WheelOnRumbleStripFL: 0,
     WheelOnRumbleStripFR: 0,
     WheelOnRumbleStripRL: 0,
