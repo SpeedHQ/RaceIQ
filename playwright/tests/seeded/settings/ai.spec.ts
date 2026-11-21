@@ -183,15 +183,26 @@ test("OpenAI analysis and chat reasoning levels persist independently", async ({
     await openSettings();
     await expect(analysis).toHaveCount(0);
     await expect(chat).toHaveValue("Max");
+    expect((await request.put("/api/settings", { data: { aiProvider: "openai" } })).ok()).toBe(true);
+    await openSettings();
     await page.route("**/api/settings", async (route) => {
-      if (route.request().method() === "PUT" && route.request().postDataJSON().chatReasoningLevel === "medium") {
-        return route.fulfill({ status: 503, body: "Temporarily unavailable" });
+      if (route.request().method() === "PUT") {
+        const { aiReasoningLevel, chatReasoningLevel } = route.request().postDataJSON();
+        if (aiReasoningLevel === "medium" || chatReasoningLevel === "medium") {
+          return route.fulfill({ status: 503, body: "Temporarily unavailable" });
+        }
       }
       await route.fallback();
     });
-    await selectLevel(chat, "Medium ⭐");
-    await expect(page.getByText("Service Unavailable", { exact: true })).toBeVisible();
-    await expect.poll(levels).toEqual(["high", "max"]);
+    for (const [picker, savedLabel] of [[analysis, "High"], [chat, "Max"]] as const) {
+      await selectLevel(picker, "Medium ⭐");
+      await expect(page.getByText("Service Unavailable", { exact: true })).toBeVisible();
+      await expect.poll(levels).toEqual(["high", "max"]);
+      await page.getByRole("button", { name: "General", exact: true }).click();
+      await expect(picker).toHaveCount(0);
+      await page.getByRole("button", { name: "AI Analysis" }).click();
+      await expect(picker).toHaveValue(savedLabel);
+    }
   } finally {
     await page.close();
     await request.put("/api/settings", { data: { aiProvider, aiModel, aiReasoningLevel, chatProvider, chatModel, chatReasoningLevel } });
