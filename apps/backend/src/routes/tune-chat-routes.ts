@@ -4,6 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
@@ -296,7 +297,7 @@ Only these IDs are current evidence. Empty/undriven branches have no attached ev
         requestContext: reqCtx,
         abortSignal: run.abortController.signal,
         providerOptions: {
-          openai: { reasoningEffort: "medium" },
+          openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
           google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
       });
