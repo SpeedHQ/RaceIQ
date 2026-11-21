@@ -7,7 +7,10 @@ const labels: Record<ReasoningLevel, string> = {
   none: "None", minimal: "Minimal", low: "Low", medium: "Medium", high: "High", xhigh: "XHigh", max: "Max",
 };
 
-const options = OPENAI_REASONING_LEVELS.map((value) => ({ value, label: labels[value] }));
+const options = OPENAI_REASONING_LEVELS.map((value) => ({
+  value,
+  label: value === "medium" ? `${labels[value]} ⭐` : labels[value],
+}));
 
 type Props = {
   id: string;

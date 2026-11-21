@@ -140,9 +140,9 @@ test("OpenAI analysis and chat reasoning levels persist independently", async ({
       chatProvider: "openai", chatModel: model, chatReasoningLevel: "medium",
     } })).ok()).toBe(true);
     await openSettings();
-    await expect(analysis).toHaveValue("Medium");
-    await expect(chat).toHaveValue("Medium");
-    const options = ["None", "Minimal", "Low", "Medium", "High", "XHigh", "Max"];
+    await expect(analysis).toHaveValue("Medium ⭐");
+    await expect(chat).toHaveValue("Medium ⭐");
+    const options = ["None", "Minimal", "Low", "Medium ⭐", "High", "XHigh", "Max"];
     for (const picker of [analysis, chat]) {
       await picker.click();
       await expect(popup.getByRole("option")).toHaveText(options);
@@ -163,7 +163,7 @@ test("OpenAI analysis and chat reasoning levels persist independently", async ({
     await expect.poll(levels).toEqual(["none", "medium"]);
     await openSettings();
     await expect(analysis).toHaveValue("None");
-    await expect(chat).toHaveValue("Medium");
+    await expect(chat).toHaveValue("Medium ⭐");
     await selectLevel(chat, "Max");
     await selectLevel(analysis, "High");
     await expect.poll(levels).toEqual(["high", "max"]);
@@ -189,7 +189,7 @@ test("OpenAI analysis and chat reasoning levels persist independently", async ({
       }
       await route.fallback();
     });
-    await selectLevel(chat, "Medium");
+    await selectLevel(chat, "Medium ⭐");
     await expect(page.getByText("Service Unavailable", { exact: true })).toBeVisible();
     await expect.poll(levels).toEqual(["high", "max"]);
   } finally {
