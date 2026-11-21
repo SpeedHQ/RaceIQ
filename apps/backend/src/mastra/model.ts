@@ -24,7 +24,7 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
-import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
+import { APICallError, extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
 import { ANTHROPIC_OPENAI_BASE_URL, anthropicCompatibleFetch, isAnthropicEndpoint, openAiCompatibleExtraHeaders } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
@@ -251,6 +251,30 @@ export function getMastraModelId(
     }
     case "openai": {
       const id = model || "gpt-4o-mini";
+      const unsupportedReasoning = (detail: string, statusCode?: number) =>
+        new AiProviderError(`${detail} Choose another Reasoning level in Settings and retry.`, {
+          code: "unsupported-operation",
+          provider: "openai",
+          modelId: id,
+          statusCode,
+        });
+      const checkReasoning = (
+        effort: unknown,
+        warnings: ReadonlyArray<{ type: string; feature?: string; details?: string }>,
+      ) => {
+        if (typeof effort !== "string" || effort === "medium") return;
+        const warning = warnings.find(({ type, feature }) => type === "unsupported" && feature === "reasoningEffort");
+        if (warning) throw unsupportedReasoning(warning.details ?? `Unsupported reasoning level "${effort}".`);
+      };
+      const handleError = (error: unknown): never => {
+        if (APICallError.isInstance(error) && (error.statusCode === 400 || error.statusCode === 422)) {
+          const param = (error.data as { error?: { param?: string } } | undefined)?.error?.param;
+          if (/reasoning/i.test(`${param ?? ""} ${error.message}`)) {
+            throw unsupportedReasoning(error.message, error.statusCode);
+          }
+        }
+        throw error;
+      };
       return bindMastraModel(wrapLanguageModel({
         model: createOpenAI({ apiKey, baseURL: "https://api.openai.com/v1" }).responses(id),
         middleware: {
@@ -262,6 +286,25 @@ export function getMastraModelId(
               openai: { ...params.providerOptions?.openai, store: false },
             },
           }),
+          wrapGenerate: async ({ doGenerate, params }) => {
+            const result = await Promise.resolve(doGenerate()).catch(handleError);
+            checkReasoning(params.providerOptions?.openai?.reasoningEffort, result.warnings);
+            return result;
+          },
+          wrapStream: async ({ doStream, params }) => {
+            const result = await Promise.resolve(doStream()).catch(handleError);
+            return {
+              ...result,
+              stream: result.stream.pipeThrough(new TransformStream({
+                transform(part, controller) {
+                  if (part.type === "stream-start") {
+                    checkReasoning(params.providerOptions?.openai?.reasoningEffort, part.warnings);
+                  }
+                  controller.enqueue(part);
+                },
+              })),
+            };
+          },
         },
       }));
     }

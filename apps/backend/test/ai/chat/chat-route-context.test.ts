@@ -253,14 +253,22 @@ describe("lap chat route context and targeted removal", () => {
 
   });
 
-  test.each([true, false])("streams OpenAI Responses with chat reasoning enabled: %s", async (enabled) => {
+  test.each([
+    ["gpt-6-sol", "medium", "medium", null],
+    ["gpt-6-sol", "max", "max", null],
+    ["gpt-6-sol", "none", "none", null],
+    ["gpt-6-sol", "none", "none", "upstream"],
+    ["gpt-6.2-sol", "none", undefined, "sdk"],
+  ] as const)("streams OpenAI Responses on %s with %s reasoning (%s on wire, %s rejection)", async (model, level, reasoning, rejection) => {
     const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
-    const model = "gpt-6-sol";
     const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model,
-      chatReasoningEnabled: enabled, aiReasoningEnabled: !enabled } as const;
+      chatReasoningLevel: level, aiReasoningLevel: "low" } as const;
     const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue(settings);
     const keySpy = spyOn(providerKeys, "getAiProviderApiKey").mockResolvedValue("test-key");
     const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (rejection === "upstream") {
+        return Response.json({ error: { message: "Unsupported value: none", param: "reasoning.effort" } }, { status: 400 });
+      }
       const item = { id: "msg_1", type: "message", role: "assistant", status: "completed",
         content: [{ type: "output_text", text: "OpenAI lap reply", annotations: [] }] };
       const response = { id: "resp_1", object: "response", status: "completed", created_at: 1,
@@ -289,17 +297,25 @@ describe("lap chat route context and targeted removal", () => {
         body: JSON.stringify({ messages: [{ id: "openai-turn", role: "user", parts: [{ type: "text", text: "Hello" }] }] }),
       });
       expect(response.status).toBe(200);
-      expect(await response.text()).toContain("OpenAI lap reply");
+      const body = await response.text();
+      if (rejection) {
+        expect(body).toContain("Choose another Reasoning level in Settings and retry.");
+        expect(body).not.toContain("OpenAI lap reply");
+      } else {
+        expect(body).toContain("OpenAI lap reply");
+      }
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0];
       expect(String(url)).toBe("https://api.openai.com/v1/responses");
-      expect(JSON.parse(String(init?.body))).toMatchObject({
+      const request = JSON.parse(String(init?.body));
+      expect(request).toMatchObject({
         model,
         stream: true,
         store: false,
-        reasoning: { effort: enabled ? "medium" : "none" },
         tools: expect.arrayContaining([expect.objectContaining({ type: "function", name: "get_track_guide" })]),
       });
+      if (reasoning) expect(request.reasoning).toMatchObject({ effort: reasoning });
+      else expect(request).not.toHaveProperty("reasoning");
     } finally {
       fetchSpy.mockRestore();
       keySpy.mockRestore();

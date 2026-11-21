@@ -81,8 +81,8 @@ export function AiChatSection({ state }: { state: AiChatState }) {
           </div>
         )}
         {chatProvider === "openai" && (
-          <OpenAiReasoningLevel id="ai-chat-reasoning" model={chatModel}
-            checked={state.chatReasoningEnabled} onChange={state.setChatReasoningEnabled} />
+          <OpenAiReasoningLevel id="ai-chat-reasoning"
+            value={state.chatReasoningLevel} onChange={state.setChatReasoningLevel} />
         )}
         {chatProvider === "gemini" && canShowChatModelPicker && (
           <div>

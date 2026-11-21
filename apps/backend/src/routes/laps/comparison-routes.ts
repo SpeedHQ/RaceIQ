@@ -191,7 +191,7 @@ export const comparisonRoutes = new Hono()
           temperature: 0,
         },
         providerOptions: {
-          openai: { reasoningEffort: openAiReasoningEffort(settings.aiProvider, settings.aiModel, settings.aiReasoningEnabled) },
+          openai: { reasoningEffort: openAiReasoningEffort(settings.aiProvider, settings.aiReasoningLevel) },
           google: buildGoogleThinkingProviderOptions(
             settings.aiModel || "gemini-flash-latest",
             settings.aiThinkingBudget,
@@ -383,7 +383,7 @@ export const comparisonRoutes = new Hono()
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, chatModelLabel, settings.chatReasoningEnabled) },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },

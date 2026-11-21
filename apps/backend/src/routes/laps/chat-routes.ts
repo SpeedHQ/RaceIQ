@@ -193,7 +193,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, chatModelLabel, settings.chatReasoningEnabled) },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },

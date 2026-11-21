@@ -284,7 +284,7 @@ export async function generateLapAnalysis(
         openai: ai.provider === "anthropic" ? {} : {
           reasoningEffort: ai.provider === "openai-compatible"
             ? "none"
-            : openAiReasoningEffort(ai.provider, model, settings.aiReasoningEnabled),
+            : openAiReasoningEffort(ai.provider, settings.aiReasoningLevel),
         },
         google: buildGoogleThinkingProviderOptions(
           model,

@@ -297,7 +297,7 @@ Only these IDs are current evidence. Empty/undriven branches have no attached ev
         requestContext: reqCtx,
         abortSignal: run.abortController.signal,
         providerOptions: {
-          openai: { reasoningEffort: openAiReasoningEffort(chatProvider, chatModelLabel, settings.chatReasoningEnabled) },
+          openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
           google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
       });

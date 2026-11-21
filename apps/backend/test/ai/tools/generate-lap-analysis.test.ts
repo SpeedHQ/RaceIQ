@@ -255,14 +255,15 @@ describe("generateLapAnalysis", () => {
   });
 
   test.each([
-    ["gpt-5.4-mini", true, "medium"],
-    ["gpt-5.4-mini", false, "none"],
-    ["gpt-6.1-sol", false, "medium"],
-    ["gpt-4.1-mini", false, undefined],
-  ] as const)("runs structured analysis with tools on %s (reasoning enabled: %s)", async (model, enabled, reasoning) => {
+    ["gpt-5.4-mini", "medium", "medium", null],
+    ["gpt-5.4-mini", "xhigh", "xhigh", null],
+    ["gpt-6-sol", "none", "none", "upstream"],
+    ["gpt-6.2-sol", "none", undefined, "sdk"],
+    ["gpt-4.1-mini", "medium", undefined, null],
+  ] as const)("runs structured analysis with tools on %s with %s reasoning", async (model, level, reasoning, rejection) => {
     const deps = makeDeps();
     const settings = deps.loadSettings!();
-    deps.loadSettings = () => ({ ...settings, aiProvider: "openai", aiModel: model, aiReasoningEnabled: enabled, chatReasoningEnabled: !enabled });
+    deps.loadSettings = () => ({ ...settings, aiProvider: "openai", aiModel: model, aiReasoningLevel: level, chatReasoningLevel: "low" });
     deps.resolveAi = async () => resolvedAiFromAdapter(
       new OpenAiProviderAdapter({ feature: "analysis", model, apiKey: "test-key" }),
     );
@@ -272,7 +273,10 @@ describe("generateLapAnalysis", () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
-      const output = requests.length === 1
+      if (rejection === "upstream") {
+        return Response.json({ error: { message: "This model does not support reasoning effort none.", param: "reasoning.effort" } }, { status: 400 });
+      }
+      const output = requests.length === 1 && rejection !== "sdk"
         ? [{ type: "function_call", id: "fc_1", call_id: "call_1", name: "get_track_guide", arguments: '{"trackName":"Monza"}', status: "completed" }]
         : [{ type: "message", id: "msg_1", role: "assistant", status: "completed", content: [{ type: "output_text", text: validAnalysis, annotations: [] }] }];
       return Response.json({
@@ -288,10 +292,6 @@ describe("generateLapAnalysis", () => {
 
     try {
       const result = await generateLapAnalysis(7, { regenerate: true }, deps);
-      expect(result.error).toBeUndefined();
-      expect(JSON.parse(result.analysis!)).toMatchObject(JSON.parse(validAnalysis));
-      expect(deps.saves).toHaveLength(1);
-      expect(requests).toHaveLength(2);
       for (const { url, body } of requests) {
         expect(url).toBe("https://api.openai.com/v1/responses");
         expect(body).toMatchObject({ model, store: false });
@@ -300,6 +300,16 @@ describe("generateLapAnalysis", () => {
         expect(body).not.toHaveProperty("reasoning_effort");
       }
       expect(requests[0].body.tools).toContainEqual(expect.objectContaining({ type: "function", name: "get_track_guide" }));
+      if (rejection) {
+        expect(requests).toHaveLength(1);
+        expect(result.error).toContain("Choose another Reasoning level in Settings and retry.");
+        expect(deps.saves).toHaveLength(0);
+        return;
+      }
+      expect(result.error).toBeUndefined();
+      expect(JSON.parse(result.analysis!)).toMatchObject(JSON.parse(validAnalysis));
+      expect(deps.saves).toHaveLength(1);
+      expect(requests).toHaveLength(2);
       expect(requests[1].body.input).toContainEqual(expect.objectContaining({
         type: "function_call_output",
         call_id: "call_1",

@@ -1,34 +1,36 @@
 import { Label } from "@/components/ui/label";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { m } from "@/paraglide/messages";
-import { openAiReasoningMode } from "@raceiq/shared/integrations/ai/openai-reasoning";
+import { OPENAI_REASONING_LEVELS, type OpenAiReasoningLevel as ReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
+
+const labels: Record<ReasoningLevel, string> = {
+  none: "None", minimal: "Minimal", low: "Low", medium: "Medium", high: "High", xhigh: "XHigh", max: "Max",
+};
+
+const options = OPENAI_REASONING_LEVELS.map((value) => ({ value, label: labels[value] }));
 
 type Props = {
   id: string;
-  model: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  value: ReasoningLevel;
+  onChange: (value: ReasoningLevel) => void;
 };
 
-export function OpenAiReasoningLevel({ id, model, checked, onChange }: Props) {
-  const mode = openAiReasoningMode(model);
-  if (mode === "unavailable") return null;
-  const required = mode === "required";
-  const descriptionId = `${id}-description`;
+export function OpenAiReasoningLevel({ id, value, onChange }: Props) {
+  const label = m.ai_reasoning_enabled();
   return (
     <div className="space-y-1">
-      <Label htmlFor={id} className="block text-xs text-app-text-muted">{m.ai_reasoning_enabled()}</Label>
-      <select
+      <Label htmlFor={id} className="block text-xs text-app-text-muted">{label}</Label>
+      <SearchSelect
         id={id}
-        value={required || checked ? "medium" : "none"}
-        onChange={(event) => onChange(event.target.value === "medium")}
-        disabled={required}
-        aria-describedby={required ? descriptionId : undefined}
-        className="w-full max-w-xs rounded border border-app-border-input bg-app-surface px-3 py-1.5 text-sm text-app-text"
-      >
-        <option value="medium">Medium</option>
-        {!required && <option value="none">None</option>}
-      </select>
-      {required && <p id={descriptionId} className="text-xs text-app-text-muted">{m.ai_reasoning_required()}</p>}
+        value={value}
+        onChange={(selected) => {
+          const level = OPENAI_REASONING_LEVELS.find((level) => level === selected);
+          if (level) onChange(level);
+        }}
+        options={options}
+        ariaLabel={label}
+        clearOnOpen
+      />
     </div>
   );
 }

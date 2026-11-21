@@ -73,8 +73,8 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
           </div>
         )}
         {provider === "openai" && (
-          <OpenAiReasoningLevel id="ai-analysis-reasoning" model={model}
-            checked={state.reasoningEnabled} onChange={state.setReasoningEnabled} />
+          <OpenAiReasoningLevel id="ai-analysis-reasoning"
+            value={state.reasoningLevel} onChange={state.setReasoningLevel} />
         )}
         {provider === "gemini" && canShowModelPicker && modelSupportsThinking && (
           <div>

@@ -124,7 +124,6 @@
   "ai_thinking_label": "Raciocínio",
   "ai_thinking_unsupported": "Este modelo não oferece suporte a raciocínio. Usando Nenhum.",
   "ai_reasoning_enabled": "Nível de raciocínio",
-  "ai_reasoning_required": "Este modelo exige raciocínio.",
   "ai_add_key_hint": "Adicione e salve uma chave de API para carregar os modelos disponíveis.",
   "ai_no_models": "Nenhum modelo retornado por este provedor.",
   "ai_load_models_failed": "Falha ao carregar os modelos. Verifique a chave de API e a conexão com o provedor.",
