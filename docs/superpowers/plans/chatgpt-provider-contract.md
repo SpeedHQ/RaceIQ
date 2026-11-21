@@ -1,6 +1,6 @@
 # ChatGPT subscription provider contract
 
-Status: proposed; no implementation or release approval.
+Status: approved for implementation. Distribution eligibility and live compatibility remain unverified; release is not approved.
 
 [UI plan](chatgpt-provider-ui-plan.md) · [Backend plan](chatgpt-provider-backend-plan.md) · [ADR](../../adr/0016-chatgpt-subscription-provider.md)
 

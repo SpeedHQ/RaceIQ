@@ -1,6 +1,6 @@
 # ChatGPT subscription provider: UI implementation plan
 
-Status: proposed. [Shared contract](chatgpt-provider-contract.md) · [Backend plan](chatgpt-provider-backend-plan.md) · [ADR](../../adr/0016-chatgpt-subscription-provider.md)
+Status: approved for implementation. [Shared contract](chatgpt-provider-contract.md) · [Backend plan](chatgpt-provider-backend-plan.md) · [ADR](../../adr/0016-chatgpt-subscription-provider.md)
 
 ## Scope and ownership
 

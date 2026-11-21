@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 # Use ChatGPT plan usage as a RaceIQ model provider
 
@@ -7,7 +7,7 @@ status: proposed
 
 RaceIQ selects providers independently for Analysis, Chat, Auto-tune, and Driver Profile. A separate ACP/Codex agent would add a subprocess, a second tool boundary and workflow-specific integration. A direct copy of OMP's Codex transport would couple RaceIQ to the ChatGPT backend protocol.
 
-## Proposed decision
+## Decision
 
 Add `chatgpt-subscription` as a peer provider using [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source) and the public Responses API. Reuse RaceIQ's provider resolver, Mastra agents, tools and data contracts. Keep account credentials local, separate from API keys and settings. No implicit billing fallback.
 
