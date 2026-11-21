@@ -186,6 +186,7 @@ for (const gameId of ["fm-2023", "f1-2025"] as const) {
     await page.setViewportSize({ width: 600, height: 900 });
     await expect(page.locator("[data-mobile-panel-tabs]")).toBeVisible();
     const carPanel = page.getByRole("button", { name: "Car layout", exact: true });
+    if ((await carPanel.getAttribute("aria-pressed")) === "true") await carPanel.click();
     await carPanel.focus();
     await carPanel.press("Enter");
     await expect(carPanel).toHaveAttribute("aria-pressed", "true");

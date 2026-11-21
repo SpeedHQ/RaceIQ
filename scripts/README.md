@@ -111,6 +111,13 @@ the wrapper runs full selection. CI cache partitions include host and toolchain.
 Application, tooling, and frontend contract tasks compile client translations
 explicitly; game/core tasks do not depend on client compilation.
 
+Workspace lint scripts invoke the installed `oxlint/bin/oxlint` through Bun
+directly; relative `.bin/oxlint` shims fail under Bun's Windows script shell.
+Native database tests using `apps/backend/test/support/native-database-test.ts` run each
+scenario in a child process. The parent owns fixture cleanup after child exit:
+libSQL can retain native statement handles after client close, so GC or fixed
+delays are not a reliable file-release barrier.
+
 The Build & Test CI job limits Turbo to two concurrent test tasks and sets
 `BUN_TEST_WORKERS=1` for both affected and full runs to avoid nested test
 parallelism overwhelming constrained runners. Local suite defaults are unchanged.

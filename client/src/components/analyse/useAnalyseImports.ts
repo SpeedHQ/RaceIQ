@@ -4,7 +4,7 @@ import { invalidateDashboardQueries } from "../../hooks/dashboard";
 import { useCallback, useState } from "react";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { authenticatedFetch, client } from "../../lib/rpc";
-import type { IbtImportPreview } from "./IbtImportPreviewModal";
+import type { IbtImportPreview } from "@raceiq/sessions-page/contracts";
 
 export interface ImportedLap {
   lapId: number;
@@ -131,7 +131,9 @@ export function useAnalyseImports(args: {
       }
       setIbtPreview(null);
       const laps = data?.laps ?? [];
-      finalizeImport({ fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
+      const result = { fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" };
+      finalizeImport(result);
+      return result;
     } catch (e) {
       setIbtPreview(null);
       window.alert(`IBT import failed: ${e instanceof Error ? e.message : String(e)}`);

@@ -14,6 +14,9 @@
     "./source": "./src/source.ts",
     "./track-map-svg": "./src/track-map-svg.ts",
     "./track-map": "./src/track-map.ts",
+    "./incident-report": "./src/incident-report.ts",
+    "./ibt-source": "./src/ibt-source.ts",
+    "./disk-logging": "./src/disk-logging.ts",
     "./test-support/games/iracing-ibt": "./test/support/games/iracing-ibt.ts",
     "./test-support/recordings": "./test/support/recordings.ts",
     "./game-parser": "./src/game-parser.ts"

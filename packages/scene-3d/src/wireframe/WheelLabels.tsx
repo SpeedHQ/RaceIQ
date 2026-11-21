@@ -19,7 +19,9 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
 export type WheelLabelConfig = {
   temperatureReadings: TireTemperatureReading[]; carcassBands: readonly [number | null, number | null, number | null]; fmtTemp: (value: number) => string;
   temperatureThresholds: { cold: number; warm: number; hot: number }; temperatureLabels: Record<"inner" | "middle" | "outer" | "core" | "carcass" | "surface", string>; displayBrakeTemp?: string | null;
-  wear: number | null; wearRate: number; brakeTemp: number | null; pressurePsi: number | null; pressureOptimal?: { min: number; max: number };
+  pitTemperatureLabel: string; carcassLabel: string; pitHealthLabel: string; coldPressureLabel: string; pressureLabel: string; brakeLabel: string; wearRateLabel: string; snapshotStaleLabel: string;
+  wear: number | null; wearRate: number; brakeTemp: number; pressurePsi: number | null; coldPressure: boolean; pitHealth?: boolean; pitTemperature?: boolean; pressureOptimal?: { min: number; max: number };
+  historicalSnapshot?: boolean;
   side: "left" | "right"; isRear: boolean;
 };
 export type WheelLabelResource = {
@@ -28,26 +30,33 @@ export type WheelLabelResource = {
   contentKey: string; baseScale: number; cardHeight: number;
 };
 type LabelCell = { label: string; text: string; color: string };
-type LabelRow = { kind: "health"; label: string; values: LabelCell[] } | { kind: "profile"; label: string; values: LabelCell[] } | { kind: "stat"; label: string; values: LabelCell[] };
-function labelRows(config: WheelLabelConfig): LabelRow[] {
+type LabelRow = { kind: "health" | "profile" | "stat" | "note"; label: string; values: LabelCell[] };
+export function wheelLabelRows(config: WheelLabelConfig): LabelRow[] {
   const { temperatureReadings, temperatureThresholds } = config;
+  const carcassLabel = config.pitTemperature ? config.pitTemperatureLabel : config.carcassLabel;
   const cell = (kind: string, temperature: number | null): LabelCell => ({
     label: config.temperatureLabels[kind as keyof typeof config.temperatureLabels] ?? config.temperatureLabels.surface,
-    text: temperature == null ? "—" : config.fmtTemp(temperature),
-    color: temperature == null ? "var(--status-unavailable)" : tireTempColor(temperature, temperatureThresholds),
+    text: typeof temperature === "number" && Number.isFinite(temperature) ? config.fmtTemp(temperature) : "—",
+    color: typeof temperature === "number" && Number.isFinite(temperature) ? tireTempColor(temperature, temperatureThresholds) : "var(--status-unavailable)"
   });
   const surface = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
   const carcassKinds = config.side === "left" ? ["outer", "middle", "inner"] : ["inner", "middle", "outer"];
   const carcass = config.carcassBands.map((value, index) => cell(carcassKinds[index], value));
-  const rows: LabelRow[] = [{ kind: "health", label: `${config.isRear ? "R" : "F"}${config.side === "left" ? "L" : "R"}`, values: [{ label: "", text: config.wear === null ? "—" : `${Math.round((1 - config.wear) * 100)}%`, color: config.wear === null ? "var(--status-unavailable)" : severityRangeColor(config.wear, [0.3, 0.6]) }] }];
+  const validWear = config.wear != null && Number.isFinite(config.wear) && config.wear >= 0 && config.wear <= 1 ? config.wear : null;
+  const wearCell: LabelCell = validWear == null
+    ? { label: "", text: "—", color: "var(--status-unavailable)" }
+    : { label: "", text: `${Math.round((1 - validWear) * 100)}%`, color: severityRangeColor(validWear, [0.3, 0.6]) };
+  const wheelName = `${config.isRear ? "R" : "F"}${config.side === "left" ? "L" : "R"}`;
+  const rows: LabelRow[] = [{ kind: "health", label: config.pitHealth ? `${wheelName} · ${config.pitHealthLabel}` : wheelName, values: [wearCell] }];
   if (surface.length) rows.push({ kind: "profile", label: config.temperatureLabels.surface, values: surface.map(({ kind, value }) => cell(kind, value)) });
   else { const reading = temperatureReadings.find(({ kind }) => kind === "surface"); if (reading) rows.push({ kind: "profile", label: config.temperatureLabels.surface, values: [cell("surface", reading.value)] }); }
-  if (carcass.some(({ text }) => text !== "—")) rows.push({ kind: "profile", label: config.temperatureLabels.carcass, values: carcass });
-  else { const reading = temperatureReadings.find(({ kind }) => kind === "carcass"); if (reading) rows.push({ kind: "profile", label: config.temperatureLabels.carcass, values: [cell("carcass", reading.value)] }); }
+  if (carcass.some(({ text }) => text !== "—")) rows.push({ kind: "profile", label: carcassLabel, values: carcass });
+  else { const reading = temperatureReadings.find(({ kind }) => kind === "carcass"); if (reading) rows.push({ kind: "profile", label: carcassLabel, values: [cell("carcass", reading.value)] }); }
   for (const reading of temperatureReadings) if (reading.kind === "core") rows.push({ kind: "stat", label: config.temperatureLabels.core, values: [cell("core", reading.value)] });
-  if (config.displayBrakeTemp && config.brakeTemp !== null) rows.push({ kind: "stat", label: "Brake", values: [{ label: "", text: config.displayBrakeTemp, color: brakeTempColor(config.brakeTemp, config.isRear) }] });
-  if (config.pressurePsi !== null) rows.push({ kind: "stat", label: "Pressure", values: [{ label: "", text: `${config.pressurePsi.toFixed(1)} psi`, color: tirePressureColor(config.pressurePsi, config.pressureOptimal) }] });
-  if (config.wearRate > 0.0001) rows.push({ kind: "stat", label: "Wear", values: [{ label: "", text: `-${(config.wearRate * 100).toFixed(2)}%/s`, color: "var(--telemetry-wear)" }] });
+  if (config.pressurePsi != null && Number.isFinite(config.pressurePsi) && config.pressurePsi > 0) rows.push({ kind: "stat", label: config.coldPressure ? config.coldPressureLabel : config.pressureLabel, values: [{ label: "", text: `${config.pressurePsi.toFixed(1)} psi`, color: config.coldPressure ? "var(--app-text-muted)" : tirePressureColor(config.pressurePsi, config.pressureOptimal) }] });
+  rows.push({ kind: "stat", label: config.brakeLabel, values: [{ label: "", text: config.displayBrakeTemp && Number.isFinite(config.brakeTemp) ? config.displayBrakeTemp : "—", color: config.displayBrakeTemp && Number.isFinite(config.brakeTemp) ? brakeTempColor(config.brakeTemp, config.isRear) : "var(--status-unavailable)" }] });
+  if (Number.isFinite(config.wearRate) && config.wearRate > 0.0001) rows.push({ kind: "stat", label: config.wearRateLabel, values: [{ label: "", text: `-${(config.wearRate * 100).toFixed(2)}%/s`, color: "var(--telemetry-wear)" }] });
+  if (config.historicalSnapshot) rows.push({ kind: "note", label: config.snapshotStaleLabel, values: [] });
   return rows;
 }
 export function createWheelLabelResource(scene: THREE.Scene, config: WheelLabelConfig): WheelLabelResource {
@@ -63,7 +72,7 @@ export function createWheelLabelResource(scene: THREE.Scene, config: WheelLabelC
 }
 /** Coalesces live card changes to 100ms while playing; generation changes force immediate seek/pause/setting paints. */
 export function updateWheelLabelResource(resource: WheelLabelResource, config: WheelLabelConfig, now: number, generation: number, playbackActive: boolean): void {
-  const rows = labelRows(config), key = JSON.stringify(rows);
+  const rows = wheelLabelRows(config), key = JSON.stringify(rows);
   resource.policy.update(key, now, generation);
   const content = resource.policy.consume(now, playbackActive, generation);
   if (content === undefined && resource.contentKey) return;
@@ -79,6 +88,13 @@ export function updateWheelLabelResource(resource: WheelLabelResource, config: W
   parsed.forEach((row) => {
     const rowHeight = row.kind === "profile" && row.values.length > 1 ? ROW_H * 2 : ROW_H;
     const y = rowTop + rowHeight / 2;
+    if (row.kind === "note") {
+      resource.ctx.font = "var(--font-weight-medium) 16px var(--font-mono)";
+      resource.ctx.textAlign = "left"; resource.ctx.fillStyle = "var(--status-unavailable)";
+      resource.ctx.fillText(row.label, 14, rowTop + rowHeight / 2, CARD_W - 28);
+      rowTop += rowHeight;
+      return;
+    }
     if (row.kind === "profile") {
       if (row.values.length === 1) {
         resource.ctx.font = "var(--font-weight-bold) 20px var(--font-mono)";
@@ -105,14 +121,14 @@ export function updateWheelLabelResource(resource: WheelLabelResource, config: W
     } else {
       resource.ctx.font = "var(--font-weight-bold) 20px var(--font-mono)";
       resource.ctx.textAlign = "left"; resource.ctx.fillStyle = row.kind === "health" ? "var(--app-text)" : "var(--app-text-muted)";
-      resource.ctx.fillText(row.label, 14, y);
+      resource.ctx.fillText(row.label, 14, y, row.kind === "health" && config.pitHealth ? CARD_W * 0.55 : CARD_W - 28);
       const item = row.values[0];
       resource.ctx.fillStyle = item.color;
       resource.ctx.font = "var(--font-weight-bold) 18px var(--font-mono)";
       if (row.kind === "health") {
         const heartSize = 12;
         const textWidth = resource.ctx.measureText(item.text).width;
-        const left = CARD_W / 2 - (heartSize * 2 + 10 + textWidth) / 2;
+        const left = config.pitHealth ? CARD_W - 14 - (heartSize * 2 + 10 + textWidth) : CARD_W / 2 - (heartSize * 2 + 10 + textWidth) / 2;
         resource.ctx.textAlign = "left";
         drawHeart(resource.ctx, left + heartSize, y, heartSize);
         resource.ctx.fillText(item.text, left + heartSize * 2 + 10, y);

@@ -19,7 +19,6 @@ const adapterCases: Array<{
   tireTemperature: TelemetryModel["tireTemperature"]["packetUnit"];
   scalarMetrics: ScalarMetric[];
   brakeTemperature: boolean;
-  tirePressure: boolean;
   ers: boolean;
   sourceChannels: SourceChannel[];
 }> = [
@@ -29,7 +28,6 @@ const adapterCases: Array<{
     tireTemperature: "fahrenheit",
     scalarMetrics: ["boost", "power", "torque"],
     brakeTemperature: false,
-    tirePressure: false,
     ers: false,
     sourceChannels: ["clutch", "handBrake"],
   },
@@ -39,7 +37,6 @@ const adapterCases: Array<{
     tireTemperature: "celsius",
     scalarMetrics: ["power"],
     brakeTemperature: true,
-    tirePressure: true,
     ers: true,
     sourceChannels: ["clutch", "weather"],
   },
@@ -49,7 +46,6 @@ const adapterCases: Array<{
     tireTemperature: "celsius",
     scalarMetrics: [],
     brakeTemperature: true,
-    tirePressure: true,
     ers: false,
     sourceChannels: ["pitStatus"],
   },
@@ -59,7 +55,6 @@ const adapterCases: Array<{
     tireTemperature: "celsius",
     scalarMetrics: [],
     brakeTemperature: true,
-    tirePressure: true,
     ers: false,
     sourceChannels: ["weather", "pitStatus"],
   },
@@ -69,7 +64,6 @@ const adapterCases: Array<{
     tireTemperature: "celsius",
     scalarMetrics: [],
     brakeTemperature: false,
-    tirePressure: true,
     ers: false,
     sourceChannels: ["clutch", "pitStatus"],
   },
@@ -79,7 +73,6 @@ const adapterCases: Array<{
     tireTemperature: "celsius",
     scalarMetrics: ["power", "torque"],
     brakeTemperature: true,
-    tirePressure: true,
     ers: false,
     sourceChannels: ["clutch", "weather", "pitStatus"],
   },
@@ -96,9 +89,6 @@ describe("game telemetry models", () => {
       );
       expect(model.brakeTemperature !== undefined).toBe(
         expected.brakeTemperature,
-      );
-      expect(model.tirePressure !== undefined).toBe(
-        expected.tirePressure,
       );
       expect(model.ers !== undefined).toBe(expected.ers);
 

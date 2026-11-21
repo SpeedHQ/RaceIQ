@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 export const ROOT = resolve(import.meta.dir, "../../../../..");
 
 export function upgradeEnvironment(dataDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", SERVER_HOST: "127.0.0.1" };
+  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", RACEIQ_E2E: "1", SERVER_HOST: "127.0.0.1" };
   delete env.RACEIQ_TEST_MODE;
   delete env.DB_IN_MEMORY;
   delete env.RACEIQ_TEST_DATA_DIR;

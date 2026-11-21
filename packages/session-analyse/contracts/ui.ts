@@ -34,6 +34,7 @@ export interface SessionAnalyseHost {
   DialogTitle: ComponentType<BaseDialog.Title.Props>;
   SearchSelect: ComponentType<{ value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; ariaLabel?: string; className?: string }>;
   LapAnalyse: ComponentType<{ sessionId?: number }>;
+  IRacingIncidentReport: ComponentType<{ sessionId: number }>;
   TireGrid: ComponentType<{
     title?: string;
     corners: Record<CornerKey, TireSnapshot>;

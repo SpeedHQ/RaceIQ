@@ -87,9 +87,9 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       testMatch: nativeGpuSpecs,
       workers: 1,
       use: {
+        channel: process.platform === "win32" ? "chromium" : undefined,
         baseURL: seededBaseURL,
         viewport: { width: 1440, height: 900 },
-        channel: process.platform === "win32" ? "chromium" : undefined,
         launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : process.platform === "win32" ? ["--use-angle=d3d11"] : [])] },
       },
     },

@@ -76,12 +76,18 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
 }
 
 export async function exercise3dGuide(page: Page, assertClosed = true): Promise<void> {
-  const tires = page.locator("[data-tire-panel-toggle]");
-  await tires.click();
-  const panel = page.locator("#replay-car-panel");
-  await expect(panel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
-  await expect(panel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
-  await tires.click();
+  if (await page.locator("[data-iracing-replay-data]").count()) {
+    await expect(page.getByRole("tab", { name: "3D", exact: true })).toHaveCount(0);
+    await expect(page.locator("[data-iracing-replay-data]").locator("dt", { hasText: /^Speed$/ })).toBeVisible();
+    await expect(page.locator("[data-iracing-replay-data]").locator("dt", { hasText: /^RPM$/ })).toBeVisible();
+  } else {
+    const tires = page.locator("[data-tire-panel-toggle]");
+    await tires.click();
+    const panel = page.locator("#replay-car-panel");
+    await expect(panel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
+    await expect(panel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
+    await tires.click();
+  }
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guide = page.getByRole("dialog", { name: "Data Panel Guide" });
   await expect(guide).toBeVisible();

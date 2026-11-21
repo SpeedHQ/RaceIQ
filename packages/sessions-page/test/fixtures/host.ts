@@ -135,6 +135,8 @@ export const m: SessionsMessages = {
 export const host: SessionsPageHost = {
   useOpponentLapCatalog: () => ({ isLoading: false, isFetching: false, refetch: async () => undefined }),
   m,
+  IbtImportPreviewModal: () => null,
+  useIbtImport: unexpectedCall,
   Button: () => null,
   Badge: () => null,
   Table: () => null,

@@ -112,7 +112,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const lapTelemetryAvailable = telemetryAvailable !== undefined
     ? Boolean(telemetryAvailable)
     : _rawFile !== undefined
-      ? _rawFile !== null && rawByteOffset != null && (rawFrameCount ?? 0) > 0
+      ? _rawFile !== null && !_rawFile.endsWith("manifest.json") && rawByteOffset != null && (rawFrameCount ?? 0) > 0
       : undefined;
 
   return {
@@ -132,7 +132,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tuneName: tuneName ?? undefined,
     gameId: gameId as GameId,
     sectorTimes: sectorTimes ?? undefined,
-    source: (source as "motec" | null) ?? null,
+    source: source === "motec" || source === "ibt" ? source : null,
     ownership: ownership === "others" ? "others" : "mine",
     experimentId: experimentId ?? null,
     experimentVersionId: experimentVersionId ?? null,

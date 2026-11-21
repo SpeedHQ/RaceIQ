@@ -10,12 +10,14 @@ import { SCENE_PRESENTATION } from "../wireframe-utils";
 import { semanticNumber, type SemanticAnalysisFrame } from "../semantic-frame";
 import { createCarBody, type CarBodyInstance } from "./CarBody";
 import { SceneOverlays } from "./SceneOverlays";
+import type { Point } from "./ScenePlacement";
+import type { ScenePose } from "./ScenePlacement";
 
 export type SceneTrackBoundaries = {
-  leftEdge: { x: number; z: number }[];
-  rightEdge: { x: number; z: number }[];
-  raceLine?: { x: number; z: number }[] | null;
-  additionalSections?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] }[];
+  leftEdge: Point[];
+  rightEdge: Point[];
+  raceLine?: Point[] | null;
+  additionalSections?: { leftEdge: Point[]; rightEdge: Point[] }[];
 };
 
 type Ref<T> = { current: T };
@@ -40,8 +42,11 @@ export interface SceneRuntimeConfig {
   frame: SemanticAnalysisFrame;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
-  outline: { x: number; z: number }[] | null;
+  measuredPath?: { x: number; z: number; y?: number }[] | null;
+  poses?: (ScenePose | null)[];
   boundaries: SceneTrackBoundaries | null;
+  /** Boundary geometry must share the position frame, not merely the same game. */
+  boundarySpace?: ScenePose["source"];
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
@@ -55,6 +60,7 @@ export interface SceneRuntimeConfig {
   temperatureThresholds: { cold: number; warm: number; hot: number };
   temperatureSemanticId: TelemetryVariableId;
   temperatureLabels: Record<"inner" | "middle" | "outer" | "core" | "carcass" | "surface", string>;
+  wheelLabelMessages: { pitTemperature: string; carcass: string; pitHealth: string; coldPressure: string; pressure: string; brake: string; wearRate: string; snapshotStale: string };
 }
 
 
@@ -372,7 +378,7 @@ export class SceneRuntime {
     this.bodyMotion.position.set(-0.065, -((fl + fr + rl + rr) / 4 - 0.5) * stroke, 0);
     this.bodyMotion.rotation.set(((fr + rr - fl - rl) / 2) * 0.1, 0, ((fl + fr - rl - rr) / 2) * 0.06);
     if (config.autoOrbit) {
-      const yaw = semanticNumber(frame, "motion.yaw") ?? 0;
+      const yaw = config.poses?.[cursorIdx]?.yaw ?? semanticNumber(frame, "motion.yaw") ?? 0;
       if (!Number.isFinite(this.smoothYaw) || !this.source?.playing) this.smoothYaw = yaw;
       else {
         let difference = yaw - this.smoothYaw;

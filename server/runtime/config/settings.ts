@@ -61,6 +61,7 @@ const AppSettingsSchema = z.object({
   sessionDownsampleEnabled: z.boolean().default(false),
   sessionDownsampleAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(30),
   sessionDownsampleFrequencyHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]).default(50),
+  iracingCaptureEnabled: z.boolean().default(false),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
   // Community-tunes CDN sync bookkeeping. Not user-facing; written by the

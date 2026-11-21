@@ -49,6 +49,10 @@ Fresh-install wizard attempts reset both `settings.json` and the isolated databa
 
 Specs that validate analyst output import the pure schema from `@raceiq/backend-core/ai/output-schema`. The server's `ai/schemas` module also owns setup-catalog validation and must not be loaded by the Node-based Playwright discovery process.
 
+Seeded Analyse readiness checks use the lap timeline rather than data-panel headings. iRacing renders recorded telemetry as definition lists, input meters, and wheel tables instead of the shared 3D/2D vehicle panel; assertions must read the individual channel value from that layout. Committed iRacing recording replay exercises stream delivery and reconnect, but does not count as fresh live SDK telemetry, so the live dashboard remains in its waiting state.
+
+Comparison routes default to Spectate. Track-catalog navigation checks wait for its named time-delta status; saved Compare chat checks assert the expanded AI Analysis control and visible panel rather than the former AI Compare heading.
+
 
 Recording-location migration coverage lives in `tests/fresh-install/recording-location-migration.spec.ts`. It converts a real capture in an isolated offline database with `bun run apps/backend/scripts/data/seed-db.ts --games=fm-2023 --fixtures=test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz --legacy-recordings`, imports the sparse capture through the running app's API, then prepares the returned sessions in the legacy folder layout. The test verifies initial file/session counts, required consent, byte-preserving organization under `<game>/own` in a selected folder, preservation of unrelated destination files, source removal, and persisted recording-directory settings. It deletes imported sessions, restores settings, and removes disposable files and folders afterward.
 
@@ -85,6 +89,9 @@ Track catalog checks cover the Debug tab in dev mode and assert its absence in c
 
 Launchers create configured E2E data directories and delete only their SQLite database files at startup. They preserve non-database fixture files and do not perform teardown cleanup. Seeded tests share one isolated server per shard; tests that mutate notes, imports, sessions, or settings must restore their own state. CI containers are disposable.
 
+E2E launchers set `RACEIQ_E2E=1`, which disables automatic native game discovery so a simulator running on the developer's machine cannot alter fixture state. Captured-data imports, application HTTP routes, workers, and explicitly replayed UDP traffic still use their real production paths. Historical upgrade fixtures install and seed with the Bun version declared by the pinned release while retaining frozen-lockfile installation.
+
+Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for all five seeded games, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db` and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
 Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for every configured seeded game, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db`, chat memory, and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
 
 Linux compiled E2E jobs reuse the upstream Linux `raceiq-dist` artifact instead of rebuilding the client and server in every shard. Other platforms build their own binary; callers without an artifact still build locally. CI runs Bun with `BUN_OPTIONS=--smol` so replay allocations are collected sooner within the runner's memory budget.

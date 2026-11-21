@@ -402,14 +402,15 @@ test("replays standalone manifest chunks once, including null-emission source fr
   await expect(async () => {
     for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
   }).toThrow(/not record-aligned/);
-  const outsidePath = join(tmpdir(), `raceiq-outside-${Date.now()}.bin`);
+  const outsideDirectory = mkdtempSync(join(tmpdir(), `raceiq-outside-${Date.now()}-`));
+  const outsidePath = join(outsideDirectory, "escape.bin");
   writeFileSync(outsidePath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
-  symlinkSync(outsidePath, join(directory, "escape.bin"));
+  symlinkSync(outsideDirectory, join(directory, "escape-dir"), "junction");
   changed.chunks[1].sourceRecordByteOffset = contextPrefix.length;
-  changed.chunks[0].path = "escape.bin";
+  changed.chunks[0].path = "escape-dir/escape.bin";
   writeFileSync(rawFile, JSON.stringify(changed));
   await expect(async () => {
     for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
   }).toThrow(/escapes capture directory/);
-  rmSync(outsidePath);
+  rmSync(outsideDirectory, { recursive: true, force: true });
 });

@@ -7,15 +7,17 @@ import { and, eq } from "drizzle-orm";
 import {
   existsSync,
   readFileSync,
-  rmSync,
+  readdirSync,
 } from "node:fs";
+import { basename } from "node:path";
+import { db } from "@raceiq/backend-core/db/index";
 import { getDiscoveredCarName } from "@raceiq/backend-core/db/discovered-cars";
 import { getDiscoveredTrackName } from "@raceiq/backend-core/db/discovered-tracks";
-import { db } from "@raceiq/backend-core/db/index";
-import { discoveredCars, discoveredTracks } from "@raceiq/backend-core/db/schema";
+import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { discoveredCars, discoveredTracks, sessions } from "@raceiq/backend-core/db/schema";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
-import { commitStagedIbt, stageIbtUpload } from "../../src/imports/iracing-ibt";
+import { cancelStagedIbt, commitStagedIbt, stageIbtUpload } from "../../src/imports/iracing-ibt";
 import { previewIbtFile } from "@raceiq/game-iracing/ibt-preview";
 import { initServerGameAdapters } from "../../src/games/init";
 import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
@@ -52,7 +54,7 @@ describe("IRacingIbt import workflow", () => {
     }
   });
 
-  test("commits a staged IBT through the normal pipeline and canonical recorder", async () => {
+  test("commits a staged IBT through the normal pipeline and stores original source", async () => {
     const importedIdentity: SyntheticIdentity = {
       trackId: 910_099,
       trackName: "Imported Raceway",
@@ -76,13 +78,15 @@ describe("IRacingIbt import workflow", () => {
 
       let sessionId: number | null = null;
       let rawFile: string | null = null;
+      let filesBeforeImport: Set<string> | null = null;
       try {
         const staged = await stageIbtUpload(
           body,
           "driven.ibt",
           bytes.byteLength,
         );
-        expect(staged.token).not.toBeNull();
+        const recordingDirectory = resolveRecordingGameDirectory("iracing");
+        filesBeforeImport = new Set(existsSync(recordingDirectory) ? readdirSync(recordingDirectory) : []);
         expect(staged.preview.candidateLapCount).toBe(1);
 
         const imported = await commitStagedIbt(staged.token!);
@@ -109,11 +113,17 @@ describe("IRacingIbt import workflow", () => {
         sessionId = imported.laps[0].sessionId;
         const [stored] = await getLapsRaw([imported.laps[0].lapId]);
         rawFile = stored?.rawFile ?? null;
-        expect(rawFile).toEndWith(".bin");
+        expect(rawFile).toEndWith(".ibt");
         expect(rawFile ? existsSync(rawFile) : false).toBe(true);
+        expect(rawFile ? readFileSync(rawFile).equals(bytes) : false).toBe(true);
+        const newFiles = readdirSync(resolveRecordingGameDirectory("iracing")).filter((file) => !filesBeforeImport?.has(file));
+        expect(newFiles).toContain(basename(rawFile!));
+        expect(newFiles.some((file) => file.endsWith(".bin"))).toBe(false);
+        const [session] = await db.select({ source: sessions.source }).from(sessions).where(eq(sessions.id, sessionId!)).all();
+        expect(session?.source).toBe("ibt");
       } finally {
         if (sessionId !== null) await deleteSession(sessionId);
-        if (rawFile) rmSync(rawFile, { force: true });
+        expect(rawFile ? existsSync(rawFile) : false).toBe(false);
         await db
           .delete(discoveredCars)
           .where(
@@ -146,6 +156,23 @@ describe("IRacingIbt import workflow", () => {
       expect(preview.canImport).toBe(false);
       expect(preview.candidateLapCount).toBe(0);
       expect(preview.reason).toContain("No complete laps");
+    } finally {
+      recording.cleanup();
+    }
+  });
+  test("cancel removes staged IBT and prevents commit", async () => {
+    const recording = createRecording("cancel.ibt", drivenRows());
+    try {
+      const bytes = readFileSync(recording.path);
+      const staged = await stageIbtUpload(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }), "cancel.ibt", bytes.byteLength);
+      expect(staged.token).not.toBeNull();
+      cancelStagedIbt(staged.token!);
+      await expect(commitStagedIbt(staged.token!)).rejects.toThrow("expired or was already used");
     } finally {
       recording.cleanup();
     }

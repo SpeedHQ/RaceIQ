@@ -28,7 +28,11 @@ export const FIXTURES: Record<GameId, string[]> = {
   "f1-2025": ["test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz"],
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
-  iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
+  iracing: [
+    "test/artifacts/sessions/iracing-road-america-gt3.bin.gz",
+    "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz",
+    "test/artifacts/sessions/iracing-navarra-mx5-2026-10-19.ibt",
+  ],
   ams2: ["test/artifacts/sessions/ams2-race-pit-stop.bin.gz"],
   lmu: [...LMU_MULTIPLAYER_FIXTURE_PARTS],
 };

@@ -45,6 +45,7 @@ This folder is source of truth for:
   3. add/adjust derivation registration in `@raceiq/telemetry-core/telemetry/derivations/builtins` only when semantic-level computation is intentional.
   4. update schema/consumer code where semantic IDs are enumerated explicitly.
 - Never edit generated outputs by hand; edit only source inputs.
+- iRacing IBT imports retain car-specific `dcBrakeBias` as `brakes.brake-bias`: direct front-axle percent (`50` means `50%`, not `0.5%`). An absent variable or non-finite sample remains unavailable; no setup-value fallback or live-capture enrichment is applied. Supplemental catalog inventory marks IBT retention without claiming the live SDK capture allowlist includes this channel.
 
 ## Generated/static artifacts
 Generated outputs under `shared/telemetry/catalog/generated`:

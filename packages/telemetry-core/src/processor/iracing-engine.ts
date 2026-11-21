@@ -167,6 +167,11 @@ export class IRacingDetectorEngine {
     if (this.physicalLap === null) { this.physicalLap = packet.LapNumber; await this.options.feed(packet, sourceOffset, sourceOrdinal); return; }
     if (packet.LapNumber === this.physicalLap) {
       if (this.deferred.length === 0) { await this.options.feed(packet, sourceOffset, sourceOrdinal); return; }
+      if (this.deferred.length >= MAX_DEFERRED_PACKETS) {
+        await this.releaseDeferredIncomplete(sourceOrdinal === undefined ? undefined : sourceOrdinal - 1);
+        await this.options.feed(packet, sourceOffset, sourceOrdinal);
+        return;
+      }
       this.defer(packet, sourceOffset, sourceOrdinal);
       if (this.nativeTimingRolled(packet)) await this.releaseDeferred(packet.LastLap);
       return;
@@ -181,7 +186,9 @@ export class IRacingDetectorEngine {
       await this.options.feed({ ...packet, LastLap: 0 }, sourceOffset, sourceOrdinal);
       return;
     }
-    if (this.deferred.length > 0) throw new Error("iRacing deferred packet window crossed another lap before native timing resolved; capture stopped to prevent frame loss");
+    if (this.deferred.length > 0) {
+      await this.releaseDeferredIncomplete(rawOrdinal === undefined ? undefined : rawOrdinal - 1);
+    }
     this.staleLastLap = packet.LastLap; this.peakNativeCurrentLap = 0;
     this.defer(packet, sourceOffset, sourceOrdinal);
   }

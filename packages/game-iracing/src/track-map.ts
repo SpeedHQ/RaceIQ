@@ -4,15 +4,19 @@ import { getIRacingOvalDirection, getIRacingTrack } from "@raceiq/game-iracing-m
 import { gameCatalogDir, USER_TRACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 import { parseIRacingActiveSvg, parseIRacingPitRoadSvg, type IRacingSvgTrackMap } from "./track-map-svg";
 
-interface CachedMapFile extends Omit<IRacingSvgTrackMap, "pitLines"> {
+interface CachedMapFile extends Omit<IRacingSvgTrackMap, "pitLines" | "startFinishAligned" | "forwardDirectionKnown" | "ribbonEdges"> {
   version: 4;
   mapUrl: string;
   pitLines?: IRacingSvgTrackMap["pitLines"];
+  startFinishAligned?: boolean;
+  forwardDirectionKnown?: boolean;
+  ribbonEdges?: IRacingSvgTrackMap["ribbonEdges"];
 }
 
 interface CachedMapResult {
   map: IRacingSvgTrackMap;
   hasPitLineLayer: boolean;
+  hasRibbonLayer: boolean;
 }
 
 export const IRACING_MAP_CACHE_VERSION = 4;
@@ -43,15 +47,26 @@ function readCachedMap(ordinal: number, mapUrl: string): CachedMapResult | null 
       const valid = parsed.version === IRACING_MAP_CACHE_VERSION && parsed.mapUrl === mapUrl && Array.isArray(parsed.points) && parsed.points.length >= 20 && Array.isArray(parsed.labels);
       if (!valid) continue;
       const hasPitLineLayer = Array.isArray(parsed.pitLines);
+      const hasRibbonLayer = parsed.ribbonEdges === null || (
+        Array.isArray(parsed.ribbonEdges?.leftEdge) && Array.isArray(parsed.ribbonEdges?.rightEdge)
+        && parsed.ribbonEdges.leftEdge.length === parsed.points.length
+        && parsed.ribbonEdges.rightEdge.length === parsed.points.length
+        && parsed.ribbonEdges.leftEdge.every(({ x, z }) => Number.isFinite(x) && Number.isFinite(z))
+        && parsed.ribbonEdges.rightEdge.every(({ x, z }) => Number.isFinite(x) && Number.isFinite(z))
+      );
       const cached: CachedMapResult = {
         map: {
           points: parsed.points,
           labels: parsed.labels,
           pitLines: hasPitLineLayer ? parsed.pitLines! : [],
+          startFinishAligned: parsed.startFinishAligned === true,
+          forwardDirectionKnown: parsed.forwardDirectionKnown === true,
+          ribbonEdges: hasRibbonLayer ? parsed.ribbonEdges ?? null : null,
         },
         hasPitLineLayer,
+        hasRibbonLayer,
       };
-      if (hasPitLineLayer) return cached;
+      if (hasPitLineLayer && hasRibbonLayer) return cached;
       incomplete ??= cached;
     } catch {
       continue;
@@ -72,6 +87,9 @@ function writeCachedMap(ordinal: number, mapUrl: string, map: IRacingSvgTrackMap
         points: map.points,
         labels: map.labels,
         ...(includePitLines && { pitLines: map.pitLines }),
+        startFinishAligned: map.startFinishAligned,
+        forwardDirectionKnown: map.forwardDirectionKnown,
+        ribbonEdges: map.ribbonEdges,
       } satisfies CachedMapFile),
     );
   } catch (error) {
@@ -102,8 +120,12 @@ export function orientIRacingOvalMap(map: IRacingSvgTrackMap, direction: "left" 
     const next = map.points[(index + 1) % map.points.length];
     signedArea += point.x * next.z - next.x * point.z;
   }
-  if ((signedArea > 0) === (direction === "left")) return map;
-  return { ...map, points: [map.points[0], ...map.points.slice(1).reverse()] };
+  if ((signedArea > 0) === (direction === "left")) return map.forwardDirectionKnown ? map : { ...map, forwardDirectionKnown: true };
+  const reverse = <T>(points: T[]) => [points[0], ...points.slice(1).reverse()];
+  return {
+    ...map, points: reverse(map.points), forwardDirectionKnown: true,
+    ribbonEdges: map.ribbonEdges ? { leftEdge: reverse(map.ribbonEdges.rightEdge), rightEdge: reverse(map.ribbonEdges.leftEdge) } : null,
+  };
 }
 
 async function loadMap(ordinal: number): Promise<IRacingSvgTrackMap | null> {
@@ -112,10 +134,12 @@ async function loadMap(ordinal: number): Promise<IRacingSvgTrackMap | null> {
   const mapUrl = track.mapUrl;
   if (!mapUrl.startsWith(PUBLIC_MAP_PREFIX)) return null;
   const direction = getIRacingOvalDirection(ordinal);
-  const orient = (map: IRacingSvgTrackMap) => direction ? orientIRacingOvalMap(map, direction) : map;
+  const orient = (map: IRacingSvgTrackMap) => direction
+    ? orientIRacingOvalMap(map, direction)
+    : map;
   const cached = readCachedMap(ordinal, mapUrl);
-  if (cached?.hasPitLineLayer) return orient(cached.map);
-  if (cached) {
+  if (cached?.hasPitLineLayer && cached.hasRibbonLayer && cached.map.startFinishAligned && (cached.map.forwardDirectionKnown || direction)) return orient(cached.map);
+  if (cached?.hasRibbonLayer && cached.map.startFinishAligned && (cached.map.forwardDirectionKnown || direction)) {
     const pitRoadSvg = track.pitMapUrl ? await fetchSvg(track.pitMapUrl) : null;
     const upgraded = { ...cached.map, pitLines: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [] };
     if (pitRoadSvg || !track.pitMapUrl) writeCachedMap(ordinal, mapUrl, upgraded);
@@ -129,11 +153,14 @@ async function loadMap(ordinal: number): Promise<IRacingSvgTrackMap | null> {
     fetchSvg(track.turnsMapUrl || layerUrl("turns.svg")),
     track.pitMapUrl ? fetchSvg(track.pitMapUrl) : null,
   ]);
-  if (!activeSvg) return null;
+  if (!activeSvg) {
+    memoryCache.delete(ordinal);
+    return cached ? orient(cached.map) : null;
+  }
   const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, pitRoadSvg);
   const oriented = map ? orient(map) : null;
   if (oriented) writeCachedMap(ordinal, mapUrl, oriented, !!pitRoadSvg || !track.pitMapUrl);
-  if (!pitRoadSvg && track.pitMapUrl) memoryCache.delete(ordinal);
+  if ((!pitRoadSvg && track.pitMapUrl) || !oriented?.startFinishAligned || !oriented.forwardDirectionKnown) memoryCache.delete(ordinal);
   return oriented;
 }
 

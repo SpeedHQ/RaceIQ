@@ -14,6 +14,7 @@ import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, METRICS, metricDisplayValue, sectorIndexForTelemetryIndex, tuneMetricValue, tuneMetricsFor } from "@/components/tunes/SectorRangeBreakdown";
 import { TrackFocusView } from "@/components/tunes/track-focus/TrackFocusView";
 import { IssuePill } from "@/components/tunes/review/ReviewIssues";
+import { IRacingIncidentReport } from "@/components/iracing/IRacingIncidentReport";
 import { useSessions } from "@/hooks/session-queries";
 import { useSessionLaps } from "@/hooks/laps";
 import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
@@ -29,7 +30,7 @@ import { m } from "@/paraglide/messages";
 
 const sessionAnalyseHost: SessionAnalyseHost = {
   m, Button, Badge, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  SearchSelect, LapAnalyse, TireGrid, SectorDetailView, SectorMap, TrackFocusView, IssuePill, CornerBars,
+  SearchSelect, LapAnalyse, IRacingIncidentReport, TireGrid, SectorDetailView, SectorMap, TrackFocusView, IssuePill, CornerBars,
   CORNERS, METRICS, bandColor, buildSectorRanges, sectorIndexForTelemetryIndex, metricDisplayValue, tuneMetricValue, tuneMetricsFor,
   useGameId, useSessions, useSessionLaps, useAlignedTelemetry, useLapIssues, useTirePressureOptimal, useUnits,
   useCarName, useTrackName, useResolveNames, getGameRoute, formatLapTime,
