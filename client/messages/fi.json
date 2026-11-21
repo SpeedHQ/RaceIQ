@@ -68,6 +68,7 @@
   "settings_setup_wizard": "Asennusvelho",
   "settings_language_search_placeholder": "Hae kieltä...",
   "settings_launch_installed_only": "Saatavilla vain asennetussa sovelluksessa",
+  "settings_launch_desktop_owned": "Hallitse kirjautumisen yhteydessä käynnistymistä RaceIQ-työpöytäsovelluksen valikkorivikuvakkeesta.",
   "settings_launch_on_login_desc": "Käynnistä RaceIQ automaattisesti, kun kirjaudut Windowsiin.",
   "settings_connection_title": "Forza-yhteys",
   "settings_connection_desc": "Aseta kuunneltava UDP-portti. Forzassa: Asetukset > Pelattavuus > Data Out > aseta IP-osoitteeksi tämän laitteen osoite ja portiksi alla oleva portti.",

@@ -68,6 +68,7 @@
   "settings_setup_wizard": "Kreator konfiguracji",
   "settings_language_search_placeholder": "Szukaj języka...",
   "settings_launch_installed_only": "Dostępne tylko w zainstalowanej aplikacji",
+  "settings_launch_desktop_owned": "Zarządzaj uruchamianiem przy logowaniu za pomocą ikony aplikacji komputerowej RaceIQ na pasku menu.",
   "settings_launch_on_login_desc": "Uruchamiaj RaceIQ automatycznie po zalogowaniu do systemu Windows.",
   "settings_connection_title": "Połączenie z Forza",
   "settings_connection_desc": "Ustaw port UDP nasłuchu. W Forza: Ustawienia > Rozgrywka > Wyjście danych > ustaw adres IP tego komputera i port poniżej.",

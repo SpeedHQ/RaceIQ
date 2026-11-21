@@ -70,6 +70,7 @@
   "settings_setup_wizard": "セットアップウィザード",
   "settings_language_search_placeholder": "言語を検索...",
   "settings_launch_installed_only": "インストール版アプリでのみ利用可能",
+  "settings_launch_desktop_owned": "ログイン時の起動は、RaceIQデスクトップアプリのメニューバーアイコンから管理できます。",
   "settings_launch_on_login_desc": "Windowsへのログイン時にRaceIQを自動起動します。",
   "settings_connection_title": "Forza接続",
   "settings_connection_desc": "待ち受けるUDPポートを設定します。Forzaで「設定」>「ゲームプレイ」>「データ出力」を開き、IPをこのマシンのアドレス、ポートを下記の値に設定してください。",

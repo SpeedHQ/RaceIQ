@@ -68,6 +68,7 @@
   "settings_setup_wizard": "설정 마법사",
   "settings_language_search_placeholder": "검색 언어...",
   "settings_launch_installed_only": "설치된 앱에서만 사용 가능",
+  "settings_launch_desktop_owned": "로그인 시 시작 설정은 RaceIQ 데스크톱 앱의 메뉴 막대 아이콘에서 관리하세요.",
   "settings_launch_on_login_desc": "Windows에 로그인하면 RaceIQ가 자동으로 시작됩니다.",
   "settings_connection_title": "포르자 연결",
   "settings_connection_desc": "수신할 UDP 포트를 설정합니다. Forza: 설정 > 게임 플레이 > 데이터 출력 > IP를 이 컴퓨터의 주소와 아래 포트로 설정합니다.",

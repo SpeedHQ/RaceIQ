@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { z } from "zod";
 import { normalizeHudHostname } from "@raceiq/shared/platform/network/hud-hostname";
 import { resolveDataDir } from "./data-dir";
-import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
+import { isDesktopStartupOwned, isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 const SETTINGS_DIR = resolveDataDir();
@@ -143,8 +143,19 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
       console.error("[Settings] Conflicting retention policies; automatic deletion disabled");
       result.sessionCleanupEnabled = false;
     }
-    // Always sync launchOnLogin from the actual registry state
-    if (options.syncLaunchOnLogin !== false) result.launchOnLogin = isLaunchOnLoginEnabled();
+    // Never mirror or mutate the shell's startup entry from backend settings.
+    if (isDesktopStartupOwned()) {
+      if (result.launchOnLogin) {
+        result.launchOnLogin = false;
+        try {
+          saveSettings(result);
+        } catch (err) {
+          console.error("[Settings] Failed to reconcile desktop startup setting:", err instanceof Error ? err.message : err);
+        }
+      }
+    } else if (options.syncLaunchOnLogin !== false) {
+      result.launchOnLogin = isLaunchOnLoginEnabled();
+    }
     return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);
@@ -156,7 +167,7 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
 export function saveSettings(settings: AppSettings): void {
   ensureSettingsDir();
   // Validate before writing
-  const validated = AppSettingsSchema.parse(settings);
+  const validated = AppSettingsSchema.parse(isDesktopStartupOwned() ? { ...settings, launchOnLogin: false } : settings);
   if (!isRecordingRetentionPolicyValid(validated)) {
     throw new Error("Automatic deletion must be scheduled after automatic downsampling.");
   }
