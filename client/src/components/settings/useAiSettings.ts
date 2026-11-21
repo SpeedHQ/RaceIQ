@@ -7,8 +7,9 @@ import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileStat
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
 import { modelsOrFallback } from "./recommended-model";
+import type { OpenAiReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
 
-type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null; reasoningEnabled: boolean };
+type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null; reasoningLevel: OpenAiReasoningLevel };
 type SavedAnalysisBaseline = SavedChatBaseline & { localEndpoint: string };
 type DriverProfileSettings = {
   driverProfileBackgroundEnabled?: boolean;
@@ -41,7 +42,7 @@ export function useAiSettings(): AiSettingsState {
   const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "");
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [thinkingBudget, setThinkingBudget] = useState<number | null>(displaySettings.aiThinkingBudget ?? null);
-  const [reasoningEnabled, setReasoningEnabled] = useState(displaySettings.aiReasoningEnabled ?? true);
+  const [reasoningLevel, setReasoningLevel] = useState(displaySettings.aiReasoningLevel ?? "medium");
   const [apiKey, setApiKey] = useState("");
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const apiKeyRef = useRef("");
@@ -54,7 +55,7 @@ export function useAiSettings(): AiSettingsState {
     provider: displaySettings.aiProvider ?? "",
     model: displaySettings.aiModel ?? "",
     thinkingBudget: (displaySettings.aiProvider ?? "") === "gemini" ? (displaySettings.aiThinkingBudget ?? null) : null,
-    reasoningEnabled: displaySettings.aiReasoningEnabled ?? true,
+    reasoningLevel: displaySettings.aiReasoningLevel ?? "medium",
     localEndpoint: displaySettings.localEndpoint ?? "http://localhost:1234/v1",
   }));
 
@@ -66,20 +67,20 @@ export function useAiSettings(): AiSettingsState {
     const nextModel = displaySettings.aiModel ?? "";
     const nextLocalEndpoint = displaySettings.localEndpoint ?? "http://localhost:1234/v1";
     const nextThinkingBudget = nextProvider === "gemini" ? (displaySettings.aiThinkingBudget ?? null) : null;
-    const nextReasoningEnabled = displaySettings.aiReasoningEnabled ?? true;
+    const nextReasoningLevel = displaySettings.aiReasoningLevel ?? "medium";
     setProvider(nextProvider);
     setModel(nextModel);
     setLocalEndpoint(nextLocalEndpoint);
     setThinkingBudget(nextThinkingBudget);
-    setReasoningEnabled(nextReasoningEnabled);
-    setAnalysisBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, reasoningEnabled: nextReasoningEnabled, localEndpoint: nextLocalEndpoint });
-  }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.aiThinkingBudget, displaySettings.aiReasoningEnabled, displaySettings.localEndpoint]);
+    setReasoningLevel(nextReasoningLevel);
+    setAnalysisBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, reasoningLevel: nextReasoningLevel, localEndpoint: nextLocalEndpoint });
+  }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.aiThinkingBudget, displaySettings.aiReasoningLevel, displaySettings.localEndpoint]);
 
   const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "");
   const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatThinkingBudget, setChatThinkingBudget] = useState<number | null>(displaySettings.chatThinkingBudget ?? null);
-  const [chatReasoningEnabled, setChatReasoningEnabled] = useState(displaySettings.chatReasoningEnabled ?? true);
+  const [chatReasoningLevel, setChatReasoningLevel] = useState(displaySettings.chatReasoningLevel ?? "medium");
   const chatApiKeyRef = useRef("");
   const setChatApiKeyValue = (value: string) => {
     chatApiKeyRef.current = value;
@@ -90,7 +91,7 @@ export function useAiSettings(): AiSettingsState {
     provider: displaySettings.chatProvider ?? "",
     model: displaySettings.chatModel ?? "",
     thinkingBudget: (displaySettings.chatProvider ?? "") === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null,
-    reasoningEnabled: displaySettings.chatReasoningEnabled ?? true,
+    reasoningLevel: displaySettings.chatReasoningLevel ?? "medium",
   }));
   const chatSynced = useRef(false);
   useEffect(() => {
@@ -99,13 +100,13 @@ export function useAiSettings(): AiSettingsState {
     const nextProvider = displaySettings.chatProvider ?? "";
     const nextModel = displaySettings.chatModel ?? "";
     const nextThinkingBudget = nextProvider === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null;
-    const nextReasoningEnabled = displaySettings.chatReasoningEnabled ?? true;
+    const nextReasoningLevel = displaySettings.chatReasoningLevel ?? "medium";
     setChatProvider(nextProvider);
     setChatModel(nextModel);
     setChatThinkingBudget(nextThinkingBudget);
-    setChatReasoningEnabled(nextReasoningEnabled);
-    setChatBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, reasoningEnabled: nextReasoningEnabled });
-  }, [settingsLoaded, displaySettings.chatProvider, displaySettings.chatModel, displaySettings.chatThinkingBudget, displaySettings.chatReasoningEnabled]);
+    setChatReasoningLevel(nextReasoningLevel);
+    setChatBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, reasoningLevel: nextReasoningLevel });
+  }, [settingsLoaded, displaySettings.chatProvider, displaySettings.chatModel, displaySettings.chatThinkingBudget, displaySettings.chatReasoningLevel]);
 
   const [autoTuneProvider, setAutoTuneProvider] = useState<string>(displaySettings.autoTuneProvider ?? "");
   const [autoTuneModel, setAutoTuneModel] = useState(displaySettings.autoTuneModel ?? "");
@@ -237,12 +238,12 @@ export function useAiSettings(): AiSettingsState {
     provider !== analysisBaseline.provider ||
     model !== analysisBaseline.model ||
     nextThinkingBudget !== analysisBaseline.thinkingBudget ||
-    reasoningEnabled !== analysisBaseline.reasoningEnabled ||
+    reasoningLevel !== analysisBaseline.reasoningLevel ||
     (provider === "openai-compatible" && localEndpoint !== analysisBaseline.localEndpoint);
   const canSaveAnalysis = analysisConfigDirty || apiKey.trim().length > 0;
   const nextChatThinkingBudget = chatProvider === "gemini" ? effectiveChatThinkingBudget : null;
   const chatConfigDirty = chatProvider !== chatBaseline.provider || chatModel !== chatBaseline.model
-    || nextChatThinkingBudget !== chatBaseline.thinkingBudget || chatReasoningEnabled !== chatBaseline.reasoningEnabled;
+    || nextChatThinkingBudget !== chatBaseline.thinkingBudget || chatReasoningLevel !== chatBaseline.reasoningLevel;
   const [providerSetupKeys, setProviderSetupKeys] = useState<Record<string, string>>({});
   const saveProviderKey = useCallback(
     async (providerKeyId: string, apiKey: string) => {
@@ -292,7 +293,7 @@ export function useAiSettings(): AiSettingsState {
       const providerKeyId = PROVIDER_KEY_MAP[provider];
       const keyPromise = apiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: apiKeyRef.current }) : null;
       const updates: Record<string, unknown> = { aiProvider: provider, aiModel: model, aiThinkingBudget: nextThinkingBudget };
-      if (reasoningEnabled !== analysisBaseline.reasoningEnabled) updates.aiReasoningEnabled = reasoningEnabled;
+      if (reasoningLevel !== analysisBaseline.reasoningLevel) updates.aiReasoningLevel = reasoningLevel;
       if (provider === "openai-compatible") updates.localEndpoint = localEndpoint;
       updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
@@ -303,12 +304,12 @@ export function useAiSettings(): AiSettingsState {
       }
       console.info(`[AI Settings] analysis save completed in ${Math.round(performance.now() - startedAt)}ms`);
       qc.invalidateQueries({ queryKey: ["settings"] });
-      setAnalysisBaseline({ provider, model, thinkingBudget: nextThinkingBudget, reasoningEnabled, localEndpoint: provider === "openai-compatible" ? localEndpoint : analysisBaseline.localEndpoint });
+      setAnalysisBaseline({ provider, model, thinkingBudget: nextThinkingBudget, reasoningLevel, localEndpoint: provider === "openai-compatible" ? localEndpoint : analysisBaseline.localEndpoint });
     } catch (err) {
       console.error(`[AI Settings] analysis save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
       setSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
     }
-  }, [analysisBaseline.localEndpoint, analysisBaseline.reasoningEnabled, apiKey, localEndpoint, model, nextThinkingBudget, provider, qc, reasoningEnabled, saveApiKey, saveSettings]);
+  }, [analysisBaseline.localEndpoint, analysisBaseline.reasoningLevel, apiKey, localEndpoint, model, nextThinkingBudget, provider, qc, reasoningLevel, saveApiKey, saveSettings]);
   useEffect(() => {
     if (!settingsLoaded || !canSaveAnalysis) return;
     const timeout = setTimeout(() => void handleSave(), 500);
@@ -320,7 +321,7 @@ export function useAiSettings(): AiSettingsState {
       const providerKeyId = PROVIDER_KEY_MAP[chatProvider];
       const keyPromise = chatApiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: chatApiKeyRef.current }) : null;
       const updates = { chatProvider, chatModel, chatThinkingBudget: nextChatThinkingBudget,
-        ...(chatReasoningEnabled !== chatBaseline.reasoningEnabled ? { chatReasoningEnabled } : {}),
+        ...(chatReasoningLevel !== chatBaseline.reasoningLevel ? { chatReasoningLevel } : {}),
       };
       updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
@@ -330,11 +331,11 @@ export function useAiSettings(): AiSettingsState {
         setChatApiKey("");
       }
       qc.invalidateQueries({ queryKey: ["settings"] });
-      setChatBaseline({ provider: chatProvider, model: chatModel, thinkingBudget: nextChatThinkingBudget, reasoningEnabled: chatReasoningEnabled });
+      setChatBaseline({ provider: chatProvider, model: chatModel, thinkingBudget: nextChatThinkingBudget, reasoningLevel: chatReasoningLevel });
     } catch (err) {
       setChatSaveError(err instanceof Error ? err.message : m.ai_save_chat_settings_failed());
     }
-  }, [chatApiKey, chatBaseline.reasoningEnabled, chatModel, chatProvider, chatReasoningEnabled, nextChatThinkingBudget, qc, saveApiKey, saveSettings]);
+  }, [chatApiKey, chatBaseline.reasoningLevel, chatModel, chatProvider, chatReasoningLevel, nextChatThinkingBudget, qc, saveApiKey, saveSettings]);
   useEffect(() => {
     if (!settingsLoaded || !canSaveChat) return;
     const timeout = setTimeout(() => void handleChatSave(), 500);
@@ -451,8 +452,8 @@ export function useAiSettings(): AiSettingsState {
       setModel,
       thinkingBudget,
       setThinkingBudget,
-      reasoningEnabled,
-      setReasoningEnabled,
+      reasoningLevel,
+      setReasoningLevel,
       apiKey,
       setApiKey: setApiKeyValue,
       localEndpoint,
@@ -483,8 +484,8 @@ export function useAiSettings(): AiSettingsState {
       setChatModel,
       chatThinkingBudget,
       setChatThinkingBudget,
-      chatReasoningEnabled,
-      setChatReasoningEnabled,
+      chatReasoningLevel,
+      setChatReasoningLevel,
       chatApiKey,
       setChatApiKey: setChatApiKeyValue,
       keyStatus,
