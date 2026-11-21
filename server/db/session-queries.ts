@@ -392,10 +392,10 @@ export async function updateSession(
   await withDatabaseWrite(() => db.update(sessions).set(updates).where(eq(sessions.id, id)).run());
 }
 
-export async function fillUnknownAcEvoSessionType(sessionId: number, sessionType: string): Promise<void> {
+export async function correctProvisionalAcEvoSessionType(sessionId: number, provisionalType: string | null, sessionType: string): Promise<void> {
+  const stillProvisional = provisionalType === null ? isNull(sessions.sessionType) : eq(sessions.sessionType, provisionalType);
   await withDatabaseWrite(() => db.update(sessions).set({ sessionType })
-    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, "ac-evo"),
-      or(isNull(sessions.sessionType), eq(sessions.sessionType, "unknown")))).run());
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, "ac-evo"), stillProvisional)).run());
 }
 
 export async function updateSessionCarTrack(

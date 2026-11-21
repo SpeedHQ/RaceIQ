@@ -94,18 +94,18 @@ describe("indexed canonical import oracle", () => {
     }
   }, 180000);
 
-  test.each([false, true])("AC EVO import corrects a late phase name unless the session was edited (%s)", async (edited) => {
+  test.each([[-1, false], [0, false], [0, true]] as const)("AC EVO import corrects provisional mode %i unless edited (%s)", async (mode, edited) => {
     const bytes = gunzipSync(readFileSync("test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"));
     const first = iterateSessionFrames(bytes).next().value!;
     const { carOrdinal, trackOrdinal, physics, graphics, staticData } = unpackTriplet(first)!;
     graphics.writeInt32LE(ACEVO_STATUS.AC_LIVE, GRAPHICS_EVO.status.offset);
     const { offset, size } = STATIC_EVO.session_name;
     staticData.fill(0, offset, offset + size);
-    staticData.writeInt32LE(-1, STATIC_EVO.session.offset);
+    staticData.writeInt32LE(mode, STATIC_EVO.session.offset);
     const startup = packTriplet(ACEVO_PACKED_MAGIC, carOrdinal, trackOrdinal, physics, graphics, staticData);
     staticData.write("Practice", offset);
     const named = packTriplet(ACEVO_PACKED_MAGIC, carOrdinal, trackOrdinal, physics, graphics, staticData);
-    const sessionSource = `ac-evo-phase-test-${edited}`;
+    const sessionSource = `ac-evo-phase-test-${mode}-${edited}`;
     async function* frames() {
       yield startup;
       if (edited) {

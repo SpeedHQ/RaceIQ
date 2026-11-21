@@ -1,4 +1,5 @@
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
+import { acEvoSessionTypeFromName } from "@raceiq/capture-formats/ac-evo/structs";
 import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { recordOpenLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
@@ -34,7 +35,7 @@ export class KunosLapDetector implements ILapDetector {
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
-  private needsAcEvoSessionType = false;
+  private provisionalAcEvoSessionType: string | null | undefined;
   private currentSession: SessionState | null = null;
   private lastAcEvoSourceIdentity: TelemetryPacket["acEvoIdentity"] | null = null;
 
@@ -52,7 +53,10 @@ export class KunosLapDetector implements ILapDetector {
         const trackId = identity?.trackId ?? packet.trackId;
         const sessionType = packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType;
         const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, sessionType);
-        this.needsAcEvoSessionType = packet.gameId === "ac-evo" && (!sessionType || sessionType === "unknown");
+        const sessionName = packet.acc?.acEvo?.sessionName;
+        this.provisionalAcEvoSessionType = packet.gameId === "ac-evo" && (!sessionName || !acEvoSessionTypeFromName(sessionName))
+          ? sessionType ?? null
+          : undefined;
         this.currentSession = { sessionId, carId, trackId, carPI: packet.CarPerformanceIndex, gameId: packet.gameId, sessionUID: packet.sessionUID, bestLapTime: 0 };
       },
       onSessionStarted: async () => { await this.onSessionStart?.(this.currentSession!); },
@@ -159,10 +163,16 @@ export class KunosLapDetector implements ILapDetector {
   protected async backfillSessionIdentifiers(packet: TelemetryPacket): Promise<void> {
     const session = this.currentSession;
     if (!session) return;
-    const sessionType = packet.acc?.acEvo?.sessionType;
-    if (this.needsAcEvoSessionType && packet.acc?.acEvo?.sessionName?.trim() && sessionType && sessionType !== "unknown") {
-      await this.db.fillUnknownAcEvoSessionType?.(session.sessionId, sessionType);
-      this.needsAcEvoSessionType = false;
+    const provisionalType = this.provisionalAcEvoSessionType;
+    const sessionName = packet.acc?.acEvo?.sessionName;
+    if (provisionalType !== undefined && sessionName) {
+      const namedType = acEvoSessionTypeFromName(sessionName);
+      if (namedType) {
+        if (namedType !== provisionalType) {
+          await this.db.correctProvisionalAcEvoSessionType?.(session.sessionId, provisionalType, namedType);
+        }
+        this.provisionalAcEvoSessionType = undefined;
+      }
     }
     if (session.carId && session.trackId) return;
     const identity = await this.resolveSessionIdentity(packet);

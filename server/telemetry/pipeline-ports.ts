@@ -19,7 +19,7 @@ import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
 } from "@raceiq/shared/telemetry/resolver/versions";
-import { insertSession, updateSessionRawFile, updateSessionCarTrack, fillUnknownAcEvoSessionType, markSessionCaptureFormatCurrent } from "../db/session-queries";
+import { insertSession, updateSessionRawFile, updateSessionCarTrack, correctProvisionalAcEvoSessionType, markSessionCaptureFormatCurrent } from "../db/session-queries";
 import { deleteLapOnly, insertLap, setLapMetrics, updateLapCarSetup as updateLapCarSetupQuery } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
@@ -113,7 +113,7 @@ export interface DbAdapter {
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture?: boolean): Promise<void>;
   updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void>;
-  fillUnknownAcEvoSessionType?(sessionId: number, sessionType: string): Promise<void>;
+  correctProvisionalAcEvoSessionType?(sessionId: number, provisionalType: string | null, sessionType: string): Promise<void>;
   getTuneAssignment(gameId: GameId, carId: string, trackId: string): Promise<{ carId: string; trackId: string; tuneId: number; tuneName: string } | null>;
   /** Auto-exclude fastest-5 curation (server/experiments/auto-exclude.ts). */
   getLapsForExclusionScope(experimentId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
@@ -262,8 +262,8 @@ export class RealDbAdapter implements DbAdapter {
     await updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
     if (sparseCapture) await markSessionCaptureFormatCurrent(sessionId);
   }
-  async fillUnknownAcEvoSessionType(sessionId: number, sessionType: string): Promise<void> {
-    await fillUnknownAcEvoSessionType(sessionId, sessionType);
+  async correctProvisionalAcEvoSessionType(sessionId: number, provisionalType: string | null, sessionType: string): Promise<void> {
+    await correctProvisionalAcEvoSessionType(sessionId, provisionalType, sessionType);
   }
 
   async updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
@@ -305,9 +305,9 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve(id);
   }
 
-  async fillUnknownAcEvoSessionType(sessionId: number, sessionType: string): Promise<void> {
+  async correctProvisionalAcEvoSessionType(sessionId: number, provisionalType: string | null, sessionType: string): Promise<void> {
     const session = this.sessions[sessionId - 1];
-    if (session?.gameId === "ac-evo" && (!session.sessionType || session.sessionType === "unknown")) {
+    if (session?.gameId === "ac-evo" && (session.sessionType ?? null) === provisionalType) {
       session.sessionType = sessionType;
     }
   }

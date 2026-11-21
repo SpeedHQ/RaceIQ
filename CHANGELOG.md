@@ -3,7 +3,7 @@
 ### Features
 
 ### Fixes
-- Show the correct AC EVO session type when the game reports its name, and prevent pit results from marking a second lap as an out-lap.
+- Show the correct session type on the Sessions page for recorded and imported AC EVO sessions, even when the game reports its name late. Prevent pit results from marking a second lap as an out-lap.
 
 ### Internal
 
