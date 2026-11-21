@@ -68,6 +68,7 @@
   "settings_setup_wizard": "Мастер настройки",
   "settings_language_search_placeholder": "Поиск языка...",
   "settings_launch_installed_only": "Доступно только в установленном приложении",
+  "settings_launch_desktop_owned": "Управляйте запуском при входе в систему через значок приложения RaceIQ для компьютера в строке меню.",
   "settings_launch_on_login_desc": "Автоматически запускать RaceIQ при входе в Windows.",
   "settings_connection_title": "Подключение Forza",
   "settings_connection_desc": "Укажите UDP-порт для прослушивания. В Forza откройте Settings > Gameplay > Data Out, укажите IP-адрес этого компьютера и порт ниже.",

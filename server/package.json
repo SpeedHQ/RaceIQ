@@ -28,6 +28,8 @@
     "./ai/openai-compatible-headers": "./ai/openai-compatible-headers.ts",
     "./ai/openai-compatible-provider": "./ai/openai-compatible-provider.ts",
     "./ai/provider-error": "./ai/provider-error.ts",
+    "./ai/provider-endpoints": "./ai/provider-endpoints.ts",
+    "./ai/provider-capabilities": "./ai/provider-capabilities.ts",
     "./ai/providers": "./ai/providers.ts",
     "./ai/schemas": "./ai/schemas.ts",
     "./ai/output-schema": "./ai/output-schema.ts",

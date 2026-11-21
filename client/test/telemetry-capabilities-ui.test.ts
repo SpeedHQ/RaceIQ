@@ -265,6 +265,24 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("38°F");
   });
 
+  test.each([
+    ["ams2", 0, "R"], ["ams2", 11, "N"], ["ams2", 1, "1"], ["ams2", 2, "2"], ["ams2", 6, "6"],
+    ["f1-2025", 0, "R"], ["f1-2025", 1, "N"], ["f1-2025", 2, "1"], ["f1-2025", 3, "2"],
+  ] as const)("formats %s portable gear %i as %s", (simulator, gear, label) => {
+    const markup = renderToStaticMarkup(
+      createElement(QueryClientProvider, { client: new QueryClient() },
+        createElement(ComboDash, {
+          view: liveView(simulator, { inputs: { gear } }),
+          sectors: null,
+          pit: null,
+          unitSystem: "metric",
+        }),
+      ),
+    );
+
+    expect(markup).toContain(`class="text-app-instrument-primary font-black leading-none">${label}</div>`);
+  });
+
   test("keeps unavailable combo tire channels visibly unavailable", () => {
     const markup = renderToStaticMarkup(
       createElement(

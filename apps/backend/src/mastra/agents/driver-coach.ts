@@ -27,7 +27,7 @@ import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
 import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 import { getChatTurnContext } from "@raceiq/backend-core/ai/chat-message-context";
 import { getChatMemory } from "@raceiq/backend-core/ai/chat-agent";
-import { getMastraModelId } from "../model";
+import { DEEPSEEK_AGENT_DEFAULTS, getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { driverCoachTools } from "../tools/driver-coach";
 import { liveCoachScorers } from "../evals/index";
@@ -79,6 +79,7 @@ export function buildDriverCoachInstructions(requestContext?: Parameters<typeof 
 }
 
 export const driverCoachAgent = new Agent({
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   id: "driver-coach",
   name: "Driver Coach",
   instructions: ({ requestContext }) => buildDriverCoachInstructions(requestContext),
