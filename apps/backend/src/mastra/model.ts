@@ -251,8 +251,19 @@ export function getMastraModelId(
     }
     case "openai": {
       const id = model || "gpt-4o-mini";
-      if (!apiKey) return `openai/${id}`;
-      return bindMastraModel(createOpenAI({ apiKey }).chat(id));
+      return bindMastraModel(wrapLanguageModel({
+        model: createOpenAI({ apiKey, baseURL: "https://api.openai.com/v1" }).responses(id),
+        middleware: {
+          specificationVersion: "v4",
+          transformParams: async ({ params }) => ({
+            ...params,
+            providerOptions: {
+              ...params.providerOptions,
+              openai: { ...params.providerOptions?.openai, store: false },
+            },
+          }),
+        },
+      }));
     }
     case "anthropic": {
       // Claude through Anthropic's OpenAI-compatible chat completions API.

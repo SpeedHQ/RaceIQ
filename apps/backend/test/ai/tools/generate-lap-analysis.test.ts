@@ -6,6 +6,8 @@ import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
 } from "../../../src/ai/generate-lap-analysis";
+import { runAiStructured } from "../../../src/ai/model-provider";
+import { OpenAiProviderAdapter, resolvedAiFromAdapter } from "../../../src/ai/provider-adapters";
 import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
 
 const validAnalysis = JSON.stringify({
@@ -250,6 +252,60 @@ describe("generateLapAnalysis", () => {
     expect(result.cached).toBe(false);
     expect(JSON.parse(result.analysis!)).toMatchObject(JSON.parse(validAnalysis));
     expect(deps.saves).toHaveLength(1);
+  });
+
+  test.each([
+    ["gpt-5.4-mini", "medium"],
+    ["gpt-4.1-mini", undefined],
+  ] as const)("runs structured analysis with tools through OpenAI Responses on %s", async (model, reasoning) => {
+    const deps = makeDeps();
+    const settings = deps.loadSettings!();
+    deps.loadSettings = () => ({ ...settings, aiProvider: "openai", aiModel: model });
+    deps.resolveAi = async () => resolvedAiFromAdapter(
+      new OpenAiProviderAdapter({ feature: "analysis", model, apiKey: "test-key" }),
+    );
+    deps.runAiStructured = runAiStructured;
+
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
+      const output = requests.length === 1
+        ? [{ type: "function_call", id: "fc_1", call_id: "call_1", name: "get_track_guide", arguments: '{"trackName":"Monza"}', status: "completed" }]
+        : [{ type: "message", id: "msg_1", role: "assistant", status: "completed", content: [{ type: "output_text", text: validAnalysis, annotations: [] }] }];
+      return Response.json({
+        id: `resp_${requests.length}`,
+        object: "response",
+        status: "completed",
+        created_at: 1,
+        model,
+        output,
+        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+      });
+    }) as typeof fetch;
+
+    try {
+      const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+      expect(result.error).toBeUndefined();
+      expect(JSON.parse(result.analysis!)).toMatchObject(JSON.parse(validAnalysis));
+      expect(deps.saves).toHaveLength(1);
+      expect(requests).toHaveLength(2);
+      for (const { url, body } of requests) {
+        expect(url).toBe("https://api.openai.com/v1/responses");
+        expect(body).toMatchObject({ model, store: false });
+        if (reasoning) expect(body.reasoning).toMatchObject({ effort: reasoning });
+        else expect(body).not.toHaveProperty("reasoning");
+        expect(body).not.toHaveProperty("reasoning_effort");
+      }
+      expect(requests[0].body.tools).toContainEqual(expect.objectContaining({ type: "function", name: "get_track_guide" }));
+      expect(requests[1].body.input).toContainEqual(expect.objectContaining({
+        type: "function_call_output",
+        call_id: "call_1",
+        output: expect.stringContaining('"available":true'),
+      }));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
 

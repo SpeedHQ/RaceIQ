@@ -5,6 +5,7 @@
 ### Fixes
 - Show the correct gear in the Portable Combo dashboard for Automobilista 2.
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+- Run lap analysis and AI chat with OpenAI models that use function tools and reasoning together.
 
 ### Internal
 - Allow CI replay WebGPU tests to use software adapters; hardware coverage is not guaranteed.

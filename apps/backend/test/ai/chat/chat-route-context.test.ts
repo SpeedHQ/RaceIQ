@@ -15,6 +15,7 @@ import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
 import { setupContextForLap } from "../../../src/ai/lap-setup-context";
 import { tuneChatRoutes } from "../../../src/routes/tune-chat-routes";
 import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
+import * as providerKeys from "@raceiq/backend-core/ai/openai-compatible-provider";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -250,6 +251,59 @@ describe("lap chat route context and targeted removal", () => {
     expect(JSON.stringify(turns[0].messages)).toContain("follow up");
     expect(JSON.stringify(turns[1].messages)).toContain("follow up");
 
+  });
+
+  test("streams a reasoning model from OpenAI Responses through the lap chat route", async () => {
+    const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
+    const model = "gpt-6-sol";
+    const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model } as const;
+    const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue(settings);
+    const keySpy = spyOn(providerKeys, "getAiProviderApiKey").mockResolvedValue("test-key");
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      const item = { id: "msg_1", type: "message", role: "assistant", status: "completed",
+        content: [{ type: "output_text", text: "OpenAI lap reply", annotations: [] }] };
+      const response = { id: "resp_1", object: "response", status: "completed", created_at: 1,
+        model, output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+      const events = [
+        { type: "response.created", response: { ...response, status: "in_progress", output: [] } },
+        { type: "response.output_item.added", output_index: 0, item: { ...item, status: "in_progress", content: [] } },
+        { type: "response.output_text.delta", output_index: 0, item_id: item.id, content_index: 0, delta: "OpenAI lap reply" },
+        { type: "response.output_item.done", output_index: 0, item },
+        { type: "response.completed", response },
+      ];
+      return new Response(events.map((event, sequence_number) =>
+        `event: ${event.type}\ndata: ${JSON.stringify({ ...event, sequence_number })}\n\n`).join(""),
+      { headers: { "Content-Type": "text/event-stream" } });
+    }) as typeof fetch);
+
+    try {
+      const app = createChatRoutes({
+        getLapById: async () => lap(fixture) as never,
+        loadSettings: () => settings,
+        configureAiProviderEnvironment: async () => "test-key",
+      });
+      const response = await app.request(`/api/laps/${fixture.id}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ id: "openai-turn", role: "user", parts: [{ type: "text", text: "Hello" }] }] }),
+      });
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain("OpenAI lap reply");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect(String(url)).toBe("https://api.openai.com/v1/responses");
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        model,
+        stream: true,
+        store: false,
+        reasoning: { effort: "medium" },
+        tools: expect.arrayContaining([expect.objectContaining({ type: "function", name: "get_track_guide" })]),
+      });
+    } finally {
+      fetchSpy.mockRestore();
+      keySpy.mockRestore();
+      settingsSpy.mockRestore();
+    }
   });
 
   test("excludes mismatched and unreadable linked setups without losing lap or analysis context", async () => {
