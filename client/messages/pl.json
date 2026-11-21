@@ -121,7 +121,7 @@
   "ai_model_recommended": "Zalecany",
   "ai_thinking_label": "Rozumowanie",
   "ai_thinking_unsupported": "Ten model nie obsługuje rozumowania. Użyto opcji „Brak”.",
-  "ai_reasoning_enabled": "Włącz rozumowanie",
+  "ai_reasoning_enabled": "Poziom rozumowania",
   "ai_reasoning_required": "Ten model wymaga rozumowania.",
   "ai_add_key_hint": "Dodaj i zapisz klucz API, aby załadować dostępne modele.",
   "ai_no_models": "Dostawca nie zwrócił żadnych modeli.",

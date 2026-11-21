@@ -1,4 +1,4 @@
-# OpenAI reasoning switches backend plan
+# OpenAI reasoning levels backend plan
 
 [Shared contract](openai-reasoning-contract.md)
 

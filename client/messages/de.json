@@ -123,7 +123,7 @@
   "ai_model_recommended": "Empfohlen",
   "ai_thinking_label": "Denken",
   "ai_thinking_unsupported": "Dieses Modell unterstützt kein Denken. Es wird Keine verwendet.",
-  "ai_reasoning_enabled": "Schlussfolgern aktivieren",
+  "ai_reasoning_enabled": "Schlussfolgerungsstufe",
   "ai_reasoning_required": "Dieses Modell erfordert Schlussfolgern.",
   "ai_add_key_hint": "Füge einen API-Schlüssel hinzu und speichere ihn, um verfügbare Modelle zu laden.",
   "ai_no_models": "Für diesen Anbieter wurden keine Modelle zurückgegeben.",

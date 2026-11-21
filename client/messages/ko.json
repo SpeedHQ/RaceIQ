@@ -121,7 +121,7 @@
   "ai_model_recommended": "추천",
   "ai_thinking_label": "생각",
   "ai_thinking_unsupported": "이 모델은 사고를 지원하지 않습니다. 없음을 사용합니다.",
-  "ai_reasoning_enabled": "추론 사용",
+  "ai_reasoning_enabled": "추론 수준",
   "ai_reasoning_required": "이 모델은 추론이 필요합니다.",
   "ai_add_key_hint": "사용 가능한 모델을 로드하려면 API 키를 추가하고 저장하세요.",
   "ai_no_models": "이 공급자에 대해 반환된 모델이 없습니다.",

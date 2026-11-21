@@ -79,6 +79,23 @@ describe("desktop startup ownership", () => {
     expect(loadSettings().launchOnLogin).toBe(false);
   });
 
+  test("defaults legacy OpenAI reasoning to Medium and persists explicit None independently", async () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: udpListener.port }));
+    const getSettings = async () => (await settingsRoutes.request("/api/settings")).json();
+    const putSettings = (body: object) => settingsRoutes.request("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    expect(await getSettings()).toMatchObject({ aiReasoningEnabled: true, chatReasoningEnabled: true });
+    expect((await putSettings({ aiReasoningEnabled: false })).status).toBe(200);
+    expect(await getSettings()).toMatchObject({ aiReasoningEnabled: false, chatReasoningEnabled: true });
+    expect((await putSettings({ chatReasoningEnabled: false })).status).toBe(200);
+    expect((await putSettings({ aiReasoningEnabled: true, chatReasoningEnabled: "none" })).status).toBe(400);
+    expect(await getSettings()).toMatchObject({ aiReasoningEnabled: false, chatReasoningEnabled: false });
+  });
+
   test("preserves standalone behavior on platforms without backend startup support", async () => {
     delete process.env.RACEIQ_DESKTOP;
     // Never touch a real Windows startup registration if run from a compiled binary.

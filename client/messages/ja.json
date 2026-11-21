@@ -123,7 +123,7 @@
   "ai_model_recommended": "推奨",
   "ai_thinking_label": "思考",
   "ai_thinking_unsupported": "このモデルは思考機能に対応していません。「なし」を使用します。",
-  "ai_reasoning_enabled": "推論を有効にする",
+  "ai_reasoning_enabled": "推論レベル",
   "ai_reasoning_required": "このモデルには推論が必要です。",
   "ai_add_key_hint": "APIキーを追加して保存すると、利用可能なモデルを読み込めます。",
   "ai_no_models": "このプロバイダーからモデルが返されませんでした。",

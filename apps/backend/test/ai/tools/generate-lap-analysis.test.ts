@@ -255,12 +255,14 @@ describe("generateLapAnalysis", () => {
   });
 
   test.each([
-    ["gpt-5.4-mini", "medium"],
-    ["gpt-4.1-mini", undefined],
-  ] as const)("runs structured analysis with tools through OpenAI Responses on %s", async (model, reasoning) => {
+    ["gpt-5.4-mini", true, "medium"],
+    ["gpt-5.4-mini", false, "none"],
+    ["gpt-6.1-sol", false, "medium"],
+    ["gpt-4.1-mini", false, undefined],
+  ] as const)("runs structured analysis with tools on %s (reasoning enabled: %s)", async (model, enabled, reasoning) => {
     const deps = makeDeps();
     const settings = deps.loadSettings!();
-    deps.loadSettings = () => ({ ...settings, aiProvider: "openai", aiModel: model });
+    deps.loadSettings = () => ({ ...settings, aiProvider: "openai", aiModel: model, aiReasoningEnabled: enabled, chatReasoningEnabled: !enabled });
     deps.resolveAi = async () => resolvedAiFromAdapter(
       new OpenAiProviderAdapter({ feature: "analysis", model, apiKey: "test-key" }),
     );

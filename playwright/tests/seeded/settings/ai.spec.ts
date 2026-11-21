@@ -102,3 +102,76 @@ test("AI settings classify empty models and recover from controlled API error", 
     });
   }
 });
+
+test("OpenAI analysis and chat reasoning levels persist independently", async ({ page, request }) => {
+  const initial = await request.get("/api/settings");
+  expect(initial.ok()).toBe(true);
+  const { aiProvider, aiModel, aiReasoningEnabled, chatProvider, chatModel, chatReasoningEnabled } = await initial.json();
+  const model = "gpt-5.4-mini";
+  const openSettings = async () => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "AI Analysis" }).click();
+  };
+  await page.route("**/api/settings", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), openaiApiKeySet: true } });
+  });
+  await page.route("**/api/ai-models**", (route) => route.fulfill({
+    json: { openai: [model, "gpt-4.1-mini", "gpt-6.1-sol"].map((id) => ({ id, name: id })), _errors: {} },
+  }));
+  const analysis = page.locator("#ai-analysis-reasoning");
+  const chat = page.locator("#ai-chat-reasoning");
+  const levels = async () => {
+    const settings = await (await request.get("/api/settings")).json();
+    return [settings.aiReasoningEnabled, settings.chatReasoningEnabled];
+  };
+  try {
+    expect((await request.put("/api/settings", { data: {
+      aiProvider: "openai", aiModel: model, aiReasoningEnabled: true,
+      chatProvider: "openai", chatModel: model, chatReasoningEnabled: true,
+    } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toHaveValue("medium");
+    await expect(chat).toHaveValue("medium");
+    await analysis.focus();
+    await analysis.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(analysis).toBeFocused();
+    await analysis.selectOption("none");
+    await expect(analysis).toHaveValue("none");
+    await expect.poll(levels).toEqual([false, true]);
+    await openSettings();
+    await expect(analysis).toHaveValue("none");
+    await expect(chat).toHaveValue("medium");
+    await chat.selectOption("none");
+    await analysis.selectOption("medium");
+    await expect.poll(levels).toEqual([true, false]);
+    const invalid = await request.put("/api/settings", { data: { aiReasoningEnabled: false, chatReasoningEnabled: "false" } });
+    expect(invalid.status()).toBe(400);
+    await expect.poll(levels).toEqual([true, false]);
+    expect((await request.put("/api/settings", { data: { aiModel: "gpt-4.1-mini", chatModel: "gpt-6.1-sol" } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toHaveCount(0);
+    await expect(chat).toBeDisabled();
+    await expect(chat).toHaveValue("medium");
+    await expect(chat).toHaveAccessibleDescription("This model requires reasoning.");
+    expect((await request.put("/api/settings", { data: { aiProvider: "openai-compatible", chatModel: model } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toHaveCount(0);
+    await expect(chat).toHaveValue("none");
+    await page.route("**/api/settings", async (route) => {
+      if (route.request().method() === "PUT" && route.request().postDataJSON().chatReasoningEnabled === true) {
+        return route.fulfill({ status: 503, body: "Temporarily unavailable" });
+      }
+      await route.fallback();
+    });
+    await chat.selectOption("medium");
+    await expect(page.getByText("Service Unavailable", { exact: true })).toBeVisible();
+    await expect.poll(levels).toEqual([true, false]);
+  } finally {
+    await page.close();
+    await request.put("/api/settings", { data: { aiProvider, aiModel, aiReasoningEnabled, chatProvider, chatModel, chatReasoningEnabled } });
+  }
+});

@@ -123,7 +123,7 @@
   "ai_model_recommended": "Aanbevolen",
   "ai_thinking_label": "Redeneren",
   "ai_thinking_unsupported": "Dit model ondersteunt redeneren niet. Geen wordt gebruikt.",
-  "ai_reasoning_enabled": "Redeneren inschakelen",
+  "ai_reasoning_enabled": "Redeneerniveau",
   "ai_reasoning_required": "Dit model vereist redeneren.",
   "ai_add_key_hint": "Voeg een API-sleutel toe en sla deze op om beschikbare modellen te laden.",
   "ai_no_models": "Deze provider heeft geen modellen geretourneerd.",

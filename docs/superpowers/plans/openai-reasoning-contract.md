@@ -1,6 +1,6 @@
-# OpenAI reasoning switches contract
+# OpenAI reasoning levels contract
 
-Plans: [UI](openai-reasoning-ui-plan.md), [backend](openai-reasoning-backend-plan.md). Approved scope: two on/off switches; no effort picker or changes to other providers.
+Plans: [UI](openai-reasoning-ui-plan.md), [backend](openai-reasoning-backend-plan.md). Scope: one Medium/None field per section; no separate switch or changes to other providers. Keep option values in English.
 
 ## Settings boundary
 
@@ -10,8 +10,8 @@ Each flag applies to its corresponding official OpenAI workflow: lap and compari
 
 ## Acceptance and integration
 
-- AC1 / E1: Start the app with isolated settings and OpenAI model discovery fixtures. Open AI settings; expect both switches on. Toggle Analysis off; confirm via live settings API that Chat remains on. Reload; confirm both states. Reverse the values and repeat.
-- AC2 / E2: In the same UI, change to GPT-4.1 mini, a known required-reasoning model and a compatible provider. Expect hidden, disabled-on with help text, and hidden respectively. Switch back; confirm saved preference returns. Exercise keyboard toggling and verify save failure uses the existing error feedback.
+- AC1 / E1: Start the app with isolated settings and OpenAI model discovery fixtures. Open AI settings; expect both fields set to Medium. Select None for Analysis; confirm via live settings API that Chat remains Medium. Reload, confirm both states, then reverse the values.
+- AC2 / E2: Change to GPT-4.1 mini, a known required-reasoning model and a compatible provider. Expect hidden, disabled at Medium with help text, and hidden respectively. Switch back; confirm saved preference returns. Exercise keyboard selection and verify save failure uses existing error feedback.
 - AC3 / E3: Exercise actual lap analysis and chat entry points with instrumented upstream Responses fixtures. Read saved settings in production or via existing injected dependencies. Assert the applicable `none` or `medium` and proper tool payloads, structured output and chat streaming. Cover required reasoning with saved false, omitted reasoning with GPT-4.1 mini, and unchanged compatible/provider routing with targeted integration suites.
 - AC4 / E4: Use the live settings API to submit an invalid boolean; verify rejection and no partial overwrite. Default old settings lacking both fields to on.
 

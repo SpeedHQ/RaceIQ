@@ -253,10 +253,11 @@ describe("lap chat route context and targeted removal", () => {
 
   });
 
-  test("streams a reasoning model from OpenAI Responses through the lap chat route", async () => {
+  test.each([true, false])("streams OpenAI Responses with chat reasoning enabled: %s", async (enabled) => {
     const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
     const model = "gpt-6-sol";
-    const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model } as const;
+    const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model,
+      chatReasoningEnabled: enabled, aiReasoningEnabled: !enabled } as const;
     const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue(settings);
     const keySpy = spyOn(providerKeys, "getAiProviderApiKey").mockResolvedValue("test-key");
     const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (_input: RequestInfo | URL, _init?: RequestInit) => {
@@ -296,7 +297,7 @@ describe("lap chat route context and targeted removal", () => {
         model,
         stream: true,
         store: false,
-        reasoning: { effort: "medium" },
+        reasoning: { effort: enabled ? "medium" : "none" },
         tools: expect.arrayContaining([expect.objectContaining({ type: "function", name: "get_track_guide" })]),
       });
     } finally {

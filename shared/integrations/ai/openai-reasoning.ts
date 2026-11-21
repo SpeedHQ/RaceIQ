@@ -1,6 +1,6 @@
 export function openAiReasoningMode(modelId: string): "optional" | "required" | "unavailable" {
   const model = modelId.trim().toLowerCase().replace(/-\d{4}-\d{2}-\d{2}$/, "");
-  if (/^gpt-5\.(?:1|2|4(?:-mini|-nano)?)$/.test(model) || /^gpt-6-(?:sol|luna)$/.test(model)) {
+  if (/^gpt-5\.(?:1|2|4(?:-mini|-nano)?|5)$/.test(model) || /^gpt-6-(?:sol|luna)$/.test(model)) {
     return "optional";
   }
   if (/^gpt-5-chat(?:-|$)/.test(model)) return "unavailable";
