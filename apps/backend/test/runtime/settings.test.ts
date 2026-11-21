@@ -79,6 +79,23 @@ describe("desktop startup ownership", () => {
     expect(loadSettings().launchOnLogin).toBe(false);
   });
 
+  test("migrates legacy OpenAI reasoning and persists explicit levels independently", async () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: udpListener.port, aiReasoningEnabled: false, chatReasoningEnabled: true }));
+    const getSettings = async () => (await settingsRoutes.request("/api/settings")).json();
+    const putSettings = (body: object) => settingsRoutes.request("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    expect(await getSettings()).toMatchObject({ aiReasoningLevel: "none", chatReasoningLevel: "medium" });
+    expect((await putSettings({ aiReasoningLevel: "high" })).status).toBe(200);
+    expect(await getSettings()).toMatchObject({ aiReasoningLevel: "high", chatReasoningLevel: "medium" });
+    expect((await putSettings({ chatReasoningLevel: "minimal" })).status).toBe(200);
+    expect((await putSettings({ aiReasoningLevel: "low", chatReasoningLevel: "invalid" })).status).toBe(400);
+    expect(await getSettings()).toMatchObject({ aiReasoningLevel: "high", chatReasoningLevel: "minimal" });
+  });
+
   test("preserves standalone behavior on platforms without backend startup support", async () => {
     delete process.env.RACEIQ_DESKTOP;
     // Never touch a real Windows startup registration if run from a compiled binary.
