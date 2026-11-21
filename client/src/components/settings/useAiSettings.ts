@@ -295,7 +295,6 @@ export function useAiSettings(): AiSettingsState {
       const updates: Record<string, unknown> = { aiProvider: provider, aiModel: model, aiThinkingBudget: nextThinkingBudget };
       if (reasoningLevel !== analysisBaseline.reasoningLevel) updates.aiReasoningLevel = reasoningLevel;
       if (provider === "openai-compatible") updates.localEndpoint = localEndpoint;
-      updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
         updateKeyStatusInSettingsCache(providerKeyId, true);
@@ -323,7 +322,6 @@ export function useAiSettings(): AiSettingsState {
       const updates = { chatProvider, chatModel, chatThinkingBudget: nextChatThinkingBudget,
         ...(chatReasoningLevel !== chatBaseline.reasoningLevel ? { chatReasoningLevel } : {}),
       };
-      updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
         updateKeyStatusInSettingsCache(providerKeyId, true);

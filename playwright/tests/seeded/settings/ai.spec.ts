@@ -179,12 +179,6 @@ test("OpenAI analysis and chat reasoning levels persist independently", async ({
     await chat.click();
     await expect(popup.getByRole("option", { name: "None", exact: true })).toHaveCount(1);
     await chat.press("Escape");
-    expect((await request.put("/api/settings", { data: { aiProvider: "openai-compatible", chatModel: model } })).ok()).toBe(true);
-    await openSettings();
-    await expect(analysis).toHaveCount(0);
-    await expect(chat).toHaveValue("Max");
-    expect((await request.put("/api/settings", { data: { aiProvider: "openai" } })).ok()).toBe(true);
-    await openSettings();
     await page.route("**/api/settings", async (route) => {
       if (route.request().method() === "PUT") {
         const { aiReasoningLevel, chatReasoningLevel } = route.request().postDataJSON();
@@ -203,6 +197,10 @@ test("OpenAI analysis and chat reasoning levels persist independently", async ({
       await page.getByRole("button", { name: "AI Analysis" }).click();
       await expect(picker).toHaveValue(savedLabel);
     }
+    expect((await request.put("/api/settings", { data: { aiProvider: "openai-compatible", chatModel: model } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toHaveCount(0);
+    await expect(chat).toHaveValue("Max");
   } finally {
     await page.close();
     await request.put("/api/settings", { data: { aiProvider, aiModel, aiReasoningLevel, chatProvider, chatModel, chatReasoningLevel } });
