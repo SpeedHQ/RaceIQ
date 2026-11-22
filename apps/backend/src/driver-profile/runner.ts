@@ -28,6 +28,11 @@ import {
 } from "@raceiq/backend-core/db/driver-profile-queries";
 import { getLapMetaForProfileScope } from "@raceiq/backend-core/db/lap-read-queries";
 import type { AnalysisUsage } from "@raceiq/backend-core/db/analysis-queries";
+import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
+import type { AiProvider, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
+import { resolveAi } from "../ai/ai-runtime";
+import { createModelContext } from "../ai/model-provider";
+import { consumeMastraGeneration } from "../ai/stream-mastra-generation";
 
 export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId" | "carId" | "trackId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
@@ -117,7 +122,7 @@ async function failDriverProfileRun(
 }
 
 async function providerConfiguration(): Promise<
-  | { ok: true; provider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible"; model: string; thinkingBudget: number | null }
+  | { ok: true; provider: AiProvider; model: string; thinkingBudget: number | null }
   | { ok: false; reason: string }
 > {
   const settings = loadSettings();
@@ -125,22 +130,9 @@ async function providerConfiguration(): Promise<
   if (!provider) return { ok: false, reason: "No driver-profile AI provider is configured." };
   await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
 
-  return {
-    ok: true,
-    provider,
-    model:
-      settings.driverProfileModel ||
-      (provider === "openai"
-        ? "gpt-4o-mini"
-        : provider === "anthropic"
-          ? "claude-haiku-5-5"
-          : provider === "deepseek"
-            ? "deepseek-flash"
-            : provider === "openai-compatible"
-              ? "local-model"
-              : "gemini-flash-latest"),
-    thinkingBudget: settings.driverProfileThinkingBudget,
-  };
+  const model = settings.driverProfileModel || defaultModelFor(provider);
+  if (!model) return { ok: false, reason: "Choose an available ChatGPT model in Settings → Driver Profile." };
+  return { ok: true, provider, model, thinkingBudget: settings.driverProfileThinkingBudget };
 }
 export async function getDriverProfileConfiguration(): Promise<{
   enabled: boolean;
@@ -160,6 +152,14 @@ async function runDriverProfileInternal(
 ): Promise<DriverProfileRunResult> {
   const config = await providerConfiguration();
   if (!config.ok) return { status: "not-configured", run: null, error: config.reason };
+  let subscription: ResolvedAi | undefined;
+  if (config.provider === "chatgpt-subscription") {
+    try {
+      subscription = await resolveAi("driverProfile", loadSettings(), options.trigger === "background" ? "background-driver-profile" : undefined);
+    } catch (error) {
+      return { status: "not-configured", run: null, error: toClientAiError(error).message };
+    }
+  }
 
   const candidates = await getLapMetaForProfileScope(scope.gameId);
   const poolKey = driverProfilePoolKey(candidates.map((lap) => lap.id));
@@ -197,7 +197,13 @@ async function runDriverProfileInternal(
       fingerprint,
       language: loadSettings().language,
     });
-    const result = await driverProfilerAgent.generate(prompt, {
+    const result = subscription
+      ? await consumeMastraGeneration(driverProfilerAgent.stream(prompt, {
+        requestContext: createModelContext(subscription),
+        modelSettings: { maxRetries: 0 },
+        structuredOutput: { schema: getDriverProfileSummaryJsonSchema(), jsonPromptInjection: false },
+      }), true).then(({ object, usage }) => ({ text: JSON.stringify(object), usage }))
+      : await driverProfilerAgent.generate(prompt, {
       modelSettings: { maxOutputTokens: loadSettings().driverProfileMaxOutputTokens, temperature: 0 },
       providerOptions: {
         openai: {

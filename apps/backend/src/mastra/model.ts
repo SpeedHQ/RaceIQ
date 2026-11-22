@@ -41,7 +41,7 @@ export const DEEPSEEK_AGENT_DEFAULTS = {
   providerOptions: { deepseek: { thinking: { type: "disabled" } } },
 } as const;
 
-function bindMastraModel(model: LanguageModel): BoundMastraModel {
+export function bindMastraModel(model: LanguageModel): BoundMastraModel {
   return model as unknown as BoundMastraModel;
 }
 

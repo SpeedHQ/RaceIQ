@@ -37,7 +37,7 @@ type Memory = ReturnType<typeof getChatMemory>;
 
 interface CompactDeps {
   memory?: Memory;
-  summarize?: (transcript: string) => Promise<string>;
+  summarize?: (transcript: string, system: string) => Promise<string>;
 }
 
 /**
@@ -61,6 +61,7 @@ export async function summarizeWithDeepSeek(
 
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
+  if (s.chatProvider === "chatgpt-subscription") throw new Error("Use the local RaceIQ app to compact ChatGPT conversations.");
   // Bridge provider env the same way the chat routes do — Mastra resolves
   // `openai/...` model ids from process.env, so without this a compact with
   // a local/OpenAI provider fails with "Could not find API key
@@ -151,7 +152,7 @@ export async function forkThreadWithSummary(
     .map((m) => `${m.role.toUpperCase()}: ${textOf(m as never)}`)
     .join("\n\n");
 
-  const summary = await summarize(transcript);
+  const summary = await summarize(transcript, SUMMARY_SYSTEM);
 
   // Probe generations through the SAME (possibly injected) `memory` used
   // above, rather than the module-level `listThreadGenerations` helper — that

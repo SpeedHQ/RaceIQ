@@ -3,9 +3,11 @@
 import { useAuiState } from "@assistant-ui/react";
 import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@raceiq/shared/integrations/ai/context-window"
+import { estimateChatGptApiCost, type ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { authenticatedFetch, client } from "@/lib/rpc";
@@ -43,6 +45,22 @@ export function TokenUsageFooter({
   const { displaySettings } = useSettings();
   const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const subscriptionUsage = useAuiState((s) => {
+    const lastAssistant = s.thread.messages.findLast((message) => message.role === "assistant");
+    return lastAssistant?.metadata.custom.subscriptionUsage as ChatGptRequestUsage[] | undefined;
+  });
+  const { data: pricing } = useQuery({
+    queryKey: ["ai-chat-pricing"],
+    queryFn: async () => {
+      const res = await client.api["ai-chat-pricing"].$get();
+      if (!res.ok) throw new Error(`AI chat pricing failed (${res.status})`);
+      return res.json();
+    },
+    enabled: Boolean(subscriptionUsage?.length),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const subscriptionCost = subscriptionUsage && pricing ? estimateChatGptApiCost(subscriptionUsage, pricing) : null;
   const [compactMsg, setCompactMsg] = useState<string | null>(null);
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
   const provider = settings.chatProvider ?? settings.aiProvider ?? "";
@@ -123,7 +141,14 @@ export function TokenUsageFooter({
       {hasUsage && usage!.outputTokens != null && <span>{m.ai_chat_output_short()} {usage!.outputTokens}</span>}
       {hasUsage && (usage!.reasoningTokens ?? 0) > 0 && <span>{m.ai_chat_reasoning_short()} {usage!.reasoningTokens}</span>}
       {hasUsage && (usage!.cachedInputTokens ?? 0) > 0 && <span>{m.ai_chat_cached_short()} {usage!.cachedInputTokens}</span>}
-      {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
+      {!isRunning && subscriptionCost != null && subscriptionCost > 0 && pricing?.fetchedAt != null && (
+        <span title={m.ai_chat_api_rates_fetched({ date: new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium" }).format(pricing.fetchedAt) })}>
+          {m.ai_chat_estimated_api_cost({ amount: new Intl.NumberFormat(getLocale(), {
+            style: "currency", currency: "USD", maximumFractionDigits: 8,
+          }).format(subscriptionCost) })}
+        </span>
+      )}
+      {!subscriptionUsage && hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
       {maxGen > 1 && (
         <span className="flex items-center gap-0.5">
           <Button

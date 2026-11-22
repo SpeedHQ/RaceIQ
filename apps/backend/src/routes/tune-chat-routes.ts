@@ -5,6 +5,9 @@ import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
 import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
+import { CHATGPT_SUBSCRIPTION_ERROR_STATUS, chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
@@ -38,6 +41,9 @@ import { setupEngineerTurnWorkflow } from "../mastra/workflows/setup-engineer-tu
 import { resolveExperimentChatBranch } from "../experiments/chat-branch-context";
 import { Hono } from "hono";
 import { EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY } from "../mastra/tools/setup-engineer-request-context";
+import { resolveAi } from "../ai/ai-runtime";
+import { createModelContext } from "../ai/model-provider";
+import { ChatGptAccountError } from "./chatgpt-subscription-routes";
 
 const chatRunHeads = new WeakMap<object, number | null>();
 
@@ -186,6 +192,21 @@ export const tuneChatRoutes = new Hono()
       }
       chatRunHeads.set(run, headVersionId);
       try {
+      const reqCtx = new RequestContext();
+      const subscriptionUsage: (ChatGptRequestUsage | null)[] | undefined = settings.chatProvider === "chatgpt-subscription" ? [] : undefined;
+      if (subscriptionUsage) {
+        try {
+          createModelContext(await resolveAi("chat", settings, undefined, (usage) => subscriptionUsage.push(usage)), reqCtx);
+        } catch (error) {
+          finishRun(run);
+          const code = error instanceof ChatGptAccountError ? error.code
+            : error instanceof AiProviderError ? (error.statusCode === 403 ? "forbidden" : "model_unavailable")
+            : "upstream_unavailable";
+          const message = error instanceof AiProviderError ? error.message
+            : chatGptRecoveryMessage(error) ?? "ChatGPT did not complete the request. Try again.";
+          return c.json({ code, error: message }, CHATGPT_SUBSCRIPTION_ERROR_STATUS[code]);
+        }
+      }
       // Persist the incoming user message NOW, not at turn end. Mastra's
       // memory only writes the turn's messages when the stream finishes, so a
       // reload mid-turn made the just-sent user message vanish from history
@@ -233,7 +254,6 @@ export const tuneChatRoutes = new Hono()
       // symptoms, track conditions, history) via the registered Mastra workflow
       // so the model always has current context and never has to call a read
       // tool or supply a session id. Studio-observable.
-      const reqCtx = new RequestContext();
       reqCtx.set("gameId", gameId);
       reqCtx.set("sessionId", id);
       reqCtx.set(EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY, branch);
@@ -308,6 +328,7 @@ Only these IDs are current evidence. Empty/undriven branches have no attached ev
           memory: getChatMemory(),
           threadId,
           turnStartedAt,
+          subscriptionUsage,
           abortSignal: run.abortController.signal,
         });
 

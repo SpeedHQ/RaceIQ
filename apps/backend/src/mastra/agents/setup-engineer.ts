@@ -20,6 +20,7 @@ import { DEEPSEEK_AGENT_DEFAULTS, getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
+import { getModel } from "../../ai/model-provider";
 
 export interface SetupEngineerSessionContext {
   sessionId: number;
@@ -97,8 +98,9 @@ export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
   instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,
-  model: () => {
+  model: ({ requestContext }) => {
     const s = loadSettings();
+    if (s.chatProvider === "chatgpt-subscription") return getModel("chat", requestContext);
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
   // All setup tools stay callable. Read tools provide a direct fallback when

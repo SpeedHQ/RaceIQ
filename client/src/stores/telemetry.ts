@@ -23,6 +23,7 @@ export interface DisplaySettings {
   chatModel: string;
   chatThinkingBudget: number | null;
   chatReasoningLevel: OpenAiReasoningLevel;
+  chatSubscriptionReasoningLevel: OpenAiReasoningLevel | null;
   autoTuneProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
   autoTuneModel: string;
   localEndpoint: string;
@@ -83,6 +84,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   chatModel: "",
   chatThinkingBudget: null,
   chatReasoningLevel: "medium",
+  chatSubscriptionReasoningLevel: null,
   autoTuneProvider: "gemini",
   autoTuneModel: "",
   localEndpoint: "http://localhost:1234/v1",

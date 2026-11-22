@@ -22,4 +22,6 @@ UI-1/2/3 can be developed independently of backend once contract/DTOs are agreed
 
 ## Verification
 
+Run CG-M1 first on macOS. Use the existing provider setup surface; enable sign-in only when account discovery reports an available local runtime. For CG-7, render the filtered account catalog as returned by the server without a client allowlist; verify via CG-E7.
+
 Extend `playwright/tests/seeded/settings/ai.spec.ts` and use `playwright/tests/seeded/analyse/qwen-ai.spec.ts` and `playwright/tests/seeded/chats/streamed-setup.spec.ts` as route/browser patterns. Main session runs every mapped scenario in the contract, including packaged Windows live evidence. Observe all four persistence paths, local auth and account switch/revoke, browser keyboard/focus and error states, actual streamed and structured workflows, and no fallback call. UI validation does not substitute for backend or live verification. Record results after integration; none have run for this plan.

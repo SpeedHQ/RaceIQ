@@ -23,6 +23,9 @@ import { getOrComputeLapInsights } from "@raceiq/backend-core/lap-analysis/metri
 // the setup-engineer consult doesn't need.
 import { lapAnalystAgent } from "../mastra/agents/lap-analyst";
 import { loadRepresentativeLap } from "../experiments/representative-lap";
+import { resolveAi } from "./ai-runtime";
+import { createModelContext } from "./model-provider";
+import { consumeMastraGeneration } from "./stream-mastra-generation";
 
 interface LapAnalystConsult {
   available: boolean;
@@ -68,11 +71,16 @@ export async function consultLapAnalystForSession(
   await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
 
   const hideTools = provider === "openai-compatible";
-  const result = await lapAnalystAgent.generate(prompt, {
+  const subscription = provider === "chatgpt-subscription";
+  const options = {
+    requestContext: subscription ? createModelContext(await resolveAi("analysis", settings)) : undefined,
     maxSteps: 5,
     ...(hideTools ? { activeTools: [] as never[] } : {}),
     modelSettings: { maxOutputTokens: 4096, temperature: 0 },
-  });
+  };
+  const result = subscription
+    ? await consumeMastraGeneration(lapAnalystAgent.stream(prompt, { ...options, modelSettings: { maxRetries: 0 } }))
+    : await lapAnalystAgent.generate(prompt, options);
   const text = typeof result.text === "string" ? result.text.trim() : "";
   return { available: true, summary: text || "Lap Analyst returned no content." };
 }

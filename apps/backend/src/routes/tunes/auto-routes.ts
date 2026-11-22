@@ -12,6 +12,8 @@ import { detectCorners } from "@raceiq/backend-core/lap-analysis/corners";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getSetupsBaseDir } from "../../setups/file-guard";
 import { applyIntents } from "@raceiq/backend-core/setups/rules/engine";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { resolveAi, selectedAiSettings } from "../../ai/ai-runtime";
 
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
@@ -82,7 +84,15 @@ export const tuneAutoRoutes = new Hono()
       let llmFreeIntents: typeof rulesIntents | null = null;
       if (body.engine === "llm") {
         try {
-          const res = await requestTuneIntents(body.gameId, symptoms, body.trackName, carModel);
+          const settings = loadSettings();
+          const subscription = selectedAiSettings(settings, "autoTune").provider === "chatgpt-subscription";
+          const res = await requestTuneIntents(body.gameId, symptoms, body.trackName, carModel,
+            subscription ? async (prompt, schema) => {
+              const ai = await resolveAi("autoTune", settings);
+              const result = await ai.generateStructured({ prompt, schema, schemaName: "tune_intents" });
+              return { raw: result.analysis, model: ai.model };
+            } : undefined,
+          );
           intents = res.intents.intents;
           model = res.model;
         } catch (err: any) {

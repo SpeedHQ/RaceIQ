@@ -22,6 +22,7 @@ import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "@raceiq/backend-core/ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import {
   CHAT_RESOURCE_ID,
   compareChatThreadId,
@@ -36,6 +37,10 @@ import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/backend-core/ai/chat-message-cont
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
 import { linkedTuneSetupForLap, setupContextForLap } from "../../ai/lap-setup-context";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { resolveAi } from "../../ai/ai-runtime";
+import { createModelContext } from "../../ai/model-provider";
+import { consumeMastraGeneration } from "../../ai/stream-mastra-generation";
+import { toClientAiError } from "@raceiq/backend-core/ai/provider-error";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
@@ -168,7 +173,10 @@ export const comparisonRoutes = new Hono()
 
     try {
       const start = performance.now();
-      const result = await compareEngineerAgent.generate(prompt, {
+      const subscription = settings.aiProvider === "chatgpt-subscription";
+      const requestContext = subscription ? createModelContext(await resolveAi("analysis", settings)) : undefined;
+      const options = {
+        requestContext,
         structuredOutput: {
           schema: InputsCompareSchema,
           // LM Studio only accepts `response_format: json_schema` (it rejects
@@ -197,7 +205,10 @@ export const comparisonRoutes = new Hono()
             settings.aiThinkingBudget,
           ) as never,
         },
-      });
+      };
+      const result = subscription
+        ? await consumeMastraGeneration(compareEngineerAgent.stream(prompt, { ...options, modelSettings: { maxRetries: 0 } }), true)
+        : await compareEngineerAgent.generate(prompt, options);
       const durationMs = Math.round(performance.now() - start);
 
       let object = (result as any).object;
@@ -376,6 +387,8 @@ export const comparisonRoutes = new Hono()
     const turnStartedAt = Date.now();
     try {
       const requestContext = new RequestContext();
+      const subscriptionUsage: (ChatGptRequestUsage | null)[] | undefined = chatProvider === "chatgpt-subscription" ? [] : undefined;
+      if (subscriptionUsage) createModelContext(await resolveAi("chat", settings, undefined, (usage) => subscriptionUsage.push(usage)), requestContext);
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       const stream = await compareChatAgent.stream(
         messages,
@@ -395,6 +408,7 @@ export const comparisonRoutes = new Hono()
         memory: getChatMemory(),
         threadId,
         turnStartedAt,
+        subscriptionUsage,
         diagnostic: {
           provider: chatProvider,
           model: chatModelLabel,
@@ -405,6 +419,7 @@ export const comparisonRoutes = new Hono()
       });
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);
+      if (chatProvider === "chatgpt-subscription") return c.json({ error: toClientAiError(err).message }, 409);
       return c.json({ error: "Chat request failed. Check provider settings and retry." }, 500);
     }
   })
