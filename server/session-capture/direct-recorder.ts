@@ -259,6 +259,9 @@ export class DirectCaptureRecording {
             this.current.sourceEnd = window.startOffset;
             this.rotate(window, locator, ordinal);
           }
+          if (this.pendingCandidate && this.pendingCandidate.frame.start < window.startOffset) {
+            this.pendingCandidate = null;
+          }
           const binding = this.bindings.get(window.startOffset);
           this.current.owner ??= { binding, startOrdinal: ordinal, count: 1, trailing: 0, finalized: false, abandoned: false, ownedByteOffset: this.lastFrame!.localOffset };
           this.current.owner.binding ??= binding;
@@ -326,9 +329,14 @@ export class DirectCaptureRecording {
     if (this.pendingCandidate && ordinal > this.pendingCandidate.frame.ordinal) {
       this.pendingCandidate.suffix.push(this.lastFrame);
       if (this.pendingCandidate.suffix.length > MAX_CANDIDATE_SUFFIX_RECORDS) {
-        const error = new Error("Preparation candidate exceeded retained source record limit");
-        this.fail(error);
-        throw error;
+        if (this.pendingCandidate.window.holdForResolution) {
+          const error = new Error("Preparation candidate exceeded retained source record limit");
+          this.fail(error);
+          throw error;
+        }
+        // Speculative starts can be wrong. Their frames are already in the
+        // current source part, so only the in-memory suffix expires.
+        this.pendingCandidate = null;
       }
     }
   }

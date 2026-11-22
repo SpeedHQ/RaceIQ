@@ -235,4 +235,52 @@ describe("DirectCaptureRecording", () => {
     }
     expect(framesBySource).toEqual(frames.slice(0, 3));
   });
+
+  it("keeps recording when a speculative start outlives the retention window", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-stale-candidate-"));
+    directories.push(directory);
+    const manifestPath = join(directory, "capture-manifest.json");
+    const capture = new DirectCaptureRecording("fm-2023", directory, manifestPath);
+    captures.push(capture);
+    await capture.ready;
+    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track" }).returning({ id: sessions.id }).get();
+    sessionIds.push(session.id);
+    capture.attachSession(session.id, Promise.resolve(), () => {});
+    const frames = fixtureFrames();
+    capture.writeRecord(frames[0]!, 100);
+    const candidate: DetectorOwnershipWindow = {
+      revision: 1, lapNumber: 1, startOffset: META_FRAME_BYTES, startOrdinal: 0,
+      frameCount: 0, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+      preparationOnly: true,
+    };
+    capture.processTransitions([ownershipTransition("candidate-start", candidate)], null);
+    for (let index = 1; index <= 1_250; index++) capture.writeRecord(frames[1]!, 100 + index);
+
+    const nextOffset = capture.getCurrentByteOffset();
+    capture.writeRecord(frames[2]!, 1_351);
+    const next: DetectorOwnershipWindow = {
+      revision: 2, lapNumber: 2, startOffset: nextOffset, startOrdinal: 1_251,
+      frameCount: 1, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+    };
+    capture.processTransitions([ownershipTransition("window-start", next)], null);
+    const lap = await db.insert(laps).values({
+      sessionId: session.id, lapNumber: 2, lapTime: 61, isValid: true, rawByteOffset: nextOffset, rawFrameCount: 1,
+    }).returning({ id: laps.id }).get();
+    capture.bindLap({ sessionId: session.id, lapId: lap.id, lapNumber: 2, startByteOffset: nextOffset, frameCount: 1 });
+    capture.processTransitions([ownershipTransition("window-finalized", { ...next, revision: 3, status: "final" })], null);
+    await capture.stop();
+
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    const recorded = [];
+    for (const chunk of manifest.chunks) {
+      const artifact = await readFile(join(directory, chunk.path));
+      recorded.push(...[...iterateSessionCaptureRecords(artifact, chunk.sourceRecordByteOffset, { strict: true })]
+        .filter(record => record.kind === "frame").slice(0, chunk.recordCount));
+    }
+    expect(capture.isSealed).toBe(true);
+    expect(manifest.sourceRecordCount).toBe(1_252);
+    expect(manifest.chunks.at(-1)).toMatchObject({ kind: "lap", lapId: String(lap.id), ownedFrameCount: 1 });
+    expect(recorded.map(record => record.frameTimeMs)).toEqual(Array.from({ length: 1_252 }, (_, index) => 100 + index));
+    expect(recorded.at(-1)?.frame).toEqual(frames[2]);
+  });
 });
