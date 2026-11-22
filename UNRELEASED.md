@@ -14,3 +14,4 @@
 - Require an explicitly configured model for AI evaluation runs.
 - Keep ongoing release notes in `UNRELEASED.md` and move them into `CHANGELOG.md` only when publishing a release.
 - Run RaceIQ in the native macOS app with existing lap data and saved network access; control login startup and whether closing the window quits the app.
+- Prepare per-lap seed fixtures before starting the release baseline in the upgrade smoke test.
