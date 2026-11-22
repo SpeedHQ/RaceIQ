@@ -7,6 +7,7 @@ import { Hono, type TypedResponse } from "hono";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
@@ -192,7 +193,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: "medium" },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },
