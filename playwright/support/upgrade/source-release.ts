@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -18,8 +18,8 @@ export interface SourceUpgradeHarness {
   readonly previousSha: string;
   readonly mainSha: string;
   checkoutPrevious(): Promise<void>;
+  preparePreviousSeed(): Promise<void>;
   seedPrevious(): Promise<void>;
-  validateConvertedCaptures(): Promise<void>;
   checkoutMain(): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -44,11 +44,12 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   const workspace = tempRoot;
   const checkoutDir = join(tempRoot, "source");
   const dataDir = join(tempRoot, "data");
+  const fixtureDataDir = join(tempRoot, "fixture-preparation");
   mkdirSync(dataDir, { recursive: true });
   const memory: string[] = [];
   let memorySize = 0;
   const processes = new Set<ChildProcess>();
-  let phase: "created" | "previous" | "seeded" | "main" | "running" | "disposed" = "created";
+  let phase: "created" | "previous" | "prepared" | "seeded" | "main" | "running" | "disposed" = "created";
   let runningFrom: "seeded" | "main" | undefined;
   let previousTag = "";
   let previousSha = "";
@@ -181,132 +182,6 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   const harness: SourceUpgradeHarness = {
     workspace, checkoutDir, dataDir, get baseURL() { return baseURL(); }, get apiURL() { return apiURL(); },
     get previousTag() { return previousTag; }, get previousSha() { return previousSha; }, get mainSha() { return mainSha; },
-    async validateConvertedCaptures() {
-      if (phase !== "seeded") throw new Error(`validateConvertedCaptures invalid in phase ${phase}`);
-      const script = `
-        import Database from "libsql";
-        import * as sourceLoader from "./server/session-capture/source-loader.ts";
-        const { iterateSessionCaptureRecordsFromSource } = sourceLoader;
-        import { existsSync } from "node:fs";
-        import { resolve, dirname, relative, isAbsolute, sep } from "node:path";
-        import { realpath, stat } from "node:fs/promises";
-        import { DecompressionStream } from "node:stream/web";
-        // Resolve capture modules from the checked-out release's pre/post-package layout.
-        const captureModules = existsSync("./server/session-capture/framing.ts") ? "./server/session-capture/" : "./packages/capture-formats/src/session/";
-        const { META_FRAME_MAGIC, readFramePrefix } = await import(captureModules + "framing");
-        const { isLmuSparseFrame } = await import(captureModules + "lmu-sparse");
-        const { isKunosSparseFrame } = await import(captureModules + "kunos-sparse");
-        const { isGenericSparseFrame } = await import(captureModules + "generic-sparse");
-        const database = new Database(resolve(process.env.DATA_DIR!, "app.db"), { readonly: true });
-        try {
-          const rows = database.prepare("SELECT * FROM sessions ORDER BY game_id, id").all();
-          if (!rows.length) throw new Error("No sessions found at conversion boundary");
-          let failures = 0;
-          for (const row of rows) {
-            const file = String(row.raw_file ?? "");
-            const label = \`game=\${row.game_id} session=\${row.id} file=\${file || "(missing)"}\`;
-            try {
-              if (!file || Number(row.capture_format_version) !== 1) throw new Error(\`missing converted provenance (captureFormatVersion=\${row.capture_format_version ?? "null"})\`);
-              if (!existsSync(file)) throw new Error("recording file missing");
-              const source = { rawFile: file, source: row.source == null ? null : String(row.source), gameId: String(row.game_id), captureFormatVersion: Number(row.capture_format_version), carOrdinal: Number(row.car_ordinal ?? -1), trackOrdinal: Number(row.track_ordinal ?? -1), carId: String(row.car_id ?? ""), trackId: String(row.track_id ?? "") };
-              if (file.endsWith("manifest.json")) {
-                const manifest = await sourceLoader.loadCaptureManifest(file);
-                if (manifest.gameId !== source.gameId) throw new Error("Session source manifest game does not match replay game");
-                const directory = await realpath(dirname(file));
-                const ownedPath = async (name) => {
-                  const path = await realpath(resolve(directory, name));
-                  const rel = relative(directory, path);
-                  if (isAbsolute(name) || rel === ".." || rel.startsWith(\`..\${sep}\`) || isAbsolute(rel)) throw new Error("Capture artifact path escapes manifest directory");
-                  return path;
-                };
-                let frames = 0;
-                if (manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1") {
-                  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
-                }
-                for (const chunk of manifest.chunks) {
-                  const path = await ownedPath(manifest.version === 4 ? manifest.archiveFile : chunk.path);
-                  if (manifest.version === 3 && (await stat(path)).size !== chunk.byteLength) throw new Error(\`Capture chunk \${chunk.id} byte length mismatch\`);
-                  const chunkSource = manifest.version === 4
-                    ? { ...source, rawFile: path, artifact: { archivePath: path, entryName: chunk.entryName, manifest } }
-                    : { ...source, rawFile: path };
-                  for await (const record of iterateSessionCaptureRecordsFromSource(chunkSource, { strict: true })) {
-                    if (record.kind === "frame" && !(manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1")) frames++;
-                  }
-                }
-                if (!frames) throw new Error("capture contains no decodable frames");
-                if (manifest.version === 3 && manifest.opponentRetention === "retained" && manifest.opponentCompanion) {
-                  const path = await ownedPath(manifest.opponentCompanion.file);
-                  if ((await stat(path)).size !== manifest.opponentCompanion.byteLength) throw new Error("Opponent companion byte length mismatch");
-                  for await (const _record of iterateSessionCaptureRecordsFromSource({ ...source, rawFile: path }, { strict: true, allowLegacyFullFrames: true })) {}
-                }
-                console.log(\`[upgrade-boundary] \${label} captureFormatVersion=1 manifest-v\${manifest.version} frames=\${frames}\`);
-                continue;
-              }
-              const blob = Bun.file(file);
-              const zipPrefix = Buffer.from(await blob.slice(0, 2).arrayBuffer());
-              let stream = blob.stream();
-              if (zipPrefix[0] === 0x1f && zipPrefix[1] === 0x8b) stream = stream.pipeThrough(new DecompressionStream("gzip"));
-              const reader = stream.getReader();
-              let pending = Buffer.alloc(0), initialized = false, marker = false, delta = false, checkpoints = 0;
-              try {
-                while (true) {
-                  const next = await reader.read();
-                  if (next.done) break;
-                  pending = pending.length ? Buffer.concat([pending, next.value]) : Buffer.from(next.value);
-                  if (!initialized) {
-                    if (pending.length < 8) continue;
-                    if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
-                      const length = pending.readUInt32LE(4);
-                      if (length > 16 * 1024 * 1024) throw new Error("oversized capture metadata");
-                      if (pending.length < 8 + length) continue;
-                      pending = pending.subarray(8 + length);
-                    }
-                    initialized = true;
-                  }
-                  while (pending.length >= 4) {
-                    if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
-                      if (pending.length < 8) break;
-                      const length = pending.readUInt32LE(4);
-                      if (length > 16 * 1024 * 1024) throw new Error("oversized capture metadata");
-                      if (pending.length < 8 + length) break;
-                      // v0.19.2 predates named sparse marker exports; use its persisted wire values.
-                      if (length === 8 && pending.readUInt32LE(8) === 0x31505352 && pending.readUInt32LE(12) === 1) marker = true;
-                      pending = pending.subarray(8 + length);
-                      continue;
-                    }
-                    const length = pending.readUInt32LE(0) & 0x7fffffff;
-                    if (length <= 0 || length > 16 * 1024 * 1024) throw new Error("invalid capture record length");
-                    const prefix = readFramePrefix(pending, 0);
-                    if (!prefix) {
-                      if (pending.length >= 12) throw new Error("invalid capture frame prefix");
-                      break;
-                    }
-                    if (pending.length < prefix.prefixBytes + prefix.length) break;
-                    const frame = pending.subarray(prefix.prefixBytes, prefix.prefixBytes + prefix.length);
-                    if (isLmuSparseFrame(frame) || isKunosSparseFrame(frame) || isGenericSparseFrame(frame)) delta = true;
-                    else checkpoints++;
-                    pending = pending.subarray(prefix.prefixBytes + prefix.length);
-                  }
-                }
-                if (!initialized || pending.length) throw new Error("truncated capture record");
-              } finally {
-                await reader.cancel();
-                reader.releaseLock();
-              }
-              let frames = 0;
-              for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
-              if (!frames) throw new Error("capture contains no decodable frames");
-              const classification = marker ? (delta ? "marker+delta" : "marker+checkpoint-only") : (delta ? "delta-without-marker" : checkpoints ? "checkpoint-only" : "no-frame-data");
-              console.log(\`[upgrade-boundary] \${label} captureFormatVersion=1 \${classification} frames=\${frames}\`);
-            } catch (error) { failures++; console.error(\`[upgrade-boundary] FAIL \${label}: \${error instanceof Error ? error.message : String(error)}\`); }
-          }
-          if (failures) throw new Error(\`\${failures}/\${rows.length} converted recording boundary checks failed\`);
-        } finally {
-          database.close();
-        }
-      `;
-      await run(previousBun, ["-e", script], checkoutDir, { ...previousEnv, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir });
-    },
     async checkoutPrevious() {
       if (phase !== "created") throw new Error(`checkoutPrevious invalid in phase ${phase}`);
       const configuredSource = process.env.RACEIQ_UPGRADE_REPOSITORY;
@@ -334,8 +209,11 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       await run("git", ["checkout", "--detach", previousSha], checkoutDir, process.env, 5 * 60_000);
       phase = "previous";
     },
-    async seedPrevious() {
-      if (phase !== "previous") throw new Error(`seedPrevious invalid in phase ${phase}`);
+    async preparePreviousSeed() {
+      if (phase !== "previous") throw new Error(`preparePreviousSeed invalid in phase ${phase}`);
+      if (!existsSync(join(checkoutDir, "apps/backend/src/session-capture/split-manager.ts"))) {
+        throw new Error(`${previousTag} does not support pre-split upgrade fixtures`);
+      }
       const manifest: unknown = JSON.parse(readFileSync(join(checkoutDir, "package.json"), "utf8"));
       const packageManager = manifest && typeof manifest === "object" && "packageManager" in manifest ? manifest.packageManager : undefined;
       if (typeof packageManager !== "string" || !/^bun@\d+\.\d+\.\d+$/.test(packageManager)) throw new Error(`Released checkout requires an exact Bun version: ${String(packageManager)}`);
@@ -345,10 +223,37 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       previousBun = join(binDir, process.platform === "win32" ? "bun.cmd" : "bun");
       previousEnv = { ...process.env, PATH: `${binDir}${process.platform === "win32" ? ";" : ":"}${process.env.PATH ?? ""}` };
       await run(previousBun, ["install", "--frozen-lockfile"], checkoutDir, previousEnv);
-      const seedEnv: NodeJS.ProcessEnv = { ...previousEnv, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir };
+      mkdirSync(fixtureDataDir);
+      writeFileSync(join(fixtureDataDir, "settings.json"), JSON.stringify({ recordingDirectory: join(dataDir, "sessions") }));
+      const seedEnv: NodeJS.ProcessEnv = { ...previousEnv, DATA_DIR: fixtureDataDir, APPDATA: fixtureDataDir, RACEIQ_APP_ROOT: checkoutDir };
       delete seedEnv.RACEIQ_E2E;
       await run(previousBun, ["run", "db:seed"], checkoutDir, seedEnv, 10 * 60_000);
-      record(`seeded all released game fixtures into data=${dataDir}`);
+      const bundled = join(callerRoot, "split-seed-recordings.ts");
+      const repoScript = join(repoRoot, "apps/backend/scripts/data/split-seed-recordings.ts");
+      const source = existsSync(bundled) ? bundled : repoScript;
+      const destination = join(checkoutDir, "apps/backend/scripts/data/.upgrade-prepare-split-seed.ts");
+      writeFileSync(destination, readFileSync(source), { flag: "wx" });
+      try {
+        await run(previousBun, [destination], checkoutDir, seedEnv, 5 * 60_000);
+      } finally {
+        unlinkSync(destination);
+      }
+      phase = "prepared";
+    },
+    async seedPrevious() {
+      if (phase !== "prepared") throw new Error(`seedPrevious invalid in phase ${phase}`);
+      const settingsPath = join(fixtureDataDir, "settings.json");
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
+      writeFileSync(settingsPath, JSON.stringify({ ...settings, recordingDirectory: null }));
+      const entries = readdirSync(fixtureDataDir);
+      if (!entries.includes("app.db") || entries.some((entry) => existsSync(join(dataDir, entry)))) {
+        throw new Error("Cannot install prepared seed into base data directory");
+      }
+      for (const entry of entries) {
+        if (entry !== "app.db") renameSync(join(fixtureDataDir, entry), join(dataDir, entry));
+      }
+      renameSync(join(fixtureDataDir, "app.db"), join(dataDir, "app.db"));
+      record(`seeded ${previousTag} from verified per-lap fixtures into data=${dataDir}`);
       phase = "seeded";
     },
     async checkoutMain() {
@@ -369,6 +274,7 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       }
       const runtimeEnv: NodeJS.ProcessEnv = { ...(phase === "seeded" ? previousEnv : process.env) };
       delete runtimeEnv.RACEIQ_E2E;
+      delete runtimeEnv.PW_SKIP_STARTUP_SPLIT_MIGRATION;
       runtimeEnv.RACEIQ_APP_ROOT = checkoutDir;
       const commonEnv = { ...runtimeEnv, DATA_DIR: dataDir, APPDATA: dataDir, SERVER_PORT: String(serverPort), UDP_PORT: String(udpPort) };
       const backend = spawn(phase === "seeded" ? previousBun : bun, ["run", "apps/backend/src/index.ts"], { cwd: checkoutDir, env: commonEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });

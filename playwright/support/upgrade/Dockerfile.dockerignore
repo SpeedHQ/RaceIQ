@@ -8,3 +8,8 @@
 !playwright/tests/
 !playwright/tests/upgrade/
 !playwright/tests/upgrade/source-release.spec.ts
+!apps/
+!apps/backend/
+!apps/backend/scripts/
+!apps/backend/scripts/data/
+!apps/backend/scripts/data/split-seed-recordings.ts
