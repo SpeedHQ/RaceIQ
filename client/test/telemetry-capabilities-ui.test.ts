@@ -218,7 +218,7 @@ describe("telemetry capability UI", () => {
     expect(legacy).toContain("50%");
   });
   test("2026 wire identity reaches the actual live projection", () => {
-    const sample = { ...fakeF1Packet, f1: { ...fakeF1Packet.f1, packetFormat: 2026 as const, carTelemetry2: { activeAeroMode: 0, activeAeroAvailable: false, activeAeroActivationDistance: 0, overtakeAvailable: false, overtakeActive: false, overtakeActivationDistance: 0, regulations2026: true, drivingWrongWay: false } } };
+    const sample = { ...fakeF1Packet, ErsDeployMode: 3, f1: { ...fakeF1Packet.f1, ersDeployMode: 3, packetFormat: 2026 as const, carTelemetry2: { activeAeroMode: 0, activeAeroAvailable: false, activeAeroActivationDistance: 0, overtakeAvailable: false, overtakeActive: false, overtakeActivationDistance: 0, regulations2026: true, drivingWrongWay: false } } };
     const { schema, frame } = new LiveTelemetryProjector().project({ packet: sample, receivedAtMs: 1000 });
     expect(schema).toBeDefined();
     expect(frame).toBeDefined();
@@ -226,6 +226,7 @@ describe("telemetry capability UI", () => {
     expect(view.statusBySemanticId["identity.telemetry-wire-format"]).toMatchObject({ resolution: "ok", freshness: "fresh" });
     expect(Number(view.valuesBySemanticId["identity.telemetry-wire-format"])).toBe(2026);
     expect(view.valuesBySemanticId["identity.f1-regulations-2026"]).toBe(true);
+    expect(view.ers.deployMode).toBe(3);
   });
   test("2026 replay shows measured energy without assuming battery capacity or legacy DRS", () => {
     expect(analyseSemanticIds(getGame("f1-2025"))).toContain("identity.telemetry-wire-format");
@@ -305,6 +306,24 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("BRK 212°");
     expect(markup).toContain("GRIP");
     expect(markup).not.toContain("38°F");
+  });
+
+  test.each([
+    ["ams2", 0, "R"], ["ams2", 11, "N"], ["ams2", 1, "1"], ["ams2", 2, "2"], ["ams2", 6, "6"],
+    ["f1-2025", 0, "R"], ["f1-2025", 1, "N"], ["f1-2025", 2, "1"], ["f1-2025", 3, "2"],
+  ] as const)("formats %s portable gear %i as %s", (simulator, gear, label) => {
+    const markup = renderToStaticMarkup(
+      createElement(QueryClientProvider, { client: new QueryClient() },
+        createElement(ComboDash, {
+          view: liveView(simulator, { inputs: { gear } }),
+          sectors: null,
+          pit: null,
+          unitSystem: "metric",
+        }),
+      ),
+    );
+
+    expect(markup).toContain(`class="text-app-instrument-primary font-black leading-none">${label}</div>`);
   });
 
   test("keeps unavailable combo tire channels visibly unavailable", () => {

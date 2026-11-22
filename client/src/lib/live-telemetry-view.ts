@@ -134,6 +134,11 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     const candidate = value(semanticId);
     return typeof candidate === "string" || (typeof candidate === "number" && Number.isFinite(candidate)) ? candidate : undefined;
   };
+  const ersDeployMode = (): number | undefined => {
+    const candidate = value("fuel.ers-deploy-mode");
+    if (typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 0 && candidate <= 3) return candidate;
+    return typeof candidate === "string" && /^[0-3]$/.test(candidate) ? Number(candidate) : undefined;
+  };
   const boolean = (semanticId: string): boolean | undefined => {
     const candidate = value(semanticId);
     return typeof candidate === "boolean" ? candidate : undefined;
@@ -313,7 +318,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     },
     ers: {
       storeJ: number("fuel.ers-store-energy"),
-      deployMode: number("fuel.ers-deploy-mode"),
+      deployMode: ersDeployMode(),
       deployedThisLapJ: number("fuel.ers-deployed"),
       harvestedThisLapJ: number("fuel.ers-harvested"),
     },

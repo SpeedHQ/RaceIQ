@@ -475,9 +475,10 @@ export class F1StateAccumulator {
     if (!isF1PacketFormat(header.packetFormat)) return false;
     const format: F1PacketFormat = header.packetFormat;
     if (format === 2026 && (header.playerCarIndex >= 24 || header.packetVersion !== 1 || F1_2026_PACKET_SIZES[header.packetId] !== buf.length)) return false;
-    if (header.sessionUID !== this.sessionUID || format !== this.packetFormat || header.playerCarIndex !== this.playerCarIndex) {
+    const sessionUID = header.sessionUID === 0n ? this.sessionUID : header.sessionUID;
+    if (sessionUID !== this.sessionUID || format !== this.packetFormat || header.playerCarIndex !== this.playerCarIndex) {
       this.reset();
-      this.sessionUID = header.sessionUID;
+      this.sessionUID = sessionUID;
       this.packetFormat = format;
     }
     this.playerCarIndex = header.playerCarIndex;
@@ -788,7 +789,7 @@ export class F1StateAccumulator {
 
     const packet: TelemetryPacket = {
       gameId: "f1-2025",
-      sessionUID: header.sessionUID.toString(),
+      sessionUID: this.sessionUID === 0n ? undefined : this.sessionUID.toString(),
       f1,
       IsRaceOn: 1,
       TimestampMS: Math.round(header.sessionTime * 1000),

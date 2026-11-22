@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import type { AiChatState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
 import { defaultModelForProvider } from "./recommended-model";
+import { OpenAiReasoningLevel } from "./OpenAiReasoningLevel";
 export function AiChatSection({ state }: { state: AiChatState }) {
   const {
     chatProvider,
@@ -78,6 +79,10 @@ export function AiChatSection({ state }: { state: AiChatState }) {
               models={chatModels}
             />
           </div>
+        )}
+        {chatProvider === "openai" && (
+          <OpenAiReasoningLevel id="ai-chat-reasoning"
+            value={state.chatReasoningLevel} onChange={state.setChatReasoningLevel} />
         )}
         {chatProvider === "gemini" && canShowChatModelPicker && (
           <div>
