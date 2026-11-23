@@ -134,12 +134,14 @@ describe("collect-screenshot-diffs", () => {
     expect(existsSync(join(out, "changed--responsive--mobile--changed-diff.png"))).toBe(true);
   });
 
-  test("incomplete snapshot renders warn without blocking preview publication", async () => {
+  test("reports failed and skipped snapshot steps without flagging successful steps or hiding diffs", async () => {
     const preview = makeTempDir();
     const args = [process.execPath, resolve(ROOT_DIR, "packages/tooling-ui/src/ui/report-snapshot-failure.ts"), preview];
-    const empty = Bun.spawnSync(args);
+    const empty = Bun.spawnSync([...args, "Build base Storybook: failure", "Render base snapshots: skipped", "Render PR snapshots: success"]);
     expect(empty.exitCode).toBe(0);
-    expect(empty.stderr.toString()).toContain("::warning::");
+    expect(empty.stderr.toString()).toContain("::error::Build base Storybook: failure");
+    expect(empty.stderr.toString()).toContain("::error::Render base snapshots: skipped");
+    expect(empty.stderr.toString()).not.toContain("Render PR snapshots");
 
     await writePng(join(preview, "changed--rendered-base-vs-pr--AnalyseDataPanelParity-diff.png"), { r: 255, g: 0, b: 0 });
     const changed = Bun.spawnSync(args);

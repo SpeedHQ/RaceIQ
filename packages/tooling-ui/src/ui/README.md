@@ -30,7 +30,7 @@ Snapshot capture builds static Storybook through the shared helper before servin
 
 Static builds always use `CI=true`, matching Playwright's web-server environment. Capture invokes the helper from the repository root, matching standalone Bun dotenv loading, so local prebuilds remain eligible for verify-only capture.
 
-CI restores exact keys without fallback prefixes, builds each revision explicitly, and sets `RACEIQ_STORYBOOK_PREBUILT=1` for verify-only serving. `RACEIQ_STORYBOOK_ROOT` selects the revision's client; `RACEIQ_SNAPSHOT_TEST_DIR` selects historical specs without replacing their fixtures. Failed builds do not render stale assets, and cache service failures do not prevent uncached builds or partial preview publication.
+CI restores exact keys without fallback prefixes, builds each revision explicitly, and sets `RACEIQ_STORYBOOK_PREBUILT=1` for verify-only serving. Each render runs from its own checkout so the Playwright runner, config, and specs resolve the same installation. Failed builds do not render stale assets, and cache service failures do not prevent uncached builds or partial preview publication. After artifact upload, CI names any failed or skipped build or render step.
 
 Paraglide generation uses the shared translation build cache documented in `scripts/dev/README.md`. Historical base revisions keep their own Vite configuration, so their first uncached build may still run the older translation compiler. GitHub pull-request caches reuse builds within the same PR; sharing across PRs requires a matching default-branch cache.
 

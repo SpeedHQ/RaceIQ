@@ -197,14 +197,14 @@ jobs:
       - name: Render base snapshots
         if: steps.base-storybook-build.outcome == 'success'
         id: base-storybook-render
-        working-directory: client
+        working-directory: ${{ runner.temp }}/raceiq-base/client
         env:
-          RACEIQ_STORYBOOK_ROOT: ${{ runner.temp }}/raceiq-base/client
-          RACEIQ_SNAPSHOT_TEST_DIR: ${{ runner.temp }}/raceiq-base/client/src/stories
           RACEIQ_STORYBOOK_PREBUILT: "1"
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
-        run: bunx playwright test --update-snapshots --reporter=line --grep-invert 'covered stories render without API requests'
+        run: |
+          bunx playwright install chromium
+          bunx playwright test --update-snapshots --reporter=line --grep-invert 'covered stories render without API requests'
         # Missing base screenshots remain reviewable as additions.
         continue-on-error: true
       - name: Render PR snapshots
@@ -241,5 +241,9 @@ jobs:
       - name: Fail incomplete Storybook renders
         if: ${{ !cancelled() && (steps.base-storybook-build.outcome != 'success' || steps.pr-storybook-build.outcome != 'success' || steps.base-storybook-render.outcome != 'success' || steps.storybook-render.outcome != 'success') }}
         run: |
-          bun packages/tooling-ui/src/ui/report-snapshot-failure.ts pr-preview
+          bun packages/tooling-ui/src/ui/report-snapshot-failure.ts pr-preview \
+            "Build base Storybook: ${{ steps.base-storybook-build.outcome }}" \
+            "Build PR Storybook: ${{ steps.pr-storybook-build.outcome }}" \
+            "Render base snapshots: ${{ steps.base-storybook-render.outcome }}" \
+            "Render PR snapshots: ${{ steps.storybook-render.outcome }}"
           exit 1
