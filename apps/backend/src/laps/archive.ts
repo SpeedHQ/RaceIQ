@@ -35,6 +35,7 @@ import { decodeLmuSparseFrame, encodeLmuSparseFrame, isLmuSparseFrame, lmuSparse
 import { canHandleLMUSourceFrame, decodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
+import { ACC_BROADCAST_CAPTURE_MAGIC } from "@raceiq/capture-formats/acc/broadcast-capture";
 import { decodeGenericSparseFrame, encodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { isCatalogCarId, isCatalogTrackId } from "../games/session-identity";
@@ -70,7 +71,6 @@ import {
   gzipBufferSync,
   decompressIfGzipSync,
   iterateSessionCaptureRecords,
-  iterateSessionFrameRecords,
   type SessionCaptureRecord,
   sessionFrameAt,
 } from "@raceiq/capture-formats/session/framing";
@@ -150,7 +150,7 @@ async function readCapture(row: RawLapRow): Promise<Buffer | null> {
     if (!row.rawFile) return null;
     return await loadSessionCapture({
       rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-      carId: row.carId, trackId: row.trackId,
+      carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion,
     });
   } catch {
     return null;
@@ -443,6 +443,8 @@ function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] 
       context.length = 0;
     } else if (record.kind === "frame") {
       context.push(Buffer.concat([encodeFrameLength(record.frame.length, record.frameTimeMs), record.frame]));
+    } else if ("bytes" in record) {
+      context.push(record.bytes);
     }
   }
   return context;
@@ -468,7 +470,7 @@ function firstFrameOffsetAcrossContext(buf: Buffer, offset: number): number | nu
         at = payloadEnd;
         continue;
       } else if (size >= 4 && buf.readUInt32LE(at + 8) === PARSER_BOOTSTRAP_MAGIC) return null;
-      else return null;
+      else if (size < 4 || buf.readUInt32LE(at + 8) !== ACC_BROADCAST_CAPTURE_MAGIC) return null;
       at = payloadEnd;
       continue;
     }
@@ -499,8 +501,18 @@ function sparseLapRecords(
   let emitted = 0;
   const firstFrameOffset = firstFrameOffsetAcrossContext(buf, start);
   if (firstFrameOffset === null) return parts;
-  for (const record of iterateSessionFrameRecords(buf, firstFrameOffset)) {
+  if (firstFrameOffset > start) {
+    parts.push(buf.subarray(start, firstFrameOffset));
+    outputOffset += firstFrameOffset - start;
+  }
+  for (const record of iterateSessionCaptureRecords(buf, firstFrameOffset)) {
     if (record.offset >= end) break;
+    if ("bytes" in record) {
+      parts.push(record.bytes);
+      outputOffset += record.bytes.length;
+      continue;
+    }
+    if (record.kind !== "frame") continue;
     const isLmu = gameId === "lmu" && record.frame.length >= LMU_SOURCE_FRAME_V2_SIZE &&
       canHandleLMUSourceFrame(record.frame);
     const partition = isLmu ? partitionLMUSourceFrame(record.frame) : null;
@@ -551,7 +563,7 @@ function sparseLapRecords(
       parts.push(marker);
       outputOffset += marker.length;
     }
-    previous = canDelta ? record.frame : null;
+    previous = canDelta ? frameSource : null;
     emitted++;
   }
   return parts;
@@ -697,7 +709,7 @@ export async function buildLapsZip(
           : null;
       const f1Context = first.gameId === "f1-2025" ? buildF1ContextRecords(buf, start) : null;
       if (f1Context) parserBootstrap = f1Context.bootstrap;
-      const context = f1Context?.records ?? (first.gameId === "ac-evo"
+      const context = f1Context?.records ?? (first.gameId === "ac-evo" || first.gameId === "acc"
         ? buildParserContextRecords(buf, start)
         : []);
       const ownedEnd = advanceLapFramesAcrossContext(buf, start, frameCount);

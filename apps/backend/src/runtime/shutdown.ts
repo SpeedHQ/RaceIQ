@@ -14,18 +14,21 @@ export interface ShutdownOptions {
   getStartupWorker(): StartupWorkerHandle | null;
   stopClassificationMigrationWorker?(): Promise<void> | void;
   clearDashboardPublicationNotifications(): void;
+  stopLiveEngineerVoicePackChecks?(): void;
 }
 
 export function installShutdown({
   getNativeSources,
   getStartupWorker,
   stopClassificationMigrationWorker,
+  stopLiveEngineerVoicePackChecks,
   clearDashboardPublicationNotifications,
 }: ShutdownOptions): void {
   let shutdownPromise: Promise<void> | null = null;
   const gracefulShutdown = (signal: NodeJS.Signals): Promise<void> => {
     if (shutdownPromise) return shutdownPromise;
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
+    stopLiveEngineerVoicePackChecks?.();
     stopLayoutMigrationAdmission();
     const classificationStop = stopClassificationMigrationWorker?.();
     const startupStop = getStartupWorker()?.stop();

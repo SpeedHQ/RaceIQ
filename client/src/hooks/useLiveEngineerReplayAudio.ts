@@ -1,0 +1,120 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { LiveEngineerAudioError, LiveEngineerAudioPlayer, type ScheduledAudioClip } from "../lib/live-engineer-audio";
+import { DEV_QWEN_CATALOG } from "../components/dev/DevSpeechAudio";
+
+type ReplayAudioRequest =
+  | { id: string; kind: "segments"; values: readonly string[] }
+  | { id: string; kind: "full-line"; values: string };
+
+export function useLiveEngineerReplayAudio() {
+  const contextRef = useRef<AudioContext | null>(null);
+  const playerRef = useRef<LiveEngineerAudioPlayer | null>(null);
+  const operationRef = useRef(0);
+  const queueRef = useRef<ReplayAudioRequest[]>([]);
+  const pendingIdsRef = useRef<Set<string>>(new Set());
+  const drainingRef = useRef(false);
+  const requestId = useRef<string | null>(null);
+  const [schedules, setSchedules] = useState<ReadonlyMap<string, readonly ScheduledAudioClip[]>>(() => new Map());
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const ensurePlayer = useCallback(() => {
+    let context = contextRef.current;
+    if (!context || context.state === "closed") {
+      context = new AudioContext();
+      contextRef.current = context;
+      playerRef.current = new LiveEngineerAudioPlayer({
+        audioContext: context,
+        catalog: DEV_QWEN_CATALOG,
+        onSchedule(clips) {
+          const id = requestId.current;
+          if (id !== null) setSchedules((previous) => new Map(previous).set(id, clips));
+        },
+      });
+    }
+    return { context, player: playerRef.current! };
+  }, []);
+
+  const unlock = useCallback(async () => {
+    const { context } = ensurePlayer();
+    if (context.state === "suspended") await context.resume();
+  }, [ensurePlayer]);
+
+  const stop = useCallback(() => {
+    operationRef.current += 1;
+    queueRef.current = [];
+    pendingIdsRef.current.clear();
+    drainingRef.current = false;
+    playerRef.current?.stop();
+    requestId.current = null;
+    setSchedules(new Map());
+    setPlayingId(null);
+  }, []);
+
+  const enqueue = useCallback((item: ReplayAudioRequest) => {
+    if (pendingIdsRef.current.has(item.id)) return;
+    pendingIdsRef.current.add(item.id);
+    queueRef.current.push(item);
+    if (drainingRef.current) return;
+    drainingRef.current = true;
+    const operation = operationRef.current;
+    void ((async () => {
+      try {
+        while (queueRef.current.length && operationRef.current === operation) {
+          const next = queueRef.current.shift()!;
+          requestId.current = next.id;
+          setPlayingId(next.id);
+          try {
+            if (next.kind === "segments") await playerRef.current!.play(next.values);
+            else await playerRef.current!.playFullLine(next.values);
+          } catch (cause) {
+            if (operationRef.current !== operation) return;
+            const message = cause instanceof LiveEngineerAudioError ? `${cause.code}: ${cause.message}` : cause instanceof Error ? cause.message : "Audio playback failed";
+            setError(message);
+          } finally {
+            if (operationRef.current === operation) pendingIdsRef.current.delete(next.id);
+          }
+        }
+      } finally {
+        if (operationRef.current === operation) {
+          drainingRef.current = false;
+          setPlayingId(null);
+        }
+      }
+    })());
+  }, []);
+
+  const play = useCallback(async (id: string, segmentIds: readonly string[]) => {
+    if (segmentIds.length === 0) return;
+    const operation = operationRef.current;
+    const { context } = ensurePlayer();
+    if (context.state === "suspended") await context.resume();
+    if (operationRef.current !== operation) return;
+    setError(null);
+    enqueue({ id, kind: "segments", values: segmentIds });
+  }, [ensurePlayer, enqueue]);
+
+  const playFullLine = useCallback(async (id: string, lineId: string) => {
+    const operation = operationRef.current;
+    const { context } = ensurePlayer();
+    if (context.state === "suspended") await context.resume();
+    if (operationRef.current !== operation) return;
+    setError(null);
+    enqueue({ id, kind: "full-line", values: lineId });
+  }, [ensurePlayer, enqueue]);
+
+  const clearError = useCallback(() => setError(null), []);
+
+  useEffect(() => () => {
+    operationRef.current += 1;
+    queueRef.current = [];
+    drainingRef.current = false;
+    pendingIdsRef.current.clear();
+    playerRef.current?.stop();
+    void contextRef.current?.close();
+    contextRef.current = null;
+    playerRef.current = null;
+  }, []);
+
+  return { play, playFullLine, stop, unlock, playingId, schedules, error, clearError };
+}

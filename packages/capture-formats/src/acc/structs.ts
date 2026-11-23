@@ -204,7 +204,7 @@ export const GRAPHICS = {
   playerCarID:      { offset: 1216, type: "i32" },
   penaltyTime:      { offset: 1220, type: "f32" },
   flag:             { offset: 1224, type: "i32" },
-  penalty:          { offset: 1228, type: "i32" },
+  penalty:          { offset: 1228, type: "i32" }, // ACC_PENALTY_TYPE, not a count
   // idealLineOn (1232)
   isInPitLane:      { offset: 1236, type: "i32" },
   // surfaceGrip (1240), mandatoryPitDone (1244)
@@ -235,6 +235,9 @@ export const GRAPHICS = {
   // trackStatus wchar_t[33] at 1416 (66 bytes) + 2 pad → 1484
   missingMandatoryPits: { offset: 1484, type: "i32" },
   clock:            { offset: 1488, type: "f32" },   // seconds
+  rainIntensity:    { offset: 1560, type: "i32" }, // ACC_RAIN_INTENSITY, 0..5
+  gapAhead:         { offset: 1580, type: "i32" }, // milliseconds
+  gapBehind:        { offset: 1584, type: "i32" }, // milliseconds
 } as const;
 
 // --- SPageFileStatic ---

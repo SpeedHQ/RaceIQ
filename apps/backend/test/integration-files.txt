@@ -95,6 +95,7 @@ apps/backend/test/race-results/race-results-storage.test.ts
 apps/backend/test/race-results/raw-capture-identity.test.ts
 apps/backend/test/routes/car-routes-game-id.test.ts
 apps/backend/test/routes/diagnostics-routes.test.ts
+apps/backend/test/routes/engineer-recording-presets.test.ts
 apps/backend/test/routes/import-ownership.test.ts
 apps/backend/test/routes/lap-analysis-integration.test.ts
 apps/backend/test/routes/lap-analysis-route.test.ts
@@ -108,6 +109,7 @@ apps/backend/test/routes/recording-directory.test.ts
 apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
+apps/backend/test/runtime/live-engineer-audio-proxy.test.ts
 apps/backend/test/runtime/dashboard-auth.test.ts
 apps/backend/test/runtime/dump-only.test.ts
 apps/backend/test/runtime/http-access-compiled.test.ts
@@ -219,5 +221,9 @@ apps/backend/test/session-capture/live-worker-catchup.test.ts
 apps/backend/test/session-capture/preopened-file-writer.test.ts
 apps/backend/test/session-capture/direct-recorder.test.ts
 apps/backend/test/session-capture/direct-recording-ingress.test.ts
+apps/backend/test/live-strategy/acc-opponent-replay.test.ts
+apps/backend/test/live-strategy/live-engineer-audio-catalog.test.ts
+apps/backend/test/telemetry/live-pipeline-capture-prefix.test.ts
+apps/backend/test/routes/live-engineer-voice-pack.test.ts
 apps/backend/test/session-capture/classification-status.test.ts
 apps/backend/test/runtime/desktop-lifecycle.test.ts

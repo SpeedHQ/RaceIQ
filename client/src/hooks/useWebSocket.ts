@@ -2,9 +2,13 @@ import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
-import type { VersionInfo } from "../stores/telemetry";
+import { isLiveEngineerCalloutMessageV3, isLiveEngineerVoiceLineMessageV3 } from "../../../shared/racing/live/engineer-contracts";
+import type { ServerStatus, VersionInfo } from "../stores/telemetry";
 import { telemetryStore } from "../stores/telemetry";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import { devTelemetryStore } from "../stores/dev-telemetry";
+import { useLiveEngineerStore } from "../stores/live-engineer";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 import { invalidateDashboardQueries as invalidateDashboard } from "./dashboard";
@@ -93,6 +97,19 @@ function refreshCaptureReadiness(terminal: boolean) {
 
 const VERSION_REQUEST_TIMEOUT_MS = 10_000;
 const RACE_RESULT_REPROCESS_ERROR = "One or more race results could not be reconciled.";
+export function flushLiveEngineerOutbound(socket: Pick<WebSocket, "readyState" | "send">): void {
+  while (socket.readyState === WebSocket.OPEN) {
+    const message = useLiveEngineerStore.getState().outbound[0];
+    if (!message) return;
+    try {
+      socket.send(JSON.stringify(message));
+    } catch {
+      return;
+    }
+    if (socket.readyState !== WebSocket.OPEN) return;
+    useLiveEngineerStore.getState().takeOutbound();
+  }
+}
 
 function fetchVersionInfo(signal: AbortSignal) {
   return client.api.version
@@ -144,12 +161,6 @@ export function useWebSocket() {
     function connect() {
       abortVersionRequest();
       // Close any existing connection before opening a new one
-      if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect loop
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-
       const devTarget = import.meta.env.DEV ? __RACEIQ_DEV_WS_TARGET__ : undefined;
       const ws = new WebSocket(buildWebSocketUrl(window.location, devTarget));
       wsRef.current = ws;
@@ -161,6 +172,7 @@ export function useWebSocket() {
         telemetryStore.actions.setConnected(true);
 
         startVersionRequest();
+        flushLiveEngineerOutbound(ws);
         void refreshClassificationMigration();
         queryClient.invalidateQueries({ queryKey: ["track-laps"] });
         queryClient.invalidateQueries({ queryKey: queryKeys.laps });
@@ -179,44 +191,38 @@ export function useWebSocket() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === "status") {
-            const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
-            telemetryStore.actions.setServerStatus(status);
+          const data = JSON.parse(event.data) as Record<string, unknown>;
+          const liveStore = useLiveEngineerStore.getState();
+          if (isLiveEngineerCalloutMessageV3(data)) liveStore.receiveCallout(data);
+          else if (isLiveEngineerVoiceLineMessageV3(data)) liveStore.receiveVoiceLine(data);
+          else if (data.type === "status") {
+            const { type: __ignored, ...status } = data;
+            telemetryStore.actions.setServerStatus(status as unknown as ServerStatus);
           } else if (data.type === "telemetry-idle") {
             telemetryStore.actions.clearTelemetry(true);
             devTelemetryStore.actions.setPacket(null);
-          } else if (data.type === "update-available") {
-            telemetryStore.actions.setUpdateAvailable(data.version as string);
-            startVersionRequest();
-          } else if (data.type === "update-progress") {
-            telemetryStore.actions.setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
-          } else if (data.type === "onboarding_complete") {
-            queryClient.invalidateQueries({ queryKey: ["settings"] });
-          } else if (data.type === "dashboard_updated") {
-            invalidateDashboard();
-          } else if (data.type === "lmu-opponent-catalog-updated") {
-            queryClient.invalidateQueries({ queryKey: ["opponent-lap-catalog"] });
-          } else if (data.type === "session-laps") {
-            telemetryStore.actions.setSessionLaps(data.laps);
-          } else if (data.type === "classification-migration-status") {
+          } else if (data.type === "update-available") { telemetryStore.actions.setUpdateAvailable(data.version as string); startVersionRequest(); }
+          else if (data.type === "update-progress") telemetryStore.actions.setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });
+          else if (data.type === "live-engineer-package-update") queryClient.invalidateQueries({ queryKey: ["live-engineer-voice-pack"] });
+          else if (data.type === "onboarding_complete") queryClient.invalidateQueries({ queryKey: ["settings"] });
+          else if (data.type === "dashboard_updated") invalidateDashboard();
+          else if (data.type === "lmu-opponent-catalog-updated") queryClient.invalidateQueries({ queryKey: ["opponent-lap-catalog"] });
+          else if (data.type === "session-laps") telemetryStore.actions.setSessionLaps(data.laps as LapMeta[]);
+          else if (data.type === "classification-migration-status") {
             const { type: __ignored, ...status } = data;
             acceptClassificationMigrationSnapshot(status as ClassificationMigrationStatus);
-          } else if (data.type === "dev-state") {
-            telemetryStore.actions.setDevState(data);
-          } else if (data.type === "lap-saved") {
+          } else if (data.type === "dev-state") telemetryStore.actions.setDevState(data);
+          else if (data.type === "lap-saved") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             invalidateDashboard();
             queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           } else if (data.type === "session-capture-split-progress") {
             const status = data.status as Record<string, unknown> | undefined;
-            if (status && acceptCaptureSnapshot(status)) {
-              refreshCaptureReadiness(status.phase === "ready" || status.phase === "failed");
-            }
+            if (status && acceptCaptureSnapshot(status)) refreshCaptureReadiness(status.phase === "ready" || status.phase === "failed");
           } else if (data.type === "lap-capture-ready") {
             invalidateCaptureReadiness();
             invalidateDashboard();
-          } else if (["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(data.type)) {
+          } else if (["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(String(data.type))) {
             if (data.type === "recording-failed" && (typeof data.sessionId !== "number" || typeof data.captureEpoch !== "string")) {
               telemetryStore.actions.setLiveCaptureError(typeof data.error === "string" ? data.error : "Recording failed.");
             } else {
@@ -259,9 +265,13 @@ export function useWebSocket() {
             const sid = data.sessionId as number;
             queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
             queryClient.invalidateQueries({ queryKey: ["experiment", sid] });
-          } else {
-            if (handleWebSocketMessage(data)) packetCountRef.current++;
-          }
+          } else if (data.type === "lap-issues") {
+            telemetryStore.actions.addLapIssues({
+              lapId: data.lapId as number,
+              lapNumber: data.lapNumber as number,
+              issues: data.issues as TuneIssue[],
+            });
+          } else if (handleWebSocketMessage(data)) packetCountRef.current++;
         } catch {
           // ignore malformed messages
         }
@@ -299,6 +309,12 @@ export function useWebSocket() {
         ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
       }
     });
+    const unsubscribeLiveEngineer = useLiveEngineerStore.subscribe((state, previous) => {
+      if (state.outbound === previous.outbound) return;
+      const ws = wsRef.current;
+      if (ws) flushLiveEngineerOutbound(ws);
+    });
+
     void refreshClassificationMigration();
     const telemetry = telemetryStore.get();
     let previousDevStateWanted = telemetry.devStateConsumers > 0 && !telemetry.devStatePaused;
@@ -321,6 +337,7 @@ export function useWebSocket() {
 
     return () => {
       unsubscribeDev.unsubscribe();
+      unsubscribeLiveEngineer();
       unsubscribeDevState.unsubscribe();
       clearInterval(interval);
       clearTimeout(reconnectTimeoutRef.current);

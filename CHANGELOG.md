@@ -1,3 +1,7 @@
+## Unreleased
+
+- Engineer replay uses the development voice catalog for playback and waveforms. Its timeline displays queued callouts in sequence rather than drawing them over each other.
+
 ## v0.23.0 - 2026-11-22
 
 ### Features
@@ -603,6 +607,7 @@
 - Keep overlapping lap-insight computations from overwriting explicitly rerun results.
 
 ### Internal
+- Show ordered v3 lap-time chunks, individual audio previews, source sentences, and join timings in the developer speech comparison.
 - Bind development UDP telemetry to Forza's default port `5301`, configurable with `RACEIQ_DEV_UDP_PORT`.
 - Keep seeded sessions' source metadata consistent with live recordings so conversion eligibility no longer needs a seed exception.
 - Verify seeded database upgrades against migrations pending from PR base.
@@ -619,6 +624,7 @@
 - Fail PR screenshot-render jobs on Storybook test errors after uploading visual artifacts; wait for note-modal interaction readiness in snapshots.
 - Align seeded Analyse and landing browser tests with session-scoped review/replay routes, session empty/error states, lap-only selection, and simulator-specific tire labels; exercise responsive Analyse against seeded replay data.
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
+- Replay multiple synthetic race-engineer scenarios across complete multi-lap sessions, including fuel escalation and pit-entry sequences.
 - Cache versioned static lap insights for reuse, stale backfill, and explicit reruns
 - Reuse per-frame wheel dynamics across static insight detectors
 - Avoid per-frame wheel-speed sorting during effective-radius calculation
@@ -727,6 +733,7 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Add opt-in Race Engineer opponent-pace and Spotter announcements; opponent pace is available from source-backed F1 25 and iRacing telemetry, while ACC, AC Evo, and Forza remain unavailable where feeds do not expose required competitor facts.
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment

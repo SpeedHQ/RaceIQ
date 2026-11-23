@@ -1,9 +1,9 @@
 import { open, rename, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { syncDirectoryTree } from "@raceiq/capture-formats/session/durable-directory";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { Schema } from "effect";
 import { LiveArchiveMemberSchema } from "@raceiq/capture-splitting";
-import { syncDirectory } from "@raceiq/capture-formats/session/durable-directory";
 import { db, client, readDb } from "../db/index";
 import { laps, sessions, liveCaptures, liveCaptureMembers } from "../db/schema";
 import { withDatabaseWrite } from "../db/write-coordination";
@@ -70,7 +70,7 @@ export async function sealLiveCaptureMetadata(identity: LiveCaptureIdentity): Pr
     await file.sync();
   } finally { await file.close(); }
   await rename(temporaryPath, manifestPath);
-  await syncDirectory(dirname(manifestPath));
+  await syncDirectoryTree(dirname(manifestPath));
   const seal = db.update(liveCaptures).set({ status: "sealed", error: null })
     .where(and(fence, eq(liveCaptures.status, "finalizing"), eq(liveCaptures.generation, progress.generation),
       eq(liveCaptures.committedArchiveLength, progress.committedArchiveLength))).toSQL();

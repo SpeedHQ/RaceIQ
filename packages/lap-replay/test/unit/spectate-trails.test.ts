@@ -5,7 +5,7 @@ import { disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-
 import { SpectateSceneRuntime } from "../../ui/SpectateSceneRuntime"
 import type { SpectateReading, SpectateSample } from "../../contracts/spectate"
 
-initGameAdapters({ f1Experiments: true, iracingAdapter: true });
+initGameAdapters({ f1Experiments: true, iracingAdapter: true, ams2Adapter: false, liveSpotterEngineer: false, liveSpotterEngineerGameIds: [] });
 
 type TrailProbe = { updateTrail(side: 0 | 1, reading: SpectateReading | null): void; trails: [TireTrailResource | null, TireTrailResource | null] };
 const sample = (time: number, x: number, run = 0): SpectateSample => ({ time, distance: x, run, values: {

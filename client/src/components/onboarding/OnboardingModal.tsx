@@ -15,6 +15,9 @@ import { StartupStep } from "./steps/StartupStep";
 import { StorageStep } from "./steps/StorageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { WheelStep } from "./steps/WheelStep";
+import { LiveEngineerPackageStep } from "./steps/LiveEngineerPackageStep";
+import { clientReleaseFeatures } from "@/lib/release-features";
+import { liveEngineerVoicePackInstallKey, useLiveEngineerVoicePackStatus } from "@/hooks/live-engineer-voice-pack";
 import { AccessSetupForm } from "@/components/security/AccessSetupForm";
 import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { getLocale } from "@/paraglide/runtime";
@@ -35,12 +38,14 @@ const MODAL_STEPS = [
   { id: "wheel", label: m.label_wheel, Component: WheelStep },
   { id: "units", label: m.label_units, Component: UnitsStep },
   { id: "sound", label: m.label_sound, Component: SoundStep },
+  { id: "live-engineer", label: m.label_live_engineer, Component: LiveEngineerPackageStep },
   { id: "startup", label: m.step_startup, Component: StartupStep },
   { id: "storage", label: m.label_storage, Component: StorageStep },
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
 
 export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number } = {}) {
+  const steps = MODAL_STEPS.filter((item) => item.id !== "live-engineer" || clientReleaseFeatures.liveSpotterEngineer);
   const { status, refresh } = useDashboardAuth();
   const [step, setStep] = useState(initialStep);
   const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
@@ -72,15 +77,19 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
   const isMovePending = useIsMutating({ mutationKey: queryKeys.recordingDirectoryMove }) > 0;
   const layoutMigration = useRecordingLayoutMigration();
   const isLayoutPending = useIsMutating({ mutationKey: queryKeys.recordingLayoutMigrationStart }) > 0;
+  const packageInstallPending = useIsMutating({ mutationKey: liveEngineerVoicePackInstallKey }) > 0;
+  const packageStep = steps[step]?.id === "live-engineer";
+  const packageStatus = useLiveEngineerVoicePackStatus(clientReleaseFeatures.liveSpotterEngineer && packageStep);
   const isSelectPending = useIsMutating({ mutationKey: queryKeys.recordingDirectorySelect }) > 0;
   const layoutNeedsAttention = (layoutMigration.data?.fileCount ?? 0) > 0 || layoutMigration.data?.progress.status === "partial" || layoutMigration.data?.progress.status === "error";
   const layoutBusy = layoutNeedsAttention || layoutMigration.data?.progress.status === "running" || Boolean(layoutMigration.data?.destinationDirectory && layoutMigration.data.progress.status !== "success") || isLayoutPending;
   const storageBusy = isMovePending || isLayoutPending || isSelectPending || storageStatus.data?.state === "moving" || layoutBusy;
+  const navigationBusy = storageBusy || (packageStep && (packageInstallPending || Boolean(packageStatus.data?.installing)));
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);
   const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);
   const receiving = udpPps > 0 || packetsPerSec > 0 || lastUdpAt > 0;
-  const { Component: StepComponent } = MODAL_STEPS[step];
+  const { Component: StepComponent } = steps[step];
   async function handleFinish() {
     if (onClose) onClose();
     else {
@@ -95,7 +104,7 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
           <div className="shrink-0 px-4 pt-4 pb-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
             <h1 className="text-app-heading font-semibold text-app-text @3xl/onboarding:text-app-title">{m.ob_configure_title()}</h1>
             <div ref={stepStripRef} className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
-              {MODAL_STEPS.slice(1).map((s, idx) => {
+              {steps.slice(1).map((s, idx) => {
                 const i = idx + 1;
                 return (
                   <div key={s.id} className="flex items-center gap-2 shrink-0">
@@ -107,7 +116,7 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
                       </span>
                       {s.label()}
                     </div>
-                    {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-status-success/50" : "bg-app-border"}`} />}
+                    {idx < steps.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-status-success/50" : "bg-app-border"}`} />}
                   </div>
                 );
               })}
@@ -121,13 +130,13 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
               <AccessSetupForm setup submitContainer={accessFooter} language={getLocale()} onComplete={async () => { await refresh(); setStep((current) => current + 1); }} />
             </div>
           ) : <StepComponent />}
-          {layoutBusy && step !== MODAL_STEPS.findIndex((item) => item.id === "storage") && <div className="mt-4"><RecordingLayoutMigration compact /></div>}
+          {layoutBusy && step !== steps.findIndex((item) => item.id === "storage") && <div className="mt-4"><RecordingLayoutMigration compact /></div>}
         </div>
         <div data-slot="onboarding-footer" className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">
-            {step > 0 && <Button variant="outline" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s - 1)}>{m.common_back()}</Button>}
-            {step === 1 && status.pending ? <span ref={setAccessFooter} /> : step < MODAL_STEPS.length - 1 ? (
-              <Button variant="app-primary" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s + 1)}>{step === 0 ? m.common_get_started() : m.common_next()}</Button>
+            {step > 0 && <Button variant="outline" size="sm" disabled={navigationBusy} onClick={() => setStep((s) => s - 1)}>{m.common_back()}</Button>}
+            {step === 1 && status.pending ? <span ref={setAccessFooter} /> : step < steps.length - 1 ? (
+              <Button variant="app-primary" size="sm" disabled={navigationBusy} onClick={() => setStep((s) => s + 1)}>{step === 0 ? m.common_get_started() : packageStep && packageStatus.data?.state !== "ready" ? m.live_engineer_package_skip() : m.common_next()}</Button>
             ) : (
               <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending || storageBusy}>{receiving ? m.common_finish() : m.common_next()}</Button>
             )}

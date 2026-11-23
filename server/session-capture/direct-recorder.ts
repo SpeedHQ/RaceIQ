@@ -32,7 +32,7 @@ export interface DirectCaptureRecordingOptions {
 }
 type Owner = { binding?: PersistedLapBinding; startOrdinal: number; count: number; trailing: number; finalized: boolean; abandoned: boolean; ownedByteOffset: number };
 type Part = { info: PreopenedFileInfo; encoder: SparseCaptureEncoder | null; localOffset: number; prefixBytes: number; records: number; firstOrdinal: number; sourceStart: number; sourceEnd: number; kind: "lap" | "auxiliary"; owner?: Owner; bootstrapHash?: string; firstTimestamp?: number; lastTimestamp?: number; closed?: boolean; chunkId?: string };
-type FrameRef = { frame: Buffer; timestamp?: number; start: number; end: number; ordinal: number; localOffset: number };
+type FrameRef = { frame: Buffer; timestamp?: number; start: number; end: number; ordinal: number; localOffset: number; capturePrefixes?: readonly Buffer[]; captureContext?: () => readonly Buffer[]; captureContextRecords?: readonly Buffer[]; prefixRecordCount?: number };
 const MAX_CANDIDATE_SUFFIX_RECORDS = 1_200;
 type DirectCaptureStopTestBarrier = (point: "before-writer-close" | "before-final-seal" | "index-enqueued" | "index-skipped-non-lmu" | "index-skipped-retention" | "index-skipped-companion-failure" | "index-skipped-deferred", detail?: string) => Promise<void> | void;
 let directCaptureStopTestBarrier: DirectCaptureStopTestBarrier | null = null;
@@ -222,6 +222,7 @@ export class DirectCaptureRecording {
         if (!window || window.startOffset == null) continue;
         if (transition.kind === "candidate-start") {
           if (!this.pendingCandidate && this.lastFrame?.start === window.startOffset) {
+            this.lastFrame.captureContextRecords ??= this.lastFrame.captureContext?.();
             this.pendingCandidate = { frame: this.lastFrame, window, locator, suffix: [this.lastFrame] };
           }
         } else if (transition.kind === "window-start") {
@@ -243,7 +244,7 @@ export class DirectCaptureRecording {
           }
           if (candidate) {
             const suffix = candidate.suffix;
-            this.current.records -= suffix.length;
+            this.current.records -= suffix.reduce((count, frame, index) => count + 1 + (index === 0 ? 0 : frame.prefixRecordCount ?? 0), 0);
             if (this.current.owner) {
               this.current.owner.trailing = Math.max(this.current.owner.trailing, 1);
               if (!this.current.owner.finalized) this.current.owner.count = Math.max(0, this.current.owner.count - suffix.length);
@@ -358,6 +359,7 @@ export class DirectCaptureRecording {
     if (this.gameId !== "lmu") {
       this.append(bytes);
       for (const record of iterateSessionCaptureRecords(bytes, 0, { strict: true })) {
+        if (!("bytes" in record)) this.current.encoder!.reset();
         if (record.kind === "parser-bootstrap") this.current.bootstrapHash = createHash("sha256").update(record.payload).digest("hex");
         const start = this.sourceBytes;
         const timestamp = record.kind === "frame" && "frameTimeMs" in record ? record.frameTimeMs : undefined;
@@ -392,13 +394,24 @@ export class DirectCaptureRecording {
         this.current.lastTimestamp = record.frameTimeMs;
       } else {
         if (record.kind === "parser-bootstrap") this.current.bootstrapHash = createHash("sha256").update(record.payload).digest("hex");
-        if (record.kind === "parser-bootstrap" || record.kind === "segment-boundary" || record.kind === "segment-context-end") this.current.encoder!.reset();
+        if (!("bytes" in record)) this.current.encoder!.reset();
         this.append(original);
       }
       this.sourceBytes += wireLength; this.sourceRecordCount++; this.current.records++;
       if (this.current.records === 1) this.current.sourceStart = start;
       this.current.sourceEnd = this.sourceBytes;
     }
+  }
+  writePrefixedRecord(frame: Buffer, timestamp: number | undefined, prefixes: readonly Buffer[], context?: () => readonly Buffer[]): number {
+    const recordsBefore = this.sourceRecordCount;
+    for (const prefix of prefixes) this.writeRawCaptureBytes(prefix);
+    const prefixRecordCount = this.sourceRecordCount - recordsBefore;
+    const offset = this.sourceBytes;
+    this.writeRecord(frame, timestamp);
+    this.lastFrame!.capturePrefixes = prefixes;
+    this.lastFrame!.captureContext = context;
+    this.lastFrame!.prefixRecordCount = prefixRecordCount;
+    return offset;
   }
   writeSegmentBoundary(): void { this.writeRawCaptureBytes(encodeSegmentBoundaryFrame()); }
   requestFullCheckpoint(): void {
@@ -499,6 +512,14 @@ export class DirectCaptureRecording {
       }
     }
     if (this.lastFrame) {
+      const context = this.lastFrame.captureContextRecords ?? this.lastFrame.captureContext?.();
+      if (context?.length) {
+        const start = encodeSegmentContextFrame(), end = encodeSegmentContextEndFrame();
+        this.append(start); next.prefixBytes += start.length;
+        for (const record of context) { this.append(record); next.prefixBytes += record.length; }
+        this.append(end); next.prefixBytes += end.length;
+      }
+      for (const prefix of this.lastFrame.capturePrefixes ?? []) { this.append(prefix); next.prefixBytes += prefix.length; }
       const boundaryLocalOffset = next.localOffset;
       const encoded = next.encoder!.encode(this.lastFrame.frame, boundaryLocalOffset);
       const boundary = Buffer.concat([encodeFrameLength(encoded.length, this.lastFrame.timestamp), encoded]);
@@ -510,10 +531,11 @@ export class DirectCaptureRecording {
     }
   }
   private appendStoredFrame(frame: FrameRef): void {
+    for (const prefix of frame.capturePrefixes ?? []) this.append(prefix);
     const localOffset = this.current.localOffset;
     const encoded = this.current.encoder!.encode(frame.frame, localOffset);
     this.append(Buffer.concat([encodeFrameLength(encoded.length, frame.timestamp), encoded]));
-    this.current.records++;
+    this.current.records += 1 + (frame.prefixRecordCount ?? 0);
     this.current.sourceEnd = frame.end;
     this.current.lastTimestamp = frame.timestamp;
     this.current.owner!.count++;
@@ -615,6 +637,7 @@ export class DirectCaptureRecording {
       this.notify({ type: "lap-capture-ready", sessionId: this.sessionId, lapId: binding.lapId });
     }
   }
+
 }
 
 export class DirectSessionRecorderAdapter extends SparseSessionRecorderAdapter {
@@ -649,6 +672,10 @@ export class DirectSessionRecorderAdapter extends SparseSessionRecorderAdapter {
   processTransitions(transitions: readonly DetectorOwnershipTransition[], locator: ParserReplayLocator | null): void { this.directCapture?.processTransitions(transitions, locator); }
   override writeMetaFrame(): void { this.directCapture?.writeMetaFrame(); }
   override writeRecord(buf: Buffer, frameTimeMs?: number): void { this.directCapture?.writeRecord(buf, frameTimeMs); }
+  writePrefixedRecord(frame: Buffer, timestamp: number | undefined, prefixes: readonly Buffer[], context?: () => readonly Buffer[]): number {
+    if (!this.directCapture) throw new Error("No active direct capture");
+    return this.directCapture.writePrefixedRecord(frame, timestamp, prefixes, context);
+  }
   override writeRawCaptureBytes(buf: Buffer): void { this.directCapture?.writeRawCaptureBytes(buf); }
   override writeSegmentBoundary(): void { this.directCapture?.writeSegmentBoundary(); }
   override requestFullCheckpoint(): void { this.directCapture?.requestFullCheckpoint(); }

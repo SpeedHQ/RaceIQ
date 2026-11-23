@@ -109,4 +109,6 @@ export interface LMUExtendedData {
   primaryFlag?: number;
   underYellow?: boolean;
   countLapFlag?: number;
+  wheelFlat?: readonly [number, number, number, number];
+  wheelDetached?: readonly [number, number, number, number];
 }

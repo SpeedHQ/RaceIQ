@@ -16,6 +16,8 @@ import { SoundSection } from "./sound/SoundSection";
 import { SpeedSection } from "./speed/SpeedSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { WheelSection } from "./wheel/WheelSection";
+import { LiveEngineerSection } from "./LiveEngineerSection";
+import { clientReleaseFeatures } from "@/lib/release-features";
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
   const { openOnboarding } = uiStore.actions;
@@ -34,7 +36,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       <nav
         className={`${mobileMenuOpen ? "flex" : "hidden"} shrink-0 flex-col overflow-y-auto border-b border-app-border bg-app-surface-alt/50 py-2 md:flex md:w-48 md:overflow-visible md:border-r md:border-b-0`}
       >
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter((item) => item.id !== "live-engineer" || clientReleaseFeatures.liveSpotterEngineer).map((item) => (
           <Button
             variant={activeSection === item.id ? "settings-nav-selected" : "settings-nav"}
             size="app-md"
@@ -93,6 +95,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         {activeSection === "ai" && <AiSection />}
         {activeSection === "diagnostics" && <DiagnosticsSection />}
         {activeSection === "updates" && <UpdatesSection />}
+        {activeSection === "live-engineer" && <LiveEngineerSection />}
         {activeSection === "about" && <AboutSection />}
       </div>
     </div>

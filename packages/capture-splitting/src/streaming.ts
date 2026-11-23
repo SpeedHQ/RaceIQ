@@ -50,6 +50,7 @@ export function matchesNativeRecord(outputRecord: SessionCaptureRecord, sourceRe
     return outputRecord.gameId === sourceRecord.gameId && outputRecord.formatVersion === sourceRecord.formatVersion &&
       outputRecord.payload.equals(sourceRecord.payload);
   }
+  if ("bytes" in outputRecord && "bytes" in sourceRecord) return outputRecord.bytes.equals(sourceRecord.bytes);
   return true;
 }
 
@@ -64,7 +65,7 @@ export function updateNativeRecordDigest(hash: Hash, record: SessionCaptureRecor
     hash.update(nativeDigestMetadata);
     hash.update(record.frame);
   } else {
-    const marker = record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
+    const marker = "bytes" in record ? record.bytes : record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
       : record.kind === "segment-context" ? encodeSegmentContextFrame()
       : record.kind === "segment-context-end" ? encodeSegmentContextEndFrame()
       : encodeParserBootstrapFrame(record.gameId, record.payload);

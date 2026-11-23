@@ -3,6 +3,8 @@ import { gunzipSync } from "node:zlib";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
+import { gunzipBuffer, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, iterateSessionFrameRecords, readFramePrefix, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
+import { ACC_BROADCAST_CAPTURE_MAGIC, decodeAccBroadcastCaptureRecord } from "@raceiq/capture-formats/acc/broadcast-capture";
 import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/source-archive";
 import { realpath, stat } from "node:fs/promises";
 import { resolve, dirname, basename, relative, isAbsolute, sep } from "node:path";
@@ -15,25 +17,16 @@ import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
 import {
   containsSparseCaptureFrames,
-  META_FRAME_MAGIC,
   encodeMetaFrame,
   encodeFrameLength,
   encodeParserBootstrapFrame,
   encodeSegmentBoundaryFrame,
   encodeSegmentContextFrame,
   encodeSegmentContextEndFrame,
-  iterateSessionFrameRecords,
   readFrameStreamStart,
-  SEGMENT_BOUNDARY_MAGIC,
-  SEGMENT_BOUNDARY_VERSION,
-  SEGMENT_CONTEXT_MAGIC,
-  SEGMENT_CONTEXT_VERSION,
-  SEGMENT_CONTEXT_END_MAGIC,
   decodeParserBootstrapPayload,
   SPARSE_CAPTURE_FORMAT_MAGIC,
   SPARSE_CAPTURE_FORMAT_VERSION,
-  readFramePrefix,
-  type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame, lmuSparseSourceIdentity } from "@raceiq/capture-formats/session/lmu-sparse";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
@@ -41,7 +34,7 @@ import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } 
 import { getLMUPartitionKey, getLMUPartitionSourceLength, isLMUPartitionCompanion, isLMUPartitionPrimary, restoreLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
 import { LmuOpponentAdmissionError, readLmuOpponentRetention } from "./lmu-companion";
 
-export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
+export interface SessionCaptureFrameRecord { readonly offset: number; readonly prefixOffset: number; readonly length: number; readonly frameIndex: number; readonly frame: Buffer; }
 export interface SessionCaptureFrameIndex {
   readonly records: readonly SessionCaptureFrameRecord[];
   readonly byOffset: ReadonlyMap<number, SessionCaptureFrameRecord>;
@@ -109,13 +102,12 @@ export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   const records: SessionCaptureFrameRecord[] = [];
   const byOffset = new Map<number, SessionCaptureFrameRecord>();
   let frameIndex = 0;
-  for (const { offset } of iterateSessionFrameRecords(buffer, readFrameStreamStart(buffer), { skipMetaFrames: true, strict: true })) {
+  for (const { offset, prefixOffset, frame } of iterateSessionFrameRecords(buffer, readFrameStreamStart(buffer), { skipMetaFrames: true, strict: true })) {
     countSourceFrameScanned();
-    const prefix = readFramePrefix(buffer, offset);
-    if (!prefix) throw new Error(`Invalid capture frame prefix at ${offset}`);
-    const record = { offset, length: prefix.length, frameIndex };
+    const record = { offset, prefixOffset: prefixOffset ?? offset, length: frame.length, frameIndex, frame };
     records.push(record);
     byOffset.set(offset, record);
+    byOffset.set(record.prefixOffset, record);
     frameIndex++;
   }
   return { records, byOffset };
@@ -318,6 +310,7 @@ async function* iterateStandaloneManifest(
       const wireLength = record.kind === "frame"
         ? encodeFrameLength(sourceFrameLength, record.frameTimeMs).length + sourceFrameLength
         : record.endOffset - record.offset;
+      if (record.kind === "frame" && record.prefixOffset !== undefined) record.prefixOffset += virtualOffset - record.offset;
       yield record.kind === "frame"
         ? { ...record, offset: virtualOffset, endOffset: virtualOffset + wireLength, frame: frame! }
         : { ...record, offset: virtualOffset, endOffset: virtualOffset + wireLength };
@@ -371,8 +364,9 @@ export async function* iterateSessionCaptureRecordsFromSource(
 
   const reader = stream.getReader();
   let pending = Buffer.alloc(0);
-  let initialized = false;
   let offset = 0;
+  let initialized = false;
+  let prefixOffset: number | undefined;
   let previous: Buffer | null = null;
   let checkpointOffset = -1;
   let checkpointIdentity: string | null = null;
@@ -405,34 +399,45 @@ export async function* iterateSessionCaptureRecordsFromSource(
           const metaLength = pending.readUInt32LE(4);
           assertCaptureRecordLength(metaLength);
           if (pending.length < 8 + metaLength) break;
-          if (metaLength === 8) {
-            const magic = pending.readUInt32LE(8);
-            const version = pending.readUInt32LE(12);
-            if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
-              previous = null;
-              checkpointOffset = -1;
-              checkpointIdentity = null;
-              yield { kind: "segment-boundary", offset, endOffset: offset + 8 + metaLength };
+          const metaPayload = pending.subarray(8, 8 + metaLength);
+          const magic = metaLength >= 4 ? metaPayload.readUInt32LE(0) : null;
+          const version = metaLength >= 8 ? metaPayload.readUInt32LE(4) : null;
+          if (magic === ACC_BROADCAST_CAPTURE_MAGIC) {
+            prefixOffset ??= offset;
+            try {
+              yield { kind: "acc-broadcast", offset, endOffset: offset + 8 + metaLength, bytes: pending.subarray(0, 8 + metaLength), batch: decodeAccBroadcastCaptureRecord(metaPayload) };
+            } catch (error) {
+              yield { kind: "acc-broadcast-malformed", offset, endOffset: offset + 8 + metaLength, bytes: pending.subarray(0, 8 + metaLength), reason: error instanceof Error ? error.message : "invalid ACCB record" };
             }
-            else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset, endOffset: offset + 8 + metaLength };
-            else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
-              previous = null;
-              checkpointOffset = -1;
-              checkpointIdentity = null;
-              yield { kind: "segment-context-end", offset, endOffset: offset + 8 + metaLength };
-            }
-            else if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
-              // Format marker is metadata, not a segment event.
-            }
-          }
-          else {
-            const bootstrap = decodeParserBootstrapPayload(pending.subarray(8, 8 + metaLength));
+          } else if (metaLength === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
+            previous = null;
+            checkpointOffset = -1;
+            checkpointIdentity = null;
+            prefixOffset = undefined;
+            yield { kind: "segment-boundary", offset, endOffset: offset + 8 + metaLength };
+          } else if (metaLength === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            prefixOffset = undefined;
+            yield { kind: "segment-context", offset, endOffset: offset + 8 + metaLength };
+          } else if (metaLength === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            previous = null;
+            checkpointOffset = -1;
+            checkpointIdentity = null;
+            prefixOffset = undefined;
+            yield { kind: "segment-context-end", offset, endOffset: offset + 8 + metaLength };
+          } else if (metaLength === 8 && magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
+            // Format markers do not change native frame or opponent-source state.
+          } else {
+            const bootstrap = decodeParserBootstrapPayload(metaPayload);
             if (bootstrap) {
               previous = null;
               checkpointOffset = -1;
               checkpointIdentity = null;
               yield { ...bootstrap, offset, endOffset: offset + 8 + metaLength };
-            } else if (options.strict) throw new Error(`Unknown capture metadata at ${offset}`);
+            } else {
+              prefixOffset ??= offset;
+              yield { kind: "metadata", offset, endOffset: offset + 8 + metaLength, bytes: pending.subarray(0, 8 + metaLength) };
+              if (options.strict && (metaLength === 8 || !(offset === 0 && metaLength === 4))) throw new Error(`Unknown capture metadata at ${offset}`);
+            }
           }
           pending = pending.subarray(8 + metaLength);
           offset += 8 + metaLength;
@@ -486,8 +491,11 @@ export async function* iterateSessionCaptureRecordsFromSource(
           checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;
-        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, endOffset: offset, frame };
-        else yield { kind: "frame", offset: frameOffset, endOffset: offset, frame, frameTimeMs: prefix.frameTimeMs };
+        const record: Extract<SessionCaptureRecord, { kind: "frame" }> = { kind: "frame", offset: frameOffset, endOffset: offset, frame };
+        if (prefixOffset !== undefined) record.prefixOffset = prefixOffset;
+        if (prefix.frameTimeMs !== undefined) record.frameTimeMs = prefix.frameTimeMs;
+        prefixOffset = undefined;
+        yield record;
       }
     }
     if (options.strict && (!initialized || pending.length !== 0)) throw new Error(`Truncated capture record at ${offset}`);
@@ -502,9 +510,9 @@ export async function* iterateSessionCaptureRecordsFromSource(
 
 export async function* iterateSessionCaptureFrames(
   source: SessionCaptureSource,
-): AsyncGenerator<{ offset: number; frame: Buffer; frameTimeMs?: number }> {
+): AsyncGenerator<{ offset: number; prefixOffset: number; frame: Buffer; frameTimeMs?: number }> {
   for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
-    if (record.kind === "frame") yield record;
+    if (record.kind === "frame") yield { ...record, prefixOffset: record.prefixOffset ?? record.offset };
   }
 }
 export async function loadSessionSource(source: SessionCaptureSource): Promise<LoadedSessionSource> {
@@ -521,14 +529,19 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
       if (record.kind === "frame") {
         records.push(encodeFrameLength(record.frame.length, record.frameTimeMs), record.frame);
-        frameRecords.push({ offset: record.offset, length: record.endOffset - record.offset, frameIndex: frameIndex++ });
+        frameRecords.push({ offset: record.offset, prefixOffset: record.prefixOffset ?? record.offset, length: record.endOffset - record.offset, frameIndex: frameIndex++, frame: record.frame });
       } else if (record.kind === "parser-bootstrap") records.push(encodeParserBootstrapFrame(record.gameId, record.payload));
       else if (record.kind === "segment-boundary") records.push(encodeSegmentBoundaryFrame());
       else if (record.kind === "segment-context") records.push(encodeSegmentContextFrame());
       else if (record.kind === "segment-context-end") records.push(encodeSegmentContextEndFrame());
+      else if ("bytes" in record) records.push(record.bytes);
     }
     const buffer = Buffer.concat(records);
-    const byOffset = new Map(frameRecords.map((record) => [record.offset, record]));
+    const byOffset = new Map<number, SessionCaptureFrameRecord>();
+    for (const record of frameRecords) {
+      byOffset.set(record.offset, record);
+      byOffset.set(record.prefixOffset, record);
+    }
     return { kind: "capture", buffer, frameIndex: { records: frameRecords, byOffset } };
   }
   let bytes: Buffer;
@@ -553,10 +566,16 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     const carTrack = target.resolveCarTrack(log, { carId: source.carId, trackId: source.trackId });
     loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
   } else {
-    if (source.captureFormatVersion !== 1 && !containsSparseCaptureFrames(bytes)) {
+const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;
+    if (source.captureFormatVersion !== 1 && !containsSparseCaptureFrames(buffer)) {
       throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
     }
-    loaded = { kind: "capture", buffer: bytes, frameIndex: indexCaptureFrames(bytes) };
+    let frameIndex: SessionCaptureFrameIndex | undefined;
+    loaded = {
+      kind: "capture",
+      buffer,
+      get frameIndex() { return frameIndex ??= indexCaptureFrames(buffer); },
+    };
   }
   cache.set(cacheKey, { size: info?.size ?? 0, mtimeMs: info?.mtimeMs ?? 0, dev: info?.dev ?? 0, ino: info?.ino ?? 0, loaded });
   while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }

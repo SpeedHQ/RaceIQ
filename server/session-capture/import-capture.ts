@@ -50,6 +50,11 @@ function* canonicalImportFrames(bytes: Buffer) {
     else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
     else if (record.kind === "parser-bootstrap") {
       yield { kind: "parser-bootstrap" as const, gameId: record.gameId, formatVersion: record.formatVersion, payload: record.payload };
+    } else {
+      const recordBytes = record.kind === "metadata"
+        ? record.bytes
+        : bytes.subarray(record.offset, record.offset + 8 + bytes.readUInt32LE(record.offset + 4));
+      yield { kind: "metadata" as const, bytes: recordBytes };
     }
   }
 }

@@ -1,0 +1,124 @@
+import { expect, test } from "bun:test";
+import { LIVE_ENGINEER_AUDIO_CATALOG_VERSION, type LiveEngineerVoiceLineMessageV3 } from "../../shared/racing/live/engineer-contracts";
+import { CHAINED_LAP_PAUSE_MS, DEFAULT_JOIN_GAP_MS, DEFAULT_RADIO_COMPRESSOR, DEFAULT_RADIO_FILTER, getSegmentPauseMs, LiveEngineerAudioPlayer, speechBoundsMs } from "../src/lib/live-engineer-audio";
+import { LiveEngineerPlaybackSession } from "../src/lib/live-engineer-playback-session";
+
+const line: LiveEngineerVoiceLineMessageV3 = { type: "live-engineer-voice-line", protocolVersion: 3, deliveryId: "delivery-1", decisionId: "decision-1", family: "spotter", mode: "automatic", priority: "high", sourceSequence: 1, sessionId: "session-1", timelineEpoch: 1, createdSessionTimeMs: 1000, expiresSessionTimeMs: 10000, catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, segmentIds: ["spotter.car-left"] };
+
+test("expired V3 voice line does not start audio and reports terminal expiry", () => {
+  const statuses: string[] = [];
+  let plays = 0;
+  const audio = { play: async () => { plays += 1; }, stop: () => {}, setVolume: () => {} };
+  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(`${message.status}:${message.reason ?? ""}`), finishVoiceLine: () => {}, setPlayback: () => {} }, () => 2300);
+  session.start({ ...line, protocolVersion: 3, sessionId: "session-1", timelineEpoch: 4, createdSessionTimeMs: 1200, expiresSessionTimeMs: 2200 } as never, true, 0.8);
+  expect(plays).toBe(0);
+  expect(statuses).toContain("failed:expired");
+});
+
+test("volume changes update gain without restarting unresolved playback", async () => {
+  let resolve!: () => void;
+  const statuses: string[] = [];
+  const audio = { plays: 0, stops: 0, volumes: [] as number[], play: async () => { audio.plays += 1; await new Promise<void>((done) => { resolve = done; }); }, stop: () => { audio.stops += 1; }, setVolume: (value: number) => { audio.volumes.push(value); } };
+  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(message.status), finishVoiceLine: () => statuses.push("finish"), setPlayback: () => {} }, () => 1000);
+  session.start(line, true, 0.8);
+  session.setVolume(0.3);
+  expect(audio.plays).toBe(1);
+  expect(audio.stops).toBe(0);
+  expect(audio.volumes).toEqual([0.8, 0.3]);
+  expect(statuses).toEqual(["started"]);
+  resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(statuses).toEqual(["started", "completed", "finish"]);
+});
+
+test("unsupported voice-line catalog fails before audio starts and releases the delivery", () => {
+  const statuses: unknown[] = [];
+  let plays = 0;
+  let finished: string | undefined;
+  const session = new LiveEngineerPlaybackSession(
+    { play: async () => { plays++; }, stop: () => {}, setVolume: () => {} },
+    { enqueueControl: (message) => statuses.push(message), finishVoiceLine: (id) => { finished = id; }, setPlayback: () => {} },
+    () => 1000,
+  );
+  session.start({ ...line, catalogVersion: "2.0.0" }, true, 0.8);
+  expect(plays).toBe(0);
+  expect(statuses).toEqual([{ type: "live-engineer-delivery-status", protocolVersion: 3, deliveryId: line.deliveryId, status: "failed", reason: "catalog-mismatch" }]);
+  expect(finished).toBe(line.deliveryId);
+});
+
+test("Qwen clip playback uses exact zero-gap joins", () => {
+  expect(DEFAULT_JOIN_GAP_MS).toBe(0);
+});
+test("speech bounds ignore per-clip leading and trailing silence", () => {
+  expect(speechBoundsMs(new Float32Array([0, 0, 0.02, 0.03, 0, 0]), 1000)).toEqual({ startMs: 2, endMs: 4 });
+});
+function audioFixture() {
+  const connections: unknown[][] = [];
+  let decodes = 0;
+  const node = () => ({ connect: (target: unknown) => connections.push([target]) });
+  const context = {
+    createGain: () => ({ ...node(), gain: { value: 0 } }),
+    createBiquadFilter: () => ({ ...node(), type: "", frequency: { value: 0 }, Q: { value: 0 } }),
+    createDynamicsCompressor: () => ({ ...node(), threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 } }),
+    createWaveShaper: () => ({ ...node(), curve: null, oversample: "none" }),
+    destination: {}, state: "running", currentTime: 0,
+    decodeAudioData: async () => { decodes++; return { duration: 0.1 }; },
+    createBufferSource: () => {
+      const source = { ...node(), onended: () => {}, start: () => queueMicrotask(() => source.onended()) };
+      return source;
+    },
+  } as unknown as AudioContext;
+  return { context, connections, decodes: () => decodes };
+}
+test("radio playback applies a speech-band filter by default", () => {
+  const { context, connections } = audioFixture();
+  const player = new LiveEngineerAudioPlayer({ audioContext: context });
+  expect(player).toBeInstanceOf(LiveEngineerAudioPlayer);
+  expect(DEFAULT_RADIO_COMPRESSOR).toEqual({ thresholdDb: -24, ratio: 6 });
+  expect(connections).toHaveLength(5);
+});
+test("legacy minute pauses are removed for exact-buffer catalogs", () => {
+  expect(DEFAULT_JOIN_GAP_MS).toBe(0);
+});
+test("completed lap clips add one phrase-boundary pause before chained pace", () => {
+  expect(getSegmentPauseMs("lap.tenth.4")).toBe(CHAINED_LAP_PAUSE_MS);
+  expect(getSegmentPauseMs("lap.tail.flat")).toBe(CHAINED_LAP_PAUSE_MS);
+  expect(getSegmentPauseMs("number.tenth.4")).toBe(0);
+});
+
+test("retries transient audio failures and reuses verified clips", async () => {
+  const { context, decodes } = audioFixture();
+  const bytes = new Uint8Array([1]);
+  const sha256 = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+  let manifests = 0, assets = 0;
+  const player = new LiveEngineerAudioPlayer({ audioContext: context, fetchImpl: async input => {
+    if (String(input).endsWith("manifest.json")) return ++manifests === 1 ? new Response(null, { status: 503 }) : Response.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, clips: [{ segmentId: "clip", path: "clip.flac", sha256 }] });
+    return ++assets === 1 ? new Response(null, { status: 503 }) : new Response(bytes);
+  } });
+  await expect(player.play(["clip"])).rejects.toThrow("catalog missing");
+  await expect(player.play(["clip"])).rejects.toThrow("Audio asset missing");
+  await player.play(["clip"]);
+  await player.play(["clip"]);
+  expect([manifests, assets, decodes()]).toEqual([2, 2, 1]);
+});
+
+test("replay schedule uses decoded buffers and includes join and phrase gaps", async () => {
+  const { context } = audioFixture();
+  const bytes = new Uint8Array([2]);
+  const sha256 = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+  const clips = ["lap.tenth.4", "pace"].map((segmentId) => ({ segmentId, path: `${segmentId}.flac`, sha256, durationMs: 999 }));
+  const player = new LiveEngineerAudioPlayer({
+    audioContext: context,
+    fetchImpl: async (url) => String(url).endsWith("manifest.json")
+      ? Response.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, assembly: { gapMs: 20 }, clips })
+      : new Response(bytes),
+    onSchedule(schedule) {
+      expect(schedule.map(({ id }) => id)).toEqual(["lap.tenth.4", "pace"]);
+      expect(schedule[0]!.endMs - schedule[0]!.startMs).toBeCloseTo(100);
+      expect(schedule[1]!.startMs - schedule[0]!.endMs).toBeCloseTo(320);
+    },
+  });
+  expect.assertions(3);
+  await player.play(clips.map(({ segmentId }) => segmentId));
+});

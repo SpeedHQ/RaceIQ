@@ -79,6 +79,7 @@ describe("aligned telemetry", () => {
       iracing: {
         sessionTick: index,
         sessionNum: 1,
+        sessionType: "practice",
         driverCarIdx: 0,
         trackLengthM: 2,
         lapDistanceM: [1.6, 1.9, 0.1][index]!,

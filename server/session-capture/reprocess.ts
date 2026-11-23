@@ -136,7 +136,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       if (!packet) continue;
       applyFrameTime(packet, record.frameTimeMs);
       if (inContext) {
-        // Completion context may finish the preceding lap, but never owns source records.
+        // Completion context may finish preceding lap, but never owns source records.
         if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
             isDelayedFinishContext(lastOwnedPacket, packet))) {
           await detector.feed(packet, undefined, ordinal);
@@ -144,7 +144,9 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       } else {
         segmentHasFrames = true;
         lastOwnedPacket = packet;
-        await detector.feed(packet, record.offset, ordinal);
+        const startingSession = !detector.session;
+        await detector.feed(packet, record.prefixOffset ?? record.offset, ordinal);
+        if (startingSession) detector.setCurrentLapByteOffset?.(record.prefixOffset ?? record.offset);
       }
     }
   }

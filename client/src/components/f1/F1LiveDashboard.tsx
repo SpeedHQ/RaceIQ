@@ -2,7 +2,6 @@ import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { severityColor } from "@raceiq/scene-3d/colors";
-import { CarDamageDiagram, damageColor } from "./CarDamageDiagram";
 import { m } from "@/paraglide/messages";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { useCarName } from "../../hooks/catalog-queries";
@@ -16,6 +15,7 @@ import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
 import { useUnits } from "../../hooks/useUnits";
 import { Button } from "../ui/button";
+import { F1CarDamageSection, type F1CarDamageLabels } from "./F1CarDamageSection";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,18 @@ const DEPLOY_MODES: Record<number, { label: string; color: string }> = {
   1: { label: m.f1live_ers_mode_medium(), color: "var(--telemetry-ers-mode-medium)" },
   2: { label: m.f1live_ers_mode_hotlap(), color: "var(--telemetry-ers-mode-hotlap)" },
   3: { label: m.f1live_ers_mode_overtake(), color: "var(--telemetry-ers-mode-overtake)" },
+};
+
+const DAMAGE_LABELS: F1CarDamageLabels = {
+  title: m.f1live_section_damage(),
+  allClear: m.f1live_damage_all_clear(),
+  frontLeftWing: m.f1live_damage_fl_wing(),
+  frontRightWing: m.f1live_damage_fr_wing(),
+  rearWing: m.f1live_damage_rear_wing(),
+  floor: m.f1live_damage_floor(),
+  diffuser: m.f1live_damage_diffuser(),
+  sidepod: m.f1live_damage_sidepod(),
+  ok: m.f1live_damage_ok(),
 };
 
 function formatGap(gap: number): string {
@@ -86,7 +98,7 @@ export function F1LiveDashboard() {
         {/* Damage | Tyres */}
         <div className="border-b border-app-border grid grid-cols-2">
           <div className="border-r border-app-border">
-            <CarDamageSection damage={view.damage} />
+            <F1CarDamageSection damage={view.damage} labels={DAMAGE_LABELS} />
           </div>
           <div>
             <TireGrid
@@ -153,42 +165,6 @@ function DrsIndicator({ aero }: { aero: LiveTelemetryView["aero"] }) {
   );
 }
 
-// ── Car Damage Section ──────────────────────────────────────────────────────
-
-function CarDamageSection({ damage }: { damage: LiveTelemetryView["damage"] }) {
-  const parts = [
-    { label: m.f1live_damage_fl_wing(), value: damage.frontLeftWingPct },
-    { label: m.f1live_damage_fr_wing(), value: damage.frontRightWingPct },
-    { label: m.f1live_damage_rear_wing(), value: damage.rearWingPct },
-    { label: m.f1live_damage_floor(), value: damage.floorPct },
-    { label: m.f1live_damage_diffuser(), value: damage.diffuserPct },
-    { label: m.f1live_damage_sidepod(), value: damage.sidepodPct },
-  ];
-  const availablePartCount = parts.filter((part) => part.value !== undefined).length;
-  const hasDamage = parts.some((part) => part.value !== undefined && part.value > 0);
-
-  return (
-    <div className="border-b border-app-border">
-      <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_damage()}</h2>
-        {availablePartCount > 0 && !hasDamage && <span className="text-xs text-status-success">{m.f1live_damage_all_clear()}</span>}
-      </div>
-      <div className="p-3 flex items-center gap-4">
-        <CarDamageDiagram damage={damage} />
-        <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1.5">
-          {parts.map((part) => (
-            <div key={part.label} className="flex items-center justify-between">
-              <span className="text-xs text-app-text-muted">{part.label}</span>
-              <span className="text-sm font-mono font-bold tabular-nums" style={{ color: damageColor(part.value) }}>
-                {part.value === undefined ? "—" : part.value === 0 ? m.f1live_damage_ok() : `${part.value}%`}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Pit Estimate Section (Fuel + Tyres + Lap Estimates) ──────────────────────
 

@@ -67,6 +67,8 @@ const PACKET_SOURCE_OVERRIDES: Partial<
 > = {
   ams2: AMS2_PACKET_SOURCES,
   "f1-2025": {
+    CarOrdinal: ["F1.Participants.player.teamId"],
+    WeatherType: ["f1.weatherType"],
     carId: ["F1.Participants.player.teamId"],
     NumCylinders: ["RaceIQ.ParserConstant.NumCylinders"],
   },

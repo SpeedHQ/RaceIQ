@@ -30,3 +30,5 @@ export function gameAssetsDir(gameId: string): string {
 export const USER_TRACKS_DIR = IS_COMPILED
   ? join(process.env.APPDATA ?? homedir(), "RaceIQ", "userdata")
   : resolve(process.env.DATA_DIR ?? resolve(sourceDir, "..", "..", "..", "data"), "userdata");
+/** Writable installed voice packs, separate from tracks and bundled app assets. */
+export const USER_VOICE_PACKS_DIR = join(USER_TRACKS_DIR, "voice-packs");

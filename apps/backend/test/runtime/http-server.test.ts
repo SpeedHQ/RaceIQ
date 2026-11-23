@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { request as httpRequest } from "node:http";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startHttpServer, staticAssetHeaders } from "../../src/runtime/http-server";
+import { USER_VOICE_PACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 import { createHttpAccess } from "../../src/runtime/http-access";
 
 describe("static asset headers", () => {
@@ -137,6 +138,38 @@ test("existing unprotected deployments serve dashboard, API and WebSockets at re
     }
   } finally {
     server.stop(true);
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+test("serves installed live-engineer assets and returns 404 without SPA fallback", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-voice-pack-"));
+  const install = join(USER_VOICE_PACKS_DIR, "live-engineer", "qwen-v3");
+  const hadInstallDir = existsSync(install);
+  mkdirSync(install, { recursive: true });
+  const fixture = join(install, "fixture-test.flac");
+  const oldContents = await Bun.file(fixture).exists() ? await Bun.file(fixture).arrayBuffer() : null;
+  writeFileSync(join(directory, "index.html"), "<h1>SPA fallback</h1>");
+  const server = startHttpServer({
+    port: 0,
+    staticDir: directory,
+    devPublicDir: null,
+    access: await createHttpAccess({ NODE_ENV: "production" }),
+    app: { fetch: () => Response.json({ ok: true }) },
+  });
+  try {
+    await Bun.write(fixture, new Uint8Array([1, 2, 3]));
+    const base = `http://127.0.0.1:${server.port}`;
+    const asset = await fetch(`${base}/audio/live-engineer/qwen-v3/fixture-test.flac`);
+    expect(asset.status).toBe(200);
+    expect(new Uint8Array(await asset.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+    const missing = await fetch(`${base}/audio/live-engineer/qwen-v3/missing.flac`);
+    expect(missing.status).toBe(404);
+    expect(await missing.text()).not.toContain("SPA fallback");
+  } finally {
+    server.stop(true);
+    if (oldContents) await Bun.write(fixture, oldContents);
+    else rmSync(fixture, { force: true });
+    if (!hadInstallDir) rmSync(install, { recursive: true, force: true });
     rmSync(directory, { recursive: true, force: true });
   }
 });

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { gzipSync } from "node:zlib";
-import { mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -269,12 +269,12 @@ for (const compressed of [false, true]) {
 
     const records = [];
     for await (const record of iterateSessionCaptureRecordsFromSource(source)) records.push(record);
-    expect(records).toEqual([{ kind: "frame", offset: 12, endOffset: 12 + 4 + frame.length, frame }]);
+    expect(records).toMatchObject([{ kind: "frame", offset: 12, endOffset: 12 + 4 + frame.length, frame }]);
     const loaded = await loadSessionSource(source);
     expect(loaded.kind).toBe("capture");
     if (loaded.kind !== "capture") throw new Error("Expected capture source");
     expect(loaded.buffer).toEqual(capture);
-    expect(loaded.frameIndex.records).toEqual([{ offset: 12, length: frame.length, frameIndex: 0 }]);
+    expect(loaded.frameIndex.records).toMatchObject([{ offset: 12, length: frame.length, frameIndex: 0 }]);
   });
 }
 
@@ -327,7 +327,7 @@ test("loads and indexes gzip sparse captures from decompressed bytes", async () 
   expect(loaded.kind).toBe("capture");
   if (loaded.kind !== "capture") throw new Error("Expected capture source");
   expect(loaded.buffer).toEqual(capture);
-  expect(loaded.frameIndex.records).toEqual([{ offset: 12, length: frame.length, frameIndex: 0 }]);
+  expect(loaded.frameIndex.records).toMatchObject([{ offset: 12, length: frame.length, frameIndex: 0 }]);
 });
 
 test("replays standalone manifest chunks once, including null-emission source frames", async () => {
@@ -383,6 +383,15 @@ test("replays standalone manifest chunks once, including null-emission source fr
   if (loaded.kind !== "capture") throw new Error("Expected capture source");
   expect(loaded.buffer.subarray(12)).toEqual(Buffer.concat([wire(f1), wire(shared), wire(f3)]));
   expect(loaded.frameIndex.records.map(({ offset }) => offset)).toEqual([12, 12 + wire(f1).length, 12 + wire(f1).length + wire(shared).length]);
+  expect(loaded.frameIndex.records.map(({ prefixOffset, frame }) => ({ prefixOffset, frame }))).toEqual([
+    { prefixOffset: firstStart, frame: f1 },
+    { prefixOffset: firstStart + wire(f1).length, frame: shared },
+    { prefixOffset: secondStart, frame: f3 },
+  ]);
+  for (const record of loaded.frameIndex.records) {
+    expect(loaded.frameIndex.byOffset.get(record.offset)).toBe(record);
+    expect(loaded.frameIndex.byOffset.get(record.prefixOffset)).toBe(record);
+  }
 
   const changed = JSON.parse(JSON.stringify(manifest));
   changed.gameId = "acc";
@@ -403,13 +412,23 @@ test("replays standalone manifest chunks once, including null-emission source fr
     for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
   }).toThrow(/not record-aligned/);
   const outsidePath = join(tmpdir(), `raceiq-outside-${Date.now()}.bin`);
-  writeFileSync(outsidePath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
-  symlinkSync(outsidePath, join(directory, "escape.bin"));
+  let externalDirectory: string | undefined;
+  const linkPath = process.platform === "win32" ? join(directory, "escape") : join(directory, "escape.bin");
+  if (process.platform === "win32") {
+    externalDirectory = join(tmpdir(), `raceiq-outside-${Date.now()}`);
+    mkdirSync(externalDirectory);
+    writeFileSync(join(externalDirectory, "capture.bin"), Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
+    symlinkSync(externalDirectory, linkPath, "junction");
+  } else {
+    writeFileSync(outsidePath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
+    symlinkSync(outsidePath, linkPath);
+  }
   changed.chunks[1].sourceRecordByteOffset = contextPrefix.length;
-  changed.chunks[0].path = "escape.bin";
+  changed.chunks[0].path = process.platform === "win32" ? "escape/capture.bin" : "escape.bin";
   writeFileSync(rawFile, JSON.stringify(changed));
   await expect(async () => {
     for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
   }).toThrow(/escapes capture directory/);
-  rmSync(outsidePath);
+  rmSync(outsidePath, { force: true });
+  if (externalDirectory !== undefined) rmSync(externalDirectory, { recursive: true, force: true });
 });

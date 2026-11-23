@@ -63,11 +63,14 @@ function useRecordingSessionLabels(recordings: ClassificationMigrationRecording[
     return labels;
   }, [gameGroups, nameQueries, sourceSessions]);
 }
-export function ClassificationMigrationDock({ suppressed = false }: { suppressed?: boolean }) {
+
+export function ClassificationMigrationDock({ suppressed = false, onVisibilityChange }: { suppressed?: boolean; onVisibilityChange?: (visible: boolean) => void }) {
   const status = useClassificationMigration((state) => state.status);
   const dismissed = useClassificationMigration(isClassificationMigrationDismissed);
   const running = status?.status === "running";
-  if (suppressed || !status || status.status === "idle" || dismissed) return null;
+  const visible = !suppressed && Boolean(status && status.status !== "idle" && !dismissed);
+  useEffect(() => { onVisibilityChange?.(visible); }, [onVisibilityChange, visible]);
+  if (!visible || !status) return null;
   const updatingSummaries = running && status.pending + status.running === 0 && status.aggregatesPending;
   return <Dialog open modal={false} onOpenChange={(open) => { if (!open) classificationMigrationActions.dismiss(status.revision); }}>
     <DialogContent size="sm" layout="scrollable" showCloseButton={false} overlayClassName="hidden" className="top-auto left-auto right-4 bottom-20 w-[min(24rem,calc(100%-2rem))] max-h-[min(70dvh,32rem)] translate-x-0 translate-y-0 gap-3 rounded-lg p-4" aria-label={m.classification_migration_title()}>

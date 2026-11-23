@@ -23,6 +23,13 @@ import {
   type DevTelemetryPacketMessageV1,
   type DevTelemetrySubscriptionMessageV1,
 } from "@raceiq/shared/telemetry/live/contracts";
+import {
+  isLiveEngineerVoiceRequestV3,
+  isLiveEngineerDeliveryStatusV3,
+  type LiveEngineerVoiceRequestV3,
+  type LiveEngineerDeliveryStatusV3,
+  type LiveEngineerVoiceLineMessageV3,
+} from "@raceiq/shared/racing/live/engineer-contracts";
 import { encodeLmuContext, encodeLmuPacket } from "@raceiq/shared/telemetry/lmu-context";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 
@@ -139,6 +146,10 @@ export class WebSocketManager {
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
+  }
+  private _liveEngineerMessageHandler: ((message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3, ws: ServerWebSocket<WSData>) => LiveEngineerVoiceLineMessageV3 | void) | null = null;
+  setLiveEngineerMessageHandler(handler: ((message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3, ws: ServerWebSocket<WSData>) => LiveEngineerVoiceLineMessageV3 | void) | null): void {
+    this._liveEngineerMessageHandler = handler;
   }
 
   setStaleSessionsNotification(payload: Record<string, unknown> | null): void {
@@ -285,6 +296,11 @@ export class WebSocketManager {
     this.retainLiveCaptureLifecycle(payload);
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
+    if (payload.type === "live-engineer-voice-line") {
+      const client = this.clients.values().next().value;
+      if (client) { try { client.send(json); } catch {} }
+      return;
+    }
     for (const client of this.clients) {
       try { client.send(json); } catch { this.dropClient(client); }
     }
@@ -297,7 +313,7 @@ export class WebSocketManager {
     for (const client of this.devStateSubscribers) { try { client.send(json); } catch { this.dropClient(client); } }
   }
 
-  publishTelemetry(projection: LiveProjection): void {
+  publishTelemetry(projection: Pick<LiveProjection, "schema" | "frame">): void {
     if (projection.schema) {
       this.liveSimulator = projection.schema.simulator;
       this.lastSchemaJson = JSON.stringify(projection.schema);
@@ -349,6 +365,11 @@ export class WebSocketManager {
   handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
     let parsed: unknown;
     try { parsed = JSON.parse(typeof message === "string" ? message : message.toString()); } catch { parsed = null; }
+    if (isLiveEngineerVoiceRequestV3(parsed) || isLiveEngineerDeliveryStatusV3(parsed)) {
+      const result = this._liveEngineerMessageHandler?.(parsed, ws);
+      if (result) ws.send(JSON.stringify(result));
+      return;
+    }
     if (!isDevTelemetryControlMessageV1(parsed)) {
       ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1)); return;
     }

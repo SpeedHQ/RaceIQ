@@ -37,6 +37,7 @@ import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
 import { readDesktopHostOptions } from "./desktop-host";
 
+import { startLiveEngineerVoicePackChecks } from "../routes/live-engineer-voice-pack-routes";
 export interface BootOptions {
   httpPort?: number;
   udpPort?: number;
@@ -147,10 +148,12 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   let nativeSources: NativeSourceSupervisor | null = null;
   let startupWorker: StartupWorkerHandle | null = null;
   let classificationWorker: ClassificationMigrationWorkerHandle | null = null;
+  let stopLiveEngineerVoicePackChecks: (() => void) | null = null;
   installShutdown({
     getNativeSources: () => nativeSources,
     getStartupWorker: () => startupWorker,
     stopClassificationMigrationWorker: () => classificationWorker?.stop(),
+    stopLiveEngineerVoicePackChecks: () => stopLiveEngineerVoicePackChecks?.(),
     clearDashboardPublicationNotifications: () => {
       setDashboardPublicationNotifier(null);
       wsManager.clearDashboardUpdateNotification();
@@ -164,6 +167,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
       () => wsManager.setStaleSessionsNotification(null),
       options.testDependencies?.workerPort,
     );
+    stopLiveEngineerVoicePackChecks = startLiveEngineerVoicePackChecks();
   }
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);

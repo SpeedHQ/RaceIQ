@@ -1,5 +1,10 @@
 node_modules/
+.venv/
+.venv-qwen/
+**/__pycache__/
 dist/
+/live-engineer-qwen-v3-*.zip
+/live-engineer-qwen-v3-*.json
 .turbo/
 /data/*
 !/data/diagnostics/
@@ -72,6 +77,7 @@ hero-compare.png
 raceiq-home.png
 
 /.superpowers/
+.cache/
 test/e2e/output/
 
 # Local agent checkpoints and verification evidence
