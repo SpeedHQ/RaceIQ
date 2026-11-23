@@ -232,7 +232,8 @@ function createQueryClient() {
     runs: [PROFILE_RUN],
   });
 
-  queryClient.setQueryData(["car-name", "201", GAME_ID], "2023 Cadillac V-Series.R");
+  queryClient.setQueryData(["dashboard-cars", GAME_ID], [{ id: recap.carId }]);
+  queryClient.setQueryData(["car-name", recap.carId, GAME_ID], recap.carName);
   queryClient.setQueryData(["track-name", TRACK_ID, GAME_ID], "Hakone Club");
   queryClient.setQueryData(["track-outline", TRACK_ID, GAME_ID], { points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });
   const sectorBoundaries = { s1End: 1 / 3, s2End: 2 / 3, trackLength: HAKONE_CLUB_TRACK_LENGTH };

@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { ROOT_DIR } from "../root";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
@@ -19,7 +21,7 @@ const GAME_META: Record<GameId, { label: string; tag: string }> = {
   lmu: { label: "Le Mans Ultimate", tag: "LMU" },
 };
 
-type MapKind = "inline-svg" | "remote-svg" | "none";
+type MapKind = "inline-svg" | "none";
 
 export interface MarketingTrackRecord {
   key: string;
@@ -85,7 +87,9 @@ function record(gameId: GameId, trackId: string, info: { name: string; location:
   const meta = GAME_META[gameId];
   const key = `${gameId}:${trackId}`;
   const outline = getTrackOutlineById(trackId, gameId, info.commonTrackName);
-  const mapSrc = outline ? outlineDataUrl(outline) : info.mapUrl || null;
+  const mapFile = gameId === "iracing" ? resolve(ROOT_DIR, "packages/game-iracing/assets/iracing-track-maps", `${trackId}.svg`) : null;
+  const mapSrc = outline ? outlineDataUrl(outline)
+    : mapFile && existsSync(mapFile) ? `data:image/svg+xml;base64,${readFileSync(mapFile).toString("base64")}` : null;
   return {
     key,
     gameId,
@@ -101,7 +105,7 @@ function record(gameId: GameId, trackId: string, info: { name: string; location:
     lapCount: 3 + (fnv1a(key) % 146),
     setupCount: (fnv1a(key) >>> 8) % 13,
     mapSrc,
-    mapKind: outline ? "inline-svg" : info.mapUrl ? "remote-svg" : "none",
+    mapKind: mapSrc ? "inline-svg" : "none",
   };
 }
 
