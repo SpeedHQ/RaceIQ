@@ -35,7 +35,7 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
     const settings = (await response.json()) as Record<string, unknown>;
     await route.fulfill({
       response,
-      json: { ...settings, aiProvider: "openai-compatible", aiModel: "seeded-e2e", chatProvider: "openai-compatible", chatModel: "seeded-e2e" },
+      json: { ...settings, aiProvider: "openai-compatible", aiModel: "seeded-e2e", chatProvider: "chatgpt-subscription", chatModel: "gpt-6.2-sol", chatGptSubscriptionConnected: true },
     });
   });
   await page.route("**/api/ai-chat-pricing", (route) => route.fulfill({
@@ -79,15 +79,26 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
   const prompt = "Explain this seeded setup";
   const messageInput = page.getByRole("textbox", { name: "Message input" });
   await expect(messageInput).toBeVisible({ timeout: 30_000 });
+  const send = page.getByRole("button", { name: "Send message" });
+  await expect(send).toBeDisabled();
+  const inputBounds = (await messageInput.boundingBox())!;
+  const sendBounds = (await send.boundingBox())!;
+  expect(sendBounds.x).toBeGreaterThanOrEqual(inputBounds.x + inputBounds.width);
+  expect(sendBounds.y).toBeLessThan(inputBounds.y + inputBounds.height);
+  await expect(page.getByText("Model: gpt-6.2-sol", { exact: true })).toBeVisible();
+  await expect(page.getByText("0 / 922k", { exact: true })).toBeVisible();
   await messageInput.fill(prompt);
   const migrationClose = page.getByRole("dialog", { name: "Historical lap classification" }).getByRole("button", { name: "Close" });
   if (await migrationClose.isVisible()) await migrationClose.click();
-  await page.getByRole("button", { name: "Send message" }).click();
+  await send.click();
   await expect.poll(() => submittedPrompt).toContain(prompt);
   await expect(page.getByText("Seeded streamed reply", { exact: true })).toBeVisible();
+  await expect(page.getByText("1k / 922k", { exact: true })).toBeVisible();
   await expect(page.getByText("Estimated API cost: $0.00205", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
-  await page.getByRole("button", { name: "Compact & New chat" }).click();
+  await expect(page.getByRole("button", { name: "Compact & New chat" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Chat actions" }).click();
+  await page.getByRole("menuitem", { name: "Compact & New chat" }).click();
   await expect.poll(() => compacted).toBe(true);
   await expect(page.getByText("gen 2/2", { exact: true })).toBeVisible();
   await expect(page.getByText("Seeded streamed reply", { exact: true })).toHaveCount(0);

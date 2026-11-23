@@ -4,8 +4,7 @@ import { useAuiState } from "@assistant-ui/react";
 import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@raceiq/shared/integrations/ai/context-window"
 import { estimateChatGptApiCost, type ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { Button } from "@/components/ui/button";
@@ -22,28 +21,19 @@ const RATE_PER_MTOK: Record<string, { in: number; out: number }> = {
 
 export function TokenUsageFooter({
   compactThreadId,
-  historyQueryKey,
-  compacting,
-  setCompacting,
   generations,
   viewingGen,
   activeGen,
   onViewGen,
-  onForked,
 }: {
   compactThreadId?: string;
-  historyQueryKey: unknown[];
-  compacting: boolean;
-  setCompacting: (v: boolean) => void;
   generations: ChatGeneration[];
   viewingGen: number;
   activeGen: number;
   onViewGen: (gen: number) => void;
-  onForked: (newGen: number) => void;
 }) {
   const usage = useThreadTokenUsage();
   const { displaySettings } = useSettings();
-  const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const subscriptionUsage = useAuiState((s) => {
     const lastAssistant = s.thread.messages.findLast((message) => message.role === "assistant");
@@ -61,7 +51,6 @@ export function TokenUsageFooter({
     refetchInterval: 60_000,
   });
   const subscriptionCost = subscriptionUsage && pricing ? estimateChatGptApiCost(subscriptionUsage, pricing) : null;
-  const [compactMsg, setCompactMsg] = useState<string | null>(null);
   const provider = displaySettings.chatProvider ?? "";
   const model = displaySettings.chatModel ?? "";
   const { data: openAiCompatibleModels } = useQuery({
@@ -96,30 +85,6 @@ export function TokenUsageFooter({
   const rate = RATE_PER_MTOK[provider] ?? { in: 0, out: 0 };
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
   const activeThreadId = generations.find((g) => g.active)?.threadId ?? compactThreadId;
-
-  async function onNewChat() {
-    if (!compactThreadId || compacting || isRunning) return;
-    setCompacting(true);
-    setCompactMsg(null);
-    try {
-      const res = await client.api.chats[":threadId"].compact.$post({ param: { threadId: compactThreadId } });
-      if (!res.ok) {
-        const body: unknown = await res.json().catch(() => ({}));
-        const error = body && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
-        setCompactMsg(error ?? m.ai_chat_compact_failed());
-      } else {
-        const body = (await res.json()) as { generation: number };
-        await queryClient.invalidateQueries({ queryKey: ["chat-generations", compactThreadId] });
-        await queryClient.invalidateQueries({ queryKey: historyQueryKey.slice(0, -1) });
-        onForked(body.generation);
-      }
-    } catch {
-      setCompactMsg(m.ai_chat_compact_failed());
-    } finally {
-      setCompacting(false);
-      setTimeout(() => setCompactMsg(null), 4000);
-    }
-  }
 
   const maxGen = generations.length ? generations[generations.length - 1].generation : activeGen;
   const hasUsage = (usage?.totalTokens ?? 0) > 0;
@@ -186,18 +151,6 @@ export function TokenUsageFooter({
           {m.common_cancel()}
         </Button>
       )}
-      {compactThreadId && (
-        <Button
-          type="button"
-          onClick={onNewChat}
-          disabled={compacting || isRunning}
-          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-40"
-          title={m.ai_chat_compact_title()}
-        >
-          {compacting ? m.ai_chat_compacting() : m.ai_chat_compact_new_chat()}
-        </Button>
-      )}
-      {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
     </div>
   );
 }
