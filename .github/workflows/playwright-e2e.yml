@@ -22,7 +22,7 @@ on:
         type: string
         default: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
       hardware-webgpu:
-        description: "Run the native WebGPU hardware gate"
+        description: "Run the WebGPU gate (software adapters allowed; hardware not guaranteed)"
         required: false
         type: boolean
         default: true
@@ -118,7 +118,7 @@ jobs:
       dist-artifact: ${{ inputs.dist-artifact }}
 
   playwright-webgpu:
-    name: Native WebGPU
+    name: WebGPU (software allowed; hardware not guaranteed)
     if: inputs.hardware-webgpu
     needs: seed-database
     uses: ./.github/workflows/playwright.yml

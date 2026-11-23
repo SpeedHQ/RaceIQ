@@ -37,3 +37,4 @@ apps/backend/test/live-strategy/live-engineer-contracts.test.ts
 apps/backend/test/telemetry/catalog/race-engineer-callout-coverage.test.ts
 apps/backend/test/runtime/live-engineer-websocket.test.ts
 apps/backend/test/runtime/split-startup.test.ts
+apps/backend/test/runtime/desktop-host.test.ts

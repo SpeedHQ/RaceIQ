@@ -25,6 +25,8 @@ test("OpenAI-compatible can be selected for every AI feature without a stored ke
     await option.click();
     await expect(picker).toHaveValue("OpenAI-compatible");
   }
+
+  await expect(page.getByRole("combobox", { name: /^(Thinking|Reasoning) level$/ })).toHaveCount(0);
 });
 
 test("AI settings classify empty models and recover from controlled API error", async ({ page, request }) => {
@@ -100,5 +102,107 @@ test("AI settings classify empty models and recover from controlled API error", 
         localEndpoint: original.localEndpoint,
       },
     });
+  }
+});
+
+test("OpenAI analysis and chat reasoning levels persist independently", async ({ page, request }) => {
+  const initial = await request.get("/api/settings");
+  expect(initial.ok()).toBe(true);
+  const { aiProvider, aiModel, aiReasoningLevel, chatProvider, chatModel, chatReasoningLevel } = await initial.json();
+  const model = "gpt-5.4-mini";
+  const openSettings = async () => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "AI Analysis" }).click();
+  };
+  await page.route("**/api/settings", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), openaiApiKeySet: true } });
+  });
+  await page.route("**/api/ai-models**", (route) => route.fulfill({
+    json: { openai: [model, "gpt-4.1-mini", "gpt-6.2-sol"].map((id) => ({ id, name: id })), _errors: {} },
+  }));
+  const analysis = page.locator("#ai-analysis-reasoning");
+  const chat = page.locator("#ai-chat-reasoning");
+  const popup = page.getByRole("listbox");
+  const selectLevel = async (picker: typeof analysis, label: string) => {
+    await picker.click();
+    await popup.getByRole("option", { name: label, exact: true }).click();
+  };
+  const levels = async () => {
+    const settings = await (await request.get("/api/settings")).json();
+    return [settings.aiReasoningLevel, settings.chatReasoningLevel];
+  };
+  try {
+    expect((await request.put("/api/settings", { data: {
+      aiProvider: "openai", aiModel: model, aiReasoningLevel: "medium",
+      chatProvider: "openai", chatModel: model, chatReasoningLevel: "medium",
+    } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toHaveValue("Medium ⭐");
+    await expect(chat).toHaveValue("Medium ⭐");
+    const options = ["None", "Minimal", "Low", "Medium ⭐", "High", "XHigh", "Max"];
+    for (const picker of [analysis, chat]) {
+      await picker.click();
+      await expect(popup.getByRole("option")).toHaveText(options);
+      await picker.press("Escape");
+      await expect(popup).toBeHidden();
+    }
+    await analysis.focus();
+    await analysis.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(analysis).toBeFocused();
+    await analysis.press("ArrowDown");
+    await expect(popup).toBeVisible();
+    await analysis.fill("None");
+    await expect(popup.getByRole("option")).toHaveText(["None"]);
+    await analysis.press("ArrowDown");
+    await analysis.press("Enter");
+    await expect(analysis).toHaveValue("None");
+    await expect.poll(levels).toEqual(["none", "medium"]);
+    await openSettings();
+    await expect(analysis).toHaveValue("None");
+    await expect(chat).toHaveValue("Medium ⭐");
+    await selectLevel(chat, "Max");
+    await selectLevel(analysis, "High");
+    await expect.poll(levels).toEqual(["high", "max"]);
+    const invalid = await request.put("/api/settings", { data: { aiReasoningLevel: "low", chatReasoningLevel: "invalid" } });
+    expect(invalid.status()).toBe(400);
+    await expect.poll(levels).toEqual(["high", "max"]);
+    expect((await request.put("/api/settings", { data: { aiModel: "gpt-4.1-mini", chatModel: "gpt-6.2-sol" } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toBeEnabled();
+    await expect(analysis).toHaveValue("High");
+    await expect(chat).toBeEnabled();
+    await expect(chat).toHaveValue("Max");
+    await chat.click();
+    await expect(popup.getByRole("option", { name: "None", exact: true })).toHaveCount(1);
+    await chat.press("Escape");
+    await page.route("**/api/settings", async (route) => {
+      if (route.request().method() === "PUT") {
+        const { aiReasoningLevel, chatReasoningLevel } = route.request().postDataJSON();
+        if (aiReasoningLevel === "medium" || chatReasoningLevel === "medium") {
+          return route.fulfill({ status: 503, body: "Temporarily unavailable" });
+        }
+      }
+      await route.fallback();
+    });
+    for (const [picker, savedLabel] of [[analysis, "High"], [chat, "Max"]] as const) {
+      await selectLevel(picker, "Medium ⭐");
+      await expect(page.getByText("Service Unavailable", { exact: true })).toBeVisible();
+      await expect.poll(levels).toEqual(["high", "max"]);
+      await page.getByRole("button", { name: "General", exact: true }).click();
+      await expect(picker).toHaveCount(0);
+      await page.getByRole("button", { name: "AI Analysis" }).click();
+      await expect(picker).toHaveValue(savedLabel);
+    }
+    expect((await request.put("/api/settings", { data: { aiProvider: "openai-compatible", chatModel: model } })).ok()).toBe(true);
+    await openSettings();
+    await expect(analysis).toHaveCount(0);
+    await expect(chat).toHaveValue("Max");
+  } finally {
+    await page.close();
+    await request.put("/api/settings", { data: { aiProvider, aiModel, aiReasoningLevel, chatProvider, chatModel, chatReasoningLevel } });
   }
 });

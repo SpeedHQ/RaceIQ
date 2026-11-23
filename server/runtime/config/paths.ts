@@ -38,11 +38,12 @@ export const PUBLIC_DIR = IS_COMPILED
 
 /**
  * Writable user data directory.
+ * DATA_DIR overrides every writable path, including generated track data.
  * Compiled: %APPDATA%/RaceIQ (Windows) or ./data
  * Dev: ./data
  * Used for: database, settings, logs, extracted tracks, recorded outlines, curbs.
  */
-export const USER_DATA_DIR = IS_COMPILED
+export const USER_DATA_DIR = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : IS_COMPILED
   ? join(process.env.APPDATA ?? homedir(), "RaceIQ")
   : resolve(ROOT_DIR, "data");
 

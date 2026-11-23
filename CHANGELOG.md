@@ -1,33 +1,33 @@
-## Unreleased
-
-### Breaking
-- Download and install the Race Engineer voice pack separately; voice audio is no longer included with the app. Text callouts remain available without the pack.
+## v0.23.0 - 2026-11-22
 
 ### Features
-- Install the optional Live Engineer voice package during setup or manage installed, required, and available versions in Settings → Live Engineer. Check compatible updates automatically when Radio audio is enabled, with an update prompt and retryable installation that preserves existing audio.
-- Show download or update requirements in Radio before enabling voice audio, with independently versioned voice packs and explicit engine/catalog/language compatibility.
-- Use Race Engineer naming throughout internal subsystem identifiers, paths, and user-facing labels.
-- Announce source-backed component damage and faults: named F1 25 components and engine failures, ACC/AC Evo bodywork, iRacing native warnings and repair requirements, and LMU flat tyres/detached wheels. Preserve three-second debounce, independent escalation, and repair rearming; exclude wear and inferred diagnoses.
-- Replace vague damage audio with 56 matching Qwen component/fault clips. LMU enablement remains damage-only; Forza damage stays unavailable.
-- Add source-backed race engineer announcements for ACC and AC Evo, plus position changes for Forza Motorsport. Replay distinguishes unsupported systems from telemetry missing in older recordings.
-- Inspect replayed engineer audio in a moving 10-second DAW timeline with individual, duration-scaled clip waveforms and inserted pauses.
-- Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
-- Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
-- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
+
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
+- Set the OpenAI reasoning level independently in AI Analysis and AI Chat using the same searchable picker as model selection. A star marks Medium as recommended. Supported levels vary by model.
 
 ### Fixes
-- Restore Race Engineer voice playback through the development dashboard proxy. Speech previews use generated source assets without replacing installed voice packs.
-- Keep native recording write/close/replay working on Windows without calling unsupported directory `fsync`; preserve file flushes, POSIX directory syncing, and genuine filesystem errors.
-- Keep recording layout migration progress polling from racing atomic journal replacement on Windows; preserve collision checks and resumable cutover.
-- Keep ACC laps readable and exportable when recordings include opponent data, and hide stale opponent standings until the source recovers.
-- Restore source-backed iRacing opponent pace announcements for sparse grids.
-- Recognize F1 25 race sessions correctly when evaluating opponent pace.
-- Keep ACC tyre-temperature warnings suppressed during warm-up, pit visits, and earlier sectors.
-- Keep Engineer Replay focused on the actual player, preserve source-loss history, and stop queued audio after mute, seek, or session changes.
-- Chain completed-lap time and pace announcements with a natural pause and without repeating "Your lap was."
+- Show the correct gear in the Portable Combo dashboard for Automobilista 2.
+- Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+- Run lap analysis and AI chat with OpenAI models that use function tools and reasoning together.
+- OpenAI model pickers in Settings list only GPT-6 and newer text models.
 
 ### Internal
-- Preserve race-engineer announcements, ACC Broadcast capture metadata, and replay/export behavior across the workspace and string-identity migrations.
+- Allow CI replay WebGPU tests to use software adapters; hardware coverage is not guaranteed.
+- Require an explicitly configured model for AI evaluation runs.
+- Keep ongoing release notes in `UNRELEASED.md` and move them into `CHANGELOG.md` only when publishing a release.
+- Run RaceIQ in the native macOS app with existing lap data and saved network access; control login startup and whether closing the window quits the app.
+- Prepare per-lap seed fixtures before starting the release baseline in the upgrade smoke test.
+
+## v0.22.0 - 2026-11-08
+
+### Features
+- Choose DeepSeek for analysis, chat, auto-tune and driver profiles with its own API key. The model picker reads the models available to that key instead of using a fixed list, preselects `deepseek-flash`, keeps tool calls working, and only offers image attachments on models that accept them.
+
+### Fixes
+- Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
+
+### Internal
+- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 

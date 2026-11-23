@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { RequestContext } from "@mastra/core/request-context";
 import type { ProcessLLMRequestArgs } from "@mastra/core/processors";
@@ -13,6 +13,9 @@ import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
 import { buildLapChatInstructions, lapChatGroundingProcessor, lapChatPrepareStep, requiresCornerMetricsLookup, requiresLapInsightsLookup } from "../../../src/mastra/agents/lap-chat";
 import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
 import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import { tuneChatRoutes } from "../../../src/routes/tune-chat-routes";
+import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
+import * as providerKeys from "@raceiq/backend-core/ai/openai-compatible-provider";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -250,6 +253,76 @@ describe("lap chat route context and targeted removal", () => {
 
   });
 
+  test.each([
+    ["gpt-6-sol", "medium", "medium", null],
+    ["gpt-6-sol", "max", "max", null],
+    ["gpt-6-sol", "none", "none", null],
+    ["gpt-6-sol", "none", "none", "upstream"],
+    ["gpt-6.2-sol", "none", undefined, "sdk"],
+  ] as const)("streams OpenAI Responses on %s with %s reasoning (%s on wire, %s rejection)", async (model, level, reasoning, rejection) => {
+    const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
+    const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model,
+      chatReasoningLevel: level, aiReasoningLevel: "low" } as const;
+    const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue(settings);
+    const keySpy = spyOn(providerKeys, "getAiProviderApiKey").mockResolvedValue("test-key");
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (rejection === "upstream") {
+        return Response.json({ error: { message: "Unsupported value: none", param: "reasoning.effort" } }, { status: 400 });
+      }
+      const item = { id: "msg_1", type: "message", role: "assistant", status: "completed",
+        content: [{ type: "output_text", text: "OpenAI lap reply", annotations: [] }] };
+      const response = { id: "resp_1", object: "response", status: "completed", created_at: 1,
+        model, output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+      const events = [
+        { type: "response.created", response: { ...response, status: "in_progress", output: [] } },
+        { type: "response.output_item.added", output_index: 0, item: { ...item, status: "in_progress", content: [] } },
+        { type: "response.output_text.delta", output_index: 0, item_id: item.id, content_index: 0, delta: "OpenAI lap reply" },
+        { type: "response.output_item.done", output_index: 0, item },
+        { type: "response.completed", response },
+      ];
+      return new Response(events.map((event, sequence_number) =>
+        `event: ${event.type}\ndata: ${JSON.stringify({ ...event, sequence_number })}\n\n`).join(""),
+      { headers: { "Content-Type": "text/event-stream" } });
+    }) as typeof fetch);
+
+    try {
+      const app = createChatRoutes({
+        getLapById: async () => lap(fixture) as never,
+        loadSettings: () => settings,
+        configureAiProviderEnvironment: async () => "test-key",
+      });
+      const response = await app.request(`/api/laps/${fixture.id}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ id: "openai-turn", role: "user", parts: [{ type: "text", text: "Hello" }] }] }),
+      });
+      expect(response.status).toBe(200);
+      const body = await response.text();
+      if (rejection) {
+        expect(body).toContain("Choose another Reasoning level in Settings and retry.");
+        expect(body).not.toContain("OpenAI lap reply");
+      } else {
+        expect(body).toContain("OpenAI lap reply");
+      }
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect(String(url)).toBe("https://api.openai.com/v1/responses");
+      const request = JSON.parse(String(init?.body));
+      expect(request).toMatchObject({
+        model,
+        stream: true,
+        store: false,
+        tools: expect.arrayContaining([expect.objectContaining({ type: "function", name: "get_track_guide" })]),
+      });
+      if (reasoning) expect(request.reasoning).toMatchObject({ effort: reasoning });
+      else expect(request).not.toHaveProperty("reasoning");
+    } finally {
+      fetchSpy.mockRestore();
+      keySpy.mockRestore();
+      settingsSpy.mockRestore();
+    }
+  });
+
   test("excludes mismatched and unreadable linked setups without losing lap or analysis context", async () => {
     const fixture = await makeLapFixture(55, "ASSOCIATION");
     const prompts: string[] = [];
@@ -380,6 +453,85 @@ describe("lap chat route context and targeted removal", () => {
     expect((await postImage()).status).toBe(200);
     expect(providerConfigured).toBe(true);
     expect(streamCalled).toBe(true);
+  });
+
+  test("gates image turns on the stored chat model with no default fallback", async () => {
+    const streamedMessages: unknown[][] = [];
+    let chatModel = "";
+    const memory = makeMemory();
+    const app = createChatRoutes({
+      getLapById: async () => lap({ id: 41, lapNumber: 51, tuneId: 0 }) as never,
+      loadSettings: (() => ({ chatProvider: "deepseek", chatModel, unit: "metric", temperatureUnit: "celsius", language: "en", chatThinkingBudget: 0 })) as never,
+      resolveLapCorners: (async () => []) as never,
+      buildChatSystemPrompt: (() => "context") as never,
+      resolveActiveThread: (async (base: string) => base) as never,
+      ensureSystemPrompt: (async () => {}) as never,
+      getChatMemory: (() => memory) as never,
+      configureAiProviderEnvironment: (async () => {}) as never,
+      lapChatAgent: ({ stream: async (messages: unknown[]) => { streamedMessages.push(messages); return {}; } } as never),
+      streamAgentTurnResponse: (async () => new Response("ok")) as never,
+    });
+    const post = (parts: unknown[]) => app.request("/api/laps/41/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [{ id: "turn", role: "user", parts }] }),
+    });
+    const imagePart = { type: "file", mediaType: "image/png", url: "data:image/png;base64,AA==" };
+
+    // An empty stored model is fine for text; only image turns need a verified model.
+    expect((await post([{ type: "text", text: "Explain my braking" }])).status).toBe(200);
+
+    const unknown = await post([imagePart]);
+    expect(unknown.status).toBe(400);
+    expect(await unknown.json()).toEqual({
+      error: "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.",
+    });
+
+    chatModel = "deepseek-v4-pro";
+    const unsupported = await post([imagePart]);
+    expect(unsupported.status).toBe(400);
+    expect(await unsupported.json()).toEqual({
+      error: "This chat model does not support images. Remove the image or choose a verified image-capable chat model.",
+    });
+    // Neither blocked image turn reached the model.
+    expect(streamedMessages.filter((messages) => JSON.stringify(messages).includes("data:image/png"))).toHaveLength(0);
+
+    chatModel = "deepseek-flash";
+    expect((await post([imagePart])).status).toBe(200);
+    expect(streamedMessages.filter((messages) => JSON.stringify(messages).includes("data:image/png"))).toHaveLength(1);
+  });
+});
+
+describe("tune chat image gate", () => {
+  // The tune-chat route has no override seam, so the stored settings are
+  // replaced at the module the route reads from. An empty chatModel must fail
+  // before branch resolution (unknown experiment below proves nothing else ran).
+  test("rejects an image turn with no stored chat model before touching the experiment", async () => {
+    const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue({
+      ...settingsModule.loadSettings(),
+      chatProvider: "deepseek",
+      chatModel: "",
+    });
+    try {
+      const response = await tuneChatRoutes.request("/api/experiments/987654/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headVersionId: null,
+          messages: [{
+            id: "image-turn",
+            role: "user",
+            parts: [{ type: "file", mediaType: "image/png", url: "data:image/png;base64,AA==" }],
+          }],
+        }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.",
+      });
+    } finally {
+      settingsSpy.mockRestore();
+    }
   });
 });
 

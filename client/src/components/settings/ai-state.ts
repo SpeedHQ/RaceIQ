@@ -1,3 +1,5 @@
+import type { OpenAiReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
+
 type ProviderInfo = { id: string; name: string };
 type AsyncAction = { mutate: () => void; isPending: boolean; isError: boolean };
 export type ProviderSetupState = {
@@ -20,6 +22,8 @@ export interface AiAnalysisState {
   setModel: (value: string) => void;
   thinkingBudget: number | null;
   setThinkingBudget: (value: number | null) => void;
+  reasoningLevel: OpenAiReasoningLevel;
+  setReasoningLevel: (value: OpenAiReasoningLevel) => void;
   apiKey: string;
   setApiKey: (value: string) => void;
   localEndpoint: string;
@@ -51,6 +55,8 @@ export interface AiChatState {
   setChatModel: (value: string) => void;
   chatThinkingBudget: number | null;
   setChatThinkingBudget: (value: number | null) => void;
+  chatReasoningLevel: OpenAiReasoningLevel;
+  setChatReasoningLevel: (value: OpenAiReasoningLevel) => void;
   chatApiKey: string;
   setChatApiKey: (value: string) => void;
   keyStatus: Record<string, boolean>;
@@ -135,10 +141,11 @@ export const GEMINI_THINKING_BUDGET_OPTIONS = [
   { label: "4,096", value: 4096 },
   { label: "8,192", value: 8192 },
 ] as const;
-export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai", anthropic: "anthropic", "openai-compatible": "openai-compatible" };
+export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai", anthropic: "anthropic", deepseek: "deepseek", "openai-compatible": "openai-compatible" };
 export const PROVIDER_KEY_LABELS: Record<string, KeyInfo> = {
   gemini: { label: "Gemini API Key", placeholder: "AIza...", helpText: "Get a free API key from", helpUrl: "https://aistudio.google.com/apikey" },
   openai: { label: "OpenAI API Key", placeholder: "sk-...", helpText: "Get an API key from", helpUrl: "https://platform.openai.com/api-keys" },
   anthropic: { label: "Anthropic API Key", placeholder: "sk-ant-...", helpText: "Get an API key from", helpUrl: "https://console.anthropic.com/settings/keys" },
+  deepseek: { label: "DeepSeek API Key", placeholder: "sk-...", helpText: "Get an API key from", helpUrl: "https://platform.deepseek.com/api_keys" },
   "openai-compatible": { label: "OpenAI-compatible API Key (optional)", placeholder: "Optional bearer token", helpText: "Sent as a Bearer token to the configured endpoint." },
 };

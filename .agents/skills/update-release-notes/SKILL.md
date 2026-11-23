@@ -9,16 +9,16 @@ Use this skill on the PR branch before opening or updating a pull request.
 
 ## Workflow
 
-1. Read `CHANGELOG.md` and compare the final PR changes with the PR's actual target base branch, not individual commits or earlier PR revisions.
-2. Add one concise bullet under the matching `## Unreleased` subsection:
+1. Read `UNRELEASED.md` and compare the final PR changes with the PR's actual target base branch, not individual commits or earlier PR revisions.
+2. Add one concise bullet under the matching category in `UNRELEASED.md`:
    - `Breaking`: migration, compatibility, default, route, or user-config changes that prevent clean rollback.
    - `Features`: new user-facing capability.
    - `Fixes`: corrected user-visible behavior.
    - `Internal`: implementation, CI, tooling, or maintenance work invisible to users.
 3. Preserve the section order `Breaking`, `Features`, `Fixes`, `Internal`. Create a missing subsection only when needed.
-4. Keep `### Fixes` and `### Internal` headings in `## Unreleased` even when they have no bullets.
-5. Do not edit a released version section. Do not duplicate an existing bullet.
-6. Run `bun test test/changelog.test.ts --timeout 60000` and report the changed files.
+4. Keep `### Fixes` and `### Internal` headings even when they have no bullets. Do not add an `## Unreleased` heading; the filename identifies ongoing notes.
+5. Keep `CHANGELOG.md` for released versions only. Do not edit a released version section or duplicate an existing bullet. Release finalization moves ongoing notes into a versioned changelog entry and resets `UNRELEASED.md`.
+6. Run `bun test packages/tooling-release/test/changelog.test.ts --timeout 60000` and report the changed files.
 
 ## Writing rules
 
@@ -34,8 +34,8 @@ Use this skill on the PR branch before opening or updating a pull request.
 
 Before requesting review, confirm:
 
-- `CHANGELOG.md` contains a bullet under `## Unreleased` describing the final net change versus the target base branch, with no separate notes for PR-only regressions.
+- `UNRELEASED.md` contains a bullet describing the final net change versus the target base branch, with no separate notes for PR-only regressions.
 - The bullet is in the correct category.
 - Every user-facing bullet identifies where the change is visible and its user impact; implementation-only details appear only under `Internal`.
-- The release workflow will generate `releasenote.md` (current release) and `releasenotes.md` (full public history).
+- The release workflow generates `releasenote.md` from `UNRELEASED.md`, excluding Internal notes, and moves all ongoing notes into `CHANGELOG.md` during finalization.
 - Changelog tests pass.

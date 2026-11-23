@@ -87,6 +87,10 @@ export function getMastraModelId(
       return `openai/${aiModel || "gpt-4o-mini"}`;
     case "anthropic":
       return `anthropic/${aiModel || "claude-haiku-5-5"}`;
+    case "deepseek": {
+      // Mastra has a native DeepSeek provider; the key comes from DEEPSEEK_API_KEY.
+      return `deepseek/${aiModel || "deepseek-flash"}`;
+    }
     case "openai-compatible": {
       // Local models use OpenAI-compatible API; model ID passed through
       return `openai/${aiModel || "local-model"}`;

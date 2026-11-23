@@ -17,7 +17,9 @@ import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { getCompareAnalysisTool } from "../tools/compare-analysis";
 import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { DEEPSEEK_AGENT_DEFAULTS } from "../model";
 export const compareChatAgent = new Agent({
+    defaultOptions: DEEPSEEK_AGENT_DEFAULTS,
   id: "compare-chat",
   name: "Compare Chat",
   instructions: ({ requestContext }) => {

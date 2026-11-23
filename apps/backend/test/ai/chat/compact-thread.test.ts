@@ -1,6 +1,6 @@
 // test/ai/chat/compact-thread.test.ts
 import { describe, test, expect } from "bun:test";
-import { forkThreadWithSummary, NothingToCompactError, MIN_COMPACT_MESSAGES } from "@raceiq/backend-core/ai/compact-thread";
+import { forkThreadWithSummary, NothingToCompactError, MIN_COMPACT_MESSAGES, summarizeWithDeepSeek } from "@raceiq/backend-core/ai/compact-thread";
 
 // Minimal fake Mastra memory: enough surface for forkThreadWithSummary.
 // Tracks threads by id (so getThreadById/createThread behave like a real
@@ -91,4 +91,29 @@ describe("forkThreadWithSummary", () => {
     expect(res.generation).toBe(3);
     expect(res.parentThreadId).toBe("t1");
   });
+});
+
+test("DeepSeek compaction goes through the adapter path with thinking off", async () => {
+  const calls: Array<{ url: string; body: string }> = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(input), body: String(init?.body ?? "") });
+    return new Response(JSON.stringify({
+      choices: [{ index: 0, message: { role: "assistant", content: "summary text" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 3, completion_tokens: 2 },
+    }), { headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const out = await summarizeWithDeepSeek("driver said hi", { model: "deepseek-flash", apiKey: "test-key" });
+    expect(out).toBe("summary text");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://api.deepseek.com/chat/completions");
+    const body = JSON.parse(calls[0].body);
+    expect(body.model).toBe("deepseek-flash");
+    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body).not.toHaveProperty("reasoning_effort");
+    expect(body.messages[0].content).toContain("compacting a race-engineering chat");
+  } finally {
+    globalThis.fetch = original;
+  }
 });
