@@ -102,3 +102,23 @@ test("retries transient audio failures and reuses verified clips", async () => {
   await player.play(["clip"]);
   expect([manifests, assets, decodes()]).toEqual([2, 2, 1]);
 });
+
+test("replay schedule uses decoded buffers and includes join and phrase gaps", async () => {
+  const { context } = audioFixture();
+  const bytes = new Uint8Array([2]);
+  const sha256 = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+  const clips = ["lap.tenth.4", "pace"].map((segmentId) => ({ segmentId, path: `${segmentId}.flac`, sha256, durationMs: 999 }));
+  const player = new LiveEngineerAudioPlayer({
+    audioContext: context,
+    fetchImpl: async (url) => String(url).endsWith("manifest.json")
+      ? Response.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, assembly: { gapMs: 20 }, clips })
+      : new Response(bytes),
+    onSchedule(schedule) {
+      expect(schedule.map(({ id }) => id)).toEqual(["lap.tenth.4", "pace"]);
+      expect(schedule[0]!.endMs - schedule[0]!.startMs).toBeCloseTo(100);
+      expect(schedule[1]!.startMs - schedule[0]!.endMs).toBeCloseTo(320);
+    },
+  });
+  expect.assertions(3);
+  await player.play(clips.map(({ segmentId }) => segmentId));
+});

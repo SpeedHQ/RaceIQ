@@ -62,3 +62,32 @@ test("renders DAW-style audio blocks with session time and duration", () => {
   expect(markup).toContain("2:40.572");
   expect(markup).toContain("pause-after-lap.tenth.3");
 });
+
+test("queues simultaneous callouts and trims clips crossing the visible window", () => {
+  const line = { ...event, timelineMs: 0, audioLineId: "fuel" };
+  const markup = renderToStaticMarkup(
+    <ReplayAudioTimeline events={[line, { ...line, id: "next" }]} durationsMs={{ fuel: 6_000 }}
+      startTimeMs={0} endTimeMs={20_000} currentTimeMs={10_000} playingId={null} onSeek={() => undefined} />,
+  );
+  expect(markup).toContain("2 clips");
+  expect(markup).toContain("left:0%;width:12.5%");
+  expect(markup).toContain("left:15%;width:60%");
+});
+
+test("scheduled clip edges follow decoded duration across a mid-clip speed change", () => {
+  const now = performance.now();
+  const line = { ...event, timelineMs: 0, segmentIds: ["first", "second"] };
+  const markup = renderToStaticMarkup(
+    <ReplayAudioTimeline events={[line]} durationsMs={{ first: 4000, second: 4000 }}
+      clock={[{ wallMs: now - 1500, timelineMs: 0, speed: 0.5 }, { wallMs: now - 500, timelineMs: 500, speed: 2 }]}
+      schedules={new Map([[line.id, [
+        { id: "first", startMs: now - 1000, endMs: now - 100 },
+        { id: "second", startMs: now - 100, endMs: now + 1000 },
+      ]]])}
+      startTimeMs={0} endTimeMs={20_000} currentTimeMs={0} playingId={line.id} onSeek={() => undefined} />,
+  );
+  expect(markup).toContain("left:2.5%;width:10.5%");
+  expect(markup).toContain("left:13%;width:22%");
+  expect(markup.match(/aria-current="time"/g)).toHaveLength(1);
+  expect(markup).toContain('aria-current="time" aria-label="Seek to clip second');
+});

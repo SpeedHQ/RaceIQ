@@ -144,14 +144,14 @@ test("replay audio reuses context, cancels suspended requests, and stops active 
   });
   const bytes = Buffer.from([1, 2, 3]);
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  await page.route("**/audio/live-engineer/qwen-v3/manifest.json", (route) => {
+  await page.route("**/api/dev/live-engineer/audio/manifest.json", (route) => {
     return route.fulfill({ json: {
       catalogVersion: "live-engineer-qwen-v3",
       clips: [{ segmentId: "test-segment", path: "test.wav", sha256, durationMs: 1_000 }],
       fullLines: [{ lineId: "test-line", path: "test.wav", sha256, durationMs: 1_000 }],
     } });
   });
-  await page.route("**/audio/live-engineer/qwen-v3/test.wav", (route) => route.fulfill({ body: bytes, contentType: "audio/wav" }));
+  await page.route("**/api/dev/live-engineer/audio/test.wav", (route) => route.fulfill({ body: bytes, contentType: "audio/wav" }));
   await page.route("**/api/sessions?*", (route) => route.fulfill({ json: opponentSessions }));
   await page.route("**/api/dev/live-engineer/session-replay?*", (route) => route.fulfill({ json: opponentReplay() }));
   await page.goto("/dev/speech/engineer-replay?gameId=acc&sessionId=91001");

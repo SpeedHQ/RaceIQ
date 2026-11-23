@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import type { LiveEngineerReplayAnnotationV1 } from "@raceiq/shared/racing/live/engineer-replay-contracts";
-import { AUDIO_START_LEAD_MS, getSegmentPauseMs } from "@/lib/live-engineer-audio";
+import { AUDIO_START_LEAD_MS, getSegmentPauseMs, type ScheduledAudioClip } from "@/lib/live-engineer-audio";
+import { replayTimeAt, type ReplayClockAnchor } from "@/hooks/useLiveEngineerReplayPlayback";
 import { cn } from "@/lib/utils";
 
-const CATALOG_URL = "/audio/live-engineer/qwen-v3/manifest.json";
+import { DEV_QWEN_CATALOG } from "./DevSpeechAudio";
 const FALLBACK_CLIP_MS = 1_000;
 export const AUDIO_TIMELINE_WINDOW_MS = 10_000;
 
@@ -15,7 +17,7 @@ async function loadWaveform(path: string): Promise<readonly number[]> {
   let pending = waveformCache.get(path);
   if (!pending) {
     pending = (async () => {
-      const response = await fetch(`/audio/live-engineer/qwen-v3/${path}`);
+      const response = await fetch(new URL(path, new URL(DEV_QWEN_CATALOG.url, window.location.href)));
       if (!response.ok) throw new Error(`Audio clip unavailable (${response.status})`);
       const context = new AudioContext();
       try {
@@ -38,7 +40,7 @@ async function loadWaveform(path: string): Promise<readonly number[]> {
   return pending;
 }
 
-function AudioWaveform({ path }: { path?: string }) {
+const AudioWaveform = memo(function AudioWaveform({ path }: { path?: string }) {
   const [peaks, setPeaks] = useState<readonly number[]>([]);
   useEffect(() => {
     if (!path) return;
@@ -52,7 +54,7 @@ function AudioWaveform({ path }: { path?: string }) {
       {peaks.map((peak, index) => <rect key={index} x={index} y={(1 - peak) / 2} width={0.75} height={Math.max(0.04, peak)} fill="currentColor" />)}
     </svg>
   );
-}
+});
 
 export interface ReplayAudioTimelineProps {
   events: readonly LiveEngineerReplayAnnotationV1[];
@@ -61,6 +63,9 @@ export interface ReplayAudioTimelineProps {
   currentTimeMs: number;
   playingId: string | null;
   onSeek: (event: LiveEngineerReplayAnnotationV1) => void;
+  clock?: readonly ReplayClockAnchor[];
+  speed?: number;
+  schedules?: ReadonlyMap<string, readonly ScheduledAudioClip[]>;
   durationsMs?: Readonly<Record<string, number>>;
 }
 
@@ -87,13 +92,29 @@ export function audioEventDurationMs(event: LiveEngineerReplayAnnotationV1, dura
   return audioEventSlices(event, durations).reduce((total, slice) => total + slice.durationMs, 0);
 }
 
-export function ReplayAudioTimeline({ events, startTimeMs, endTimeMs, currentTimeMs, playingId, onSeek, durationsMs }: ReplayAudioTimelineProps) {
+export function ReplayAudioTimeline({ events, startTimeMs, endTimeMs, currentTimeMs: frameTimeMs, playingId, onSeek, durationsMs, clock, schedules, speed = 1 }: ReplayAudioTimelineProps) {
+  const [wallMs, setWallMs] = useState(() => performance.now());
+  const preview = !clock?.length && playingId ? schedules?.get(playingId)?.[0] : undefined;
+  const previewStart = preview ? events.find((event) => event.id === playingId)?.timelineMs : undefined;
+  const running = Boolean(clock?.length || preview);
+  useEffect(() => {
+    if (!running) return;
+    let request: number;
+    const tick = () => {
+      flushSync(() => setWallMs(performance.now()));
+      request = requestAnimationFrame(tick);
+    };
+    request = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(request);
+  }, [running]);
+  const currentTimeMs = clock?.length ? Math.min(endTimeMs, Math.max(startTimeMs, replayTimeAt(clock, wallMs)))
+    : preview && previewStart != null ? previewStart + Math.max(0, wallMs - preview.startMs + AUDIO_START_LEAD_MS) : frameTimeMs;
   const [loadedDurations, setLoadedDurations] = useState<Readonly<Record<string, number>>>({});
   const [loadedPaths, setLoadedPaths] = useState<Readonly<Record<string, string>>>({});
   useEffect(() => {
     if (durationsMs) return;
     const controller = new AbortController();
-    void fetch(CATALOG_URL, { signal: controller.signal })
+    void fetch(DEV_QWEN_CATALOG.url, { signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<DurationCatalog> : Promise.reject(new Error(`Audio catalog unavailable (${response.status})`)))
       .then((catalog) => {
         const entries = [...(catalog.clips ?? []), ...(catalog.fullLines ?? [])];
@@ -116,8 +137,46 @@ export function ReplayAudioTimeline({ events, startTimeMs, endTimeMs, currentTim
   const unclampedWindowStart = currentTimeMs - windowDurationMs / 2;
   const windowStartMs = Math.max(startTimeMs, Math.min(unclampedWindowStart, endTimeMs - windowDurationMs));
   const windowEndMs = windowStartMs + windowDurationMs;
-  const visibleEvents = useMemo(() => events.filter((event) => event.timelineMs <= windowEndMs && event.timelineMs + audioEventDurationMs(event, durations) >= windowStartMs), [durations, events, windowEndMs, windowStartMs]);
-  const visibleClipCount = visibleEvents.reduce((total, event) => total + audioEventSlices(event, durations).filter((slice) => slice.kind === "clip").length, 0);
+  const queue = useMemo(() => {
+    let availableMs = -Infinity;
+    return events.map((event) => {
+      const predictedStart = Math.max(event.timelineMs, availableMs);
+      const scheduled = schedules?.get(event.id);
+      let cursor = predictedStart;
+      const slices: (AudioTimelineSlice & { start: number; end: number; scheduled: boolean })[] = [];
+      if (scheduled?.length && (clock?.length || (preview && event.id === playingId))) {
+        const position = (ms: number) => clock?.length ? replayTimeAt(clock, ms) : event.timelineMs + ms - scheduled[0]!.startMs + AUDIO_START_LEAD_MS;
+        cursor = Math.min(predictedStart, position(scheduled[0]!.startMs));
+        for (const [index, clip] of scheduled.entries()) {
+          const start = position(clip.startMs);
+          const end = position(clip.endMs);
+          if (start > cursor) slices.push({ id: index ? `pause-after-${scheduled[index - 1]!.id}` : "playback-lead", kind: index ? "pause" : "lead", start: cursor, end: start, durationMs: start - cursor, scheduled: true });
+          slices.push({ id: clip.id, kind: "clip", start, end, durationMs: clip.endMs - clip.startMs, scheduled: true });
+          cursor = end;
+        }
+      } else {
+        for (const slice of audioEventSlices(event, durations)) {
+          const end = cursor + slice.durationMs * speed;
+          slices.push({ ...slice, start: cursor, end, scheduled: false });
+          cursor = end;
+        }
+      }
+      availableMs = cursor;
+      return { event, slices, startMs: slices[0]!.start, endMs: cursor };
+    });
+  }, [events, durations, schedules, clock, speed, preview, playingId]);
+  const visibleEvents = queue.filter((entry) => entry.startMs < windowEndMs && entry.endMs > windowStartMs);
+  let visibleClipCount = 0;
+  const blocks = visibleEvents.flatMap(({ event, slices }) => {
+    return slices.flatMap((slice, index) => {
+      const { start: sliceStartMs, end: cursor } = slice;
+      if (cursor <= windowStartMs || sliceStartMs >= windowEndMs) return [];
+      if (slice.kind === "clip") visibleClipCount++;
+      const left = 100 * (Math.max(sliceStartMs, windowStartMs) - windowStartMs) / windowDurationMs;
+      const width = 100 * (Math.min(cursor, windowEndMs) - Math.max(sliceStartMs, windowStartMs)) / windowDurationMs;
+      return [{ event, slice, index, sliceStartMs, left, width }];
+    });
+  });
   const playhead = Math.min(100, Math.max(0, ((currentTimeMs - windowStartMs) / windowDurationMs) * 100));
 
   return (
@@ -129,17 +188,10 @@ export function ReplayAudioTimeline({ events, startTimeMs, endTimeMs, currentTim
       <div className="relative h-14 overflow-hidden rounded border border-app-border bg-app-surface-alt/70">
         <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-app-border" />
         {[25, 50, 75].map((position) => <div key={position} className="absolute inset-y-0 border-l border-app-border/60" style={{ left: `${position}%` }} aria-hidden="true" />)}
-        {visibleEvents.flatMap((event) => {
-          const slices = audioEventSlices(event, durations);
-          const elapsed = event.timelineMs - startTimeMs;
-          const isPlaying = event.id === playingId;
-          let offsetMs = 0;
-          return slices.map((slice, index) => {
-            const sliceStartMs = event.timelineMs + offsetMs;
-            offsetMs += slice.durationMs;
-            const left = Math.max(0, ((sliceStartMs - windowStartMs) / windowDurationMs) * 100);
-            const width = Math.max(0.15, (slice.durationMs / windowDurationMs) * 100);
-            const title = `${slice.kind}: ${slice.id} · ${slice.durationMs} ms · ${formatTimelineTime(sliceStartMs - startTimeMs)}`;
+        {blocks.map(({ event, slice, index, sliceStartMs, left, width }) => {
+            const elapsed = event.timelineMs - startTimeMs;
+            const isPlaying = running && slice.scheduled && sliceStartMs <= currentTimeMs && currentTimeMs < slice.end;
+            const title = `${slice.kind}: ${slice.id} · ${Math.round(slice.durationMs)} ms · ${formatTimelineTime(sliceStartMs - startTimeMs)}`;
             if (slice.kind !== "clip") {
               return <div key={`${event.id}/${slice.id}/${index}`} className={cn("absolute inset-y-1 z-10 overflow-hidden rounded-sm border", slice.kind === "pause" ? "border-status-warning/70 bg-status-warning/25" : "border-app-text-muted/40 bg-app-text-muted/15")} style={{ left: `${left}%`, width: `${width}%` }} title={title}><span className="block truncate px-0.5 text-app-caption uppercase text-app-text-muted">{slice.kind}</span></div>;
             }
@@ -150,6 +202,7 @@ export function ReplayAudioTimeline({ events, startTimeMs, endTimeMs, currentTim
                 className={cn("absolute inset-y-1 z-10 min-w-px overflow-hidden rounded-sm border border-app-accent/55 bg-app-accent/15 text-left shadow-sm hover:z-20 hover:border-app-accent hover:bg-app-accent/25", sliceStartMs < currentTimeMs && !isPlaying && "opacity-55", isPlaying && "border-status-success bg-status-success/20 ring-1 ring-status-success")}
                 style={{ left: `${left}%`, width: `${width}%` }}
                 title={title}
+                aria-current={isPlaying ? "time" : undefined}
                 aria-label={`Seek to clip ${slice.id} at ${formatTimelineTime(elapsed)}`}
                 onClick={() => onSeek(event)}
               >
@@ -158,7 +211,6 @@ export function ReplayAudioTimeline({ events, startTimeMs, endTimeMs, currentTim
                 <span className="block truncate px-1 font-mono text-app-caption leading-3 text-app-text-muted">{(slice.durationMs / 1_000).toFixed(2)}s</span>
               </button>
             );
-          });
         })}
         <div className="pointer-events-none absolute inset-y-0 z-30 w-px bg-status-warning shadow-[0_0_5px_var(--status-warning)]" style={{ left: `${playhead}%` }} aria-hidden="true" />
       </div>

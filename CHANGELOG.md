@@ -1,3 +1,7 @@
+## Unreleased
+
+- Engineer replay uses the development voice catalog for playback and waveforms. Its timeline displays queued callouts in sequence rather than drawing them over each other.
+
 ## v0.23.0 - 2026-11-22
 
 ### Features

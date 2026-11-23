@@ -18,10 +18,12 @@ export interface CatalogOracle { oracleId: string; text: string; path: string; s
 interface QwenCatalog { catalogVersion: string; sampleRate: number; channels: number; assembly?: { mode: string; gapMs: number }; listeningStatus?: string; approvals?: { fixed?: Record<string, string>; recipes?: Array<{ status: string }> }; clips: CatalogSegment[]; fullLines: CatalogFullLine[]; oracles?: CatalogOracle[]; }
 export type LiveEngineerAudioErrorCode = "audio-blocked" | "asset-missing" | "decode-failed" | "catalog-mismatch";
 export class LiveEngineerAudioError extends Error { readonly code: LiveEngineerAudioErrorCode; constructor(code: LiveEngineerAudioErrorCode, message: string) { super(message); this.code = code; } }
-export interface LiveEngineerAudioOptions { fetchImpl?: (...args: Parameters<typeof fetch>) => Promise<Response>; audioContext?: AudioContext; radioEffect?: boolean; catalog?: { url: string; version: string }; }
+export interface ScheduledAudioClip { id: string; startMs: number; endMs: number }
+export interface LiveEngineerAudioOptions { fetchImpl?: (...args: Parameters<typeof fetch>) => Promise<Response>; audioContext?: AudioContext; radioEffect?: boolean; catalog?: { url: string; version: string }; onSchedule?: (clips: readonly ScheduledAudioClip[]) => void; }
 
 export class LiveEngineerAudioPlayer {
   private readonly fetchImpl: NonNullable<LiveEngineerAudioOptions["fetchImpl"]>;
+  private readonly onSchedule: LiveEngineerAudioOptions["onSchedule"];
   private readonly context: AudioContext;
   private readonly catalogUrl: string;
   private readonly catalogVersion: string;
@@ -39,6 +41,7 @@ export class LiveEngineerAudioPlayer {
   private abortController = new AbortController();
 
   constructor(options: LiveEngineerAudioOptions = {}) {
+    this.onSchedule = options.onSchedule;
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis); this.catalogUrl = options.catalog?.url ?? QWEN_CATALOG_URL; this.catalogVersion = options.catalog?.version ?? QWEN_CATALOG_VERSION; this.assetBaseUrl = this.catalogUrl.slice(0, this.catalogUrl.lastIndexOf("/") + 1); this.context = options.audioContext ?? new AudioContext();
     this.gainNode = this.context.createGain(); this.highPassNode = this.context.createBiquadFilter(); this.lowPassNode = this.context.createBiquadFilter(); this.compressorNode = this.context.createDynamicsCompressor(); this.driveNode = this.context.createWaveShaper();
     this.highPassNode.type = "highpass"; this.highPassNode.frequency.value = DEFAULT_RADIO_FILTER.lowCutHz; this.lowPassNode.type = "lowpass"; this.lowPassNode.frequency.value = DEFAULT_RADIO_FILTER.highCutHz; this.compressorNode.threshold.value = DEFAULT_RADIO_COMPRESSOR.thresholdDb; this.compressorNode.knee.value = 12; this.compressorNode.ratio.value = DEFAULT_RADIO_COMPRESSOR.ratio; this.compressorNode.attack.value = 0.003; this.compressorNode.release.value = 0.12; this.driveNode.curve = createRadioDriveCurve(); this.driveNode.oversample = "2x";
@@ -50,7 +53,51 @@ export class LiveEngineerAudioPlayer {
   async play(segmentIds: readonly string[], volume = this.gainNode.gain.value): Promise<void> { const generation = this.generation; const catalog = await this.loadCatalog(); this.assertCurrent(generation); const segments = segmentIds.map((id) => { const segment = catalog.clips.find((entry) => entry.segmentId === id); if (!segment) throw new LiveEngineerAudioError("asset-missing", `Audio segment unavailable: ${id}`); return segment; }); return this.playEntries(segments, volume, catalog.assembly?.gapMs ?? DEFAULT_JOIN_GAP_MS, generation); }
   async playFullLine(lineId: string, volume = this.gainNode.gain.value): Promise<void> { const generation = this.generation; const catalog = await this.loadCatalog(); this.assertCurrent(generation); const line = catalog.fullLines.find((entry) => entry.lineId === lineId); if (!line) throw new LiveEngineerAudioError("asset-missing", `Audio full line unavailable: ${lineId}`); return this.playEntries([{ segmentId: line.lineId, path: line.path, sha256: line.sha256, durationMs: line.durationMs }], volume, 0, generation); }
   async playOracle(oracleId: string, volume = this.gainNode.gain.value): Promise<void> { const generation = this.generation; const catalog = await this.loadCatalog(); this.assertCurrent(generation); const oracle = catalog.oracles?.find((entry) => entry.oracleId === oracleId); if (!oracle) throw new LiveEngineerAudioError("asset-missing", `Audio oracle unavailable: ${oracleId}`); return this.playEntries([{ segmentId: oracle.oracleId, path: oracle.path, sha256: oracle.sha256, durationMs: oracle.durationMs }], volume, 0, generation); }
-  private async playEntries(segments: readonly CatalogSegment[], volume: number, joinGapMs: number, generation: number): Promise<void> { this.assertCurrent(generation); this.setVolume(volume); if (this.context.state === "suspended") { try { await this.context.resume(); } catch { throw new LiveEngineerAudioError("audio-blocked", "Audio context blocked"); } } this.assertCurrent(generation); const buffers = await Promise.all(segments.map((segment) => this.load(segment, generation))); this.assertCurrent(generation); if (this.context.state === "suspended") { try { await this.context.resume(); } catch { throw new LiveEngineerAudioError("audio-blocked", "Audio context blocked"); } } if (this.context.state !== "running") throw new LiveEngineerAudioError("audio-blocked", "Audio context is not running"); this.assertCurrent(generation); this.stopSources(); const scheduledGeneration = ++this.generation; this.setVolume(volume); const contextLeadMs = Math.max(AUDIO_START_LEAD_MS, ((this.context.baseLatency ?? 0) + (this.context.outputLatency ?? 0)) * 1000 * 2); const startTime = this.context.currentTime + contextLeadMs / 1000; const gap = joinGapMs / 1000; let previousStart = startTime; let previousDuration = 0; return new Promise<void>((resolve) => { this.completion = resolve; buffers.forEach((buffer, index) => { const sourceStart = index === 0 ? startTime : previousStart + previousDuration + gap + getSegmentPauseMs(segments[index - 1]!.segmentId) / 1000; const source = this.context.createBufferSource(); source.buffer = buffer; source.connect(this.gainNode); source.start(sourceStart); previousStart = sourceStart; previousDuration = buffer.duration; this.active.add(source); source.onended = () => { this.active.delete(source); if (scheduledGeneration === this.generation && !this.active.size) { this.completion?.(); this.completion = null; } }; }); }); }
+  private async playEntries(segments: readonly CatalogSegment[], volume: number, joinGapMs: number, generation: number): Promise<void> {
+    this.assertCurrent(generation);
+    this.setVolume(volume);
+    const resume = async () => {
+      try { await this.context.resume(); } catch { throw new LiveEngineerAudioError("audio-blocked", "Audio context blocked"); }
+      this.assertCurrent(generation);
+    };
+    if (this.context.state === "suspended") await resume();
+    const buffers = await Promise.all(segments.map((segment) => this.load(segment, generation)));
+    this.assertCurrent(generation);
+    if (this.context.state === "suspended") await resume();
+    if (this.context.state !== "running") throw new LiveEngineerAudioError("audio-blocked", "Audio context is not running");
+    this.stopSources();
+    const scheduledGeneration = ++this.generation;
+    this.setVolume(volume);
+    const leadMs = Math.max(AUDIO_START_LEAD_MS, ((this.context.baseLatency ?? 0) + (this.context.outputLatency ?? 0)) * 2000);
+    let start = this.context.currentTime + leadMs / 1000;
+    const schedule: ScheduledAudioClip[] | undefined = this.onSchedule && [];
+    const stamp = schedule && this.context.getOutputTimestamp?.();
+    const originMs = stamp?.performanceTime && stamp.contextTime != null
+      ? stamp.performanceTime - stamp.contextTime * 1000
+      : performance.now() - this.context.currentTime * 1000;
+    return new Promise<void>((resolve) => {
+      this.completion = resolve;
+      buffers.forEach((buffer, index) => {
+        const id = segments[index]!.segmentId;
+        const source = this.context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.gainNode);
+        source.start(start);
+        const end = start + buffer.duration;
+        schedule?.push({ id, startMs: originMs + start * 1000, endMs: originMs + end * 1000 });
+        start = end + (joinGapMs + getSegmentPauseMs(id)) / 1000;
+        this.active.add(source);
+        source.onended = () => {
+          this.active.delete(source);
+          if (scheduledGeneration === this.generation && !this.active.size) {
+            this.completion?.();
+            this.completion = null;
+          }
+        };
+      });
+      if (schedule) this.onSchedule!(schedule);
+    });
+  }
   private assertCurrent(generation: number): void { if (generation !== this.generation || this.abortController.signal.aborted) throw new LiveEngineerAudioError("catalog-mismatch", "Playback superseded"); }
   private loadCatalog(): Promise<QwenCatalog> { if (!this.catalog) { const signal = this.abortController.signal; this.catalog = this.fetchImpl(this.catalogUrl, { signal }).then(async (response) => { if (!response.ok) throw new LiveEngineerAudioError("asset-missing", "Qwen audio catalog missing"); const catalog = await response.json() as QwenCatalog; if (catalog.catalogVersion !== this.catalogVersion || !Array.isArray(catalog.clips)) throw new LiveEngineerAudioError("catalog-mismatch", "Qwen audio catalog mismatch"); return catalog; }).catch((error) => { if (!signal.aborted) this.catalog = null; throw error; }); } return this.catalog; }
   private load(segment: CatalogSegment, generation: number): Promise<AudioBuffer> { let promise = this.buffers.get(segment.segmentId); if (!promise) { const signal = this.abortController.signal; promise = this.fetchImpl(`${this.assetBaseUrl}${segment.path}`, { signal }).then(async (response) => { if (!response.ok) throw new LiveEngineerAudioError("asset-missing", `Audio asset missing: ${segment.segmentId}`); const bytes = new Uint8Array(await response.arrayBuffer()); this.assertCurrent(generation); const hash = await crypto.subtle.digest("SHA-256", bytes); this.assertCurrent(generation); const actual = [...new Uint8Array(hash)].map((value) => value.toString(16).padStart(2, "0")).join(""); if (actual !== segment.sha256) throw new LiveEngineerAudioError("catalog-mismatch", `Audio asset hash mismatch: ${segment.segmentId}`); try { const decoded = await this.context.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer); this.assertCurrent(generation); return decoded; } catch { throw new LiveEngineerAudioError("decode-failed", `Unable to decode ${segment.segmentId}`); } }).catch((error) => { if (this.buffers.get(segment.segmentId) === promise) this.buffers.delete(segment.segmentId); throw error; }); this.buffers.set(segment.segmentId, promise); } return promise; }

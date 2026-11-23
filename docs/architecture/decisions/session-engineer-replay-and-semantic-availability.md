@@ -19,7 +19,7 @@ ACC capture evidence is typed as `opponentSourceCapture` (`captured`, `unavailab
 
 Completed-lap and opponent-pace speech may form one chained voice line when session, timeline epoch, and completed player lap number match. Lap number is the correlation key because the trigger and pace decision can be selected on different source sequences. The chained recipe emits the lap-time clips once, inserts a 300 ms phrase-boundary pause, then emits the pace continuation without a second `lap.lead.your-lap-was`; standalone lap-time and pace lines keep their complete recipes.
 
-Engineer Replay reconstructs the resulting playback schedule from voice-line annotations and the packaged audio manifest. Its audio lane is a moving, session-bounded 10-second window. Each catalog asset is an independent duration-scaled block with its decoded waveform; the 250 ms playback lead and explicit phrase pause are separate, duration-scaled blocks. Clips are never collapsed into one visual group. The replay lane is diagnostic projection only: it does not alter persisted annotations, runtime selection, browser queue order, or production playback timing.
+Engineer Replay estimates upcoming clips from voice-line annotations and catalog durations. Once Web Audio schedules a callout, the replay lane uses each decoded buffer’s scheduled start and end, including gaps between clips. The session-bounded 10-second window maps those times through the replay clock: changing replay speed changes block width, not speech speed. Only the clip under the playhead during scheduled playback is highlighted. The lane does not alter persisted annotations, runtime selection, browser queue order, or production playback timing.
 
 ## Persisted source matrix
 

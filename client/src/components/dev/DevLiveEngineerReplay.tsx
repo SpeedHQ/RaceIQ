@@ -324,7 +324,7 @@ export function DevLiveEngineerReplay() {
   const disabledSystems = replay?.systems.filter((system) => !sessionAvailableSystems.includes(system)) ?? [];
   const sessionTriggerCount = replay?.annotations.filter((annotation) => annotation.stage === "trigger").length ?? 0;
   const visibleTriggerCount = filteredAnnotations.filter((annotation) => annotation.stage === "trigger").length;
-  const voiceEvents = replay?.annotations.filter((annotation) => annotation.stage === "voice-line" && (annotation.segmentIds.length > 0 || annotation.audioLineId)) ?? [];
+  const voiceEvents = useMemo(() => replay?.annotations.filter((annotation) => annotation.stage === "voice-line" && (annotation.segmentIds.length > 0 || annotation.audioLineId)) ?? [], [replay]);
   const transitionMarkers = replay?.systems.flatMap((system) => system.transitions.map((transition) => ({ systemId: system.systemId, ...transition }))) ?? [];
   const startTime = replay?.frames[playback.startFrameIndex]?.timelineMs ?? 0;
   const endTime = replay?.frames[playback.endFrameIndex]?.timelineMs ?? startTime;
@@ -463,8 +463,9 @@ export function DevLiveEngineerReplay() {
   };
   const playTimeline = async () => {
     audio.clearError();
+    if (audio.playingId) audio.stop();
     if (audioEnabled) await audio.unlock();
-    previousCursorRef.current = playback.cursorIdx - 1;
+    previousCursorRef.current = (playback.cursorIdx >= playback.endFrameIndex ? playback.startFrameIndex : playback.cursorIdx) - 1;
     playback.play();
   };
   const playAnnotation = (annotation: LiveEngineerReplayAnnotationV1) => {
@@ -624,6 +625,9 @@ export function DevLiveEngineerReplay() {
                 startTimeMs={startTime}
                 endTimeMs={endTime}
                 currentTimeMs={playback.frame?.timelineMs ?? startTime}
+                clock={playback.clock}
+                speed={playback.speed}
+                schedules={audio.schedules}
                 playingId={audio.playingId}
                 onSeek={(event) => seekTo(event.frameIndex, event.id)}
               />

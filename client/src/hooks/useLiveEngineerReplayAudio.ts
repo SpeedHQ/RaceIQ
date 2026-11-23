@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LiveEngineerAudioError, LiveEngineerAudioPlayer } from "../lib/live-engineer-audio";
+import { LiveEngineerAudioError, LiveEngineerAudioPlayer, type ScheduledAudioClip } from "../lib/live-engineer-audio";
+import { DEV_QWEN_CATALOG } from "../components/dev/DevSpeechAudio";
 
 type ReplayAudioRequest =
   | { id: string; kind: "segments"; values: readonly string[] }
@@ -12,6 +13,8 @@ export function useLiveEngineerReplayAudio() {
   const queueRef = useRef<ReplayAudioRequest[]>([]);
   const pendingIdsRef = useRef<Set<string>>(new Set());
   const drainingRef = useRef(false);
+  const requestId = useRef<string | null>(null);
+  const [schedules, setSchedules] = useState<ReadonlyMap<string, readonly ScheduledAudioClip[]>>(() => new Map());
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +23,14 @@ export function useLiveEngineerReplayAudio() {
     if (!context || context.state === "closed") {
       context = new AudioContext();
       contextRef.current = context;
-      playerRef.current = new LiveEngineerAudioPlayer({ audioContext: context });
+      playerRef.current = new LiveEngineerAudioPlayer({
+        audioContext: context,
+        catalog: DEV_QWEN_CATALOG,
+        onSchedule(clips) {
+          const id = requestId.current;
+          if (id !== null) setSchedules((previous) => new Map(previous).set(id, clips));
+        },
+      });
     }
     return { context, player: playerRef.current! };
   }, []);
@@ -36,6 +46,8 @@ export function useLiveEngineerReplayAudio() {
     pendingIdsRef.current.clear();
     drainingRef.current = false;
     playerRef.current?.stop();
+    requestId.current = null;
+    setSchedules(new Map());
     setPlayingId(null);
   }, []);
 
@@ -50,6 +62,7 @@ export function useLiveEngineerReplayAudio() {
       try {
         while (queueRef.current.length && operationRef.current === operation) {
           const next = queueRef.current.shift()!;
+          requestId.current = next.id;
           setPlayingId(next.id);
           try {
             if (next.kind === "segments") await playerRef.current!.play(next.values);
@@ -103,5 +116,5 @@ export function useLiveEngineerReplayAudio() {
     playerRef.current = null;
   }, []);
 
-  return { play, playFullLine, stop, unlock, playingId, error, clearError };
+  return { play, playFullLine, stop, unlock, playingId, schedules, error, clearError };
 }
