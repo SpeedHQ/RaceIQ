@@ -126,6 +126,12 @@ describe("Race Engineer ACC session triggers", () => {
 });
 
 describe("Race Engineer native session phases", () => {
+  test("iRacing announces racing but never checkered as green", () => {
+    const native = detector(triggerLapCounter, "iracing");
+    expect(native.consume({ "session.session-state": 3 })).toBeNull();
+    expect(native.consume({ "session.session-state": 4 })).toMatchObject({ eventKey: "green-flag" });
+    expect(native.consume({ "session.session-state": 5 })).toBeNull();
+  });
   test("does not announce starts at baseline, after invalid phases, or on unsupported games", () => {
     const acc = detector(triggerLapCounter, "acc");
     expect(acc.consume({ "session.session-state": 5 })).toBeNull();

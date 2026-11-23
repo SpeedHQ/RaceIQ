@@ -141,6 +141,8 @@ const RACE_ENGINEER_EVENT_TEXT: Readonly<Record<string, string>> = {
   "lap-completed": "Lap completed.", "lap-invalidated": "Lap invalidated.", "opponent-lap-completed": "Opponent lap completed.",
   "multiclass-traffic": "Multiclass traffic ahead.", "penalty-issued": "Penalty issued.", "pit-entry": "Pit entry.", "pit-exit": "Pit exit.",
   "fuel-low": "Fuel is low.", "fuel-critical": "Fuel is critical.", "flag-change": "Flag changed.",
+  "pit-this-lap": PREVIEW_LINES["pit-this-lap"],
+  "pit-pit-pit": PREVIEW_LINES["pit-pit-pit"],
   "tyres-cold": "Tires are cold.", "tyres-hot": "Tires are hot.", "tyres-cooking": "Tires are overheating.",
   "water-temperature-hot": "Water temperature is high.", "water-temperature-clear": "Water temperature is clear.",
   "rain-changed": "Rain conditions changed.",
@@ -181,6 +183,7 @@ export function renderRaceEngineerEvent(event: RaceEngineerTriggerEventV1, optio
   const flag = event.eventKey === "flag-change" ? String(event.payload.current ?? "").toLowerCase() : "";
   const text = flag === "black" ? "Black flag. Black flag." : flag === "blue" ? "Blue flag." : flag === "green" ? "Green flag." : baseText;
   const voiceMode = options.voiceMode ?? "automatic";
+  if (speechKey === "pit-this-lap" || speechKey === "pit-pit-pit") return { textKey: `live_engineer_${speechKey}`, text, segmentIds: [], voiceMode };
   const segmentId = flag === "black" ? "race-engineer.black-flag" : flag === "blue" ? "race-engineer.blue-flag" : flag === "green" ? "race-engineer.green-flag" : `race-engineer.${speechKey}`;
   const lapTimeMs = event.eventKey === "lap-completed" ? typeof event.payload.lapTimeMs === "number" && Number.isFinite(event.payload.lapTimeMs) ? event.payload.lapTimeMs : typeof event.payload.time === "number" && Number.isFinite(event.payload.time) ? Math.round(event.payload.time * 1000) : undefined : undefined;
   if (lapTimeMs !== undefined) {

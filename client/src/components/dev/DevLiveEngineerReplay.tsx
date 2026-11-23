@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { AlertTriangle, ChevronLeft, ChevronRight, CircleStop, Clock3, Gauge, Headphones, Map, Pause, Play, Radio, Volume2, VolumeX } from "lucide-react";
-import type { GameId } from "@raceiq/shared/games/ids";
+import { KNOWN_GAME_IDS as games, type GameId } from "@raceiq/shared/games/ids";
+import { ENGINEER_REPLAY_PRESETS as scenarioCatalog } from "@raceiq/shared/racing/live/engineer-replay-contracts";
 import { getAllGames } from "@raceiq/shared/games/registry";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
@@ -29,25 +30,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { SearchSelect } from "../ui/SearchSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
-const games = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
 const speeds = [0.1, 0.25, 0.5, 1, 1.5, 2, 2.5] as const;
-const scenarioCatalog = [{
-  id: "fuel-shortage-pit-sequence",
-  backendScenario: "critical-fuel-pit-sequence",
-  label: "Not enough fuel to finish race",
-  detail: "Fuel critical → pit this lap after line crossing → pit pit pit before pit entry.",
-  recordingGameId: "fm-2023",
-  recordingSessionId: 9,
-  recordingBin: "test/artifacts/sessions/fm-2023-2026-09-21T02-02-34-009Z.bin.gz",
-}, {
-  id: "f1-opponent-lap-pace",
-  backendScenario: "f1-opponent-lap-pace",
-  label: "F1 opponent lap pace",
-  detail: "Replays recorded F1 grid and completed opponent laps through pace callouts.",
-  recordingGameId: "f1-2025",
-  recordingSessionId: 4,
-  recordingBin: "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
-}] as const;
 type ScenarioId = (typeof scenarioCatalog)[number]["id"];
 const stages: LiveEngineerReplayStage[] = ["trigger", "candidate", "decision", "selected", "spotter", "callout", "voice-line"];
 type Replay = LiveEngineerSessionReplayV1;
@@ -379,8 +362,7 @@ export function DevLiveEngineerReplay() {
   async function load(scenario?: ScenarioId) {
     const catalogEntry = scenario ? scenarioCatalog.find((candidate) => candidate.id === scenario) : undefined;
     const requestGameId = catalogEntry?.recordingGameId ?? gameId;
-    const requestSessionId = catalogEntry ? String(catalogEntry.recordingSessionId) : sessionId;
-    if (!requestSessionId || replayLoading || scenarioLoading) return;
+    if ((!catalogEntry && !sessionId) || replayLoading || scenarioLoading) return;
     const request = ++requestRef.current;
     if (scenario) setScenarioLoading(scenario);
     else setReplayLoading(true);
@@ -389,8 +371,9 @@ export function DevLiveEngineerReplay() {
     setReplay(null);
     audio.stop();
     try {
-      const query = new URLSearchParams({ gameId: requestGameId, sessionId: requestSessionId });
+      const query = new URLSearchParams({ gameId: requestGameId });
       if (catalogEntry) query.set("scenario", catalogEntry.backendScenario);
+      else query.set("sessionId", sessionId);
       const response = await fetchWithTimeout(`${catalogEntry ? "/api/dev/live-engineer/session-replay-stream" : "/api/dev/live-engineer/session-replay"}?${query.toString()}`);
       const nextReplay = catalogEntry
         ? await readReplayStream(response, (progress) => { if (requestRef.current === request) setReplayProgress(progress); })
@@ -419,14 +402,15 @@ export function DevLiveEngineerReplay() {
 
   useEffect(() => {
     const autoLoadKey = `${gameId}/${sessionId}`;
-    if (search.sessionId == null || !sessionId || !sessions.some((session) => session.id === Number(sessionId)) || replay || replayLoading || autoLoadKeyRef.current === autoLoadKey) return;
+    if (search.scenario || search.sessionId == null || !sessionId || !sessions.some((session) => session.id === Number(sessionId)) || replay || replayLoading || autoLoadKeyRef.current === autoLoadKey) return;
     autoLoadKeyRef.current = autoLoadKey;
     void load();
-  }, [gameId, search.sessionId, sessionId, sessions, replay, replayLoading]);
+  }, [gameId, search.scenario, search.sessionId, sessionId, sessions, replay, replayLoading]);
 
   useEffect(() => {
     const scenario = scenarioCatalog.find((candidate) => candidate.id === search.scenario);
-    if (!scenario || replay || replayLoading || scenarioLoading || autoScenarioRef.current === scenario.id) return;
+    if (!scenario) { autoScenarioRef.current = null; return; }
+    if (replayLoading || scenarioLoading || autoScenarioRef.current === scenario.id) return;
     autoScenarioRef.current = scenario.id;
     void load(scenario.id);
   }, [search.scenario, replay, replayLoading, scenarioLoading]);
@@ -530,7 +514,7 @@ export function DevLiveEngineerReplay() {
                   <td className="px-3 py-3 align-top font-medium">{scenario.label}</td>
                   <td className="px-3 py-3 align-top font-mono text-app-caption text-app-text-muted">{scenario.recordingBin}</td>
                   <td className="px-3 py-3 align-top text-app-text-muted">{scenario.detail}</td>
-                  <td className="px-3 py-3 text-right align-top"><Button variant="app-outline" size="app-sm" onClick={() => void navigate({ search: { gameId: scenario.recordingGameId, sessionId: scenario.recordingSessionId, scenario: scenario.id } })}>Open</Button></td>
+                  <td className="px-3 py-3 text-right align-top"><Button variant="app-outline" size="app-sm" onClick={() => void navigate({ search: { gameId: scenario.recordingGameId, sessionId: undefined, scenario: scenario.id } })}>Open</Button></td>
                 </tr>
               ))}</tbody>
             </table>

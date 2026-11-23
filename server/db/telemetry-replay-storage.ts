@@ -452,9 +452,10 @@ export async function getSessionTelemetryReplaySource(sessionId: number, gameId:
         }
         if (record.kind !== "frame") continue;
         if (segmentCount === 0) segmentCount = 1;
-        const capturedFrameClock = frameClock;
+        const capturedFrameClock = frameClock ?? record.frameTimeMs ?? null;
+        const missingBroadcastClock = frameClock === null;
         frameClock = null;
-        if (!inContext && replayBroadcast && sawBroadcastInSegment && capturedFrameClock === null) {
+        if (!inContext && replayBroadcast && sawBroadcastInSegment && missingBroadcastClock) {
           replayBroadcast.markMalformed("malformed-capture-record");
           missingBroadcastFrame = true;
         }

@@ -14,6 +14,8 @@
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
+- Open a multi-lap recording for each of the seven games in Engineer Replay without importing a session first.
+- Preserve live radio deadlines, paired spotter warnings and pace text. Correct iRacing flag calls, ACC class comparisons and recorded replay timing. Retry failed audio loads, reuse decoded clips and allow damaged voice packs to be repaired.
 - Restore Race Engineer voice playback through the development dashboard proxy. Speech previews use generated source assets without replacing installed voice packs.
 - Keep native recording write/close/replay working on Windows without calling unsupported directory `fsync`; preserve file flushes, POSIX directory syncing, and genuine filesystem errors.
 - Keep recording layout migration progress polling from racing atomic journal replacement on Windows; preserve collision checks and resumable cutover.

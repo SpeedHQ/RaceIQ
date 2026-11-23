@@ -109,7 +109,7 @@ const lapCounter: RaceEngineerTriggerFunction<SessionTriggerState> = (input, sta
     const previous = state.previous;
     state.previous = current;
     if (current === undefined || !Number.isFinite(current) || Object.is(current, previous)) return null;
-    const eventKey = previous === 2 && current === 3 ? "pre-lights" : current === 5 && previous !== 5 ? "green-flag" : null;
+    const eventKey = previous === 2 && current === 3 ? "pre-lights" : current === 4 && previous !== undefined ? "green-flag" : null;
     if (eventKey === null) return null;
     return { eventKey, severity: "info", payload: { sessionPhase: eventKey === "pre-lights" ? "formation" : "green" }, evidenceSemanticIds: ["session.session-state"] };
   }

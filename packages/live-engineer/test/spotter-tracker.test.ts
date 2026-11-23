@@ -26,6 +26,19 @@ describe("Race Engineer-style spotter tracker", () => {
     expect(tracker.update(frame(1, [{ id: "a", x: 2.2, z: -1 }], { cautionContext: true }))).toEqual([]);
     expect(tracker.update(frame(2, [{ id: "a", x: 2.2, z: -1 }], { pitContext: true }))).toEqual([]);
   });
+  test("off resets silently instead of fabricating clearance", () => {
+    const tracker = new SpotterTracker();
+    const native = (time: number, carLeftRight: number) => tracker.updateNative({ ...frame(time, []), carLeftRight }).map(event => event.state);
+    expect(native(0, 2)).toEqual(["car-left"]);
+    expect(native(600, 0)).toEqual([]);
+    expect(native(1200, 1)).toEqual([]);
+    expect(native(1210, 2)).toEqual(["car-left"]);
+  });
+  test("ignores distant cars but detects door-to-door overlap", () => {
+    const tracker = new SpotterTracker();
+    expect(tracker.update(frame(0, [{ id: "a", x: 19, z: 0 }]))).toEqual([]);
+    expect(tracker.update(frame(1, [{ id: "a", x: 1.7, z: 0 }])).map(event => event.state)).toEqual(["car-left"]);
+  });
   test("maps native CarLeftRight transitions without synthetic poses", () => {
     const tracker = new SpotterTracker();
     const native = (time: number, carLeftRight: number) => tracker.updateNative({ sessionId: "s", timelineEpoch: 1, sourceSequence: time, sessionTimeMs: time, carLeftRight });
@@ -35,6 +48,19 @@ describe("Race Engineer-style spotter tracker", () => {
     expect(native(500, 1).map((event) => event.state)).toEqual(["clear-left"]);
   });
 
+  test("off resets silently instead of fabricating clearance", () => {
+    const tracker = new SpotterTracker();
+    const native = (time: number, carLeftRight: number) => tracker.updateNative({ ...frame(time, []), carLeftRight }).map(event => event.state);
+    expect(native(0, 2)).toEqual(["car-left"]);
+    expect(native(600, 0)).toEqual([]);
+    expect(native(1200, 1)).toEqual([]);
+    expect(native(1210, 2)).toEqual(["car-left"]);
+  });
+  test("ignores distant cars but detects door-to-door overlap", () => {
+    const tracker = new SpotterTracker();
+    expect(tracker.update(frame(0, [{ id: "a", x: 19, z: 0 }]))).toEqual([]);
+    expect(tracker.update(frame(1, [{ id: "a", x: 1.7, z: 0 }])).map(event => event.state)).toEqual(["car-left"]);
+  });
   test("maps native both and three-wide occupancy states", () => {
     const tracker = new SpotterTracker();
     const native = (time: number, carLeftRight: number) => tracker.updateNative({ sessionId: "s", timelineEpoch: 1, sourceSequence: time, sessionTimeMs: time, carLeftRight });

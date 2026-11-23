@@ -149,7 +149,8 @@ test("real HTTP release mirror discovers and atomically installs compatible pack
   const downloadGate = gate.promise;
   const mirror = Bun.serve({ port: 0, async fetch(request) {
     const target = new URL(request.url).searchParams.get("target") ?? "";
-    if (target.includes("/releases?")) return Response.json([
+    if (target.endsWith("per_page=100")) return Response.json([{ tag_name: "app-release" }], { headers: { link: `<${target}&page=2>; rel="next"` } });
+    if (target.endsWith("&page=2")) return Response.json([
       { tag_name: tag, draft: false, prerelease: false },
       { tag_name: "voice-pack-en-v3.0.0", draft: false, prerelease: false },
       { tag_name: "voice-pack-fr-v9.0.0", draft: false, prerelease: false },
@@ -192,6 +193,11 @@ test("real HTTP release mirror discovers and atomically installs compatible pack
   expect(installed.status).toBe(200);
   expect(await installed.json()).toMatchObject({ state: "ready", installedVersion: version, installing: false });
   expect(await status(root)).toMatchObject({ state: "ready", installedVersion: version });
+  await writeFile(join(root, "chunks/clip.flac"), new Uint8Array([9]));
+  expect(await (await fetch(apiUrl)).json()).toMatchObject({ state: "update-required", installedVersion: version });
+  const repair = await fetch(`${apiUrl}/install`, { method: "POST" });
+  expect(await repair.json()).toMatchObject({ state: "ready", installedVersion: version });
+  expect([...await readFile(join(root, "chunks/clip.flac"))]).toEqual([2]);
   const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"));
   await writeFile(join(root, "manifest.json"), JSON.stringify({ ...manifest, packageVersion: "9.0.0" }));
   expect(await (await fetch(apiUrl)).json()).toMatchObject({ state: "ready", installedVersion: "9.0.0", updateAvailable: false });

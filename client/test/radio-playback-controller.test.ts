@@ -53,16 +53,26 @@ test("Qwen clip playback uses exact zero-gap joins", () => {
 test("speech bounds ignore per-clip leading and trailing silence", () => {
   expect(speechBoundsMs(new Float32Array([0, 0, 0.02, 0.03, 0, 0]), 1000)).toEqual({ startMs: 2, endMs: 4 });
 });
-test("radio playback applies a speech-band filter by default", () => {
+function audioFixture() {
   const connections: unknown[][] = [];
+  let decodes = 0;
   const node = () => ({ connect: (target: unknown) => connections.push([target]) });
   const context = {
     createGain: () => ({ ...node(), gain: { value: 0 } }),
     createBiquadFilter: () => ({ ...node(), type: "", frequency: { value: 0 }, Q: { value: 0 } }),
     createDynamicsCompressor: () => ({ ...node(), threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 } }),
     createWaveShaper: () => ({ ...node(), curve: null, oversample: "none" }),
-    destination: {},
+    destination: {}, state: "running", currentTime: 0,
+    decodeAudioData: async () => { decodes++; return { duration: 0.1 }; },
+    createBufferSource: () => {
+      const source = { ...node(), onended: () => {}, start: () => queueMicrotask(() => source.onended()) };
+      return source;
+    },
   } as unknown as AudioContext;
+  return { context, connections, decodes: () => decodes };
+}
+test("radio playback applies a speech-band filter by default", () => {
+  const { context, connections } = audioFixture();
   const player = new LiveEngineerAudioPlayer({ audioContext: context });
   expect(player).toBeInstanceOf(LiveEngineerAudioPlayer);
   expect(DEFAULT_RADIO_COMPRESSOR).toEqual({ thresholdDb: -24, ratio: 6 });
@@ -75,4 +85,20 @@ test("completed lap clips add one phrase-boundary pause before chained pace", ()
   expect(getSegmentPauseMs("lap.tenth.4")).toBe(CHAINED_LAP_PAUSE_MS);
   expect(getSegmentPauseMs("lap.tail.flat")).toBe(CHAINED_LAP_PAUSE_MS);
   expect(getSegmentPauseMs("number.tenth.4")).toBe(0);
+});
+
+test("retries transient audio failures and reuses verified clips", async () => {
+  const { context, decodes } = audioFixture();
+  const bytes = new Uint8Array([1]);
+  const sha256 = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+  let manifests = 0, assets = 0;
+  const player = new LiveEngineerAudioPlayer({ audioContext: context, fetchImpl: async input => {
+    if (String(input).endsWith("manifest.json")) return ++manifests === 1 ? new Response(null, { status: 503 }) : Response.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, clips: [{ segmentId: "clip", path: "clip.flac", sha256 }] });
+    return ++assets === 1 ? new Response(null, { status: 503 }) : new Response(bytes);
+  } });
+  await expect(player.play(["clip"])).rejects.toThrow("catalog missing");
+  await expect(player.play(["clip"])).rejects.toThrow("Audio asset missing");
+  await player.play(["clip"]);
+  await player.play(["clip"]);
+  expect([manifests, assets, decodes()]).toEqual([2, 2, 1]);
 });

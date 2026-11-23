@@ -12,13 +12,14 @@ import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { LiveEngineerCalloutMessageV3, LiveEngineerVoiceLineMessageV3 } from "@raceiq/shared/racing/live/engineer-contracts";
 
 import { isLiveEngineerSubsystemSupported } from "@raceiq/shared/platform/runtime/release-feature-flags";
-export type LiveEngineerReplayScenario = "fuel-warning-escalation" | "critical-fuel-pit-sequence" | "scheduled-pit-sequence" | "f1-opponent-lap-pace";
+export type LiveEngineerReplayScenario = "fuel-warning-escalation" | "critical-fuel-pit-sequence" | "sufficient-fuel-control" | "scheduled-pit-sequence" | "f1-opponent-lap-pace";
 export interface LiveEngineerSessionReplayInput {
   session: { id: number; gameId?: GameId; carId?: string; trackId?: string };
   laps: readonly LapMeta[];
   packets: readonly TelemetryPacket[];
   sourceProfile: LiveEngineerReplaySourceProfileV1;
   scenario?: LiveEngineerReplayScenario;
+  compactTimeline?: boolean;
 }
 
 const REPLAY_VALUE_IDS = new Set([
@@ -94,15 +95,20 @@ const decisionIdFor = (candidate: LiveEngineerRuntimeCandidate): string => `${ca
 export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInput): LiveEngineerSessionReplayV1 {
   if (input.packets.length === 0) throw new Error("Session has no replayable packets");
   const gameId = input.sourceProfile.gameId;
-  const scenarioPlan = input.scenario ? buildReplayScenarioPlan(input.packets) : null;
-  const scenarioFuelPerLap = input.scenario ? input.packets.find((packet) => packet.acc?.fuelPerLap && packet.acc.fuelPerLap > 0)?.acc?.fuelPerLap : null;
+  const scenarioPlan = gameId === "acc" && input.scenario && input.scenario !== "f1-opponent-lap-pace" ? buildReplayScenarioPlan(input.packets) : null;
+  const scenarioFuelPerLap = scenarioPlan ? input.packets.find((packet) => packet.acc?.fuelPerLap && packet.acc.fuelPerLap > 0)?.acc?.fuelPerLap : null;
   const semanticIds = [...new Set([...liveEngineerRequiredSemanticIds(gameId), ...RACE_ENGINEER_CALLOUT_SEMANTIC_IDS, ...REPLAY_VALUE_IDS])];
+  const simulatedFuel = gameId === "fm-2023" && (input.scenario === "critical-fuel-pit-sequence" || input.scenario === "sufficient-fuel-control");
+  const startingLitres = input.scenario === "sufficient-fuel-control" ? 12 : 5.5;
+  const simulatedPitEntryM = 11_000;
+  const consumption = `Synthetic fuel: 2 L per 4 km, starting at ${startingLitres} L. Simulated pit entry at ${simulatedPitEntryM} m of recorded driving distance; not a measured track landmark.`;
+  if (simulatedFuel && !semanticIds.includes("fuel.fuel-per-lap")) semanticIds.push("fuel.fuel-per-lap");
   const executionMode = "diagnostic-all-games" as const;
   const projector = new LiveTelemetryProjector({ engineerSemanticIds: semanticIds, allowUnsupportedGame: true, engineerEnabled: true });
   const catalog = new RaceEngineerTriggerCatalog({ allowUnsupportedGame: true });
   const annotations: LiveEngineerReplayAnnotationV1[] = [];
   const frames: LiveEngineerReplayFrameV1[] = [];
-  const semanticFrames: LiveResolvedSemanticFrame[] = [];
+  const observers: Array<(frame: LiveResolvedSemanticFrame, index: number, newSession: boolean) => boolean> = [];
   const messages: Array<{ message: LiveEngineerCalloutMessageV3 | LiveEngineerVoiceLineMessageV3; frame: LiveResolvedSemanticFrame }> = [];
   let lastTimelineMs = 0;
   let previousCapturedTimestamp: number | null = null;
@@ -135,45 +141,11 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
     addAnnotation("trigger", action, frame, details);
     addAnnotation("voice-line", action, frame, details);
   };
-  const replayLapBySequence = new Map<number, number>();
-  for (const [index, packet] of input.packets.entries()) {
-    const scenarioPacket = input.scenario && scenarioPlan && scenarioFuelPerLap
-      ? replaceAccScenarioPacket(packet, index, input.scenario, scenarioPlan, scenarioFuelPerLap)
-      : packet;
-    const capturedTimestamp = input.sourceProfile.sourceClockCaptured && Number.isFinite(scenarioPacket.TimestampMS) ? scenarioPacket.TimestampMS : null;
-    const timelineMs = index === 0 ? 0 : lastTimelineMs + (capturedTimestamp !== null && previousCapturedTimestamp !== null ? Math.max(0, capturedTimestamp - previousCapturedTimestamp) : 10);
-    previousCapturedTimestamp = capturedTimestamp;
-    lastTimelineMs = timelineMs;
-    const projectionPacket = capturedTimestamp === null ? { ...scenarioPacket, TimestampMS: timelineMs } : scenarioPacket;
-    const projection = projector.project({ packet: projectionPacket, sessionId: input.session.id, receivedAtMs: timelineMs });
-    if (Number.isFinite(packet.LapNumber)) replayLapBySequence.set(projection.semanticFrame.sequence, packet.LapNumber);
-    const semanticFrame = { ...projection.semanticFrame, values: [...projection.semanticFrame.values] };
-    latestFrame = semanticFrame;
-    semanticFrames.push(semanticFrame);
-    frames.push({ frameIndex: index, sourceSequence: semanticFrame.sequence, rawSourceTimestampMs: capturedTimestamp, rawSourceTimestampDomain: capturedTimestamp === null ? null : gameId === "acc" ? "wall-clock" : "session", timelineMs, triggerContext: {}, ...frameEvidence(semanticFrame), opponentSource: projection.frame?.context.opponentSource ?? null });
-    const batch = catalog.consume(projection.semanticFrame);
-    for (const event of batch.events) addAnnotation("trigger", event.eventKey, projection.semanticFrame, { family: event.family, candidateId: event.triggerId, lapNumber: event.eventKey === "lap-completed" && typeof event.payload.lap === "number" ? event.payload.lap : Number.isFinite(packet.LapNumber) ? packet.LapNumber : undefined, payload: event.payload, evidence: event.evidenceSemanticIds, priority: event.severity });
-    engine.consume(batch);
-    if (pitScenario && index === scenarioPlan?.pitThisLapIndex) addSyntheticPitCallout("pit-this-lap", projection.semanticFrame);
-    if (pitScenario && index === scenarioPlan?.pitUrgencyIndex) addSyntheticPitCallout("pit-pit-pit", projection.semanticFrame);
-  }
-  for (const { message, frame } of messages) {
-    const linked = annotations.find((annotation) =>
-      ("candidateId" in message && message.candidateId && annotation.candidateId === message.candidateId)
-      || annotation.decisionId === message.decisionId);
-    const family = linked?.family ?? (message.family === "spotter" ? "live-spotter" : message.family === "race-engineer" ? "Spotter" : message.family);
-    const lapNumber = replayLapBySequence.get(frame.sequence);
-    if (message.type === "live-engineer-callout") addAnnotation("callout", message.family === "race-engineer" ? "race-engineer" : message.family, frame, { family, candidateId: message.candidateId, decisionId: message.decisionId, priority: message.priority, lapNumber, payload: message.render, renderedText: "text" in message.render ? message.render.text : message.family === "opponent-pace" ? renderOpponentPace(message.render.parameters).text : null });
-    else addAnnotation("voice-line", message.family, frame, { family, decisionId: message.decisionId, lapNumber, segmentIds: message.segmentIds });
-  }
-  const laps: LiveEngineerReplayLapV1[] = input.laps.map((lap) => {
-    const matching = frames.filter((frame) => frame.values["timing.lap-number"] === lap.lapNumber);
-    return { lapId: lap.id, lapNumber: lap.lapNumber, startFrameIndex: matching[0]?.frameIndex ?? null, endFrameIndex: matching.at(-1)?.frameIndex ?? null, metadata: { ...lap } };
-  });
   const buildSystem = (systemId: LiveEngineerCalloutSystemV1["systemId"], descriptor: RaceEngineerTriggerDescriptor<any> | null, requiredSemanticIds: readonly string[], productionEligible: boolean, implementationStatus: LiveEngineerCalloutSystemV1["implementationStatus"] = "implemented", staticReason?: string): LiveEngineerCalloutSystemV1 => {
     const transitions: LiveEngineerAvailabilityTransitionV1[] = [];
     let previous: "unavailable" | "baseline" | "ready" | null = null;
-    if (implementationStatus === "implemented") semanticFrames.forEach((semanticFrame, frameIndex) => {
+    if (implementationStatus === "implemented") observers.push((semanticFrame, frameIndex, newSession) => {
+      if (newSession) previous = null;
       const baseEvaluation = descriptor
         ? evaluateRaceEngineerAvailability(descriptor, semanticFrame, gameId)
         : evaluateRaceEngineerAvailability({ family: "Spotter", source: RACE_ENGINEER_TRIGGER_CATALOG[0]!.source, requiredSemanticIds: requiredSemanticIds as never, requiredGroups: [], implementationStatus, createState: () => ({}), trigger: () => null } as RaceEngineerTriggerDescriptor<any>, semanticFrame, gameId);
@@ -190,10 +162,13 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
       if (lifecycle !== previous) {
         transitions.push({ frameIndex, lifecycle, reasonCode: evaluation.reasonCode, dependencies: evaluation.dependencies });
         previous = lifecycle;
+        system.lifecycle = lifecycle;
+        return true;
       }
+      return false;
     });
-    if (transitions.length === 0) transitions.push({ frameIndex: 0, lifecycle: "unavailable", reasonCode: staticReason ?? implementationStatus, dependencies: [] });
-    return {
+    if (implementationStatus !== "implemented") transitions.push({ frameIndex: 0, lifecycle: "unavailable", reasonCode: staticReason ?? implementationStatus, dependencies: [] });
+    const system: LiveEngineerCalloutSystemV1 = {
       systemId,
       implementationStatus,
       productionEligible,
@@ -203,6 +178,7 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
       requiredSemanticIds,
       optionalSemanticIds: [],
     };
+    return system;
   };
   const systems: LiveEngineerCalloutSystemV1[] = RACE_ENGINEER_TRIGGER_CATALOG.map((descriptor) => {
     const requirements = gameRequirements(descriptor, gameId);
@@ -219,5 +195,68 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
     buildSystem("opponent-pace", null, liveEngineerPaceRequiredSemanticIds(gameId), isLiveEngineerSubsystemSupported(gameId, "opponent-pace"), "implemented", persistedOpponentReason),
     buildSystem("live-spotter", null, gameId === "iracing" ? ["identity.car-left-right"] : gameId === "acc" ? ["identity.player-car-index", "session.session-state", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.competitor.car-index", "race.competitor.connected", "motion.competitor.position-x", "motion.competitor.position-z", "motion.competitor.speed", "race.competitor.pit-status"] : [], isLiveEngineerSubsystemSupported(gameId, "live-spotter"), "implemented", persistedOpponentReason),
   );
-  return { sessionId: input.session.id, gameId, car: { carId: input.session.carId ?? null }, track: { trackId: input.session.trackId ?? null }, executionMode, sourceProfile: input.sourceProfile, clockQuality: input.sourceProfile.sourceClockCaptured ? gameId === "acc" ? "captured" : "native-session" : "nominal-100hz", frames, laps, annotations, systems, warnings: input.sourceProfile.limitations, sourceCounts: { packets: input.packets.length, annotations: annotations.length } };
+  const replayLapBySequence = new Map<number, number>();
+  const compactTimeline = input.compactTimeline ?? input.scenario === "f1-opponent-lap-pace";
+  const snapshotInterval = compactTimeline ? Math.max(1, Math.ceil(input.packets.length / 2_000)) : 1;
+  let nativeSession = input.session.id;
+  for (const [index, packet] of input.packets.entries()) {
+    const scenarioPacket = input.scenario && scenarioPlan && scenarioFuelPerLap
+      ? replaceAccScenarioPacket(packet, index, input.scenario, scenarioPlan, scenarioFuelPerLap)
+      : packet;
+    const capturedTimestamp = input.sourceProfile.sourceClockCaptured && Number.isFinite(scenarioPacket.TimestampMS) ? scenarioPacket.TimestampMS : null;
+    const timelineMs = index === 0 ? 0 : lastTimelineMs + (capturedTimestamp !== null && previousCapturedTimestamp !== null ? Math.max(0, capturedTimestamp - previousCapturedTimestamp) : 10);
+    previousCapturedTimestamp = capturedTimestamp;
+    lastTimelineMs = timelineMs;
+    const projectionPacket = capturedTimestamp === null ? { ...scenarioPacket, TimestampMS: timelineMs } : scenarioPacket;
+    const prior = input.packets[index - 1];
+    const newSession = compactTimeline && !!prior && packet.sessionUID !== prior.sessionUID;
+    if (newSession) nativeSession++;
+    const projection = projector.project({ packet: projectionPacket, sessionId: nativeSession, receivedAtMs: timelineMs });
+    const semanticFrame = { ...projection.semanticFrame, sequence: index, values: [...projection.semanticFrame.values] };
+    if (simulatedFuel) {
+      const distance = packet.DistanceTraveled;
+      for (const id of ["fuel.remaining-volume", "fuel.fuel-per-lap"] as const) {
+        const slot = semanticFrame.ids.indexOf(id);
+        const value = semanticFrame.values[slot];
+        if (!value || !Number.isFinite(distance)) continue;
+        semanticFrame.values[slot] = { ...value, state: "ok", freshness: "fresh",
+          value: id === "fuel.fuel-per-lap" ? 2 : Math.max(0, startingLitres - Math.max(0, distance) / 2_000),
+          limitations: [consumption] };
+      }
+    }
+    latestFrame = semanticFrame;
+    const frameIndex = frames.length;
+    const record: LiveEngineerReplayFrameV1 = { frameIndex, sourceSequence: index, rawSourceTimestampMs: capturedTimestamp, rawSourceTimestampDomain: capturedTimestamp === null ? null : gameId === "acc" ? "wall-clock" : "session", timelineMs, triggerContext: {}, values: {}, states: {}, freshness: {}, opponentSource: projection.frame?.context.opponentSource ?? null };
+    frames.push(record);
+    let retain = index % snapshotInterval === 0 || index === input.packets.length - 1 || newSession || packet.LapNumber !== prior?.LapNumber;
+    for (const observe of observers) if (observe(semanticFrame, frameIndex, newSession)) retain = true;
+    const annotationCount = annotations.length;
+    const messageCount = messages.length;
+    const batch = catalog.consume(semanticFrame, simulatedFuel ? simulatedPitEntryM - packet.DistanceTraveled : undefined);
+    for (const event of batch.events) addAnnotation("trigger", event.eventKey, semanticFrame, { family: event.family, candidateId: event.triggerId, lapNumber: event.eventKey === "lap-completed" && typeof event.payload.lap === "number" ? event.payload.lap : Number.isFinite(packet.LapNumber) ? packet.LapNumber : undefined, payload: event.payload, evidence: event.evidenceSemanticIds, priority: event.severity });
+    engine.consume(batch);
+    if (pitScenario && index === scenarioPlan?.pitThisLapIndex) addSyntheticPitCallout("pit-this-lap", projection.semanticFrame);
+    if (pitScenario && index === scenarioPlan?.pitUrgencyIndex) addSyntheticPitCallout("pit-pit-pit", projection.semanticFrame);
+    if (retain || annotations.length !== annotationCount || messages.length !== messageCount) {
+      Object.assign(record, frameEvidence(semanticFrame));
+      if (Number.isFinite(packet.LapNumber)) replayLapBySequence.set(index, packet.LapNumber);
+    } else frames.pop();
+  }
+  for (const { message, frame } of messages) {
+    const linked = annotations.find((annotation) =>
+      ("candidateId" in message && message.candidateId && annotation.candidateId === message.candidateId)
+      || annotation.decisionId === message.decisionId);
+    const family = linked?.family ?? (message.family === "spotter" ? "live-spotter" : message.family === "race-engineer" ? "Spotter" : message.family);
+    const lapNumber = replayLapBySequence.get(frame.sequence);
+    if (message.type === "live-engineer-callout") addAnnotation("callout", message.family === "race-engineer" ? "race-engineer" : message.family, frame, { family, candidateId: message.candidateId, decisionId: message.decisionId, priority: message.priority, lapNumber, payload: message.render, renderedText: "text" in message.render ? message.render.text : message.family === "opponent-pace" ? renderOpponentPace(message.render.parameters).text : null });
+    else addAnnotation("voice-line", message.family, frame, { family, decisionId: message.decisionId, lapNumber, segmentIds: message.segmentIds });
+    if (message.type === "live-engineer-callout" && message.family === "race-engineer" && (message.render.textKey === "pit-this-lap" || message.render.textKey === "pit-pit-pit")) {
+      addAnnotation("voice-line", message.family, frame, { family, decisionId: message.decisionId, candidateId: message.candidateId, lapNumber, audioLineId: message.render.textKey });
+    }
+  }
+  const laps: LiveEngineerReplayLapV1[] = input.laps.map((lap) => {
+    const matching = frames.filter((frame) => frame.values["timing.lap-number"] === lap.lapNumber);
+    return { lapId: lap.id, lapNumber: lap.lapNumber, startFrameIndex: matching[0]?.frameIndex ?? null, endFrameIndex: matching.at(-1)?.frameIndex ?? null, metadata: { ...lap } };
+  });
+  return { sessionId: input.session.id, gameId, car: { carId: input.session.carId ?? null }, track: { trackId: input.session.trackId ?? null }, executionMode, sourceProfile: input.sourceProfile, clockQuality: input.sourceProfile.sourceClockCaptured ? gameId === "acc" ? "captured" : "native-session" : "nominal-100hz", frames, laps, annotations, systems, warnings: simulatedFuel ? [...input.sourceProfile.limitations, consumption] : input.sourceProfile.limitations, sourceCounts: { packets: input.packets.length, annotations: annotations.length } };
 }

@@ -227,6 +227,7 @@
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
       "dependencies": {
+        "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
       },

@@ -247,7 +247,9 @@ test("FM remains silent while registered engineer games can dispatch", () => {
 test("iRacing native Spotter emits a V3 callout", () => {
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
-  engine.consume(frame(0, 1, { "identity.car-left-right": ok("identity.car-left-right", 2) }, "iracing"));
+  engine.consume(frame(0, 1, { "identity.car-left-right": ok("identity.car-left-right", 4) }, "iracing"));
+  const lines = messagesOfType(emitted, "live-engineer-voice-line");
+  expect(lines.map(line => line.segmentIds)).toEqual([["spotter.car-left", "spotter.car-right"]]);
   expect(emitted.some((message) => familyOf(message) === "spotter")).toBe(true);
 });
 test("ACC fuel-low structured trigger emits matching V3 callout and voice line", () => {

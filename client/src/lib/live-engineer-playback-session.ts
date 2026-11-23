@@ -10,13 +10,13 @@ export class LiveEngineerPlaybackSession {
   private readonly callbacks: LiveEngineerPlaybackCallbacks;
   private readonly now: () => number;
 
-  constructor(audio: LiveEngineerAudioPort, callbacks: LiveEngineerPlaybackCallbacks, now: () => number = () => Date.now()) {
+  constructor(audio: LiveEngineerAudioPort, callbacks: LiveEngineerPlaybackCallbacks, now: () => number = () => performance.now()) {
     this.audio = audio;
     this.callbacks = callbacks;
     this.now = now;
   }
 
-  start(line: LiveEngineerVoiceLineMessageV3, enabled: boolean, volume: number): void {
+  start(line: LiveEngineerVoiceLineMessageV3 & { playbackDeadlineMs?: number }, enabled: boolean, volume: number): void {
     this.cancel();
     const generation = ++this.generation;
     this.activeDeliveryId = line.deliveryId;
@@ -26,7 +26,7 @@ export class LiveEngineerPlaybackSession {
       this.activeDeliveryId = null;
       return;
     }
-    if (line.expiresSessionTimeMs <= this.now()) {
+    if ((line.playbackDeadlineMs ?? line.expiresSessionTimeMs) <= this.now()) {
       this.callbacks.enqueueControl({ type: "live-engineer-delivery-status", protocolVersion: 3, deliveryId: line.deliveryId, status: "failed", reason: "expired" });
       this.callbacks.finishVoiceLine(line.deliveryId);
       this.callbacks.setPlayback("failed");
@@ -58,6 +58,12 @@ export class LiveEngineerPlaybackSession {
       this.callbacks.setPlayback("failed");
       this.activeDeliveryId = null;
     });
+  }
+
+  invalidateAssets(): void {
+    this.generation += 1;
+    this.activeDeliveryId = null;
+    this.audio.stop();
   }
 
   cancel(): void {

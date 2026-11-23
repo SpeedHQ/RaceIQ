@@ -11,6 +11,8 @@ import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { hasKunosDumpMagic, readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { ams2ServerAdapter } from "@raceiq/game-ams2";
+import { iracingServerAdapter } from "@raceiq/game-iracing";
 import {
   containsSparseCaptureFrames,
   decompressIfGzipSync,
@@ -28,7 +30,7 @@ export interface RecordedTelemetry {
 }
 
 function readFramedPackets(gameId: GameId, bytes: Buffer): TelemetryPacket[] {
-  const game = getServerGame(gameId);
+  const game = gameId === "ams2" ? ams2ServerAdapter : gameId === "iracing" ? iracingServerAdapter : getServerGame(gameId);
   let parserState: unknown = game.createParserState?.() ?? null;
   const packets: TelemetryPacket[] = [];
   let inContext = false;
@@ -116,7 +118,7 @@ function readIRacingPackets(recordingPath: string): RecordedTelemetry {
       trackName: first?.trackName ?? null,
     };
   }
-  const game = getServerGame("iracing");
+  const game = iracingServerAdapter;
   const parserState = game.createParserState?.() ?? null;
   const packets: TelemetryPacket[] = [];
   let carModel: string | null = null, trackName: string | null = null;

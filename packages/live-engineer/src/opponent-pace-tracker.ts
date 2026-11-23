@@ -71,9 +71,12 @@ export class OpponentPaceTracker {
       const fastest = medians[0]; if (!fastest) return null;
       benchmarkLapTimeMs = fastest.time; benchmarkFact = fastest.list[fastest.list.length - 1];
     }
+    const best = facts.reduce((a, b) => a.lapTimeMs <= b.lapTimeMs ? a : b);
+    const classBest = player.lapTimeMs < best.lapTimeMs * 0.999;
+    if (classBest) { benchmarkFact = best; benchmarkLapTimeMs = best.lapTimeMs; }
     const deltaMs = player.lapTimeMs - benchmarkLapTimeMs; const deltaPercent = 100 * deltaMs / benchmarkLapTimeMs;
     let relation: OpponentPaceRelation;
-    if (deltaPercent < -0.1) relation = "fastest-in-class"; else if (race && Math.abs(deltaPercent) <= 0.1) relation = "setting-race-pace"; else if (deltaPercent <= this.options.withinPercent) relation = "within-class-pace"; else if (deltaPercent <= this.options.outlierPercent) relation = "off-class-pace"; else relation = "outlier-lap";
+    if (classBest) relation = "fastest-in-class"; else if (race && deltaPercent <= 0.1) relation = "setting-race-pace"; else if (deltaPercent <= this.options.withinPercent) relation = "within-class-pace"; else if (deltaPercent <= this.options.outlierPercent) relation = "off-class-pace"; else relation = "outlier-lap";
     const candidateId = `${player.sessionId}/${player.timelineEpoch}/${player.lapNumber}/${relation}/${benchmarkFact.factId}`;
     if (this.emitted.has(candidateId)) return null; this.emitted.add(candidateId);
     const priority = relation === "fastest-in-class" || relation === "outlier-lap" ? "high" : relation === "within-class-pace" ? "low" : "normal";

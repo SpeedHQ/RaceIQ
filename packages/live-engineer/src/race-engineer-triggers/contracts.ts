@@ -8,7 +8,7 @@ export type RaceEngineerTriggerScalarV1 = string | number | boolean | null;
 export type RaceEngineerTriggerValueV1 = RaceEngineerTriggerScalarV1 | readonly RaceEngineerTriggerScalarV1[];
 export interface RaceEngineerTriggerDraftV1 { eventKey: string; severity: "critical" | "warning" | "info"; subjectId?: string; payload: Readonly<Record<string, RaceEngineerTriggerValueV1>>; evidenceSemanticIds: readonly TelemetryVariableId[]; }
 export interface RaceEngineerTriggerEventV1 extends RaceEngineerTriggerDraftV1 { triggerId: string; family: RaceEngineerEventFamily; sessionId: string; timelineEpoch: number; sourceSequence: number; sessionTimeMs: number; source: RaceEngineerSourceRef; }
-export interface RaceEngineerTriggerContextV1 { simulator: GameId; sessionActive: boolean; formation: boolean; caution: boolean; pit: boolean; spectating: boolean; }
+export interface RaceEngineerTriggerContextV1 { simulator: GameId; sessionActive: boolean; formation: boolean; caution: boolean; pit: boolean; spectating: boolean; distanceToPitEntryM?: number; }
 export interface RaceEngineerTriggerBatchV1 { streamId: string; sessionId: string; timelineEpoch: number; sourceSequence: number; sessionTimeMs: number; context: RaceEngineerTriggerContextV1; events: readonly RaceEngineerTriggerEventV1[]; readonly semanticFrame?: LiveResolvedSemanticFrame; }
 export type RaceEngineerTriggerResultV1 = RaceEngineerTriggerDraftV1 | readonly RaceEngineerTriggerDraftV1[] | null;
 export interface RaceEngineerTriggerInputV1 { frame: RaceEngineerTriggerFrame; context: RaceEngineerTriggerContextV1; sessionTimeMs: number; }

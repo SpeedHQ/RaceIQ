@@ -158,7 +158,7 @@ export class LiveTelemetryPipeline {
     this._enqueueSessionCaptureSplits = options?.enqueueSessionCaptureSplits ?? true;
     this._onSessionFinalized = options?.onSessionFinalized;
     this._voiceEngine = new LiveEngineerVoiceEngine({
-      emit: (message) => this.ws.broadcastNotification(message as unknown as Record<string, unknown>),
+      emit: (message) => this.ws.broadcastNotification(message.type === "live-engineer-voice-line" ? { ...message, sentAtUnixMs: Date.now() } : { ...message }),
     });
     if (db instanceof RealDbAdapter) {
       db.subscribeLapBindings((binding) => {
@@ -472,7 +472,8 @@ export class LiveTelemetryPipeline {
   }
 
   handleLiveEngineerMessage(message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3) {
-    return this._voiceEngine.handle(message);
+    const line = this._voiceEngine.handle(message);
+    if (line) return { ...line, sentAtUnixMs: Date.now() };
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {

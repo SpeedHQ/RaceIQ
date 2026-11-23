@@ -256,7 +256,7 @@ export class RaceEngineerTriggerCatalog {
   private observedGameId: GameId | null = null;
   private timelineEpoch = 0;
   constructor(options: RaceEngineerTriggerCatalogOptions = {}) { this.options = options; }
-  consume(source: LiveResolvedSemanticFrame): RaceEngineerTriggerBatchV1 {
+  consume(source: LiveResolvedSemanticFrame, distanceToPitEntryM?: number): RaceEngineerTriggerBatchV1 {
     const key = `${source.simulator}/${source.sessionId ?? ""}/${source.streamId}`;
     if (key !== this.streamKey) {
       this.streamKey = key;
@@ -272,6 +272,7 @@ export class RaceEngineerTriggerCatalog {
     });
     const frame = new RaceEngineerTriggerFrame(source);
     const context = frame.context();
+    if (Number.isFinite(distanceToPitEntryM)) context.distanceToPitEntryM = distanceToPitEntryM;
     const now = sessionTime(source);
     const caps = capabilityMap(source.simulator, this.observed, this.options.allowUnsupportedGame);
     const drafts = RACE_ENGINEER_TRIGGER_CATALOG.flatMap((item) => {

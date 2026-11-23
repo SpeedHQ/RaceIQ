@@ -16,6 +16,10 @@ export function RadioPlaybackController() {
   const setPlayback = useLiveEngineerStore((state) => state.setPlayback);
 
   useEffect(() => {
+    sessionRef.current?.invalidateAssets();
+  }, [status.data?.installedVersion, status.data?.state]);
+
+  useEffect(() => {
     sessionRef.current?.setVolume(displaySettings.radioVolume);
   }, [displaySettings.radioVolume]);
 
@@ -36,7 +40,7 @@ export function RadioPlaybackController() {
     const session = sessionRef.current ?? (sessionRef.current = new LiveEngineerPlaybackSession(new LiveEngineerAudioPlayer(), { enqueueControl, finishVoiceLine, setPlayback }));
     session.start(line, true, displaySettings.radioVolume);
     return () => session.cancel();
-  }, [line, ready, displaySettings.radioRaceEngineerEnabled, displaySettings.radioSpotterEnabled, enqueueControl, finishVoiceLine, setPlayback]);
+  }, [line, ready, status.data?.installedVersion, displaySettings.radioRaceEngineerEnabled, displaySettings.radioSpotterEnabled, enqueueControl, finishVoiceLine, setPlayback]);
 
   useEffect(() => () => sessionRef.current?.cancel(), []);
   return null;

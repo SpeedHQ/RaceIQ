@@ -206,6 +206,17 @@ for (const compressed of [false, true]) {
   });
 }
 
+test("timestamped ACCP preserves uneven frame spacing without Broadcast data", async () => {
+  const frame = playerFrame();
+  const times = [200, 251, 279];
+  await withCapture(Buffer.concat([encodeMetaFrame(), ...times.flatMap(time => [encodeFrameLength(frame.length, time), frame])]), async sessionId => {
+    const replay = await getSessionTelemetryReplaySource(sessionId, "acc");
+    expect(replay.sourceProfile.sourceClockCaptured).toBe(true);
+    expect(replay.packets.map(packet => packet.TimestampMS)).toEqual(times);
+    expect(replay.sourceProfile.opponentSourceCapture?.status).toBe("unavailable");
+  });
+});
+
 test("ACCP without Broadcast metadata reports unavailable source clocks", async () => {
   const frame = playerFrame();
   await withCapture(Buffer.concat([encodeMetaFrame(), encodeFrameLength(frame.length), frame]), async (sessionId) => {

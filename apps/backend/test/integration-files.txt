@@ -95,6 +95,7 @@ apps/backend/test/race-results/race-results-storage.test.ts
 apps/backend/test/race-results/raw-capture-identity.test.ts
 apps/backend/test/routes/car-routes-game-id.test.ts
 apps/backend/test/routes/diagnostics-routes.test.ts
+apps/backend/test/routes/engineer-recording-presets.test.ts
 apps/backend/test/routes/import-ownership.test.ts
 apps/backend/test/routes/lap-analysis-integration.test.ts
 apps/backend/test/routes/lap-analysis-route.test.ts

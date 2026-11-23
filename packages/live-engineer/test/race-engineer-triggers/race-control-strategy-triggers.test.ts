@@ -80,6 +80,11 @@ const evoRace = {
     expect(familyKeys(catalog, frame(2, 1000, { "race.flag-status": "yellow" }), "FlagsMonitor")).toEqual([]);
     expect(familyKeys(catalog, frame(3, 2500, { "race.flag-status": "yellow" }), "FlagsMonitor")).toEqual(["flag-change"]);
 
+    const interrupted = new RaceEngineerTriggerCatalog();
+    for (const [seq, ms, flag] of [[0, 0, "green"], [1, 100, "yellow"], [2, 200, "green"], [3, 2500, "yellow"]] as const) {
+      expect(familyKeys(interrupted, frame(seq, ms, { "race.flag-status": flag }), "FlagsMonitor")).toEqual([]);
+    }
+    expect(familyKeys(interrupted, frame(4, 4500, { "race.flag-status": "yellow" }), "FlagsMonitor")).toEqual(["flag-change"]);
     const suppressed = new RaceEngineerTriggerCatalog();
     familyKeys(suppressed, frame(0, 0), "FlagsMonitor");
     expect(familyKeys(suppressed, frame(1, 2500, { "race.flag-status": "red", "race.pit-status": "pit_lane" }), "FlagsMonitor")).toEqual([]);

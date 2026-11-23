@@ -4,7 +4,7 @@ import type { PreviousValueState } from "./common";
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const draft = (eventKey: string, severity: RaceEngineerTriggerDraftV1["severity"], payload: Record<string, RaceEngineerTriggerDraftV1["payload"][string]>, evidence: readonly TelemetryVariableId[]): RaceEngineerTriggerDraftV1 => ({ eventKey, severity, payload, evidenceSemanticIds: evidence });
 export const triggerPitStops: RaceEngineerTriggerFunction<PreviousValueState> = (input, state) => { const current = input.frame.ok("race.pit-status"); if (!state.armed) { state.armed = true; state.previous = current; return null; } const previous = state.previous; state.previous = current; if (current === undefined || previous === undefined || Object.is(current, previous)) return null; const isPit = (value: unknown) => value === true || value === 1 || value === "pit" || value === "in-pit" || value === "pit_lane" || value === "in_pit" || value === "pit-stall"; const wasPit = isPit(previous), nowPit = isPit(current); if (wasPit === nowPit) return null; return draft(nowPit ? "pit-entry" : "pit-exit", "info", { status: nowPit ? "in-pit" : "out-of-pit" }, ["race.pit-status"]); };
-type FuelState = PreviousValueState & { previousFuel?: number; lowLatched?: boolean; criticalLatched?: boolean };
+type FuelState = PreviousValueState & { previousFuel?: number; lowLatched?: boolean; criticalLatched?: boolean; pitAfterLap?: number; advisedLap?: number };
 export const triggerFuel: RaceEngineerTriggerFunction<FuelState> = (input, state) => {
   const f1 = input.frame.simulator === "f1-2025";
   const value = f1 ? input.frame.ok("fuel.laps-remaining") : input.frame.ok("fuel.remaining-volume");
@@ -15,6 +15,8 @@ export const triggerFuel: RaceEngineerTriggerFunction<FuelState> = (input, state
       state.armed = false;
       state.lowLatched = undefined;
       state.criticalLatched = undefined;
+      state.pitAfterLap = undefined;
+      state.advisedLap = undefined;
       return null;
     }
     if (!state.armed) {
@@ -36,6 +38,11 @@ export const triggerFuel: RaceEngineerTriggerFunction<FuelState> = (input, state
   const laps = f1 ? value : finite(perLap) && perLap > 0 ? value / perLap : NaN;
   state.previous = value;
   state.previousFuel = value;
+  const lap = input.frame.hasFresh("timing.lap-number") ? input.frame.ok("timing.lap-number") : undefined;
+  if (state.pitAfterLap !== undefined && (laps >= 1 || input.context.pit || !finite(lap) || lap < state.pitAfterLap)) {
+    state.pitAfterLap = undefined;
+  }
+  if (state.advisedLap !== undefined && (input.context.pit || lap !== state.advisedLap || laps >= 1)) state.advisedLap = undefined;
   if (laps >= 2) {
     state.lowLatched = false;
     state.criticalLatched = false;
@@ -45,7 +52,21 @@ export const triggerFuel: RaceEngineerTriggerFunction<FuelState> = (input, state
   if (laps < 1 && !state.criticalLatched) {
     state.criticalLatched = true;
     state.lowLatched = true;
+    if (input.frame.simulator === "fm-2023" && !input.context.pit && finite(lap)) state.pitAfterLap = lap;
     return draft("fuel-critical", "critical", f1 ? { remainingLaps: laps } : { remainingLaps: laps, remainingVolume: value, fuelPerLap: perLap as number }, evidence);
+  }
+  if (finite(lap) && state.pitAfterLap !== undefined && lap > state.pitAfterLap) {
+    const crossedLine = lap === state.pitAfterLap + 1;
+    state.pitAfterLap = undefined;
+    if (crossedLine) {
+      state.advisedLap = lap;
+      return draft("pit-this-lap", "warning", { lap, remainingLaps: laps }, [...evidence, "timing.lap-number"]);
+    }
+  }
+  const distance = input.context.distanceToPitEntryM;
+  if (state.advisedLap !== undefined && finite(distance) && distance <= 200) {
+    state.advisedLap = undefined;
+    if (distance > 0) return draft("pit-pit-pit", "critical", { distanceToPitEntryM: distance, remainingLaps: laps }, [...evidence, "timing.distance-traveled"]);
   }
   if (laps < 2 && !state.lowLatched) {
     state.lowLatched = true;

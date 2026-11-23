@@ -41,9 +41,23 @@ test("joins identity and realtime in either arrival order and exposes only neste
     expect(state.snapshot().extension).toBeUndefined();
     state.apply(realtimeFirst ? entry() : car());
     expect(state.snapshot()).toMatchObject({ source: { state: "available", reasonCode: "ready" }, extension: {
-      playerCarIndex: 7, playerCarClassId: "3", phase: 5, sessionType: "race", carIndex: [7], carClassId: ["3"], connected: [true],
+      playerCarIndex: 7, playerCarClassId: "GT3", phase: 5, sessionType: "race", carIndex: [7], carClassId: ["GT3"], connected: [true],
     } });
   }
+});
+
+test("vehicle classes are independent of driver cup", () => {
+  const state = new AccBroadcastState();
+  register(state);
+  state.apply(session());
+  state.apply({ type: "entry-list", connectionId: 1, carIndexes: [7, 8, 9] });
+  for (const [index, model, cup] of [[7, 1, 3], [8, 2, 1], [9, 50, 3]] as const) {
+    const info = entry(index);
+    if (info.type !== "entry-list-car") throw new Error("invalid entry fixture");
+    state.apply({ ...info, carModelType: model, cupCategory: cup });
+    state.apply(car(index));
+  }
+  expect(state.snapshot().extension?.carClassId).toEqual(["GT3", "GT3", "GT4"]);
 });
 
 test("realtime cannot invent socket or registration evidence", () => {

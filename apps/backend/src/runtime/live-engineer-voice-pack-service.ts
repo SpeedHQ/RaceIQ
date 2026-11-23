@@ -118,6 +118,7 @@ export function createLiveEngineerVoicePackService(options: LiveEngineerVoicePac
   let checkFlight: Promise<void> | null = null;
   let installFlight: Promise<LiveEngineerVoicePackStatus> | null = null;
   let installing = false;
+  const verified = new Map<string, { ino: bigint; ctimeNs: bigint; sha256: string }>();
 
   async function installed(): Promise<{ version: string | null; engine: number | null; catalog: string | null; language: string | null; ready: boolean; present: boolean }> {
     let raw: string;
@@ -131,11 +132,22 @@ export function createLiveEngineerVoicePackService(options: LiveEngineerVoicePac
     const identity = value && typeof value === "object" ? value as Record<string, unknown> : {};
     let valid = false;
     if (isCompatibleLiveEngineerAudioManifest(value)) {
-      const files = await Promise.all([...value.clips, ...value.fullLines].map(async ({ path }) => {
-        try { const details = await stat(join(root, path)); return details.isFile() && details.size > 0; }
-        catch { return false; }
-      }));
-      valid = files.every(Boolean);
+      valid = true;
+      for (const { path, sha256 } of [...value.clips, ...value.fullLines]) {
+        const file = join(root, path);
+        try {
+          const details = await stat(file, { bigint: true });
+          const cached = verified.get(path);
+          if (!details.isFile() || details.size === 0n) { valid = false; break; }
+          if (cached?.ino === details.ino && cached.ctimeNs === details.ctimeNs && cached.sha256 === sha256) continue;
+          if (new Bun.CryptoHasher("sha256").update(await readFile(file)).digest("hex") !== sha256) { valid = false; break; }
+          verified.set(path, { ino: details.ino, ctimeNs: details.ctimeNs, sha256 });
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+          valid = false;
+          break;
+        }
+      }
     }
     return {
       version: typeof identity.packageVersion === "string" ? identity.packageVersion : null,
@@ -173,11 +185,19 @@ export function createLiveEngineerVoicePackService(options: LiveEngineerVoicePac
   async function discover(automatic: boolean): Promise<void> {
     try {
       if (!featureEnabled() || (automatic && !automaticEnabled())) throw new Error("automatic-check-disabled");
-      const releasesResponse = await fetchImpl(API_URL, { headers: { Accept: "application/vnd.github+json" } });
-      if (!releasesResponse.ok) throw new Error(`GitHub releases request failed (${releasesResponse.status})`);
-      const releases: unknown = await releasesResponse.json();
-      if (!Array.isArray(releases)) throw new Error("Invalid GitHub releases response");
-      const possible = releases.map((entry) => parseRelease(entry, LIVE_ENGINEER_AUDIO_PACKAGE.language)).filter((entry): entry is Candidate => entry !== null);
+      const possible: Candidate[] = [];
+      for (let page = 1; ; page++) {
+        if (!featureEnabled() || (automatic && !automaticEnabled())) throw new Error("automatic-check-disabled");
+        const response = await fetchImpl(page === 1 ? API_URL : `${API_URL}&page=${page}`, { headers: { Accept: "application/vnd.github+json" } });
+        if (!response.ok) throw new Error(`GitHub releases request failed (${response.status})`);
+        const releases: unknown = await response.json();
+        if (!Array.isArray(releases)) throw new Error("Invalid GitHub releases response");
+        for (const release of releases) {
+          const candidate = parseRelease(release, LIVE_ENGINEER_AUDIO_PACKAGE.language);
+          if (candidate) possible.push(candidate);
+        }
+        if (!response.headers.get("link")?.includes('rel="next"')) break;
+      }
       const candidates: Candidate[] = [];
       let metadataFailures = 0;
       for (const candidate of possible) {

@@ -54,7 +54,8 @@ test("F1 recording classifies completed laps against recent race pace", () => {
     expect.objectContaining({
       payload: expect.objectContaining({
         parameters: expect.objectContaining({
-          relation: "fastest-in-class",
+          relation: "setting-race-pace",
+          playerLapNumber: 3,
           scope: "overall",
           benchmarkKind: "recent-race-pace",
         }),

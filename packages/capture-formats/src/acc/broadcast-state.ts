@@ -1,3 +1,4 @@
+import { getAccCarClass } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import type { AccBroadcastCar, AccBroadcastEntry, AccBroadcastExtension, AccBroadcastMessage, AccBroadcastSnapshot, AccBroadcastSourceReason } from "@raceiq/shared/telemetry/acc-broadcast";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { AccBroadcastCaptureEvent } from "./broadcast-capture";
@@ -175,12 +176,12 @@ export class AccBroadcastState {
       sessionType: this.sessionTypeValue,
       phase: this.phaseValue,
       playerCarIndex: this.playerCarIndex,
-      playerCarClassId: String(this.entries.get(this.playerCarIndex)!.cupCategory),
+      playerCarClassId: getAccCarClass(this.entries.get(this.playerCarIndex)!.carModelType) ?? "",
       carIndex: rows.map(({ car }) => car.carIndex),
       driverId: rows.map(({ car }) => `${car.carIndex}:${car.driverIndex}`),
       driverName: rows.map(({ entry, car }) => `${entry.drivers[car.driverIndex]!.firstName} ${entry.drivers[car.driverIndex]!.lastName}`.trim()),
-      carClassId: rows.map(({ entry }) => String(entry.cupCategory)),
-      carClassName: rows.map(({ entry }) => String(entry.cupCategory)),
+      carClassId: rows.map(({ entry }) => getAccCarClass(entry.carModelType) ?? ""),
+      carClassName: rows.map(({ entry }) => getAccCarClass(entry.carModelType) ?? ""),
       lapsComplete: rows.map(({ car }) => car.laps),
       position: rows.map(({ car }) => car.position),
       pitStatus: rows.map(({ car }) => location(car.location) === "track" ? "out" : location(car.location)),

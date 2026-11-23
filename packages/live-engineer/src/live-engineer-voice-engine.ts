@@ -82,7 +82,7 @@ export class LiveEngineerVoiceEngine {
   private pendingLapVoice: { callout: RaceEngineerCalloutMessageV3; segmentIds: readonly string[]; lapNumber: number } | null = null;
   constructor(options: LiveEngineerVoiceEngineOptions) {
     this.options = options;
-    this.emitMessage = options.emit;
+    this.emitMessage = (message) => options.emit(message.type === "live-engineer-voice-line" ? { ...message, issuedSessionTimeMs: this.runtimeClockMs } : message);
   }
 
   consume(input: LiveResolvedSemanticFrame | RaceEngineerTriggerBatchV1): void {
@@ -151,7 +151,7 @@ export class LiveEngineerVoiceEngine {
             } else {
               this.flushPendingLapVoice();
               this.emitMessage(callout);
-              this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
+              if (rendered.segmentIds.length) this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
             }
           } else {
             this.flushPendingLapVoice();
@@ -191,7 +191,7 @@ export class LiveEngineerVoiceEngine {
     const candidate = this.tracker.createCandidate(player);
     if (!candidate) return;
     const runtimeCandidate: LiveEngineerRuntimeCandidate = {
-      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: frame.simulator === "f1-2025" || player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: pace.sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
+      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: frame.simulator === "f1-2025" || player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: candidate.relation !== "fastest-in-class" && pace.sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
     };
     const submission = this.runtime.submit(runtimeCandidate);
     this.options.onCandidate?.(runtimeCandidate, frame);
@@ -215,7 +215,7 @@ export class LiveEngineerVoiceEngine {
     if (!callout || !this.latest || callout.sessionId !== String(this.latest.sessionId ?? "") || callout.timelineEpoch !== this.timelineEpoch || callout.expiresSessionTimeMs <= observedMs(this.latest.observedAt)) return;
     const render = renderOpponentPace(callout.render.parameters, { voiceMode: "exact-response" });
     if (!render.segmentIds.length || !this.currentContextEligible()) return;
-    return createLiveEngineerVoiceLine(callout, render.segmentIds, { mode: "exact-response", requestId: message.requestId });
+    return { ...createLiveEngineerVoiceLine(callout, render.segmentIds, { mode: "exact-response", requestId: message.requestId }), issuedSessionTimeMs: this.runtimeClockMs };
   }
 
   reset(): void {
@@ -352,14 +352,18 @@ export class LiveEngineerVoiceEngine {
   }
 
   private emitSpotterEvents(events: readonly { state: Exclude<import("@raceiq/shared/racing/live/spotter-contracts").SpotterStateV1, "clear">; side: "left" | "right"; overlapCount: number; sourceSequence: number; sessionTimeMs: number; opponentIds: readonly string[] }[], frame: LiveResolvedSemanticFrame): void {
+    const segments: string[] = [];
+    let firstCallout: SpotterCalloutMessageV3 | undefined;
     for (const event of events) {
       this.options.onSpotterEvent?.(event, frame);
       const rendered = renderSpotter(event.state);
       const candidateId = `${frame.sessionId ?? "none"}/${this.timelineEpoch}/${event.sourceSequence}/${event.state}/${event.opponentIds.join(",")}`;
       const callout: SpotterCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${candidateId}/spotter-v1`, candidateId, family: "spotter", sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: event.sourceSequence, priority: "high", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 2_000, render: { renderingVersion: "spotter-v1", textKey: rendered.textKey as SpotterCalloutMessageV3["render"]["textKey"], parameters: { state: event.state, overlapCount: event.opponentIds.length } } };
       this.emitMessage(callout);
-      this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
+      firstCallout ??= callout;
+      segments.push(...rendered.segmentIds);
     }
+    if (firstCallout) this.emitMessage(createLiveEngineerVoiceLine(firstCallout, segments, { mode: "automatic" }));
   }
 
   private emitCandidate(candidate: LiveEngineerRuntimeCandidate, frame: LiveResolvedSemanticFrame): void {

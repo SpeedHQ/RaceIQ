@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@raceiq/game-acc-metadata": "workspace:*",
     "@raceiq/game-iracing-metadata": "workspace:*",
     "@raceiq/shared": "workspace:*"
   },

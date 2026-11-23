@@ -49,7 +49,7 @@ export class SpotterTracker {
       const relative = aligned(frame, opponent);
       if (!Number.isFinite(relative.x) || !Number.isFinite(relative.z) || Math.abs(relative.x) > this.options.trackZoneM) continue;
       const inLongitudinalWindow = relative.z < 0 ? -relative.z < frame.player.lengthM : relative.z < frame.player.lengthM + this.options.behindExtraLengthM;
-      if (!inLongitudinalWindow || Math.abs(relative.x) <= frame.player.widthM) continue;
+      if (!inLongitudinalWindow || relative.x === 0 || Math.abs(relative.x) > frame.player.widthM * 3) continue;
       if (opponent.speedMps !== undefined && Math.abs(opponent.speedMps - frame.player.speedMps) > this.options.maxClosingSpeedMps) continue;
       (relative.x >= 0 ? current.left : current.right).set(opponent.id, Math.abs(relative.x));
     }
@@ -75,7 +75,7 @@ export class SpotterTracker {
     else if (frame.carLeftRight === 4) { left.set("native-left", 1); right.set("native-right", 1); }
     else if (frame.carLeftRight === 5) { left.set("native-left-1", 1); left.set("native-left-2", 2); }
     else if (frame.carLeftRight === 6) { right.set("native-right-1", 1); right.set("native-right-2", 2); }
-    else if (frame.carLeftRight !== 0 && frame.carLeftRight !== 1) return this.suppress(meta);
+    else if (frame.carLeftRight !== 1) { this.resetSides(); return []; }
     return [this.transition("left", left, meta), this.transition("right", right, meta)].flat();
   }
 
