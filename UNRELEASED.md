@@ -1,6 +1,6 @@
 ### Features
 
-- Use your Chat GPT subscription with raceIQ and choose from the GPT-6 and newer models.
+- Use your ChatGPT subscription with RaceIQ and choose from GPT-6 and newer models. AI Chat shows the selected model and its input limit when known.
 
 ### Fixes
 

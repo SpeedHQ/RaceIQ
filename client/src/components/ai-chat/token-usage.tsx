@@ -62,9 +62,8 @@ export function TokenUsageFooter({
   });
   const subscriptionCost = subscriptionUsage && pricing ? estimateChatGptApiCost(subscriptionUsage, pricing) : null;
   const [compactMsg, setCompactMsg] = useState<string | null>(null);
-  const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
-  const provider = settings.chatProvider ?? settings.aiProvider ?? "";
-  const model = settings.chatModel ?? settings.aiModel ?? "";
+  const provider = displaySettings.chatProvider ?? "";
+  const model = displaySettings.chatModel ?? "";
   const { data: openAiCompatibleModels } = useQuery({
     queryKey: ["ai-models", "openai-compatible-context"],
     queryFn: async () => {
@@ -126,6 +125,7 @@ export function TokenUsageFooter({
   const hasUsage = (usage?.totalTokens ?? 0) > 0;
   return (
     <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-app-micro text-app-text-muted tabular-nums">
+      {model && <span className="min-w-0 break-all">{m.ai_model_label()}: {model}</span>}
       <span className="flex items-center gap-1" title={level === "ok" ? undefined : m.ai_chat_context_filling()}>
         <span>
           {formatTokens(used)} / {limit != null ? formatTokens(limit) : "?"}
