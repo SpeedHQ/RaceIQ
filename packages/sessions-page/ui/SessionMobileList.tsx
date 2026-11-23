@@ -124,9 +124,9 @@ export function SessionMobileList({
                       </Button>
                     </div>
                   </div>
-                  <div className="text-xs text-app-text/90 truncate mt-0.5">
-                    {sessionCarName(session, { trackNames, carNames })}
-                    <span className="ml-2 inline-flex align-middle empty:hidden"><SessionTypeBadge type={session.sessionType} /></span>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text/90">
+                    <span className="min-w-0 truncate">{sessionCarName(session, { trackNames, carNames })}</span>
+                    <SessionTypeBadge type={session.sessionType} />
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />
