@@ -1,0 +1,44 @@
+name: Beast Ubuntu x64 checkout observation
+on:
+  push:
+    branches: [smoke/beast-checkout-observation]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: mars-ubuntu-x64-2vcpu-2gmem-10gdisk
+    timeout-minutes: 15
+    steps:
+      - name: Inspect seed before checkout
+        shell: bash
+        run: |
+          set -eu
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$(uname -m)" = x86_64
+          if test -d .git && git cat-file -e "$GITHUB_SHA^{commit}"; then
+            printf 'Requested commit present before checkout; object store: '
+            stat -c '%d:%i' .git/objects
+          else
+            echo 'Requested commit not observed before checkout'
+          fi
+      - name: Checkout with staged seed if available
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify revision and isolate first checkout
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          printf 'Object store after first checkout: '
+          stat -c '%d:%i' .git/objects
+          mv .git "$(mktemp -d "$RUNNER_TEMP/checkout-control.XXXXXX")/repository.git"
+          test ! -e .git
+      - name: Checkout without staged repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify cold checkout revision
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
