@@ -56,22 +56,41 @@ describe("LM Studio context discovery", () => {
 });
 
 describe("OpenAI model discovery", () => {
-  test("uses configured key and returns sorted model IDs from OpenAI", async () => {
+  test("uses the configured key and lists only GPT-6 and newer text models", async () => {
     const originalFetch = globalThis.fetch;
     let requestedUrl = "";
     let authorization = "";
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       requestedUrl = String(input);
       authorization = new Headers(init?.headers).get("authorization") ?? "";
-      return new Response(JSON.stringify({ data: [{ id: "gpt-z" }, { id: "gpt-a" }, { id: 42 }] }));
+      return Response.json({
+        data: [
+          { id: "gpt-7" },
+          { id: "gpt-6.1-mini-2026-11-01" },
+          { id: "gpt-6" },
+          { id: "gpt-5.9" },
+          { id: "gpt-6o" },
+          { id: "o4-mini" },
+          { id: "gpt-6-audio-preview" },
+          { id: "gpt-6-realtime" },
+          { id: "gpt-6-mini-transcribe" },
+          { id: "gpt-6-tts" },
+          { id: "gpt-6-codex" },
+          { id: "gpt-6-search-preview" },
+          { id: "gpt-image-1" },
+          { id: "text-embedding-3-large" },
+          { id: 42 },
+        ],
+      });
     }) as typeof fetch;
     try {
       const result = await getOpenAiModelsDetailed("openai-secret");
       expect(requestedUrl).toBe("https://api.openai.com/v1/models");
       expect(authorization).toBe("Bearer openai-secret");
       expect(result.models).toEqual([
-        { id: "gpt-a", name: "gpt-a" },
-        { id: "gpt-z", name: "gpt-z" },
+        { id: "gpt-6", name: "gpt-6" },
+        { id: "gpt-6.1-mini-2026-11-01", name: "gpt-6.1-mini-2026-11-01" },
+        { id: "gpt-7", name: "gpt-7" },
       ]);
       expect(result.error).toBeNull();
     } finally {
