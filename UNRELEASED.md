@@ -5,3 +5,4 @@
 - Open the macOS app even when another service is using the default RaceIQ dashboard port.
 
 ### Internal
+- Run macOS desktop CI on an available GitHub-hosted runner and remove a telemetry catalog check that pinned descriptive wording rather than behavior.
