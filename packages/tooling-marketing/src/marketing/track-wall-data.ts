@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { ROOT_DIR } from "../root";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -87,9 +87,10 @@ function record(gameId: GameId, trackId: string, info: { name: string; location:
   const meta = GAME_META[gameId];
   const key = `${gameId}:${trackId}`;
   const outline = getTrackOutlineById(trackId, gameId, info.commonTrackName);
-  const mapFile = gameId === "iracing" ? resolve(ROOT_DIR, "packages/game-iracing/assets/iracing-track-maps", `${trackId}.svg`) : null;
   const mapSrc = outline ? outlineDataUrl(outline)
-    : mapFile && existsSync(mapFile) ? `data:image/svg+xml;base64,${readFileSync(mapFile).toString("base64")}` : null;
+    : gameId === "iracing" && info.mapUrl
+      ? `data:image/svg+xml;base64,${readFileSync(resolve(ROOT_DIR, "packages/game-iracing/assets/iracing-track-maps", `${trackId}.svg`)).toString("base64")}`
+      : null;
   return {
     key,
     gameId,
