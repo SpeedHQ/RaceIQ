@@ -103,7 +103,9 @@ jobs:
     name: Visual verification results
     if: always()
     needs: [responsive, storybook, combine-previews]
-    runs-on: ubuntu-slim
+    runs-on:
+      - mars-ubuntu-1vcpu-1g
+      - mars-retry-3
     timeout-minutes: 5
     steps:
       - name: Reject cancelled workflow

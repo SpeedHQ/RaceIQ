@@ -116,7 +116,7 @@ jobs:
       server-mode: compiled
       server-set: seeded
       projects: --project=lap-replay-webgpu
-      runs-on: '["mars-macos-2vcpu-6g"]'
+      runs-on: '["mars-macos-2vcpu-6g", "mars-ubuntu-2vcpu-6g"]'
       artifact-name: playwright-lap-replay-webgpu
       diagnostic-artifact-name: server-diagnostics-lap-replay-webgpu
       target-ref: ${{ needs.prepare.outputs.head || inputs.target-ref }}
@@ -127,7 +127,9 @@ jobs:
     name: Browser verification results
     if: always()
     needs: [prepare, seed-database, playwright, playwright-webgpu]
-    runs-on: ubuntu-slim
+    runs-on:
+      - mars-ubuntu-1vcpu-1g
+      - mars-retry-3
     timeout-minutes: 5
     steps:
       - name: Reject cancelled workflow
