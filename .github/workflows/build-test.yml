@@ -98,7 +98,7 @@ jobs:
     needs: plan
     if: fromJSON(needs.plan.outputs.verification).build
     runs-on:
-      - mars-ubuntu-2vcpu-6g
+      - mars-ubuntu-2vcpu-4gmem
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
@@ -268,7 +268,7 @@ jobs:
 
   changelog:
     timeout-minutes: 30
-    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release/v')
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
