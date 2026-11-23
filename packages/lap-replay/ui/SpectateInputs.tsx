@@ -201,7 +201,7 @@ const needle = (value: number | null, radius: number) => {
   const angle = Math.PI - Math.PI * Math.min(1, Math.max(0, value / speedScale));
   return <line x1="60" y1="52" x2={60 + Math.cos(angle) * radius} y2={52 - Math.sin(angle) * radius} stroke="currentColor" strokeWidth="2.5" />;
 };
-const markerX = (value: number) => 16 + (Math.max(-1, Math.min(1, value / steeringScale * (pair.gameId === "lmu" ? -1 : 1))) + 1) * 64;
+const markerX = (value: number) => 16 + (Math.max(-1, Math.min(1, value / steeringScale * (pair.gameId === "lmu" || pair.gameId === "ams2" ? -1 : 1))) + 1) * 64;
 return (
   <section
     className="relative z-20 mx-auto my-3 grid sm:absolute sm:bottom-3 sm:left-1/2 sm:m-0 sm:-translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] grid-cols-[minmax(0,1fr)_minmax(0,1fr)_max-content_max-content_max-content] items-end gap-1 overflow-x-auto rounded-md border border-app-border bg-app-bg/80 px-2 py-1.5 text-app-caption backdrop-blur-md sm:w-max sm:grid-cols-[minmax(132px,1fr)_minmax(132px,1fr)_max-content_max-content_max-content] sm:gap-3 sm:px-3 sm:py-2 sm:text-app-label"

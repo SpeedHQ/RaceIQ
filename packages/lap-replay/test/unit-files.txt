@@ -3,6 +3,7 @@ packages/lap-replay/test/unit/segment-data.test.ts
 packages/lap-replay/test/unit/spectate-ers-mode.test.ts
 packages/lap-replay/test/unit/spectate-focus-lanes.test.ts
 packages/lap-replay/test/unit/spectate-focus.test.ts
+packages/lap-replay/test/unit/spectate-inputs-steering.test.tsx
 packages/lap-replay/test/unit/spectate-line-spread.test.ts
 packages/lap-replay/test/unit/spectate-replay.test.ts
 packages/lap-replay/test/unit/spectate-runtime.test.ts
