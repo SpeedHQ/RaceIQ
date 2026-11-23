@@ -197,15 +197,19 @@ jobs:
       - name: Render base snapshots
         if: steps.base-storybook-build.outcome == 'success'
         id: base-storybook-render
-        working-directory: ${{ runner.temp }}/raceiq-base/client
+        working-directory: client
         env:
           RACEIQ_STORYBOOK_PREBUILT: "1"
+          RACEIQ_STORYBOOK_ROOT: ${{ runner.temp }}/raceiq-base/client
+          RACEIQ_UI_DIFF_CAPTURE: "1"
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
         run: |
-          bunx playwright install chromium
-          bunx playwright test --update-snapshots --reporter=line --grep-invert 'covered stories render without API requests'
-        # Missing base screenshots remain reviewable as additions.
+          export RACEIQ_SNAPSHOT_TEST_DIR="$(mktemp -d "$PWD/src/.base-capture.XXXXXX")"
+          trap 'rm -rf "$RACEIQ_SNAPSHOT_TEST_DIR"' EXIT
+          cp src/stories/{dashboards.snapshot,theme.snapshot,reusable-ui.snapshot,snapshot-test,storybook-ready}.ts "$RACEIQ_SNAPSHOT_TEST_DIR/"
+          cp "$RACEIQ_STORYBOOK_ROOT/src/stories/snapshot-cases.ts" "$RACEIQ_SNAPSHOT_TEST_DIR/"
+          bunx playwright test --update-snapshots --reporter=line
         continue-on-error: true
       - name: Render PR snapshots
         if: steps.pr-storybook-build.outcome == 'success'

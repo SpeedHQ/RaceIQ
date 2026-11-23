@@ -116,7 +116,7 @@ jobs:
       server-mode: compiled
       server-set: seeded
       projects: --project=lap-replay-webgpu
-      runs-on: '["mars-macos-2vcpu-6g", "mars-ubuntu-2vcpu-6g"]'
+      runs-on: '["mars-macos-2vcpu-6g"]'
       artifact-name: playwright-lap-replay-webgpu
       diagnostic-artifact-name: server-diagnostics-lap-replay-webgpu
       target-ref: ${{ needs.prepare.outputs.head || inputs.target-ref }}
