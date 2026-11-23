@@ -1,6 +1,13 @@
 {
   "model_picker": "Модель машины",
   "model_automatic": "Автоматически (RaceIQ)",
+  "model_optimise": "Оптимизировать модель",
+  "model_texture_limit": "Предел текстур",
+  "model_original": "Оригинал",
+  "model_output": "После оптимизации",
+  "model_strip": "Только повтор: убрать материалы и детали поверхности",
+  "model_remove_parts": "Удалить детали",
+  "model_save_copy": "Сохранить копию",
   "model_library": "Модели автомобилей",
   "model_builtin": "Встроенная",
   "model_imported": "Импортированная",

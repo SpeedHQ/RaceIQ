@@ -1,6 +1,13 @@
 {
   "model_picker": "Automalli",
   "model_automatic": "Automaattinen (RaceIQ)",
+  "model_optimise": "Optimoi malli",
+  "model_texture_limit": "Tekstuuriraja",
+  "model_original": "Alkuperäinen",
+  "model_output": "Optimoitu",
+  "model_strip": "Vain toisto: poista materiaalit ja pinnan yksityiskohdat",
+  "model_remove_parts": "Poista osia",
+  "model_save_copy": "Tallenna kopio",
   "model_library": "Automallit",
   "model_builtin": "Sisäänrakennettu",
   "model_imported": "Tuotu",

@@ -1,6 +1,13 @@
 {
   "model_picker": "車両モデル",
   "model_automatic": "自動（RaceIQ 標準）",
+  "model_optimise": "モデルを最適化",
+  "model_texture_limit": "テクスチャ上限",
+  "model_original": "オリジナル",
+  "model_output": "最適化後",
+  "model_strip": "リプレイ専用：マテリアルと表面の詳細を削除",
+  "model_remove_parts": "パーツを削除",
+  "model_save_copy": "コピーを保存",
   "model_library": "車両モデル",
   "model_builtin": "標準",
   "model_imported": "インポート済み",

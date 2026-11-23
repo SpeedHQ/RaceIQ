@@ -27,7 +27,7 @@ Available track edges use the authoritative game-world coordinates supplied by t
 
 ## Car model and fit
 
-Open **Car models** in the main sidebar to browse built-in models or import a GLB without opening a game. Importing adds the model to the library; it does not assign it to a car.
+Open **Car models** in the main sidebar to browse built-in models or import a GLB without opening a game. Importing opens a side-by-side preview. RaceIQ deduplicates, prunes and applies Meshopt compression. Keep original texture resolution or set a size limit. For a smaller replay-only copy, strip materials and surface detail or remove selected parts. Compare the byte counts before choosing **Save copy**. A positive percentage means the result is larger. Cancel discards the preview. Saving does not replace the source or assign it to a car.
 
 Replay uses RaceIQ's automatic model until you choose **Car model**, select a model, and press **Use for this car**. In comparisons, choose A or B. **Import GLB…** accepts a self-contained GLB up to 64 MiB. RaceIQ optimises a local copy once; moving the downloaded file does not break the import. Imported models and assignments belong to this browser. Clearing site data removes them.
 

@@ -1,6 +1,13 @@
 {
   "model_picker": "차량 모델",
   "model_automatic": "자동 (RaceIQ 기본값)",
+  "model_optimise": "모델 최적화",
+  "model_texture_limit": "텍스처 제한",
+  "model_original": "원본",
+  "model_output": "최적화 결과",
+  "model_strip": "리플레이 전용: 재질 및 표면 세부 정보 제거",
+  "model_remove_parts": "부품 제거",
+  "model_save_copy": "사본 저장",
   "model_library": "차량 모델",
   "model_builtin": "기본 제공",
   "model_imported": "가져옴",

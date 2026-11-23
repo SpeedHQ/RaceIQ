@@ -1,6 +1,13 @@
 {
   "model_picker": "Modelo do carro",
   "model_automatic": "Automático (RaceIQ)",
+  "model_optimise": "Otimizar modelo",
+  "model_texture_limit": "Limite de textura",
+  "model_original": "Original",
+  "model_output": "Otimizado",
+  "model_strip": "Somente replay: remover materiais e detalhes da superfície",
+  "model_remove_parts": "Remover peças",
+  "model_save_copy": "Salvar cópia",
   "model_library": "Modelos de carros",
   "model_builtin": "Integrado",
   "model_imported": "Importado",

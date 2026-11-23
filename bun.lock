@@ -611,6 +611,7 @@
         "@gltf-transform/core": "4.5.0",
         "@gltf-transform/extensions": "4.5.0",
         "@gltf-transform/functions": "4.5.0",
+        "@raceiq/car-models": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "meshoptimizer": "1.2.0",
         "sharp": "^0.35.4",

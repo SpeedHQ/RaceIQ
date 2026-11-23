@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { NodeIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression, KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
-import { optimizePeugeotModel, PEUGEOT_SOURCE_SHA256 } from "../src/assets/optimize-peugeot-model";
+import { shrinkShipped, PEUGEOT_SOURCE_SHA256 } from "@raceiq/car-models/shipped";
 
 const sourcePath = resolve("assets/models/source/peugeot_9x8_evo_2024.glb");
 
@@ -24,7 +24,7 @@ describe("Peugeot 9X8 optimised derivative", () => {
     await MeshoptDecoder.ready;
     temporaryDirectory = await mkdtemp(join(tmpdir(), "raceiq-peugeot-"));
     generatedPath = join(temporaryDirectory, "peugeot_9x8_evo_2024_optimised.glb");
-    await optimizePeugeotModel(sourcePath, generatedPath);
+    await shrinkShipped('peugeot', sourcePath, generatedPath);
   });
 
   afterAll(async () => rm(temporaryDirectory, { recursive: true, force: true }));

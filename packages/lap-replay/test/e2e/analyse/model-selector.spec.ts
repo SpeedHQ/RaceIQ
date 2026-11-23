@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { MeshoptDecoder } from 'meshoptimizer';
 import { Document, NodeIO } from '@gltf-transform/core';
 import { getSeededLapMeta } from '../../../../../playwright/tests/support/seeded/laps';
 
@@ -20,16 +22,22 @@ test('preview, import, fit and reset a persistent replay model', async ({ page, 
   await open();
   await expect(picker).toHaveValue('');
   await dialog.locator('input[type=file]').setInputFiles({ name:'broken.glb', mimeType:'model/gltf-binary', buffer: Buffer.from('invalid') });
-  await expect(dialog.getByRole('alert')).toContainText('GLB');
+  const shrink = page.getByRole('dialog', {name:/Optimise model:/});
+  await expect(shrink.getByRole('alert')).toContainText('GLB');
+  await shrink.getByRole('button',{name:'Cancel'}).click();
   const doc = new Document(); doc.createBuffer(); const asset = doc.createScene();
-  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 4096; c.height = 4; return c.toDataURL().split(',')[1]!; });
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 4096; c.height = 4; const ctx = c.getContext('2d')!; ctx.fillStyle = 'red'; ctx.fillRect(0,0,2048,4); ctx.fillStyle = 'blue'; ctx.fillRect(2048,0,2048,4); return c.toDataURL().split(',')[1]!; });
   const material = doc.createMaterial('Paint').setBaseColorTexture(doc.createTexture().setImage(Buffer.from(image, 'base64')).setMimeType('image/png'));
   for (const name of ['Body','Wheel_FL']) {
     const positions = doc.createAccessor().setType('VEC3').setArray(new Float32Array([0,0,0, 3,0,0, 0,1,0]));
-    asset.addChild(doc.createNode(name).setMesh(doc.createMesh().addPrimitive(doc.createPrimitive().setAttribute('POSITION', positions).setMaterial(material))));
+    asset.addChild(doc.createNode(name).setMesh(doc.createMesh().addPrimitive(doc.createPrimitive().setAttribute('POSITION', positions).setAttribute('TEXCOORD_0',doc.createAccessor().setType('VEC2').setArray(new Float32Array([0,0,1,0,0,1]))).setMaterial(material))));
   }
-  const io = new NodeIO();
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder':MeshoptDecoder});
   await dialog.locator('input[type=file]').setInputFiles({name:'Custom coupe.glb',mimeType:'model/gltf-binary',buffer:Buffer.from(await io.writeBinary(doc))});
+  await shrink.getByLabel('Texture limit').selectOption('2048');
+  await shrink.getByRole('button',{name:'Save copy'}).click();
+  await expect(shrink).not.toBeVisible();
   await expect(picker.locator('option:checked')).toHaveText('Custom coupe');
   const id = await picker.inputValue();
   await dialog.getByText('Adjust fit', {exact:true}).click();
@@ -46,7 +54,7 @@ test('preview, import, fit and reset a persistent replay model', async ({ page, 
   await dialog.getByText('Wheel guides', {exact:true}).click(); await expect(dialog.getByLabel('Wheelbase (m)')).toHaveValue('3.1');
   const optimized = await scene.evaluate(async el => Array.from(new Uint8Array(await (await fetch(el.getAttribute('data-a-model-path')!)).arrayBuffer())));
   const result = (await io.readBinary(Uint8Array.from(optimized))).getRoot();
-  expect(result.listAccessors()).toHaveLength(1); expect(result.listTextures()[0]!.getSize()).toEqual([2048,2]);
+  expect(result.listExtensionsRequired().map(e=>e.extensionName)).toContain('EXT_meshopt_compression'); expect(result.listTextures()[0]!.getSize()).toEqual([2048,2]);
   expect(result.listNodes().map(n => n.getName())).toContain('Wheel_FL'); expect(result.listMaterials()[0]!.getName()).toBe('Paint');
   const other = await getSeededLapMeta(request, 'acc');
   const otherUrl = '/acc/sessions/' + other.sessionId + '/replay/' + other.id + '?forceWebGL=true';

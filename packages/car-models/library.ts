@@ -1,3 +1,4 @@
+import type { ShrinkOptions } from "./shrink";
 import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 
 export type Model = CarModelEnrichment & { hasModel: boolean };
@@ -83,26 +84,36 @@ export function fittedModel(base: Model, choice: Assignment | null): Model {
     halfRearTrack: choice.rearTrack === undefined ? base.halfRearTrack : choice.rearTrack / 2,
   };
 }
-export async function importModel(file: File) {
+export interface ShrinkResult {
+  blob: Blob;
+  parts: { index: number; name: string }[];
+}
+export async function previewShrink(file: File, options: ShrinkOptions, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   if (!file.name.toLowerCase().endsWith(".glb") || file.size > 64 * 1024 * 1024 || !file.size) throw new Error("Invalid GLB");
   const worker = new Worker(new URL("./optimise.worker.ts", import.meta.url), { type: "module" });
+  const result = Promise.withResolvers<ShrinkResult>();
+  const abort = () => result.reject(new DOMException("Aborted", "AbortError"));
+  signal?.addEventListener("abort", abort);
   try {
-    const result = Promise.withResolvers<Blob>();
-    worker.onmessage = (event) => (event.data instanceof Blob ? result.resolve(event.data) : result.reject(new Error("Invalid GLB")));
+    worker.onmessage = (event) => (event.data?.blob instanceof Blob ? result.resolve(event.data) : result.reject(new Error("Invalid GLB")));
     worker.onerror = result.reject;
-    worker.postMessage(file);
-    const blob = await result.promise;
-    const row = { id: Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) => n.toString(16).padStart(2, "0")).join(""), name: file.name.slice(0, -4), blob };
-    const database = await db();
-    const written = Promise.withResolvers<void>();
-    const tx = database.transaction("models", "readwrite");
-    tx.oncomplete = () => written.resolve();
-    tx.onabort = () => written.reject(tx.error);
-    tx.objectStore("models").add(row);
-    await written.promise;
-    register(row);
-    return row.id;
+    worker.postMessage({ file, options });
+    return await result.promise;
   } finally {
+    signal?.removeEventListener("abort", abort);
     worker.terminate();
   }
+}
+export async function saveModelCopy(name: string, blob: Blob) {
+  const row = { id: Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) => n.toString(16).padStart(2, "0")).join(""), name, blob };
+  const database = await db();
+  const written = Promise.withResolvers<void>();
+  const tx = database.transaction("models", "readwrite");
+  tx.oncomplete = () => written.resolve();
+  tx.onabort = () => written.reject(tx.error);
+  tx.objectStore("models").add(row);
+  await written.promise;
+  register(row);
+  return row.id;
 }

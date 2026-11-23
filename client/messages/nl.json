@@ -1,6 +1,13 @@
 {
   "model_picker": "Automodel",
   "model_automatic": "Automatisch (RaceIQ)",
+  "model_optimise": "Model optimaliseren",
+  "model_texture_limit": "Textuurlimiet",
+  "model_original": "Origineel",
+  "model_output": "Geoptimaliseerd",
+  "model_strip": "Alleen replay: materialen en oppervlaktedetails verwijderen",
+  "model_remove_parts": "Onderdelen verwijderen",
+  "model_save_copy": "Kopie opslaan",
   "model_library": "Automodellen",
   "model_builtin": "Ingebouwd",
   "model_imported": "Geïmporteerd",

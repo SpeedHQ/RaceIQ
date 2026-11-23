@@ -1,22 +1,40 @@
-import { WebIO, PropertyType } from "@gltf-transform/core";
+import { WebIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup } from "@gltf-transform/functions";
-import { MeshoptDecoder } from "meshoptimizer";
+import { shrink, type ShrinkOptions } from "./shrink";
+import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 
-self.onmessage = async ({ data: file }: MessageEvent<File>) => {
+self.onmessage = async ({ data: { file, options } }: MessageEvent<{ file: Blob; options: ShrinkOptions }>) => {
   try {
+    if (!file.size || file.size > 64 * 1024 * 1024) throw Error();
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const io = new WebIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+    const io = new WebIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder, "meshopt.encoder": MeshoptEncoder });
     const view = new DataView(bytes.buffer);
     if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2 || view.getUint32(8, true) !== bytes.length || view.getUint32(16, true) !== 0x4e4f534a) throw Error();
     const jsonLength = view.getUint32(12, true);
     if (jsonLength > 8 * 1024 * 1024 || 20 + jsonLength > bytes.length) throw Error();
     const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)));
-    if (json.buffers?.length !== 1 || json.buffers[0].uri !== undefined || json.images?.some((i: { uri?: string }) => i.uri !== undefined)) throw Error();
+    if (
+      !json.buffers?.length ||
+      json.buffers.some(
+        (b: { uri?: string; extensions?: { EXT_meshopt_compression?: { fallback?: boolean } } }, i: number) => b.uri !== undefined || (i > 0 && !b.extensions?.EXT_meshopt_compression?.fallback),
+      ) ||
+      json.images?.some((i: { uri?: string }) => i.uri !== undefined)
+    )
+      throw Error();
     const views = json.bufferViews ?? [];
     let expandedBytes = 0;
     for (const view of views) {
       if (!Number.isSafeInteger(view.byteLength) || view.byteLength < 0) throw Error();
+      const compression = view.extensions?.EXT_meshopt_compression;
+      if (
+        compression &&
+        (!Number.isSafeInteger(compression.count) ||
+          !Number.isSafeInteger(compression.byteStride) ||
+          compression.count < 0 ||
+          compression.byteStride < 1 ||
+          compression.count * compression.byteStride !== view.byteLength)
+      )
+        throw Error();
       expandedBytes += view.byteLength;
     }
     if (expandedBytes > 256 * 1024 * 1024) throw Error();
@@ -27,6 +45,7 @@ self.onmessage = async ({ data: file }: MessageEvent<File>) => {
       unpacked += accessor.count * (components[accessor.type] ?? Infinity) * 4;
     }
     if (!Number.isFinite(unpacked) || unpacked > 256 * 1024 * 1024) throw Error();
+    if ((json.extensionsUsed ?? []).some((name: string) => !ALL_EXTENSIONS.some((ext) => ext.EXTENSION_NAME === name))) throw Error();
     await MeshoptDecoder.ready;
     const doc = await io.readBinary(bytes);
     const root = doc.getRoot();
@@ -43,16 +62,26 @@ self.onmessage = async ({ data: file }: MessageEvent<File>) => {
       })
     )
       throw Error();
-    root
-      .listExtensionsUsed()
-      .find((ext) => ext.extensionName === "EXT_meshopt_compression")
-      ?.dispose();
-    await doc.transform(dedup({ propertyTypes: [PropertyType.ACCESSOR, PropertyType.MESH, PropertyType.TEXTURE] }));
+    const parts = root
+      .listNodes()
+      .map((node, index) => ({ index, name: node.getName() || node.getMesh()?.getName() || "#" + (index + 1), mesh: !!node.getMesh() }))
+      .filter((node) => node.mesh);
+    await shrink(doc, options);
+    if (
+      !root.listScenes().some((scene) => {
+        let visible = false;
+        scene.traverse((node) => {
+          visible ||= !!node.getMesh()?.listPrimitives().length;
+        });
+        return visible;
+      })
+    )
+      throw Error();
     for (const texture of root.listTextures()) {
       const size = texture.getSize();
       if (!size || size[0] * size[1] > 32 * 1024 * 1024) throw Error();
-      if (Math.max(...size) <= 2048) continue;
-      const ratio = 2048 / Math.max(...size);
+      if (!options.textureLimit || Math.max(...size) <= options.textureLimit) continue;
+      const ratio = options.textureLimit / Math.max(...size);
       const image = texture.getImage();
       if (!image) throw Error();
       const canvas = new OffscreenCanvas(Math.max(1, Math.round(size[0] * ratio)), Math.max(1, Math.round(size[1] * ratio)));
@@ -67,7 +96,7 @@ self.onmessage = async ({ data: file }: MessageEvent<File>) => {
       const blob = await canvas.convertToBlob({ type: texture.getMimeType() });
       texture.setImage(new Uint8Array(await blob.arrayBuffer())).setMimeType(blob.type);
     }
-    self.postMessage(new Blob([new Uint8Array(await io.writeBinary(doc))], { type: "model/gltf-binary" }));
+    self.postMessage({ blob: new Blob([new Uint8Array(await io.writeBinary(doc))], { type: "model/gltf-binary" }), parts });
   } catch {
     self.postMessage(null);
   }

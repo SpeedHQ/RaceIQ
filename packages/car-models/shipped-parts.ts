@@ -1,0 +1,33 @@
+export const REMOVED_GT3_NODE_NAMES = [
+  "SM_Aston_Martin_Vantage_GT3_Cockpit_Console_59",
+  "SM_Aston_Martin_Vantage_GT3_Engine_Components_62",
+  "SM_Aston_Martin_Vantage_GT3_Interior_71",
+  "SM_Aston_Martin_Vantage_GT3_Net_73",
+  "SM_Aston_Martin_Vantage_GT3_Pedals_Accelerate_74",
+  "SM_Aston_Martin_Vantage_GT3_Pedals_Brake_75",
+  "SM_Aston_Martin_Vantage_GT3_Pedals_Clutch_76",
+  "SM_Aston_Martin_Vantage_GT3_Seat_85",
+  "SM_Aston_Martin_Vantage_GT3_Seatbelt_86",
+  "SM_Aston_Martin_Vantage_GT3_Steering_Wheel_87",
+  "Object_80",
+  "Object_81",
+  "Object_82",
+  "Object_88",
+  "Object_89",
+  "Object_90",
+  "Object_137",
+] as const;
+
+export const REMOVED_NODE_PREFIXES = [
+  "COCKPIT",
+  "STEER",
+  "STEEER",
+  "INT_",
+  "__INT_",
+  "DISPLAY2",
+  "WIPER",
+  "MIRROR_C",
+  "RIM_BLUR_",
+  "GEO_RIM_SBLUR_",
+  "GEO_RIM_BLUR_",
+] as const;

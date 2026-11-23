@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { assignment, fittedModel, importModel, listModels, loadLibrary, neutralFit, saveAssignment, type Assignment, type Fit, type Model } from "./library";
+import { assignment, fittedModel, listModels, loadLibrary, neutralFit, saveAssignment, type Assignment, type Fit, type Model } from "./library";
 import { FitPreview } from "./FitPreview";
 
-export interface ModelMessages {
+import { ShrinkDialog, type ShrinkLabels } from "./ShrinkDialog";
+export interface ModelMessages extends ShrinkLabels {
   model_picker: () => string;
   model_automatic: () => string;
   model_import: () => string;
@@ -32,7 +33,8 @@ export function ModelSelector({ game, car, automatic, m, onApply, onClose }: { g
   const [draft, setDraft] = useState<Assignment | null>(saved);
   const [entries, setEntries] = useState(listModels);
   const [view, setView] = useState<"top" | "side" | "front">("top");
-  const [busy, setBusy] = useState(false);
+  const [file, setFile] = useState<File>();
+  const busy = !!file;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
@@ -65,7 +67,7 @@ export function ModelSelector({ game, car, automatic, m, onApply, onClose }: { g
   return (
     <dialog
       ref={dialog}
-      onCancel={onClose}
+      onCancel={e => {if (e.target === e.currentTarget) onClose();}}
       aria-label={m.model_picker()}
       className="fixed inset-0 m-auto max-h-[90dvh] w-[min(30rem,95vw)] overflow-auto rounded border border-app-border bg-app-surface p-4 text-app-text backdrop:bg-black/50"
     >
@@ -111,22 +113,7 @@ export function ModelSelector({ game, car, automatic, m, onApply, onClose }: { g
           ref={input}
           type="file"
           accept=".glb"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            setBusy(true);
-            setError("");
-            try {
-              const id = await importModel(file);
-              setEntries(listModels());
-              setDraft({ id, fit: neutralFit });
-            } catch {
-              setError(m.model_file_error());
-            } finally {
-              setBusy(false);
-            }
-          }}
+          onChange={(e) => {setFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; setError('');}}
         />
         <FitPreview key={model.modelPath} model={model} view={view} label={m.model_fit()} errorLabel={m.spectate_model_unavailable()} onReady={setReady} />
         <div className="flex gap-1">
@@ -186,6 +173,7 @@ export function ModelSelector({ game, car, automatic, m, onApply, onClose }: { g
           </button>
         </div>
       </form>
+      {file && <ShrinkDialog file={file} copyName={file.name.replace(/\.glb$/i,'')} m={m} close={() => setFile(undefined)} saved={id => {setEntries(listModels()); setDraft({id, fit:neutralFit}); setFile(undefined);}}/>}
     </dialog>
   );
 }

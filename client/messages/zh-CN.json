@@ -1,6 +1,13 @@
 {
   "model_picker": "车辆模型",
   "model_automatic": "自动（RaceIQ 默认）",
+  "model_optimise": "优化模型",
+  "model_texture_limit": "纹理尺寸上限",
+  "model_original": "原始模型",
+  "model_output": "优化后",
+  "model_strip": "仅回放：移除材质和表面细节",
+  "model_remove_parts": "移除部件",
+  "model_save_copy": "保存副本",
   "model_library": "车辆模型",
   "model_builtin": "内置",
   "model_imported": "已导入",
