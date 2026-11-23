@@ -25,8 +25,7 @@ does not depend on an externally installed Bun at runtime.
 ## Runtime contract
 
 Rust starts only the bundled backend with `RACEIQ_DESKTOP=1`, an absolute
-`DATA_DIR` and `SERVER_PORT=0`. The OS allocates an unused HTTP port; desktop
-mode never clears an occupied port. Saved dashboard listener settings remain
+`DATA_DIR` and a concrete HTTP port. By default the host asks the OS for an unused port. A nonzero `SERVER_PORT` overrides that default and must be available. Saved dashboard listener settings remain
 active for other devices, with loopback added for the native window. A standalone JSON
 stdout record `{type:"raceiq-ready",protocolVersion:1,url,udpPort,udpListening}`
 announces readiness after initialization. Rust validates the loopback URL before
@@ -44,9 +43,7 @@ Default data: existing `~/RaceIQ` when it contains `app.db`; otherwise the
 platform app data directory. For isolated testing, set
 `RACEIQ_DESKTOP_DATA_DIR` to an absolute directory before launching. The shell
 preserves saved dashboard network listeners and origin rules, and adds local
-loopback access for its own window. It refuses startup when the configured
-server port is already occupied so it cannot start a second backend beside an
-existing server.
+loopback access for its own window. If an explicit `SERVER_PORT` is occupied, startup reports the port conflict.
 
 ## Verification
 

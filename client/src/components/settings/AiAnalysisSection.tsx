@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import type { AiAnalysisState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
 import { defaultModelForProvider } from "./recommended-model";
+import { OpenAiReasoningLevel } from "./OpenAiReasoningLevel";
 
 export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
   const {
@@ -70,6 +71,10 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
               models={models}
             />
           </div>
+        )}
+        {provider === "openai" && (
+          <OpenAiReasoningLevel id="ai-analysis-reasoning"
+            value={state.reasoningLevel} onChange={state.setReasoningLevel} />
         )}
         {provider === "gemini" && canShowModelPicker && modelSupportsThinking && (
           <div>
