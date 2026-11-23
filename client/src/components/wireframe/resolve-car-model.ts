@@ -1,3 +1,4 @@
+import { assignment, fittedModel } from '@raceiq/car-models';
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 import { DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel } from "../../data/car-models";
@@ -12,7 +13,7 @@ export function resolveCarModel(
   carId: string | undefined,
   options?: { lmuCarClass?: string; carModel?: CarModelEnrichment & { hasModel: boolean } },
 ): CarModelEnrichment & { hasModel: boolean } {
-  return resolveCarModelSelection(gameId, carId, options).model;
+  return fittedModel(resolveCarModelSelection(gameId, carId, options).model, assignment(gameId, carId));
 }
 
 /** Exposes fallback identity so Spectate can label generic geometry truthfully. */

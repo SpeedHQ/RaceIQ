@@ -134,6 +134,7 @@
         "@fontsource-variable/geist": "^5.3.0",
         "@inlang/paraglide-js": "^2.25.4",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/car-models": "workspace:*",
         "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
@@ -234,6 +235,22 @@
       "dependencies": {
         "@raceiq/capture-formats": "workspace:*",
         "effect": "4.0.4",
+      },
+    },
+    "packages/car-models": {
+      "name": "@raceiq/car-models",
+      "dependencies": {
+        "@gltf-transform/core": "4.5.0",
+        "@gltf-transform/extensions": "4.5.0",
+        "@gltf-transform/functions": "4.5.0",
+        "@raceiq/scene-3d": "workspace:*",
+        "meshoptimizer": "1.2.0",
+        "react": "^19.3.0",
+        "three": "^0.185.1",
+      },
+      "devDependencies": {
+        "@types/react": "^19.3.0",
+        "@types/three": "^0.185.4",
       },
     },
     "packages/cars-catalogue": {
@@ -462,6 +479,7 @@
         "@hono/zod-validator": "0.9.1",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/car-models": "workspace:*",
         "@raceiq/scene-3d": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
@@ -1425,6 +1443,8 @@
     "@raceiq/capture-formats": ["@raceiq/capture-formats@workspace:packages/capture-formats"],
 
     "@raceiq/capture-splitting": ["@raceiq/capture-splitting@workspace:packages/capture-splitting"],
+
+    "@raceiq/car-models": ["@raceiq/car-models@workspace:packages/car-models"],
 
     "@raceiq/cars-catalogue": ["@raceiq/cars-catalogue@workspace:packages/cars-catalogue"],
 

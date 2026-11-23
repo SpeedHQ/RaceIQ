@@ -1,4 +1,6 @@
-export interface ReplayMessages {
+import type { ModelMessages } from '@raceiq/car-models/selector';
+
+export interface ReplayMessages extends ModelMessages {
   common_close: () => string;
   analyse_dynamics_traction: () => string;
   dataguide_desc_balance: () => string;

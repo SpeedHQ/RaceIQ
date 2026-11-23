@@ -25,6 +25,16 @@ When the replay contract omits vertical position, the scene uses a flat plane; i
 
 Available track edges use the authoritative game-world coordinates supplied by the track geometry API, with the same axis conversion as recorded telemetry. Spectate does not refit native track geometry to either car's racing line, so taking a tighter line or driving off-track cannot move or resize the circuit. LMU's native outline is also preserved when track limits are unavailable. Unregistered geometry still requires a validated coordinate transform. Missing track edges are not replaced with invented boundaries.
 
+## Car model and fit
+
+Open **Car models** in the main sidebar to browse built-in models or import a GLB without opening a game. Importing adds the model to the library; it does not assign it to a car.
+
+Replay uses RaceIQ's automatic model until you choose **Car model**, select a model, and press **Use for this car**. In comparisons, choose A or B. **Import GLB…** accepts a self-contained GLB up to 64 MiB. RaceIQ optimises a local copy once; moving the downloaded file does not break the import. Imported models and assignments belong to this browser. Clearing site data removes them.
+
+Use **Adjust fit** to align the body to the four virtual tires. Each tire follows its wheel-centre guide, independently of the body. The arrow points forward (+X); +Y is up and +Z is right. Compare the top, side, and front views while rotating, scaling, or moving the body. Under **Wheel guides**, enter full centre-to-centre distances in metres. Leave a dimension empty to use RaceIQ's value. These controls change the visualisation, not the recording.
+
+The same file can serve several cars with different fits. Cancelling a preview leaves the current assignment unchanged. Select **Automatic (RaceIQ default)** and apply to remove only this car's override. Recordings without a car ID support preview only.
+
 ## Focus modes
 
 The separate vertical **Focus** toolbar on the right side of the scene changes the meaning of both cars' lines in the scene and circuit overview. Its icon buttons match the compact left-side toolbar; hover a button for its mode label. It does not change replay timing, alignment, or the recorded telemetry.

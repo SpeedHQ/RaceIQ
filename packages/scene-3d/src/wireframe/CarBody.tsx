@@ -30,6 +30,7 @@ export function canonicalModelYawAlignment(modelPath: string): number {
 
 export interface CarBodyInstance {
   root: THREE.Group;
+  setFit(fit: CarModelEnrichment['bodyFit']): void;
   select(mesh: THREE.Mesh): void;
   dispose(): void;
 }
@@ -72,7 +73,7 @@ export async function createCarBody(
   clone.traverse((child) => {
     if (!(child as THREE.Mesh).isMesh) return;
     const mesh = child as THREE.Mesh;
-    const action = classifyMesh(mesh.name, solid, hideModelWheels, carModel.solidHiddenMeshes);
+    const action = carModel.importedBody ? solid === "hidden" ? "remove" : solid : classifyMesh(mesh.name, solid, hideModelWheels, carModel.solidHiddenMeshes);
     const meshNumber = parseInt(mesh.name.replace(/\D/g, ""), 10);
     if (action === "remove" && options.preserveNativeWheels && (customWheelMeshes?.length ? customWheelMeshes.includes(meshNumber) : DEFAULT_HIDDEN_MESHES.has(meshNumber))) {
       retainedNativeWheelMeshes++;
@@ -88,7 +89,12 @@ export async function createCarBody(
             return clone;
           })();
     } else if (action === "remove") toRemove.push(mesh);
-    else if (replacement) mesh.material = replacement;
+    else if (carModel.importedBody && solid === 'solid') {
+      const original = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const materials = original.map(material => material.clone());
+      ownedMaterials.push(...materials);
+      mesh.material = Array.isArray(mesh.material) ? materials : materials[0]!;
+    } else if (replacement) mesh.material = replacement;
   });
   for (const object of toRemove) object.parent?.remove(object);
 
@@ -104,12 +110,22 @@ export async function createCarBody(
   if (yawAlignment === 0) offset.x += modelOffsetX;
   const root = new THREE.Group();
   root.userData.nativeWheelMeshCount = retainedNativeWheelMeshes;
-  root.rotation.y = yawAlignment;
+  const calibration = new THREE.Group();
+  const aligned = new THREE.Group();
+  aligned.rotation.y = yawAlignment;
+  root.add(calibration);
+  calibration.add(aligned);
+  function setFit(fit: CarModelEnrichment['bodyFit']) {
+    calibration.position.set(fit?.x ?? 0, fit?.y ?? 0, fit?.z ?? 0);
+    calibration.rotation.set(THREE.MathUtils.degToRad(fit?.roll ?? 0), THREE.MathUtils.degToRad(fit?.yaw ?? 0), THREE.MathUtils.degToRad(fit?.pitch ?? 0), 'YXZ');
+    calibration.scale.setScalar(fit?.scale ?? 1);
+  }
+  setFit(carModel.bodyFit);
   const scaled = new THREE.Group();
   scaled.scale.setScalar(scale);
   scaled.position.set(offset.x, offset.y + 0.25 + (carModel.glbOffsetY ?? 0), offset.z + (carModel.glbOffsetZ ?? 0));
   scaled.add(clone);
-  root.add(scaled);
+  aligned.add(scaled);
 
   let selected: string | null = null;
   let highlighted: THREE.Mesh[] = [];
@@ -126,6 +142,7 @@ export async function createCarBody(
   }
   return {
     root,
+    setFit,
     select(mesh) {
       if (!mesh.isMesh) return;
       const num = parseInt(mesh.name.replace(/\D/g, ""), 10);

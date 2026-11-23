@@ -128,6 +128,7 @@ export default defineConfig(({ command }) => {
   return {
     envDir: path.resolve(import.meta.dirname, ".."),
     envPrefix: ["VITE_", "RACEIQ_"],
+    optimizeDeps: { include: ["@raceiq/car-models > @gltf-transform/core", "@raceiq/car-models > @gltf-transform/extensions", "@raceiq/car-models > @gltf-transform/functions"] },
     plugins: [
       dashboardPortPlugin(),
       paraglideFullReloadPlugin(),

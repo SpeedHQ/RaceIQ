@@ -66,6 +66,7 @@
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
+    "@raceiq/car-models": "workspace:*",
     "@raceiq/lap-replay": "workspace:*",
     "@raceiq/sessions-page": "workspace:*",
     "@raceiq/session-analyse": "workspace:*",

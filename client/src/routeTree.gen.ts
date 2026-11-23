@@ -14,6 +14,7 @@ import { Route as GameidRouteImport } from './routes/$gameid'
 import { Route as AcEvoRouteImport } from './routes/ac-evo'
 import { Route as AccRouteImport } from './routes/acc'
 import { Route as Ams2RouteImport } from './routes/ams2'
+import { Route as CarModelsRouteImport } from './routes/car-models'
 import { Route as DevRouteImport } from './routes/dev'
 import { Route as F125RouteImport } from './routes/f125'
 import { Route as Fm23RouteImport } from './routes/fm23'
@@ -97,6 +98,11 @@ const AccRoute = AccRouteImport.update({
 const Ams2Route = Ams2RouteImport.update({
   id: '/ams2',
   path: '/ams2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarModelsRoute = CarModelsRouteImport.update({
+  id: '/car-models',
+  path: '/car-models',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevRoute = DevRouteImport.update({
@@ -406,6 +412,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
   '/ams2': typeof Ams2RouteWithChildren
+  '/car-models': typeof CarModelsRoute
   '/dev': typeof DevRoute
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
@@ -469,6 +476,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
+  '/car-models': typeof CarModelsRoute
   '/dev': typeof DevRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -523,6 +531,7 @@ export interface FileRoutesById {
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
   '/ams2': typeof Ams2RouteWithChildren
+  '/car-models': typeof CarModelsRoute
   '/dev': typeof DevRoute
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
@@ -591,6 +600,7 @@ export interface FileRouteTypes {
     | '/ac-evo'
     | '/acc'
     | '/ams2'
+    | '/car-models'
     | '/dev'
     | '/f125'
     | '/fm23'
@@ -654,6 +664,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$gameid'
+    | '/car-models'
     | '/dev'
     | '/login'
     | '/onboarding'
@@ -707,6 +718,7 @@ export interface FileRouteTypes {
     | '/ac-evo'
     | '/acc'
     | '/ams2'
+    | '/car-models'
     | '/dev'
     | '/f125'
     | '/fm23'
@@ -774,6 +786,7 @@ export interface RootRouteChildren {
   AcEvoRoute: typeof AcEvoRouteWithChildren
   AccRoute: typeof AccRouteWithChildren
   Ams2Route: typeof Ams2RouteWithChildren
+  CarModelsRoute: typeof CarModelsRoute
   DevRoute: typeof DevRoute
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
@@ -823,6 +836,13 @@ declare module '@tanstack/react-router' {
       path: '/ams2'
       fullPath: '/ams2'
       preLoaderRoute: typeof Ams2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/car-models': {
+      id: '/car-models'
+      path: '/car-models'
+      fullPath: '/car-models'
+      preLoaderRoute: typeof CarModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dev': {
@@ -1496,6 +1516,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcEvoRoute: AcEvoRouteWithChildren,
   AccRoute: AccRouteWithChildren,
   Ams2Route: Ams2RouteWithChildren,
+  CarModelsRoute: CarModelsRoute,
   DevRoute: DevRoute,
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,

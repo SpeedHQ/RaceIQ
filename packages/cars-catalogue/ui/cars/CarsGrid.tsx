@@ -13,7 +13,8 @@ type CarsGridProps = {
 } & Formatters;
 
 export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onModel, fmtSpeed, fmtBrake, fmtWeight }: CarsGridProps) {
-  const { PiBadge, Button, getCarModel, m } = useCarsCatalogueHost();
+  const { PiBadge, Button, getCarModel, useRequiredGameId, m } = useCarsCatalogueHost();
+  const gameId = useRequiredGameId();
   if (cars.length === 0) return <div className="text-center py-12 text-app-text/90 text-sm">{m.cars_no_match()}</div>;
 
   return (
@@ -51,7 +52,7 @@ export function CarsGrid({ cars, selected, configsReady, onSelect, onDetail, onM
               ) : (
                 <div className="text-xs text-app-text/90">{m.cars_no_image()}</div>
               )}
-              {configsReady && getCarModel(car.id).hasModel && (
+              {configsReady && getCarModel(car.id, gameId).hasModel && (
                 <Button
                   variant="app-primary"
                   size="app-sm"

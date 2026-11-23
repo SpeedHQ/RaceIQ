@@ -1,4 +1,6 @@
 export interface CarModelEnrichment {
+  importedBody?: boolean;
+  bodyFit?: { roll: number; yaw: number; pitch: number; scale: number; x: number; y: number; z: number };
   modelPath: string;
   halfWheelbase: number;
   halfFrontTrack: number;

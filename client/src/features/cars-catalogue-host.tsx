@@ -1,3 +1,4 @@
+import { fittedModel, assignment } from '@raceiq/car-models';
 import type { ReactNode } from "react";
 import { CarsCatalogueProvider } from "@raceiq/cars-catalogue/ui";
 import type { Car, CarsCatalogueHost, IRacingCatalogueCar, LMUCatalogueCar } from "@raceiq/cars-catalogue/contracts";
@@ -23,7 +24,7 @@ const host = {
   useRequiredGameId,
   useUnits,
   loadCarModelConfigs,
-  getCarModel,
+  getCarModel: (id, gameId) => fittedModel(getCarModel(id), assignment(gameId, id)),
   async loadCars(gameId) {
     const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
     if (!response.ok) throw await errorFromResponse(response);
