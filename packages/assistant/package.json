@@ -3,6 +3,12 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./ai/chatgpt-chat-pricing": "./src/ai/chatgpt-chat-pricing.ts",
+    "./ai/chatgpt-subscription-adapter": "./src/ai/chatgpt-subscription-adapter.ts",
+    "./ai/chatgpt-subscription-catalog": "./src/ai/chatgpt-subscription-catalog.ts",
+    "./ai/chatgpt-subscription-model": "./src/ai/chatgpt-subscription-model.ts",
+    "./ai/codex-usage": "./src/ai/codex-usage.ts",
+    "./ai/stream-mastra-generation": "./src/ai/stream-mastra-generation.ts",
     "./ai/ai-runtime": "./src/ai/ai-runtime.ts",
     "./ai/model-provider": "./src/ai/model-provider.ts",
     "./ai/provider-adapters": "./src/ai/provider-adapters.ts",

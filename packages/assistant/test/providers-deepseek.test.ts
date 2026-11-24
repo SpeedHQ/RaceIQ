@@ -43,7 +43,7 @@ describe("provider dispatch", () => {
   test("exposes a label and environment mapping for every registered provider", () => {
     for (const [id, provider] of Object.entries(AI_PROVIDERS)) {
       expect(provider.label).toBeTruthy();
-      expect(id === "openai-compatible" ? provider.environmentKey === null : Boolean(provider.environmentKey)).toBe(true);
+      expect(id === "openai-compatible" || id === "chatgpt-subscription" ? provider.environmentKey === null : Boolean(provider.environmentKey)).toBe(true);
     }
   });
 });

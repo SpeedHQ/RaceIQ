@@ -15,6 +15,7 @@ import { getLapInsightsToolFor } from "@raceiq/assistant/mastra/tools/lap-insigh
 import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import { tuneChatRoutes } from "../../../src/routes/tune-chat-routes";
 import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
+import * as providerKeys from "@raceiq/assistant/ai/openai-compatible-provider";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -250,6 +251,76 @@ describe("lap chat route context and targeted removal", () => {
     expect(JSON.stringify(turns[0].messages)).toContain("follow up");
     expect(JSON.stringify(turns[1].messages)).toContain("follow up");
 
+  });
+
+  test.each([
+    ["gpt-6-sol", "medium", "medium", null],
+    ["gpt-6-sol", "max", "max", null],
+    ["gpt-6-sol", "none", "none", null],
+    ["gpt-6-sol", "none", "none", "upstream"],
+    ["gpt-6.2-sol", "none", undefined, "sdk"],
+  ] as const)("streams OpenAI Responses on %s with %s reasoning (%s on wire, %s rejection)", async (model, level, reasoning, rejection) => {
+    const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
+    const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model,
+      chatReasoningLevel: level, aiReasoningLevel: "low" } as const;
+    const settingsSpy = spyOn(settingsModule, "loadSettings").mockReturnValue(settings);
+    const keySpy = spyOn(providerKeys, "getAiProviderApiKey").mockResolvedValue("test-key");
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (rejection === "upstream") {
+        return Response.json({ error: { message: "Unsupported value: none", param: "reasoning.effort" } }, { status: 400 });
+      }
+      const item = { id: "msg_1", type: "message", role: "assistant", status: "completed",
+        content: [{ type: "output_text", text: "OpenAI lap reply", annotations: [] }] };
+      const response = { id: "resp_1", object: "response", status: "completed", created_at: 1,
+        model, output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+      const events = [
+        { type: "response.created", response: { ...response, status: "in_progress", output: [] } },
+        { type: "response.output_item.added", output_index: 0, item: { ...item, status: "in_progress", content: [] } },
+        { type: "response.output_text.delta", output_index: 0, item_id: item.id, content_index: 0, delta: "OpenAI lap reply" },
+        { type: "response.output_item.done", output_index: 0, item },
+        { type: "response.completed", response },
+      ];
+      return new Response(events.map((event, sequence_number) =>
+        `event: ${event.type}\ndata: ${JSON.stringify({ ...event, sequence_number })}\n\n`).join(""),
+      { headers: { "Content-Type": "text/event-stream" } });
+    }) as typeof fetch);
+
+    try {
+      const app = createChatRoutes({
+        getLapById: async () => lap(fixture) as never,
+        loadSettings: () => settings,
+        configureAiProviderEnvironment: async () => "test-key",
+      });
+      const response = await app.request(`/api/laps/${fixture.id}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ id: "openai-turn", role: "user", parts: [{ type: "text", text: "Hello" }] }] }),
+      });
+      expect(response.status).toBe(200);
+      const body = await response.text();
+      if (rejection) {
+        expect(body).toContain("Choose another Reasoning level in Settings and retry.");
+        expect(body).not.toContain("OpenAI lap reply");
+      } else {
+        expect(body).toContain("OpenAI lap reply");
+      }
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect(String(url)).toBe("https://api.openai.com/v1/responses");
+      const request = JSON.parse(String(init?.body));
+      expect(request).toMatchObject({
+        model,
+        stream: true,
+        store: false,
+        tools: expect.arrayContaining([expect.objectContaining({ type: "function", name: "get_track_guide" })]),
+      });
+      if (reasoning) expect(request.reasoning).toMatchObject({ effort: reasoning });
+      else expect(request).not.toHaveProperty("reasoning");
+    } finally {
+      fetchSpy.mockRestore();
+      keySpy.mockRestore();
+      settingsSpy.mockRestore();
+    }
   });
 
   test("excludes mismatched and unreadable linked setups without losing lap or analysis context", async () => {

@@ -7,6 +7,9 @@ import { Hono, type TypedResponse } from "hono";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
+import { chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
@@ -32,6 +35,8 @@ import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-comp
 import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/assistant/ai/chat-message-context";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
 
 const ChatMessageParamsSchema = IdParamSchema.extend({
   messageId: z.string().min(1).max(256).regex(/^\S+$/),
@@ -184,6 +189,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
     const turnStartedAt = Date.now();
     try {
       const requestContext = new RequestContext();
+      const subscriptionUsage: (ChatGptRequestUsage | null)[] | undefined = chatProvider === "chatgpt-subscription" ? [] : undefined;
+      if (subscriptionUsage) createModelContext(await resolveAi("chat", settings, undefined, (usage) => subscriptionUsage.push(usage)), requestContext);
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       requestContext.set(CHAT_TURN_MESSAGES_KEY, messages);
       const stream = await agent.stream(
@@ -192,7 +199,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: "medium" },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },
@@ -204,6 +211,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
         memory: memoryProvider(),
         threadId,
         turnStartedAt,
+        subscriptionUsage,
         diagnostic: {
           provider: chatProvider,
           model: chatModelLabel,
@@ -214,7 +222,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       });
     } catch (err: unknown) {
       console.error("[Chat] Stream failed:", err instanceof Error ? err.message : "Unknown provider error");
-      return c.json({ error: "Chat request failed. Check provider settings and retry." }, 500);
+      const recovery = chatProvider === "chatgpt-subscription" ? chatGptRecoveryMessage(err) : null;
+      return c.json({ error: recovery ?? "Chat request failed. Check provider settings and retry." }, recovery ? 409 : 500);
     }
   })
 

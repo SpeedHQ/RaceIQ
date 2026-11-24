@@ -21,6 +21,19 @@ export function contextWindowFor(provider: string, model: string, localContext?:
       // 4o / 4o-mini / 4.1 family are 128k.
       if (m.includes("gpt-3.5")) return 16_000;
       return 128_000;
+    case "chatgpt-subscription":
+      switch (m) {
+        case "gpt-6.2-astra":
+        case "gpt-6.2-sol":
+        case "gpt-6.1-sol":
+        case "gpt-6.1-terra":
+        case "gpt-6-astra":
+        case "gpt-6-sol":
+        case "gpt-6-luna":
+          return 922_000;
+        default:
+          return undefined;
+      }
     case "claude-cli":
     case "anthropic":
       return 200_000;

@@ -1,3 +1,4 @@
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { setupContextForLap, type LinkedLapTuneSetup } from "@raceiq/assistant/ai/lap-setup-context";
@@ -75,7 +76,7 @@ async function getRuntimeContextLength(endpoint: string, model: string): Promise
   return result.models.find((candidate) => candidate.id === model)?.contextLength;
 }
 
-export function createGenerateLapAnalysis(resolveLapCorners: ResolveLapCorners, generateDefault: AgentGenerate) {
+export function createGenerateLapAnalysis(resolveLapCorners: ResolveLapCorners, generateDefault: AgentGenerate, streamSubscription: AgentGenerate) {
 return async function generateLapAnalysis(
   lapId: number,
   options: {
@@ -280,7 +281,7 @@ return async function generateLapAnalysis(
       },
       providerOptions: {
         openai: ai.provider === "anthropic" ? {} : {
-          reasoningEffort: ai.provider === "openai-compatible" ? "none" : "medium",
+          reasoningEffort: ai.provider === "openai-compatible" ? "none" : openAiReasoningEffort(ai.provider, settings.aiReasoningLevel),
         },
         google: buildGoogleThinkingProviderOptions(
           model,
@@ -290,7 +291,7 @@ return async function generateLapAnalysis(
     };
     const generate =
       deps.generate ??
-      generateDefault;
+      (ai.provider === "chatgpt-subscription" ? streamSubscription : generateDefault);
     const runStructured = deps.runAiStructured ?? runAiStructured;
     const result = await runStructured(ai, input, (requestContext) =>
       generate(prompt, { ...generationOptions, requestContext }),

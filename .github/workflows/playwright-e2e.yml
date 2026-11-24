@@ -17,7 +17,7 @@ on:
         required: false
         type: string
       runner-labels:
-        description: "JSON list of runner labels for seed and E2E jobs"
+        description: "JSON list of runner labels for the seed job and E2E matrix"
         required: false
         type: string
         default: '["mars-ubuntu-2vcpu-6g", "mars-retry-3"]'
@@ -26,15 +26,39 @@ on:
         required: false
         type: boolean
         default: true
+      verification-plan:
+        description: Validated browser matrix and prerequisites. Omit for full verification.
+        type: string
+        default: ""
 
 jobs:
-  seed-database:
-    name: Seed database
-    runs-on: ${{ fromJSON(inputs.runner-labels)[0] }}
+  prepare:
+    name: Select full browser inventory
+    if: inputs.verification-plan == ''
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ toJSON(fromJSON(steps.select.outputs.plan).browser) }}
+      head: ${{ fromJSON(steps.select.outputs.plan).head }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target-ref || github.ref }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - id: select
+        run: bun scripts/ci/affected-verification.ts --mode full
+
+  seed-database:
+    name: Seed database
+    needs: prepare
+    if: ${{ !cancelled() && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (contains(fromJSON(inputs.verification-plan || needs.prepare.outputs.plan).matrix.*.serverSet, 'seeded') || (inputs.hardware-webgpu && fromJSON(inputs.verification-plan || needs.prepare.outputs.plan).nativeWebgpu)) }}
+    runs-on: ${{ fromJSON(inputs.runner-labels)[0] }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.head || inputs.target-ref }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -61,75 +85,92 @@ jobs:
 
   playwright:
     name: E2E matrix
-    needs: seed-database
+    needs: [prepare, seed-database]
+    if: ${{ !cancelled() && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && toJSON(fromJSON(inputs.verification-plan || needs.prepare.outputs.plan).matrix) != '[]' }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: fresh
-            server_set: fresh
-            projects: --project=fresh-install
-          - name: tunes
-            server_set: tunes
-            projects: --project=tunes
-          - name: tunes-unseeded
-            server_set: tunes-unseeded
-            projects: --project=tunes-unseeded
-          - name: seeded-shard-1
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 1/7
-          - name: seeded-shard-2
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 2/7
-          - name: seeded-shard-3
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 3/7
-          - name: seeded-shard-4
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 4/7
-          - name: seeded-shard-5
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 5/7
-          - name: seeded-shard-6
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 6/7
-          - name: seeded-shard-7
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=tracks-catalogue --project=cars-catalogue --project=lap-replay --project=sessions-page --project=session-analyse
-            shard: 7/7
+        include: ${{ fromJSON(inputs.verification-plan || needs.prepare.outputs.plan).matrix }}
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
-      server-set: ${{ matrix.server_set }}
-      projects: ${{ matrix.projects }}
+      server-set: ${{ matrix.serverSet }}
+      projects: ${{ format('--project={0}', join(matrix.projects, ' --project=')) }}
       shard: ${{ matrix.shard }}
       runs-on: ${{ inputs.runner-labels }}
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
-      target-ref: ${{ inputs.target-ref }}
-      seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
+      target-ref: ${{ needs.prepare.outputs.head || inputs.target-ref }}
+      seed-database-artifact: ${{ matrix.serverSet == 'seeded' && 'playwright-seeded-database' || '' }}
+      seed-ready: ${{ matrix.serverSet != 'seeded' || needs.seed-database.result == 'success' }}
+      verification-receipt: ${{ matrix.name }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
       dist-artifact: ${{ inputs.dist-artifact }}
 
   playwright-webgpu:
     name: WebGPU (software allowed; hardware not guaranteed)
-    if: inputs.hardware-webgpu
-    needs: seed-database
+    needs: [prepare, seed-database]
+    if: ${{ !cancelled() && needs.seed-database.result == 'success' && inputs.hardware-webgpu && fromJSON(inputs.verification-plan || needs.prepare.outputs.plan).nativeWebgpu }}
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
       server-set: seeded
       projects: --project=lap-replay-webgpu
-      runs-on: ${{ inputs.runner-labels }}
+      runs-on: '["mars-macos-2vcpu-6g"]'
       artifact-name: playwright-lap-replay-webgpu
       diagnostic-artifact-name: server-diagnostics-lap-replay-webgpu
-      target-ref: ${{ inputs.target-ref }}
+      target-ref: ${{ needs.prepare.outputs.head || inputs.target-ref }}
       seed-database-artifact: playwright-seeded-database
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
-      dist-artifact: ${{ inputs.dist-artifact }}
+
+  browser-results:
+    name: Browser verification results
+    if: always()
+    needs: [prepare, seed-database, playwright, playwright-webgpu]
+    runs-on:
+      - mars-ubuntu-1vcpu-1g
+      - mars-retry-3
+    timeout-minutes: 5
+    steps:
+      - name: Reject cancelled workflow
+        if: cancelled()
+        run: exit 1
+      - name: Download completed browser row receipts
+        if: ${{ !cancelled() && needs.playwright.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          pattern: verification-browser-*
+          path: ${{ runner.temp }}/browser-receipts
+          merge-multiple: true
+      - name: Verify selected browser jobs
+        if: ${{ !cancelled() }}
+        uses: actions/github-script@v9
+        env:
+          PLAN: ${{ inputs.verification-plan || needs.prepare.outputs.plan }}
+          PREPARE: ${{ needs.prepare.result }}
+          STANDALONE: ${{ inputs.verification-plan == '' }}
+          SEED: ${{ needs.seed-database.result }}
+          MATRIX: ${{ needs.playwright.result }}
+          WEBGPU: ${{ needs.playwright-webgpu.result }}
+          ENABLE_WEBGPU: ${{ inputs.hardware-webgpu }}
+          RECEIPTS: ${{ runner.temp }}/browser-receipts
+        with:
+          script: |
+            if (process.env.PREPARE !== (process.env.STANDALONE === "true" ? "success" : "skipped")) {
+              throw new Error("Browser planning did not complete as expected");
+            }
+            const { matrix, seedDatabase, nativeWebgpu } = JSON.parse(process.env.PLAN);
+            if (!Array.isArray(matrix) || typeof nativeWebgpu !== "boolean" ||
+                seedDatabase !== (nativeWebgpu || matrix.some(row => row.serverSet === "seeded"))) throw new Error("Invalid browser plan");
+            const webgpu = nativeWebgpu && process.env.ENABLE_WEBGPU === "true";
+            const expected = { MATRIX: matrix.length > 0, SEED: webgpu || matrix.some(row => row.serverSet === "seeded"), WEBGPU: webgpu };
+            for (const [job, selected] of Object.entries(expected)) {
+              if (process.env[job] !== (selected ? "success" : "skipped")) throw new Error(`${job}: unexpected ${process.env[job]}`);
+            }
+            const { readFileSync } = require("node:fs");
+            const { join } = require("node:path");
+            for (const { name } of matrix) {
+              if (!/^[a-z0-9-]+$/.test(name) || readFileSync(join(process.env.RECEIPTS, `${name}.txt`), "utf8") !== name) {
+                throw new Error(`Missing successful browser row: ${name}`);
+              }
+            }

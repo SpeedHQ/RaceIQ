@@ -10,6 +10,7 @@ export async function getAiProviderApiKey(provider: ConfiguredAiProvider): Promi
   if (!isSupportedAiProvider(provider)) {
     throw new AiProviderError(`Unsupported AI provider: ${provider}`, { code: "unsupported-provider", provider });
   }
+  if (provider === "chatgpt-subscription") return undefined;
   const key = await getSecret(`${provider}-api-key`);
   return key || undefined;
 }
@@ -28,6 +29,7 @@ export async function configureAiProviderEnvironment(
   provider: ConfiguredAiProvider,
   _localEndpoint = "http://localhost:1234/v1",
 ): Promise<string | undefined> {
+  if (provider === "chatgpt-subscription") return undefined;
   const apiKey = await getAiProviderApiKey(provider);
   if (provider !== "openai-compatible" && !apiKey) {
     throw new AiProviderError(`${AI_PROVIDERS[provider].label} API key not set. Configure it in Settings.`, {

@@ -1,3 +1,5 @@
+import { resolveAi } from "./ai-runtime";
+import { createModelContext } from "./model-provider";
 /**
  * consultLapAnalystForSession — let the Setup Engineer delegate deep, corner-by
  * corner lap analysis to the Lap Analyst agent.
@@ -30,7 +32,7 @@ export function createConsultLapAnalystForSession(deps: {
   resolveLapCorners: (track: string | null | undefined, game: string | null | undefined, telemetry: TelemetryPacket[], options: { segments: readonly NamedSegment[] }) => Promise<Corner[]>;
   resolveLapSegments: (track: string | null | undefined, game: string | null | undefined) => Promise<NamedSegment[]>;
   loadRepresentativeLap: (sessionId: number, opts?: { lapIds?: readonly number[] }) => Promise<(LapMeta & { telemetry: TelemetryPacket[] }) | null>;
-  generate: (prompt: string, options: { maxSteps: number; activeTools?: never[]; modelSettings: { maxOutputTokens: number; temperature: number } }) => Promise<{ text?: string }>;
+  generate: (prompt: string, options: { requestContext?: ReturnType<typeof createModelContext>; maxSteps: number; activeTools?: never[]; modelSettings: { maxOutputTokens: number; temperature: number } }) => Promise<{ text?: string }>;
 }) {
 const { resolveLapCorners, resolveLapSegments, loadRepresentativeLap, generate } = deps;
 return async function consultLapAnalystForSession(
@@ -73,6 +75,7 @@ return async function consultLapAnalystForSession(
 
   const hideTools = provider === "openai-compatible";
   const result = await generate(prompt, {
+    requestContext: provider === "chatgpt-subscription" ? createModelContext(await resolveAi("analysis", settings)) : undefined,
     maxSteps: 5,
     ...(hideTools ? { activeTools: [] as never[] } : {}),
     modelSettings: { maxOutputTokens: 4096, temperature: 0 },

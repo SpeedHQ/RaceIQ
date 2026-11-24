@@ -12,9 +12,11 @@
     "./games/registry": "./games/registry.ts",
     "./games/telemetry": "./games/telemetry.ts",
     "./games/types": "./games/types.ts",
+    "./integrations/ai/chatgpt-subscription": "./integrations/ai/chatgpt-subscription.ts",
     "./integrations/ai/context-window": "./integrations/ai/context-window.ts",
     "./integrations/ai/driver-profile-summary": "./integrations/ai/driver-profile-summary.ts",
     "./integrations/ai/language": "./integrations/ai/language.ts",
+    "./integrations/ai/openai-reasoning": "./integrations/ai/openai-reasoning.ts",
     "./integrations/ai/prompt-snippets": "./integrations/ai/prompt-snippets.ts",
     "./integrations/ai/providers": "./integrations/ai/providers.ts",
     "./integrations/motec": "./integrations/motec.ts",
@@ -109,6 +111,7 @@
   },
   "scripts": {
     "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
+    "test:unit": "bun ../scripts/test/run-suite.ts unit --package @raceiq/shared",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

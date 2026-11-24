@@ -513,7 +513,10 @@ export async function getOpenAiModelsDetailed(apiKey: string): Promise<ModelList
     }
     const data = await res.json() as { data?: Array<{ id?: unknown }> };
     const models = (data.data ?? [])
-      .filter((model): model is { id: string } => typeof model.id === "string" && model.id.length > 0)
+      .filter((model): model is { id: string } =>
+        typeof model.id === "string"
+        && /^gpt-(?:[6-9]|[1-9]\d+)(?=$|[.-])/.test(model.id)
+        && !/-(?:audio|realtime|image|video|tts|transcribe|embedding|moderation|codex|search)(?:-|$)/.test(model.id))
       .map(({ id }) => ({ id, name: id }))
       .sort((a, b) => a.id.localeCompare(b.id));
     return { models, error: null };

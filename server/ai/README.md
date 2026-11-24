@@ -9,7 +9,9 @@ Deterministic telemetry symptom extraction and setup-output validation used by b
 - Track conditions: `track-conditions.ts`.
 
 ## Provider registration
-Add the provider ID, display name, and default model to `packages/assistant/src/ai/ai-features.ts`. Add its adapter factory to `packages/assistant/src/ai/ai-runtime.ts`. Implement provider-specific credentials, transport, model discovery, settings, and UI integration as required.
+Add the provider ID, display name, and default model to `shared/integrations/ai/providers.ts`. Add its adapter factory to `packages/assistant/src/ai/ai-runtime.ts`. Implement provider-specific credentials, transport, model discovery, settings, and UI integration as required.
+
+ChatGPT model discovery, transport, pricing, and Codex usage live in `packages/assistant/src/ai`. The backend supplies the active account and request-local access check through `configureSubscriptionHost`; OAuth, Keychain, and HTTP routes remain backend-owned.
 
 ## Boundaries and invariants
 - Public contracts kept stable unless proven unused across repository.

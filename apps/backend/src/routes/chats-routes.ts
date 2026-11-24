@@ -16,6 +16,9 @@ import {
 } from "@raceiq/assistant/ai/chat-agent";
 import { forkThreadWithSummary, NothingToCompactError } from "@raceiq/assistant/ai/compact-thread";
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -264,15 +267,22 @@ export function createChatsRoutes(
     "/api/chats/:threadId/compact",
     async (c) => {
       const threadId = c.req.param("threadId");
+      const settings = loadSettings();
       try {
-        const result = await compactThread(threadId);
+        const result = settings.chatProvider === "chatgpt-subscription"
+          ? await compactThread(threadId, {
+            summarize: async (prompt, system) => (await (await resolveAi("compaction", settings)).generateText({ prompt, system })).analysis,
+          })
+          : await compactThread(threadId);
         return c.json(result);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err instanceof NothingToCompactError) {
           return c.json({ error: err.message }, 422);
         }
-        console.error("[Chats] Failed to compact:", err.message);
-        return c.json({ error: err.message }, 500);
+        const message = err instanceof Error ? err.message : "Could not compact chat";
+        console.error("[Chats] Failed to compact:", message);
+        const recovery = settings.chatProvider === "chatgpt-subscription" ? chatGptRecoveryMessage(err) : null;
+        return c.json({ error: recovery ?? message }, recovery ? 409 : 500);
       }
     },
   )

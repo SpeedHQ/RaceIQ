@@ -1275,8 +1275,9 @@ export class SpectateSceneRuntime {
           this.canvas.dataset.sceneRendered = "true";
           this.ready(true);
         }
-      } catch {
-        this.rejectPendingFrames(new Error("Scene rendering failed"));
+      } catch (error) {
+        console.error("Spectate frame rendering failed", error);
+        this.rejectPendingFrames(new Error("Scene rendering failed", { cause: error }));
         this.initialized = false;
         this.drawing = false;
         this.ready(false);

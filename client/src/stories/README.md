@@ -7,6 +7,7 @@
 - Use small, deterministic fixture data with explicit game/session/lap identity. Prefer existing fixture builders and fake data helpers over network calls, current time, random values, or a live game.
 - Keep fixture setup in the story or a clearly owned story helper. Do not import production test state, user data, or generated output into a story.
 - A story should expose one meaningful visual or interaction contract. Keep controls, labels, loading/error/empty states, and responsive variants explicit when they are part of that contract.
+- The marketing track wall embeds its maps. After refreshing the iRacing catalogue, vendor missing SVGs in `packages/game-iracing/assets/iracing-track-maps/`, then run `bun packages/tooling-marketing/src/marketing/track-wall-data.ts` from the repository root.
 
 Snapshot specs use `client/playwright.config.ts`: test files end in `.snapshot.ts`, run with one worker, and write ignored render output under `src/stories/__snapshots__/`. CI renders the base and PR revisions on the same runner and compares those outputs directly.
 

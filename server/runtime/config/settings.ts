@@ -2,9 +2,10 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { z } from "zod";
 import { normalizeHudHostname } from "@raceiq/shared/platform/network/hud-hostname";
 import { resolveDataDir } from "./data-dir";
-import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
+import { isDesktopStartupOwned, isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
+import { OPENAI_REASONING_LEVELS } from "@raceiq/shared/integrations/ai/openai-reasoning";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
@@ -12,7 +13,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "deepseek", "openai-compatible"]).default("");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "deepseek", "openai-compatible", "chatgpt-subscription"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -28,9 +29,12 @@ const AppSettingsSchema = z.object({
   aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
+  aiReasoningLevel: z.enum(OPENAI_REASONING_LEVELS).default("medium"),
   chatProvider: AiProviderSchema.default(""),
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
+  chatReasoningLevel: z.enum(OPENAI_REASONING_LEVELS).default("medium"),
+  chatSubscriptionReasoningLevel: z.enum(OPENAI_REASONING_LEVELS).nullable().default(null),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
   // provider (aiProvider) so the user can point auto-tune at a different
   // model. Reuses the same stored API keys as the analysis section.
@@ -93,6 +97,12 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
   try {
     const raw = readFileSync(SETTINGS_PATH, "utf-8");
     const parsed = JSON.parse(raw);
+    if (parsed.aiReasoningLevel === undefined && typeof parsed.aiReasoningEnabled === "boolean") {
+      parsed.aiReasoningLevel = parsed.aiReasoningEnabled ? "medium" : "none";
+    }
+    if (parsed.chatReasoningLevel === undefined && typeof parsed.chatReasoningEnabled === "boolean") {
+      parsed.chatReasoningLevel = parsed.chatReasoningEnabled ? "medium" : "none";
+    }
 
     // Migrate legacy speedUnit/temperatureUnit → unit + temperatureUnit
     if (!parsed.unit && parsed.speedUnit) {
@@ -143,8 +153,19 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
       console.error("[Settings] Conflicting retention policies; automatic deletion disabled");
       result.sessionCleanupEnabled = false;
     }
-    // Always sync launchOnLogin from the actual registry state
-    if (options.syncLaunchOnLogin !== false) result.launchOnLogin = isLaunchOnLoginEnabled();
+    // Never mirror or mutate the shell's startup entry from backend settings.
+    if (isDesktopStartupOwned()) {
+      if (result.launchOnLogin) {
+        result.launchOnLogin = false;
+        try {
+          saveSettings(result);
+        } catch (err) {
+          console.error("[Settings] Failed to reconcile desktop startup setting:", err instanceof Error ? err.message : err);
+        }
+      }
+    } else if (options.syncLaunchOnLogin !== false) {
+      result.launchOnLogin = isLaunchOnLoginEnabled();
+    }
     return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);
@@ -156,7 +177,7 @@ export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): App
 export function saveSettings(settings: AppSettings): void {
   ensureSettingsDir();
   // Validate before writing
-  const validated = AppSettingsSchema.parse(settings);
+  const validated = AppSettingsSchema.parse(isDesktopStartupOwned() ? { ...settings, launchOnLogin: false } : settings);
   if (!isRecordingRetentionPolicyValid(validated)) {
     throw new Error("Automatic deletion must be scheduled after automatic downsampling.");
   }

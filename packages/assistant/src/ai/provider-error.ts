@@ -1,3 +1,5 @@
+import { chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+
 export type AiProviderErrorCode =
   | "missing-provider"
   | "missing-model"
@@ -106,11 +108,12 @@ export function toClientAiError(err: unknown): ClientAiError {
   const parsedBody = parseUpstreamError(e.responseBody);
   const upstreamFromData = e.data?.error;
   const upstream = parsedBody ?? (upstreamFromData && typeof upstreamFromData === "object" ? upstreamFromData : null);
-  const message = typeof e.message === "string"
-    ? e.message
-    : typeof upstream?.message === "string"
-      ? upstream.message
-      : String(err);
+  const message = chatGptRecoveryMessage(err)
+    ?? (typeof e.message === "string"
+      ? e.message
+      : typeof upstream?.message === "string"
+        ? upstream.message
+        : String(err));
   const clientUpstream = upstream
     ? {
       code: typeof upstream.code === "number" ? upstream.code : undefined,

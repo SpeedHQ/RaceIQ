@@ -9,6 +9,7 @@ import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, type RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 import type { AiProvider } from "@raceiq/shared/integrations/ai/providers";
+import type { OpenAiReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
 export interface DisplaySettings {
   recordingDirectory: string | null;
   recordingFrequencyHz: RecordingFrequencyHz;
@@ -18,9 +19,12 @@ export interface DisplaySettings {
   aiProvider: AiProvider;
   aiModel: string;
   aiThinkingBudget: number | null;
+  aiReasoningLevel: OpenAiReasoningLevel;
   chatProvider: AiProvider;
   chatModel: string;
   chatThinkingBudget: number | null;
+  chatReasoningLevel: OpenAiReasoningLevel;
+  chatSubscriptionReasoningLevel: OpenAiReasoningLevel | null;
   autoTuneProvider: AiProvider;
   autoTuneModel: string;
   localEndpoint: string;
@@ -61,6 +65,10 @@ export interface DisplaySettings {
   language?: string;
   /** True when running as compiled exe, false in dev (bun run dev) */
   isCompiled?: boolean;
+  /** Whether the backend can manage launch on login on this host. */
+  launchOnLoginSupported?: boolean;
+  /** Which process owns launch on login. */
+  launchOnLoginOwner?: "desktop" | "server";
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -72,9 +80,12 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   aiProvider: "gemini",
   aiModel: "",
   aiThinkingBudget: null,
+  aiReasoningLevel: "medium",
   chatProvider: "gemini",
   chatModel: "",
   chatThinkingBudget: null,
+  chatReasoningLevel: "medium",
+  chatSubscriptionReasoningLevel: null,
   autoTuneProvider: "gemini",
   autoTuneModel: "",
   localEndpoint: "http://localhost:1234/v1",

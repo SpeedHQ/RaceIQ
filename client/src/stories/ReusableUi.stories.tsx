@@ -287,7 +287,7 @@ export const ButtonVariants: Story = {
     await expect(canvas.getByRole("button", { name: "Reset form" })).toHaveAttribute("type", "reset");
     await userEvent.tab();
     await expect(primary).toHaveFocus();
-    await expect(getComputedStyle(primary).boxShadow).toContain("3px");
+    await expect(getComputedStyle(primary).boxShadow).toMatch(/0px 0px 0px 1px(?:,|$)/);
   },
 };
 export const SemanticVariants: Story = {

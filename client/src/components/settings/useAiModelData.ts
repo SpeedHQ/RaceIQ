@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
+import { client } from "@/lib/rpc";
+
+type SubscriptionFeature = "analysis" | "chat" | "autoTune" | "driverProfile";
+
 import type { AiProvider } from "@raceiq/shared/integrations/ai/providers";
 export { isAiProvider } from "@raceiq/shared/integrations/ai/providers";
 
@@ -11,11 +15,12 @@ export type ModelsResponse = {
   anthropic?: ModelInfo[];
   deepseek?: ModelInfo[];
   "openai-compatible": ModelInfo[];
+  "chatgpt-subscription"?: (ModelInfo & { features: SubscriptionFeature[]; supportsImages: boolean })[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
 
 export type AiModelData = {
-  aiProviders?: { id: string; name: string }[];
+  aiProviders?: { id: string; name: string; ready?: boolean }[];
   aiModels?: ModelsResponse;
   aiModelsFetching: boolean;
   aiModelsError: boolean;
@@ -26,14 +31,15 @@ export type AiModelData = {
 
 export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Record<string, boolean>): AiModelData {
   const qc = useQueryClient();
-  const selectedProvidersForFetch = selectedProviders.filter((provider) => provider === "openai-compatible" || provider === "openai" || Boolean(keyStatus[provider]));
+  const selectedProvidersForFetch = selectedProviders.filter((provider) =>
+    provider === "openai-compatible" || provider === "openai" || provider === "chatgpt-subscription" || Boolean(keyStatus[provider]));
   const selectedProvidersCsv = selectedProvidersForFetch.join(",");
   const { data: aiProviders } = useQuery({
     queryKey: ["ai-providers"],
     queryFn: async () => {
-      const response = await fetch("/api/ai-providers");
+      const response = await client.api["ai-providers"].$get();
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-      return response.json() as Promise<{ id: string; name: string }[]>;
+      return response.json();
     },
   });
   const {
@@ -42,14 +48,14 @@ export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Recor
     isError: aiModelsError,
   } = useQuery({
     queryKey: ["ai-models", selectedProvidersCsv],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const url = `/api/ai-models?providers=${encodeURIComponent(selectedProvidersCsv)}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json() as Promise<ModelsResponse>;
     },
     enabled: selectedProvidersForFetch.length > 0,
-    placeholderData: (previousData) => previousData,
+    placeholderData: (previousData) => selectedProvidersForFetch.includes("chatgpt-subscription") ? undefined : previousData,
   });
   const refreshModelsMutation = useMutation({
     mutationFn: async () => {

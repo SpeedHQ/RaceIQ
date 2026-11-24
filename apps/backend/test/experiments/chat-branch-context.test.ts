@@ -102,6 +102,30 @@ describe("experiment chat branch context", () => {
     expect(getActiveRun(threadId)).toBeUndefined();
   });
 
+  test("subscription chat rejects nonlocal requests before saving a turn", async () => {
+    const sessionId = await createSession("chat-subscription-local-only");
+    const threadId = tuneSessionThreadId(sessionId);
+    const settings = spyOn(settingsModule, "loadSettings").mockReturnValue({
+      ...settingsModule.loadSettings(), chatProvider: "chatgpt-subscription", chatModel: "gpt-6.2-sol",
+    });
+    try {
+      const response = await tuneChatRoutes.request(`/api/experiments/${sessionId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headVersionId: null,
+          messages: [{ id: `nonlocal-${sessionId}`, role: "user", parts: [{ type: "text", text: "Review this setup." }] }],
+        }),
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "forbidden" });
+      expect((await getChatMemory().recall({ threadId })).messages).toEqual([]);
+      expect(getActiveRun(threadId)).toBeUndefined();
+    } finally {
+      settings.mockRestore();
+    }
+  });
+
   test("different-head in-flight admission rejects before persistence and failed prerequisites release the slot", async () => {
     const sessionId = await createSession("chat-route-admission");
     const firstHead = await createExperimentVersion({ experimentId: sessionId, version: 1, label: "first", parentVersionId: null });

@@ -17,6 +17,7 @@ import { baseUrlFor } from "@raceiq/assistant/ai/provider-endpoints";
 import { describeCompatibleApiFailure } from "@raceiq/assistant/ai/provider-capabilities";
 import { DEFAULT_RETRY_POLICY, isRetryableStatus, parseRetryAfter, retryDelayMs } from "./provider-resilience";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
+import type { ChatGptSubscriptionAdapter } from "./chatgpt-subscription-adapter";
 
 export type ProviderAdapterConfig = {
   feature: AiFeature;
@@ -301,7 +302,8 @@ export type AnyProviderAdapter =
   | OpenAiProviderAdapter
   | AnthropicProviderAdapter
   | DeepSeekProviderAdapter
-  | OpenAiCompatibleProviderAdapter;
+  | OpenAiCompatibleProviderAdapter
+  | ChatGptSubscriptionAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   const resolved: ResolvedAi = {

@@ -3,6 +3,7 @@ export const AI_PROVIDERS = {
   openai: { name: "OpenAI", label: "OpenAI", environmentKey: "OPENAI_API_KEY", defaultModel: "gpt-4o-mini" },
   anthropic: { name: "Claude (Anthropic)", label: "Anthropic", environmentKey: "ANTHROPIC_API_KEY", defaultModel: "claude-haiku-5-5" },
   deepseek: { name: "DeepSeek", label: "DeepSeek", environmentKey: "DEEPSEEK_API_KEY", defaultModel: "deepseek-flash" },
+  "chatgpt-subscription": { name: "ChatGPT subscription", label: "ChatGPT subscription", environmentKey: null, defaultModel: "" },
   "openai-compatible": { name: "OpenAI-compatible", label: "OpenAI-compatible", environmentKey: null, defaultModel: "local-model" },
 } as const;
 

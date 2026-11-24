@@ -159,9 +159,10 @@ export async function requestTuneIntents(
   symptoms: TuneSymptoms,
   trackName?: string,
   carModel?: string,
+  generate: (prompt: string, schema: object) => Promise<{ raw: string; model: string }> = runTuneIntentProvider,
 ): Promise<{ intents: TuneIntents; model: string }> {
   const prompt = buildTunePrompt(gameId, symptoms, trackName, carModel);
-  const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
+  const { raw, model } = await generate(prompt, getTuneIntentJsonSchema());
 
   const parsed = parseTuneIntents(raw);
   if (!parsed.success) {

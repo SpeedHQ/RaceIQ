@@ -4,6 +4,7 @@ import { formatClientAiErrorMessage, toClientAiError } from "./provider-error";
 import { logLlmEvent, type LlmDiagnosticContext } from "./diagnostic-logging";
 import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 import { withStallDeadline } from "./stream-deadline";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 
 // The stall deadline is part of this module's contract for callers and tests.
 export { STREAM_STALL_LIMITS, withStallDeadline } from "./stream-deadline";
@@ -43,6 +44,7 @@ export interface StreamAgentTurnOptions {
   agentStream: AgentStream;
   /** UI messages passed through for stream reconstruction. */
   originalMessages: UiStreamOptions["originalMessages"];
+  subscriptionUsage?: readonly (ChatGptRequestUsage | null)[];
   /** Mastra memory instance backing the thread. */
   memory: AgentTurnMemory;
   /** Resolved thread id for the turn. */
@@ -88,6 +90,7 @@ export async function persistAssistantTurnToMemory(
         ...(target.content?.metadata ?? {}),
         ...(usage ? { usage } : {}),
         ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
+        ...(responseMessage.metadata?.subscriptionUsage ? { subscriptionUsage: responseMessage.metadata.subscriptionUsage } : {}),
       };
       await memory.saveMessages({
         messages: [{
@@ -224,8 +227,12 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
               outputTokens: outputTokens ?? 0,
               totalTokens: totalTokens ?? 0,
             };
+            const subscriptionUsage = opts.subscriptionUsage?.length && opts.subscriptionUsage.every((usage) => usage !== null)
+              ? opts.subscriptionUsage
+              : undefined;
             return {
               usage: finishUsage,
+              ...(subscriptionUsage ? { subscriptionUsage } : {}),
               ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
             };
           },

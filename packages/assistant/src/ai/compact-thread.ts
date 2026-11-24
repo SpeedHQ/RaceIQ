@@ -38,7 +38,7 @@ type Memory = ReturnType<typeof getChatMemory>;
 
 interface CompactDeps {
   memory?: Memory;
-  summarize?: (transcript: string) => Promise<string>;
+  summarize?: (transcript: string, system: string) => Promise<string>;
 }
 
 /**
@@ -62,6 +62,7 @@ export async function summarizeWithDeepSeek(
 
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
+  if (s.chatProvider === "chatgpt-subscription") throw new Error("Use the local RaceIQ app to compact ChatGPT conversations.");
   if (s.chatProvider === "deepseek") {
     // DeepSeek summaries need its provider-specific thinking rules.
     const apiKey = await requireAiProviderApiKey("deepseek");
@@ -152,7 +153,7 @@ export async function forkThreadWithSummary(
     .map((m) => `${m.role.toUpperCase()}: ${textOf(m as never)}`)
     .join("\n\n");
 
-  const summary = await summarize(transcript);
+  const summary = await summarize(transcript, SUMMARY_SYSTEM);
 
   // Probe generations through the SAME (possibly injected) `memory` used
   // above, rather than the module-level `listThreadGenerations` helper — that
