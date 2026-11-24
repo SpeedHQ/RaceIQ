@@ -1,5 +1,10 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "extends": ["//"],
-  "tags": ["client"]
+  "tags": ["client"],
+  "tasks": {
+    "transit": {
+      "inputs": ["$TURBO_EXTENDS$", "!.storybook/**", "!src/stories/**", "!playwright.config.ts", "!tsconfig.stories.json"]
+    }
+  }
 }

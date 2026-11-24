@@ -3,7 +3,7 @@ import {
   CHAT_RESOURCE_ID,
   getChatMemory,
   saveAssistantChatMessage,
-} from "@raceiq/backend-core/ai/chat-agent";
+} from "@raceiq/assistant/ai/chat-agent";
 
 /**
  * Round-trip guard for the generate-from-chat "applied tweaks" message.

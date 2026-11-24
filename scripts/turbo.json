@@ -4,7 +4,7 @@
   "tags": ["tooling"],
   "tasks": {
     "transit": {
-      "inputs": ["$TURBO_EXTENDS$", "!test/*-files.txt", "!test/tests/**"]
+      "inputs": ["$TURBO_EXTENDS$", "!test/*-files.txt", "!test/tests/**", "!i18n/check-message-keys.ts", "!ci/check-*.ts"]
     },
     "lint": {
       "inputs": [

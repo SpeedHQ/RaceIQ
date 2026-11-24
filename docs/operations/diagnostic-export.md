@@ -186,11 +186,11 @@ bun test apps/backend/test/routes/diagnostics-routes.test.ts apps/backend/test/r
 | ZIP assembly and hardware probes | `apps/backend/src/routes/system/diagnostics-routes.ts` |
 | Retention, rotation, and retained reads | `server/runtime/diagnostic-log-store.ts` |
 | Pino logger and console capture | `server/runtime/logger.ts` |
-| LLM event normalization | `server/ai/diagnostic-logging.ts` |
-| Provider request diagnostics | `server/ai/providers.ts` |
-| Lap-analysis generation lifecycle | `apps/backend/src/ai/generate-lap-analysis.ts` |
-| Agent stream diagnostics | `server/ai/agent-stream.ts` |
-| Chat context collection | `server/ai/chat-agent.ts` |
+| LLM event normalization | `packages/assistant/src/ai/diagnostic-logging.ts` |
+| Provider request diagnostics | `packages/assistant/src/ai/providers.ts` |
+| Lap-analysis generation lifecycle | `packages/assistant/src/ai/generate-lap-analysis.ts` |
+| Agent stream diagnostics | `packages/assistant/src/ai/agent-stream.ts` |
+| Chat context collection | `packages/assistant/src/ai/chat-agent.ts` |
 | Client queue and forwarding | `client/src/lib/report-error.ts` |
 | Global browser error handlers | `client/src/lib/crash-diagnostics.ts` |
 | Download UI and browser metadata | `client/src/components/settings/DiagnosticsSection.tsx` |

@@ -2,10 +2,13 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
-import { httpAccess } from "../runtime/http-access";
+import { httpAccess, isTrustedLocalRequest } from "../runtime/http-access";
+import { chatGptAccounts } from "../runtime/chatgpt-subscription-runtime";
+import { readCodexUsage } from "@raceiq/assistant/ai/codex-usage";
 
 import { settingsRoutes } from "./settings-routes";
 import { authRoutes } from "./auth-routes";
+import { createChatGptSubscriptionRoutes } from "./chatgpt-subscription-routes";
 import { lapRoutes } from "./laps/index";
 import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
@@ -42,6 +45,12 @@ const app = new Hono()
   )
   .use("/*", errorLogger())
   .route("/", authRoutes)
+  .route("/", createChatGptSubscriptionRoutes({
+    authorize: (request) => httpAccess.authorize(request),
+    isTrustedLocal: isTrustedLocalRequest,
+    service: chatGptAccounts,
+    ...(chatGptAccounts ? { codexUsage: readCodexUsage } : {}),
+  }))
   .route("/", settingsRoutes)
   .route("/", lapRoutes)
   .route("/", driverRoutes)
