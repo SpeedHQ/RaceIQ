@@ -75,6 +75,22 @@ switch (operation) {
     const basePlaywright = join(base, "playwright");
     const output = join(current, "playwright/screenshots/mobile");
     const config = join(basePlaywright, "responsive-screenshots.config.ts");
+    // Repair the historical replay interaction without replacing baseline-owned helpers.
+    const baseSpec = join(basePlaywright, "tests/responsive/mobile-screenshots.spec.ts");
+    const legacyInteraction = `} else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
+          // Base revision can overlap this trigger at phone width; keyboard still opens the menu for comparison.
+          await p.getByRole("button", { name: "Overlays", exact: true }).focus();
+          await p.keyboard.press("Enter");
+          await expect(p.getByRole("menu")).toBeVisible();`;
+    const correctedInteraction = `} else if (screenshotCase.kind === "analyse-actions") {
+          await p.getByRole("button", { name: "Actions", exact: true }).click();
+          await expect(p.getByRole("menu")).toBeVisible();
+        } else if (screenshotCase.kind === "analyse-data-panel-loaded") {
+          // The loaded panel itself is the screenshot target.`;
+    const baseSpecSource = readFileSync(baseSpec, "utf8");
+    if (baseSpecSource.includes(legacyInteraction)) {
+      writeFileSync(baseSpec, baseSpecSource.replace(legacyInteraction, correctedInteraction));
+    }
     // Keep baseline-owned cases and helpers compatible with its historical API.
     writeFileSync(config, `
       import { devices, defineConfig } from "@playwright/test";
@@ -105,6 +121,7 @@ switch (operation) {
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
+    if (baseSpecSource.includes(legacyInteraction)) writeFileSync(baseSpec, baseSpecSource);
     const saved = join(env.RUNNER_TEMP!, "base-responsive");
     rmSync(saved, { recursive: true, force: true });
     if (existsSync(output)) cpSync(output, saved, { recursive: true });

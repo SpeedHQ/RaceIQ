@@ -11,8 +11,8 @@ const queryClient = new QueryClient({
 });
 // Seed every query rendered by dashboard so standalone Storybook stays offline.
 queryClient.setQueryData(["laps", "f1-2025"], fakeSessionLaps);
-queryClient.setQueryData(["track-name", 7, "f1-2025"], "Bahrain International Circuit");
-queryClient.setQueryData(["car-name", 42, "f1-2025"], "F1 2025");
+queryClient.setQueryData(["track-name", "7", "f1-2025"], "Bahrain International Circuit");
+queryClient.setQueryData(["car-name", "42", "f1-2025"], "F1 2025");
 queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {

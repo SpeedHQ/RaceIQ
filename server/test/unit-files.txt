@@ -1,3 +1,6 @@
+server/test/ai/provider-capabilities.test.ts
+server/test/ai/provider-endpoints.test.ts
+server/test/ai/providers-deepseek.test.ts
 server/test/games/shared/native-capture-rate-limiter.test.ts
 server/test/games/shared/win-timer-resolution.test.ts
 server/test/runtime/mac-keychain.test.ts
