@@ -1,9 +1,8 @@
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SearchSelect } from "@/components/ui/SearchSelect";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
-import { AiProviderPicker } from "./AiPickers";
+import { AiModelPicker, AiProviderPicker, AiSubscriptionUsage } from "./AiPickers";
 import type { AiAutoTuneState } from "./ai-state";
 import { defaultModelForProvider } from "./recommended-model";
 export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
@@ -28,7 +27,7 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
     <div className="space-y-4">
       {/* Auto-tune provider */}
       <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_auto_tune_provider_title()}</h2>
-      <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>
+      {autoTuneProvider !== "chatgpt-subscription" && <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>}
       <div className="space-y-4">
         <div>
           <Label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
@@ -63,17 +62,19 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
               </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
-            <SearchSelect
+            <AiModelPicker
               id="ai-auto-tune-model"
               value={autoTuneModel}
               onChange={setAutoTuneModel}
-              options={[{ value: "", label: m.ai_model_default() }, ...autoTuneModels.map((item) => ({ value: item.id, label: item.name }))]}
-              ariaLabel={m.ai_model_label()}
+              models={autoTuneModels}
+              explicit={autoTuneProvider === "chatgpt-subscription"}
+              recommend={false}
               className="w-full max-w-xs"
             />
           </div>
         )}
-        {autoTuneProvider !== "" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {autoTuneProvider === "chatgpt-subscription" && <AiSubscriptionUsage ready={hasAutoTuneProviderKey} />}
+        {autoTuneProvider !== "" && autoTuneProvider !== "chatgpt-subscription" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && !aiModelsFetching && autoTuneModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>

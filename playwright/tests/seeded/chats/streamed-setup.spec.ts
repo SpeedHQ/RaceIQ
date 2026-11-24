@@ -35,9 +35,22 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
     const settings = (await response.json()) as Record<string, unknown>;
     await route.fulfill({
       response,
-      json: { ...settings, aiProvider: "openai-compatible", aiModel: "seeded-e2e", chatProvider: "openai-compatible", chatModel: "seeded-e2e" },
+      json: { ...settings, aiProvider: "openai-compatible", aiModel: "seeded-e2e", chatProvider: "chatgpt-subscription", chatModel: "gpt-6.2-sol", chatGptSubscriptionConnected: true },
     });
   });
+  await page.route("**/api/ai-chat-pricing", (route) => route.fulfill({
+    json: { fetchedAt: 1_790_000_000_000, models: { "gpt-6.2-sol": { input: 2, cachedInput: 0.1, output: 10 } } },
+  }));
+  const chatStream = SEEDED_CHAT_STREAM.replace("data: [DONE]", [
+    `data: ${JSON.stringify({
+      type: "finish",
+      messageMetadata: {
+        usage: { inputTokens: 1000, outputTokens: 100, totalTokens: 1100 },
+        subscriptionUsage: [{ model: "gpt-6.2-sol", inputTokens: 1000, cachedInputTokens: 500, outputTokens: 100 }],
+      },
+    })}`,
+    "", "data: [DONE]",
+  ].join("\n"));
 
   let submittedPrompt = "";
   await page.route(`**/api/experiments/${experiment.id}/chat*`, async (route) => {
@@ -58,7 +71,7 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
         "cache-control": "no-cache",
         "x-vercel-ai-ui-message-stream": "v1",
       },
-      body: SEEDED_CHAT_STREAM,
+      body: chatStream,
     });
   });
 
@@ -66,14 +79,29 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
   const prompt = "Explain this seeded setup";
   const messageInput = page.getByRole("textbox", { name: "Message input" });
   await expect(messageInput).toBeVisible({ timeout: 30_000 });
+  const send = page.getByRole("button", { name: "Send message" });
+  await expect(send).toBeDisabled();
+  const inputBounds = (await messageInput.boundingBox())!;
+  const sendBounds = (await send.boundingBox())!;
+  expect(sendBounds.x).toBeGreaterThanOrEqual(inputBounds.x + inputBounds.width);
+  expect(sendBounds.y).toBeLessThan(inputBounds.y + inputBounds.height);
+  await expect(page.getByText("Model: gpt-6.2-sol", { exact: true })).toBeVisible();
+  await expect(page.getByText("0 / 922k", { exact: true })).toBeVisible();
   await messageInput.fill(prompt);
-  await page.getByRole("button", { name: "Send message" }).click();
+  const migrationClose = page.getByRole("dialog", { name: "Historical lap classification" }).getByRole("button", { name: "Close" });
+  if (await migrationClose.isVisible()) await migrationClose.click();
+  await send.click();
   await expect.poll(() => submittedPrompt).toContain(prompt);
   await expect(page.getByText("Seeded streamed reply", { exact: true })).toBeVisible();
+  await expect(page.getByText("1k / 922k", { exact: true })).toBeVisible();
+  await expect(page.getByText("Estimated API cost: $0.00205", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
-  await page.getByRole("button", { name: "Compact & New chat" }).click();
+  await expect(page.getByRole("button", { name: "Compact & New chat" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Chat actions" }).click();
+  await page.getByRole("menuitem", { name: "Compact & New chat" }).click();
   await expect.poll(() => compacted).toBe(true);
   await expect(page.getByText("gen 2/2", { exact: true })).toBeVisible();
   await expect(page.getByText("Seeded streamed reply", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Estimated API cost:/)).toHaveCount(0);
   expect(browserErrors.errors, "unexpected browser errors during streamed chat").toEqual([]);
 });

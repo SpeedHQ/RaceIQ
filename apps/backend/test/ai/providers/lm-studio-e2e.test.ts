@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 
-import { getOpenAiCompatibleModelsDetailed, runOpenAiCompatible } from "@raceiq/backend-core/ai/providers";
+import { getOpenAiCompatibleModelsDetailed, runOpenAiCompatible } from "@raceiq/assistant/ai/providers";
+import { getLocalApiKey } from "@raceiq/assistant/ai/openai-compatible-provider";
 
 const runLocalLmStudio = process.env.LM_STUDIO_E2E === "1" && !process.env.CI;
 const endpoint = process.env.LM_STUDIO_BASE_URL || "http://localhost:1234/v1";
-const apiKey = process.env.LM_STUDIO_API_KEY || undefined;
 const nativeBase = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
 
 test.skipIf(!runLocalLmStudio)("LM Studio loads a Qwen model and completes an OpenAI-compatible request", async () => {
+  const apiKey = await getLocalApiKey();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 

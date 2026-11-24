@@ -4,8 +4,8 @@ import { compareEngineerAgent } from "../../../src/mastra/agents/compare-enginee
 import { compareChatAgent } from "../../../src/mastra/agents/compare-chat";
 import { lapChatAgent } from "../../../src/mastra/agents/lap-chat";
 import { lapAnalystAgent } from "../../../src/mastra/agents/lap-analyst";
-import { createModelContext } from "../../../src/ai/model-provider";
-import { resolveAi } from "../../../src/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 type ToolInspectionAgent = {
   getToolsForExecution(options: {
