@@ -6,8 +6,8 @@ import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
 } from "../../../src/ai/generate-lap-analysis";
-import { runAiStructured } from "../../../src/ai/model-provider";
-import { OpenAiProviderAdapter, resolvedAiFromAdapter } from "../../../src/ai/provider-adapters";
+import { runAiStructured } from "@raceiq/assistant/ai/model-provider";
+import { OpenAiProviderAdapter, resolvedAiFromAdapter } from "@raceiq/assistant/ai/provider-adapters";
 import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
 
 const validAnalysis = JSON.stringify({

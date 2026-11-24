@@ -4,8 +4,8 @@ import { realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
-import type { ChatGptSubscriptionState } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
-import { ChatGptAccountError, type ChatGptAccountService } from "../routes/chatgpt-subscription-routes";
+import { ChatGptAccountError, type ChatGptAccountBinding, type ChatGptSubscriptionState } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import type { ChatGptAccountService } from "../routes/chatgpt-subscription-routes";
 import { ChatGptOAuthError, createChatGptOAuthClient, listenForChatGptAuthorization } from "./chatgpt-subscription-oauth";
 import { createChatGptMacKeychain } from "./platform/chatgpt-mac-keychain";
 
@@ -15,12 +15,6 @@ const account = z.object({ id: z.uuid(), label: z.string(), registration: z.obje
 }), session: secret.nullable(), reauthRequired: z.boolean().optional() });
 const record = z.object({ hostId: z.string(), activeAccountId: z.uuid().nullable(), accounts: z.array(account) });
 type RecordState = z.infer<typeof record>;
-
-export interface ChatGptAccountBinding {
-  accountId: string;
-  signal: AbortSignal;
-  token(): Promise<string>;
-}
 
 export interface ChatGptMacAccounts extends ChatGptAccountService {
   bindActive(): Promise<ChatGptAccountBinding>;

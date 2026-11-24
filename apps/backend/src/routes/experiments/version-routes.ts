@@ -16,10 +16,10 @@ import {
   updateExperimentVersionSetupSnapshot,
 } from "@raceiq/backend-core/db/experiment-version-queries";
 import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
-import { tuneSessionThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
+import { tuneSessionThreadId, saveChatMessages } from "@raceiq/assistant/ai/chat-agent";
 import { resolveGuardedSetupFile, type AccGameId } from "../../setups/file-guard";
 import { captureF1SetupFromLaps } from "../../experiments/setup-lineage";
-import { nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
+import { nextFreeLabel } from "@raceiq/assistant/ai/version-label";
 
 const CreateExperimentVersionSchema = z.object({
   label: z.string().min(1).max(200),

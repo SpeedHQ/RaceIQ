@@ -37,7 +37,7 @@ import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
 import { readDesktopHostOptions } from "./desktop-host";
 import { chatGptAccounts, directChatGptPilot } from "./chatgpt-subscription-runtime";
-import { getChatGptPricing } from "../ai/chatgpt-chat-pricing";
+import { getChatGptPricing } from "@raceiq/assistant/ai/chatgpt-chat-pricing";
 
 export interface BootOptions {
   httpPort?: number;

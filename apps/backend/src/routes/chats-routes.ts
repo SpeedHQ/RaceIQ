@@ -13,11 +13,11 @@ import {
   listThreadGenerations,
   truncateChatAfterUserMessage,
   deleteChatLineage,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { forkThreadWithSummary, NothingToCompactError } from "@raceiq/backend-core/ai/compact-thread";
+} from "@raceiq/assistant/ai/chat-agent";
+import { forkThreadWithSummary, NothingToCompactError } from "@raceiq/assistant/ai/compact-thread";
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { resolveAi } from "../ai/ai-runtime";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
 import { chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 
 const ChatsQuerySchema = z.object({

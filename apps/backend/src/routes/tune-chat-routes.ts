@@ -1,5 +1,5 @@
-import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
-import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/backend-core/ai/chat-run-registry";
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
+import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/assistant/ai/chat-run-registry";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
@@ -7,7 +7,7 @@ import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
 import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import { CHATGPT_SUBSCRIPTION_ERROR_STATUS, chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
-import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
+import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
@@ -27,23 +27,23 @@ import {
   getChatSystemPrompt,
   ensureSystemPrompt,
   deleteChatLineage,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
-import { startDetachedAgentTurn } from "@raceiq/backend-core/ai/agent-stream";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-agent";
+import { buildGoogleReasoningProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
+import { startDetachedAgentTurn } from "@raceiq/assistant/ai/agent-stream";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/assistant/ai/chat-message-context";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
 import { setupEngineerTurnWorkflow } from "../mastra/workflows/setup-engineer-turn";
 import { resolveExperimentChatBranch } from "../experiments/chat-branch-context";
 import { Hono } from "hono";
 import { EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY } from "../mastra/tools/setup-engineer-request-context";
-import { resolveAi } from "../ai/ai-runtime";
-import { createModelContext } from "../ai/model-provider";
-import { ChatGptAccountError } from "./chatgpt-subscription-routes";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
+import { ChatGptAccountError } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 
 const chatRunHeads = new WeakMap<object, number | null>();
 

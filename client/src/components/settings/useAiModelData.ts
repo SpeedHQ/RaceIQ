@@ -4,7 +4,10 @@ import { client } from "@/lib/rpc";
 
 type SubscriptionFeature = "analysis" | "chat" | "autoTune" | "driverProfile";
 
-type ProviderId = "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible" | "chatgpt-subscription";
+import type { AiProvider } from "@raceiq/shared/integrations/ai/providers";
+export { isAiProvider } from "@raceiq/shared/integrations/ai/providers";
+
+type ProviderId = AiProvider;
 export type ModelInfo = { id: string; name: string; contextLength?: number };
 export type ModelsResponse = {
   gemini: ModelInfo[];
@@ -25,9 +28,6 @@ export type AiModelData = {
   refreshModels: { mutate: () => void; isPending: boolean; isError: boolean };
 };
 
-export function isAiProvider(value: string): value is ProviderId {
-  return value === "gemini" || value === "openai" || value === "anthropic" || value === "deepseek" || value === "openai-compatible" || value === "chatgpt-subscription";
-}
 
 export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Record<string, boolean>): AiModelData {
   const qc = useQueryClient();

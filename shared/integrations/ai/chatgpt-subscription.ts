@@ -97,3 +97,18 @@ export function estimateChatGptApiCost(
   }
   return cost / 1_000_000;
 }
+
+export class ChatGptAccountError extends Error {
+  readonly code: ChatGptSubscriptionErrorCode;
+
+  constructor(code: ChatGptSubscriptionErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
+export interface ChatGptAccountBinding {
+  accountId: string;
+  signal: AbortSignal;
+  token(): Promise<string>;
+}

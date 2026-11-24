@@ -14,9 +14,9 @@ import { getRunningGame } from "@raceiq/backend-core/games/registry";
 import { getCurrentDetectedGame } from "@raceiq/backend-core/games/packet-dispatch";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { client as dbClient, DB_PATH } from "@raceiq/backend-core/db/index";
-import { collectDiagnosticChatContext } from "@raceiq/backend-core/ai/chat-agent";
+import { collectDiagnosticChatContext } from "@raceiq/assistant/ai/chat-agent";
 import { formatDiagnosticRecord, log, readRecentLogText } from "@raceiq/backend-core/runtime/logger";
-import { normalizeDiagnostic } from "@raceiq/backend-core/ai/diagnostic-logging";
+import { normalizeDiagnostic } from "@raceiq/assistant/ai/diagnostic-logging";
 import { APP_VERSION } from "@raceiq/shared/platform/runtime/app-version";
 
 const DB_DIR = dirname(DB_PATH);

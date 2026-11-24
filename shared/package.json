@@ -18,6 +18,7 @@
     "./integrations/ai/language": "./integrations/ai/language.ts",
     "./integrations/ai/openai-reasoning": "./integrations/ai/openai-reasoning.ts",
     "./integrations/ai/prompt-snippets": "./integrations/ai/prompt-snippets.ts",
+    "./integrations/ai/providers": "./integrations/ai/providers.ts",
     "./integrations/motec": "./integrations/motec.ts",
     "./platform/http/route-schemas": "./platform/http/route-schemas.ts",
     "./platform/i18n/locales": "./platform/i18n/locales.ts",

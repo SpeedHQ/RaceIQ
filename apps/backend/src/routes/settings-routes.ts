@@ -22,16 +22,17 @@ import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/record
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
-import { getAnthropicModelsDetailed, getDeepSeekModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
-import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
-import { getChatGptCatalog } from "../ai/chatgpt-subscription-catalog";
-import { getChatGptPricing } from "../ai/chatgpt-chat-pricing";
+import { getAnthropicModelsDetailed, getDeepSeekModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/assistant/ai/providers";
+import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/assistant/ai/openai-compatible-provider";
+import { isSupportedAiProvider } from "@raceiq/assistant/ai/provider-capabilities";
+import { getChatGptCatalog } from "@raceiq/assistant/ai/chatgpt-subscription-catalog";
+import { getChatGptPricing } from "@raceiq/assistant/ai/chatgpt-chat-pricing";
 import { hasDirectLocalAiAccess, isTrustedLocalRequest } from "../runtime/http-access";
 import { chatGptAccounts } from "../runtime/chatgpt-subscription-runtime";
-import { ChatGptAccountError } from "./chatgpt-subscription-routes";
+import { ChatGptAccountError } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import { CHATGPT_SUBSCRIPTION_ERROR_STATUS, CHATGPT_SUBSCRIPTION_PROVIDER, chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
-import { selectedAiSettings } from "../ai/ai-runtime";
-import type { AiFeature } from "@raceiq/backend-core/ai/ai-features";
+import { selectedAiSettings } from "@raceiq/assistant/ai/ai-runtime";
+import type { AiFeature } from "@raceiq/assistant/ai/ai-features";
 
 const subscriptionFeatures = ["analysis", "chat", "autoTune", "driverProfile"] as const satisfies readonly AiFeature[];
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -51,7 +52,7 @@ export type AiProviderDiscovery = {
 
 
 export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
-  return getProviders();
+  return getProviders().filter(({ id }) => id !== CHATGPT_SUBSCRIPTION_PROVIDER);
 }
 
 export function shouldCheckCredentialStatus(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -141,7 +142,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "anthropic" || p === "deepseek" || p === "openai-compatible" || p === CHATGPT_SUBSCRIPTION_PROVIDER),
+        .filter(isSupportedAiProvider),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders

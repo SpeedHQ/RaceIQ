@@ -4,16 +4,16 @@ import { Hono } from "hono";
 import { resolve, sep } from "node:path";
 import { z } from "zod";
 
-import { requestTuneIntents } from "@raceiq/backend-core/ai/tune-intent";
-import { symptomsToIntents } from "@raceiq/backend-core/ai/tune-recommend";
+import { requestTuneIntents } from "@raceiq/assistant/ai/tune-intent";
+import { symptomsToIntents } from "@raceiq/assistant/ai/tune-recommend";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
-import { writeSetupFile } from "@raceiq/backend-core/ai/tune-writer";
+import { writeSetupFile } from "@raceiq/assistant/ai/tune-writer";
 import { detectCorners } from "@raceiq/backend-core/lap-analysis/corners";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getSetupsBaseDir } from "../../setups/file-guard";
 import { applyIntents } from "@raceiq/backend-core/setups/rules/engine";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { resolveAi, selectedAiSettings } from "../../ai/ai-runtime";
+import { resolveAi, selectedAiSettings } from "@raceiq/assistant/ai/ai-runtime";
 
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),

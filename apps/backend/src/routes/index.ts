@@ -4,7 +4,7 @@ import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
 import { httpAccess, isTrustedLocalRequest } from "../runtime/http-access";
 import { chatGptAccounts } from "../runtime/chatgpt-subscription-runtime";
-import { readCodexUsage } from "../ai/codex-usage";
+import { readCodexUsage } from "@raceiq/assistant/ai/codex-usage";
 
 import { settingsRoutes } from "./settings-routes";
 import { authRoutes } from "./auth-routes";

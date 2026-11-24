@@ -2,10 +2,10 @@ import { expect, spyOn, test } from "bun:test";
 import { Agent } from "@mastra/core/agent";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { createChatGptSubscriptionModel } from "../../../src/ai/chatgpt-subscription-model";
-import { consumeMastraGeneration } from "../../../src/ai/stream-mastra-generation";
-import { bindMastraModel } from "../../../src/mastra/model";
-import { ChatGptSubscriptionAdapter } from "../../../src/ai/chatgpt-subscription-adapter";
+import { createChatGptSubscriptionModel } from "@raceiq/assistant/ai/chatgpt-subscription-model";
+import { consumeMastraGeneration } from "@raceiq/assistant/ai/stream-mastra-generation";
+import { bindMastraModel } from "@raceiq/assistant/mastra/model";
+import { ChatGptSubscriptionAdapter } from "@raceiq/assistant/ai/chatgpt-subscription-adapter";
 import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 
 const model = "gpt-6.2-sol";

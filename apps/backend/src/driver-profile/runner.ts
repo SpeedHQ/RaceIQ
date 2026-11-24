@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { toClientAiError, type ClientAiError } from "@raceiq/backend-core/ai/provider-error";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { toClientAiError, type ClientAiError } from "@raceiq/assistant/ai/provider-error";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
 import { driverProfilerAgent } from "../ai/agents";
 import { buildDriverProfilerPrompt } from "./prompt";
 import {
@@ -12,7 +12,7 @@ import {
   parseDriverProfileSummary,
   type DriverProfileSummary,
 } from "@raceiq/shared/integrations/ai/driver-profile-summary";
-import { buildGoogleProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
+import { buildGoogleProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
 import type { DriverFingerprint } from "./fingerprint";
 import { loadDriverProfile } from "./load";
 import {
@@ -28,11 +28,11 @@ import {
 } from "@raceiq/backend-core/db/driver-profile-queries";
 import { getLapMetaForProfileScope } from "@raceiq/backend-core/db/lap-read-queries";
 import type { AnalysisUsage } from "@raceiq/backend-core/db/analysis-queries";
-import { defaultModelFor } from "@raceiq/backend-core/ai/provider-capabilities";
-import type { AiProvider, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
-import { resolveAi } from "../ai/ai-runtime";
-import { createModelContext } from "../ai/model-provider";
-import { consumeMastraGeneration } from "../ai/stream-mastra-generation";
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
+import type { AiProvider, ResolvedAi } from "@raceiq/assistant/ai/ai-types";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
+import { consumeMastraGeneration } from "@raceiq/assistant/ai/stream-mastra-generation";
 
 export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId" | "carId" | "trackId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";

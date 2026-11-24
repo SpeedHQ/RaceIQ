@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, test } from "bun:test";
 import { estimateChatGptApiCost } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import { chatGptReasoningLevels } from "@raceiq/shared/integrations/ai/openai-reasoning";
-import { createChatGptPricingCache } from "../../../src/ai/chatgpt-chat-pricing";
+import { createChatGptPricingCache } from "@raceiq/assistant/ai/chatgpt-chat-pricing";
 
 const model = "gpt-6.2-sol";
 const standard = { input: 2, cache_read: 0.1, output: 10 };

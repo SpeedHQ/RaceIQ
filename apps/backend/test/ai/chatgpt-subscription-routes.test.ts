@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import type { ChatGptSubscriptionState } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
-import { ChatGptAccountError, createChatGptSubscriptionRoutes } from "../../src/routes/chatgpt-subscription-routes";
-import type { CodexUsage } from "../../src/ai/codex-usage";
+import { ChatGptAccountError } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import { createChatGptSubscriptionRoutes } from "../../src/routes/chatgpt-subscription-routes";
+import type { CodexUsage } from "@raceiq/assistant/ai/codex-usage";
 
 const base = "http://127.0.0.1:3117";
 const path = "/api/auth/chatgpt-subscription";

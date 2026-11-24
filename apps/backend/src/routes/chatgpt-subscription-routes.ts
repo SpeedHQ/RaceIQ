@@ -3,13 +3,13 @@ import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
+  ChatGptAccountError,
   CHATGPT_SUBSCRIPTION_ERROR_STATUS,
   type ChatGptConnectResult,
   type ChatGptSignOutResult,
-  type ChatGptSubscriptionErrorCode,
   type ChatGptSubscriptionState,
 } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
-import type { CodexUsage } from "../ai/codex-usage";
+import type { CodexUsage } from "@raceiq/assistant/ai/codex-usage";
 
 const path = "/api/auth/chatgpt-subscription";
 const accountId = z.string().min(1).max(128);
@@ -19,15 +19,6 @@ const invalidRequest = { code: "invalid_request", error: "Invalid ChatGPT accoun
 const unavailableState: ChatGptSubscriptionState = {
   availability: "unavailable", activeAccountId: null, accounts: [], attempt: null,
 };
-
-export class ChatGptAccountError extends Error {
-  readonly code: ChatGptSubscriptionErrorCode;
-
-  constructor(code: ChatGptSubscriptionErrorCode) {
-    super(code);
-    this.code = code;
-  }
-}
 
 export interface ChatGptAccountService {
   state(): Promise<ChatGptSubscriptionState>;
