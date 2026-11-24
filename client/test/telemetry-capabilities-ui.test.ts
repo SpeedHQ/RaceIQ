@@ -206,12 +206,25 @@ function renderTireDiagram(value: TelemetryPacket): string {
 describe("telemetry capability UI", () => {
   test("2026 live energy stays in kJ and legacy DRS remains separate", () => {
     const ers = { storeJ: 2_000_000, deployedThisLapJ: 0, deployMode: 3 };
-    const modern = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: { drsActive: true }, wireFormat: 2026, regulations: true }));
+    const modern = renderToStaticMarkup(createElement(F1LiveErsSection, {
+      ers,
+      aero: { drsActive: true, activeAeroMode: 1, activeAeroAvailable: false, activeAeroActivationDistanceM: 0 },
+      electronics: { overtakeAvailable: false, overtakeActive: false, overtakeActivationDistanceM: 0 },
+      wireFormat: 2026,
+      regulations: true,
+    }));
     expect(modern).toContain("2000 kJ");
     expect(modern).toContain("0 kJ");
     expect(modern).toContain("Boost");
+    expect(modern).toContain("Active aero");
+    expect(modern).toContain("Straight");
+    expect(modern).toContain("Unavailable");
+    expect(modern).toContain("Disabled");
     expect(modern).not.toContain("50%");
     expect(modern).not.toContain("OPEN");
+    const missing = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: {}, electronics: {}, wireFormat: 2026, regulations: true }));
+    expect(missing).toContain("Active aero");
+    expect(missing).toContain("—");
     const oldCar = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: { drsActive: true }, wireFormat: 2026, regulations: false }));
     expect(oldCar).toContain("OPEN");
     const legacy = renderToStaticMarkup(createElement(F1LiveErsSection, { ers, aero: {}, wireFormat: 2025 }));
@@ -227,17 +240,47 @@ describe("telemetry capability UI", () => {
     expect(Number(view.valuesBySemanticId["identity.telemetry-wire-format"])).toBe(2026);
     expect(view.valuesBySemanticId["identity.f1-regulations-2026"]).toBe(true);
     expect(view.ers.deployMode).toBe(3);
+    expect(view.aero).toMatchObject({ activeAeroMode: 0, activeAeroAvailable: false, activeAeroActivationDistanceM: 0 });
+    expect(view.electronics).toMatchObject({ overtakeAvailable: false, overtakeActive: false, overtakeActivationDistanceM: 0 });
+    const noPacket16 = { ...sample, f1: { ...sample.f1, carTelemetry2: undefined } };
+    const missingProjection = new LiveTelemetryProjector().project({ packet: noPacket16, receivedAtMs: 1000 });
+    const missingView = buildLiveTelemetryView(missingProjection.schema!, missingProjection.frame!)!;
+    expect(missingView.aero.activeAeroAvailable).toBeUndefined();
+    expect(missingView.electronics?.overtakeActive).toBeUndefined();
   });
   test("2026 replay shows measured energy without assuming battery capacity or legacy DRS", () => {
     expect(analyseSemanticIds(getGame("f1-2025"))).toContain("identity.telemetry-wire-format");
     expect(analyseSemanticIds(getGame("f1-2025"))).toContain("identity.f1-regulations-2026");
-    const markup = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: semanticFrame({ "identity.telemetry-wire-format": 2026, "identity.f1-regulations-2026": true, "fuel.ers-store-energy": 2_000_000, "fuel.ers-deployed": 0, "fuel.ers-deploy-mode": 3 }) }));
+    for (const semanticId of ["aero.active-aero-mode", "aero.active-aero-available", "aero.active-aero-activation-distance", "electronics.overtake-available", "electronics.overtake-active", "electronics.overtake-activation-distance"]) {
+      expect(analyseSemanticIds(getGame("f1-2025"))).toContain(semanticId);
+    }
+    const markup = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: semanticFrame({
+      "identity.telemetry-wire-format": 2026,
+      "identity.f1-regulations-2026": true,
+      "fuel.ers-store-energy": 2_000_000,
+      "fuel.ers-deployed": 0,
+      "fuel.ers-deploy-mode": 3,
+      "aero.active-aero-mode": 1,
+      "aero.active-aero-available": false,
+      "aero.active-aero-activation-distance": 0,
+      "electronics.overtake-available": false,
+      "electronics.overtake-active": false,
+      "electronics.overtake-activation-distance": 0,
+    }) }));
     expect(markup).toContain("2000 kJ");
     expect(markup).toContain("0 kJ");
     expect(markup).toContain("Boost");
+    expect(markup).toContain("Active aero");
+    expect(markup).toContain("Straight");
+    expect(markup).toContain("Unavailable");
+    expect(markup).toContain("Disabled");
     expect(markup).not.toContain("50.0%");
     expect(markup).not.toContain("DRS");
     expect(markup).toContain("—");
+    for (const [mode, label] of [[1, "MEDIUM"], [2, "HOTLAP"], [3, "Boost"]] as const) {
+      const modeMarkup = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: semanticFrame({ "identity.telemetry-wire-format": 2026, "fuel.ers-deploy-mode": mode }) }));
+      expect(modeMarkup).toContain(label);
+    }
     const olderCar = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, { frame: semanticFrame({ "identity.telemetry-wire-format": 2026, "identity.f1-regulations-2026": false, "aero.drs-active": true }) }));
     expect(olderCar).toContain("DRS");
     expect(olderCar).toContain("OPEN");

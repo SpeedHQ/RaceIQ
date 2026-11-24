@@ -73,7 +73,14 @@ export interface LiveTelemetryView {
     compound?: string | number;
   };
   weather: { kind?: number; airTemperatureC?: number; trackTemperatureC?: number; rainPercent?: number };
-  aero: { drsActive?: boolean; drsAvailable?: boolean };
+  aero: {
+    drsActive?: boolean;
+    drsAvailable?: boolean;
+    activeAeroMode?: number;
+    activeAeroAvailable?: boolean;
+    activeAeroActivationDistanceM?: number;
+  };
+  electronics?: { overtakeAvailable?: boolean; overtakeActive?: boolean; overtakeActivationDistanceM?: number };
   ers: { storeJ?: number; deployMode?: number; deployedThisLapJ?: number; harvestedThisLapJ?: number };
   damage: {
     frontLeftWingPct?: number;
@@ -129,6 +136,11 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
   const number = (semanticId: string): number | undefined => {
     const candidate = value(semanticId);
     return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : undefined;
+  };
+  const enumNumber = (semanticId: string): number | undefined => {
+    const candidate = value(semanticId);
+    if (typeof candidate === "number" && Number.isInteger(candidate)) return candidate;
+    return typeof candidate === "string" && /^[0-9]+$/.test(candidate) ? Number(candidate) : undefined;
   };
   const numberOrString = (semanticId: string): number | string | undefined => {
     const candidate = value(semanticId);
@@ -315,6 +327,14 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     aero: {
       drsActive: boolean("aero.drs-active"),
       drsAvailable: boolean("aero.drs-available"),
+      activeAeroMode: enumNumber("aero.active-aero-mode"),
+      activeAeroAvailable: boolean("aero.active-aero-available"),
+      activeAeroActivationDistanceM: number("aero.active-aero-activation-distance"),
+    },
+    electronics: {
+      overtakeAvailable: boolean("electronics.overtake-available"),
+      overtakeActive: boolean("electronics.overtake-active"),
+      overtakeActivationDistanceM: number("electronics.overtake-activation-distance"),
     },
     ers: {
       storeJ: number("fuel.ers-store-energy"),

@@ -5,6 +5,7 @@ import { severityColor } from "@raceiq/scene-3d/colors";
 import { CarDamageDiagram, damageColor } from "./CarDamageDiagram";
 import { m } from "@/paraglide/messages";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import { getF1ErsDeployModeName } from "@raceiq/shared/telemetry/f1-2025";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -88,6 +89,7 @@ export function F1LiveDashboard() {
             <F1LiveErsSection
               ers={view.ers}
               aero={view.aero}
+              electronics={view.electronics}
               wireFormat={Number(freshSemantic(view, "identity.telemetry-wire-format"))}
               regulations={freshSemantic(view, "identity.f1-regulations-2026")}
             />
@@ -204,10 +206,12 @@ function CarDamageSection({ damage }: { damage: LiveTelemetryView["damage"] }) {
 
 // ── ERS Section ──────────────────────────────────────────────────────────────
 
-export function F1LiveErsSection({ ers, aero, wireFormat, regulations }: { ers: LiveTelemetryView["ers"]; aero: LiveTelemetryView["aero"]; wireFormat?: number; regulations?: unknown }) {
+export function F1LiveErsSection({ ers, aero, electronics = {}, wireFormat, regulations }: { ers: LiveTelemetryView["ers"]; aero: LiveTelemetryView["aero"]; electronics?: NonNullable<LiveTelemetryView["electronics"]>; wireFormat?: number; regulations?: unknown }) {
   const format2026 = wireFormat === 2026;
+  const regulations2026 = regulations === true || regulations === 1;
   const chargePct = format2026 || ers.storeJ === undefined ? undefined : Math.min(100, (ers.storeJ / ERS_MAX_ENERGY) * 100);
-  const mode = ers.deployMode === undefined ? undefined : DEPLOY_MODES[ers.deployMode];
+  const modeName = getF1ErsDeployModeName(ers.deployMode, wireFormat);
+  const mode = modeName === undefined ? undefined : DEPLOY_MODES[modeName === "none" ? 0 : modeName === "medium" ? 1 : modeName === "hotlap" ? 2 : 3];
   const deployedPct = format2026 || ers.deployedThisLapJ === undefined ? undefined : Math.min(100, (ers.deployedThisLapJ / ERS_MAX_ENERGY) * 100);
   const harvestedPct = format2026 || ers.harvestedThisLapJ === undefined ? undefined : Math.min(100, (ers.harvestedThisLapJ / ERS_MAX_ENERGY) * 100);
   const energy = (value: number | undefined) => value === undefined || !Number.isFinite(value) ? "—" : `${(value / 1000).toFixed(0)} kJ`;
@@ -220,6 +224,16 @@ export function F1LiveErsSection({ ers, aero, wireFormat, regulations }: { ers: 
       </div>
       <div className="p-3 space-y-2">
         {(!format2026 || regulations === false || regulations === 0) && <DrsIndicator aero={aero} />}
+        {format2026 && regulations2026 && <div className="space-y-1 border-b border-app-border pb-2 text-app-caption">
+          <div className="font-semibold text-app-text-muted">{m.f1live_active_aero()}</div>
+          <TelemetryStatusRow label={m.analyse_mode()} value={aero.activeAeroMode === 0 ? m.label_corner() : aero.activeAeroMode === 1 ? m.analyse_straight() : "—"} />
+          <TelemetryStatusRow label={m.analyse_available()} value={availabilityLabel(aero.activeAeroAvailable)} />
+          <TelemetryStatusRow label={m.recap_distance()} value={distanceLabel(aero.activeAeroActivationDistanceM)} />
+          <div className="font-semibold text-app-text-muted pt-1">{m.f1live_ers_overtake()}</div>
+          <TelemetryStatusRow label={m.analyse_available()} value={availabilityLabel(electronics.overtakeAvailable)} />
+          <TelemetryStatusRow label={m.lmu_state_active()} value={enabledLabel(electronics.overtakeActive)} />
+          <TelemetryStatusRow label={m.recap_distance()} value={distanceLabel(electronics.overtakeActivationDistanceM)} />
+        </div>}
         <div className="flex items-center justify-between gap-2 mt-1">
           <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
           <div className="flex items-center gap-1.5">
@@ -245,6 +259,22 @@ export function F1LiveErsSection({ ers, aero, wireFormat, regulations }: { ers: 
       </div>
     </div>
   );
+}
+
+function availabilityLabel(value: boolean | undefined): string {
+  return value === undefined ? "—" : value ? m.analyse_available() : m.analyse_unavailable_short();
+}
+
+function enabledLabel(value: boolean | undefined): string {
+  return value === undefined ? "—" : value ? m.common_enabled() : m.common_disabled();
+}
+
+function distanceLabel(value: number | undefined): string {
+  return value === undefined || value <= 0 ? "—" : `${value} m`;
+}
+
+function TelemetryStatusRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex justify-between gap-2"><span className="text-app-text-muted">{label}</span><span className="tabular-nums text-app-text">{value}</span></div>;
 }
 
 // ── Weather Section ──────────────────────────────────────────────────────────
