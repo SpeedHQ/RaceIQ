@@ -71,11 +71,13 @@ describe("persisted race result metadata", () => {
       { lapNumber: 8, isValid: true, invalidReason: null, classification: "out_lap" },
     ]);
   });
-  test("AC EVO pit event linked to an out-lap preserves the following pace lap", async () => {
+  test("AC EVO infers an ordinary pit cycle without extending an observed out-lap", async () => {
     const sessionId = await insertSession("evo-car", "evo-track", "ac-evo", "race");
     await db.insert(laps).values([
       { sessionId, lapNumber: 9, lapTime: 110, isValid: true, invalidReason: null, classification: "out_lap" },
       { sessionId, lapNumber: 10, lapTime: 105, isValid: true, invalidReason: null, classification: "pace" },
+      { sessionId, lapNumber: 11, lapTime: 108, isValid: true, invalidReason: null, classification: "pace" },
+      { sessionId, lapNumber: 12, lapTime: 112, isValid: true, invalidReason: null, classification: "pace" },
     ]);
     const result = await upsertSessionResult({
       sessionId,
@@ -86,7 +88,7 @@ describe("persisted race result metadata", () => {
       qualifyingPosition: null,
       isPodium: true,
       isFastestLap: false,
-      pitCount: 1,
+      pitCount: 2,
       tyreStrategy: null,
       fuelStrategy: null,
       provenance,
@@ -95,6 +97,7 @@ describe("persisted race result metadata", () => {
     });
     await replacePitEvents(result.id, [
       { sequence: 1, lapNumber: 9, elapsedSeconds: 200, durationSeconds: null, service: "unknown", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
+      { sequence: 2, lapNumber: 11, elapsedSeconds: 410, durationSeconds: null, service: "unknown", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
     ]);
     const storedLaps = await db.select({
       lapNumber: laps.lapNumber,
@@ -103,6 +106,8 @@ describe("persisted race result metadata", () => {
     expect(storedLaps).toEqual([
       { lapNumber: 9, classification: "out_lap" },
       { lapNumber: 10, classification: "pace" },
+      { lapNumber: 11, classification: "in_lap" },
+      { lapNumber: 12, classification: "out_lap" },
     ]);
   });
 
