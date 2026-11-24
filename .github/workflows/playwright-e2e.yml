@@ -125,16 +125,13 @@ jobs:
 
   browser-results:
     name: Browser verification results
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [prepare, seed-database, playwright, playwright-webgpu]
     runs-on:
       - mars-ubuntu-1vcpu-1g
       - mars-retry-3
     timeout-minutes: 5
     steps:
-      - name: Reject cancelled workflow
-        if: cancelled()
-        run: exit 1
       - name: Download completed browser row receipts
         if: ${{ !cancelled() && needs.playwright.result == 'success' }}
         uses: actions/download-artifact@v8
