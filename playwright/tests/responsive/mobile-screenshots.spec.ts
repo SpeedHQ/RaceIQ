@@ -95,11 +95,11 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await openSettings(p, viewport.width);
           await p.getByRole("combobox", { name: "Search language...", exact: true }).click();
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
-        } else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
-          // Base revision can overlap this trigger at phone width; keyboard still opens the menu for comparison.
-          await p.getByRole("button", { name: "Overlays", exact: true }).focus();
-          await p.keyboard.press("Enter");
+        } else if (screenshotCase.kind === "analyse-actions") {
+          await p.getByRole("button", { name: "Actions", exact: true }).click();
           await expect(p.getByRole("menu")).toBeVisible();
+        } else if (screenshotCase.kind === "analyse-data-panel-loaded") {
+          // The loaded panel itself is the screenshot target.
         } else {
           await p.getByRole("button", { name: "Export / Import" }).click();
           await expect(p.getByRole("menu")).toBeVisible();

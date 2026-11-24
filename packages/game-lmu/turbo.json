@@ -8,11 +8,11 @@
     },
     "test": {
       "dependsOn": ["@raceiq/game-lmu-tests#transit"],
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.bin.gz", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.part*"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.bin.gz", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.part*"]
     },
     "test:integration": {
       "dependsOn": ["@raceiq/game-lmu-tests#transit"],
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/*.bin.gz"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/*.bin.gz"]
     },
     "test:unit": {
       "dependsOn": ["@raceiq/game-lmu-tests#transit"],
@@ -21,7 +21,7 @@
     "test:e2e:recordings": {
       "cache": false,
       "dependsOn": ["@raceiq/game-lmu-tests#transit"],
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.bin.gz", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.part*"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.ts", "$TURBO_ROOT$/packages/game-lmu/test/**/*.tsx", "$TURBO_ROOT$/packages/game-lmu/test/**/*.json", "$TURBO_ROOT$/packages/game-lmu/test/*-files.txt", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.bin.gz", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/**/*.part*"]
     }
   }
 }

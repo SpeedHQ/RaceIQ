@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { getProviders } from "./providers";
+import { getProviders } from "../../ai/providers";
 
 describe("provider registry — DeepSeek", () => {
   test("includes DeepSeek", () => {

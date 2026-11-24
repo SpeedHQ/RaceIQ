@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { contextWindowFor } from "./context-window";
+import { contextWindowFor } from "../../../integrations/ai/context-window";
 
 describe("contextWindowFor — DeepSeek", () => {
   test("deepseek-flash reports a 1M context window", () => {

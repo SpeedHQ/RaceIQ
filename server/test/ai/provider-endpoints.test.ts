@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { baseUrlFor } from "./provider-endpoints";
+import { baseUrlFor } from "../../ai/provider-endpoints";
 
 describe("baseUrlFor — fixed provider endpoints", () => {
   test("DeepSeek uses its official OpenAI-compatible endpoint", () => {
