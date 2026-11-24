@@ -236,6 +236,55 @@ describe("DirectCaptureRecording", () => {
     expect(framesBySource).toEqual(frames.slice(0, 3));
   });
 
+  it("promotes a delayed lap start after a newer window supersedes an earlier candidate", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-superseded-"));
+    directories.push(directory);
+    const manifestPath = join(directory, "capture-manifest.json");
+    const capture = new DirectCaptureRecording("fm-2023", directory, manifestPath);
+    captures.push(capture);
+    await capture.ready;
+    const session = await db.insert(sessions).values({ gameId: "fm-2023", carId: "test-car", trackId: "test-track" }).returning({ id: sessions.id }).get();
+    sessionIds.push(session.id);
+    capture.attachSession(session.id, Promise.resolve(), () => {});
+    const frames = fixtureFrames();
+    const first: DetectorOwnershipWindow = {
+      revision: 1, lapNumber: 1, startOffset: capture.getCurrentByteOffset(), startOrdinal: 0,
+      frameCount: 0, preparationOnly: true, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+    };
+    capture.writeRecord(frames[0]!, 100);
+    capture.processTransitions([ownershipTransition("candidate-start", first)], null);
+    const confirmed = { ...first, revision: 2, startOffset: capture.getCurrentByteOffset(), startOrdinal: 1, preparationOnly: undefined, frameCount: 1 };
+    capture.writeRecord(frames[1]!, 101);
+    capture.processTransitions([ownershipTransition("window-start", confirmed)], null);
+
+    const startOffset = capture.getCurrentByteOffset();
+    const candidate = { ...first, revision: 3, lapNumber: 2, startOffset, startOrdinal: 2 };
+    initServerGameAdapters();
+    let locator: ParserReplayLocator | null = null;
+    const unsubscribe = subscribeParserSource(input => { if (input.frame === frames[2]) locator = input.locator; });
+    parsePacket(frames[2]!, 102);
+    unsubscribe();
+    capture.writeRecord(frames[2]!, 102);
+    capture.processTransitions([ownershipTransition("candidate-start", candidate)], locator);
+    capture.processTransitions([ownershipTransition("window-abandoned", { ...confirmed, revision: 4 })], null);
+    capture.writeRecord(frames[3]!, 103);
+    const promoted = { ...candidate, revision: 5, preparationOnly: undefined, frameCount: 2 };
+    capture.processTransitions([ownershipTransition("window-start", promoted)], null);
+    const lap = await db.insert(laps).values({
+      sessionId: session.id, lapNumber: 2, lapTime: 61, isValid: true, rawByteOffset: startOffset, rawFrameCount: 2,
+    }).returning({ id: laps.id }).get();
+    capture.bindLap({ sessionId: session.id, lapId: lap.id, lapNumber: 2, startByteOffset: startOffset, frameCount: 2 });
+    capture.processTransitions([ownershipTransition("window-finalized", { ...promoted, revision: 6, status: "final" })], null);
+    await capture.stop();
+
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    const chunk = manifest.chunks.at(-1);
+    expect(chunk).toMatchObject({ kind: "lap", lapId: String(lap.id), sourceByteStart: startOffset, ownedFrameCount: 2 });
+    const artifact = await readFile(join(directory, chunk.path));
+    const records = [...iterateSessionCaptureRecords(artifact, chunk.ownedFrameByteOffset, { strict: true })];
+    expect(records.filter(record => record.kind === "frame").map(record => record.frame)).toEqual(frames.slice(2));
+  });
+
   it("keeps recording when a speculative start outlives the retention window", async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-stale-candidate-"));
     directories.push(directory);
