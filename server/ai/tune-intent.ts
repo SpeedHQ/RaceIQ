@@ -159,6 +159,8 @@ async function runTuneIntentProvider(
   const tuneModel = settings.autoTuneModel || settings.aiModel;
 
   switch (provider) {
+    case "chatgpt-subscription":
+      throw new Error("Use the local RaceIQ app to run ChatGPT Auto-tune.");
     case "openai": {
       const key = await requireAiProviderApiKey("openai");
       const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
@@ -201,9 +203,10 @@ export async function requestTuneIntents(
   symptoms: TuneSymptoms,
   trackName?: string,
   carModel?: string,
+  generate: (prompt: string, schema: object) => Promise<{ raw: string; model: string }> = runTuneIntentProvider,
 ): Promise<{ intents: TuneIntents; model: string }> {
   const prompt = buildTunePrompt(gameId, symptoms, trackName, carModel);
-  const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
+  const { raw, model } = await generate(prompt, getTuneIntentJsonSchema());
 
   const parsed = parseTuneIntents(raw);
   if (!parsed.success) {

@@ -2,6 +2,7 @@ import { getAiProviderApiKey } from "@raceiq/backend-core/ai/openai-compatible-p
 import { isSupportedAiProvider } from "@raceiq/backend-core/ai/provider-capabilities";
 import { loadSettings, type AppSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "@raceiq/backend-core/ai/ai-features";
+import { chatGptReasoningLevels } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import {
   AiProviderError,
 } from "@raceiq/backend-core/ai/provider-error";
@@ -15,27 +16,40 @@ import {
 } from "./provider-adapters";
 
 import type { ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
+import { ChatGptSubscriptionAdapter } from "./chatgpt-subscription-adapter";
+import { getChatGptCatalog } from "./chatgpt-subscription-catalog";
+import { hasDirectLocalAiAccess } from "../runtime/http-access";
+import { chatGptAccounts } from "../runtime/chatgpt-subscription-runtime";
 
 function sectionFor(feature: AiFeature): "Chat" | "Analysis" {
   return feature === "chat" || feature === "compaction" ? "Chat" : "Analysis";
 }
 
-function selectedSettings(settings: AppSettings, feature: AiFeature): {
+export function selectedAiSettings(settings: AppSettings, feature: AiFeature): {
   provider: string;
   model: string;
   thinkingBudget: number | null;
 } {
   const config = AI_FEATURES[feature];
   const fallback = config.fallbackFeature ? AI_FEATURES[config.fallbackFeature] : undefined;
+  const provider = settings[config.providerSetting] || (fallback ? settings[fallback.providerSetting] : "");
+  const model = provider === "chatgpt-subscription" && fallback && !settings[config.providerSetting]
+    ? settings[fallback.modelSetting]
+    : settings[config.modelSetting] || (provider !== "chatgpt-subscription" && fallback ? settings[fallback.modelSetting] : "");
   return {
-    provider: settings[config.providerSetting] || (fallback ? settings[fallback.providerSetting] : ""),
-    model: settings[config.modelSetting] || (fallback ? settings[fallback.modelSetting] : ""),
+    provider,
+    model,
     thinkingBudget: settings[config.thinkingBudgetSetting] ?? (fallback ? settings[fallback.thinkingBudgetSetting] : null),
   };
 }
 
-export async function resolveAi(feature: AiFeature, settings: AppSettings = loadSettings()): Promise<ResolvedAi> {
-  const selected = selectedSettings(settings, feature);
+export async function resolveAi(
+  feature: AiFeature,
+  settings: AppSettings = loadSettings(),
+  source?: "background-driver-profile",
+  onSubscriptionUsage?: NonNullable<ConstructorParameters<typeof ChatGptSubscriptionAdapter>[3]>["onUsage"],
+): Promise<ResolvedAi> {
+  const selected = selectedAiSettings(settings, feature);
   const section = sectionFor(feature);
   if (!selected.provider) {
     throw new AiProviderError(`No AI provider selected. Choose one in Settings → AI ${section}.`, {
@@ -60,6 +74,26 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
   const config = { feature, model, thinkingBudget: selected.thinkingBudget };
   switch (provider) {
+    case "chatgpt-subscription": {
+      const backgroundAllowed = feature === "driverProfile" && source === "background-driver-profile" && settings.driverProfileBackgroundEnabled;
+      if (!chatGptAccounts || !(backgroundAllowed || hasDirectLocalAiAccess())) {
+        throw new AiProviderError("ChatGPT is available only in the local RaceIQ app.", {
+          code: "unsupported-operation", provider, modelId: model, statusCode: 403,
+        });
+      }
+      const binding = await chatGptAccounts.bindActive();
+      const catalog = await getChatGptCatalog(binding);
+      if (!catalog.some((entry) => entry.id === model && entry.features.includes(feature === "compaction" ? "chat" : feature))) {
+        throw new AiProviderError("Choose an available ChatGPT model in Settings.", {
+          code: "unsupported-operation", provider, modelId: model, statusCode: 422,
+        });
+      }
+      const effort = settings.chatSubscriptionReasoningLevel;
+      return resolvedAiFromAdapter(new ChatGptSubscriptionAdapter(feature, model, binding, feature === "chat" ? {
+        onUsage: onSubscriptionUsage,
+        reasoningEffort: effort && chatGptReasoningLevels(model).includes(effort) ? effort : undefined,
+      } : undefined));
+    }
     case "gemini": {
       const apiKey = await getAiProviderApiKey("gemini");
       if (!apiKey) {

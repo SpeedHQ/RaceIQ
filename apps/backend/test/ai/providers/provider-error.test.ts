@@ -71,4 +71,9 @@ describe("toClientAiError", () => {
       upstream: null,
     });
   });
+
+  test("replaces a ChatGPT account code with recovery copy", () => {
+    const out = toClientAiError(Object.assign(new Error("reauth_required"), { code: "reauth_required" }));
+    expect(out.message).toBe("Reconnect ChatGPT in Settings.");
+  });
 });

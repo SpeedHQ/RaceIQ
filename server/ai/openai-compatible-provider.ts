@@ -26,9 +26,10 @@ export async function requireAiProviderApiKey(provider: Exclude<ConfiguredAiProv
 }
 
 export async function configureAiProviderEnvironment(
-  provider: ConfiguredAiProvider,
+  provider: ConfiguredAiProvider | "chatgpt-subscription",
   localEndpoint = "http://localhost:1234/v1",
 ): Promise<string | undefined> {
+  if (provider === "chatgpt-subscription") return undefined;
   const apiKey = await getAiProviderApiKey(provider);
   if (provider !== "openai-compatible" && !apiKey) {
     throw new AiProviderError(`${PROVIDER_LABELS[provider]} API key not set. Configure it in Settings.`, {

@@ -15,6 +15,7 @@ import type {
 import { ANTHROPIC_OPENAI_BASE_URL } from "@raceiq/backend-core/ai/openai-compatible-headers";
 import { baseUrlFor } from "@raceiq/backend-core/ai/provider-endpoints";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
+import type { ChatGptSubscriptionAdapter } from "./chatgpt-subscription-adapter";
 
 export type ProviderAdapterConfig = {
   feature: AiFeature;
@@ -251,7 +252,8 @@ export type AnyProviderAdapter =
   | OpenAiProviderAdapter
   | AnthropicProviderAdapter
   | DeepSeekProviderAdapter
-  | OpenAiCompatibleProviderAdapter;
+  | OpenAiCompatibleProviderAdapter
+  | ChatGptSubscriptionAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   const resolved: ResolvedAi = {

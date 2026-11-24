@@ -23,6 +23,7 @@ import { getOpenAiCompatibleModelsDetailed } from "@raceiq/backend-core/ai/provi
 import type { StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
 import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 import { getResolvedAiInternals } from "./resolved-ai-internals";
+import { consumeMastraGeneration } from "./stream-mastra-generation";
 
 export interface AnalysisUsage {
   inputTokens: number;
@@ -295,7 +296,12 @@ export async function generateLapAnalysis(
     const generate =
       deps.generate ??
       ((requestPrompt, requestOptions) =>
-        lapAnalystAgent.generate(requestPrompt, requestOptions as never));
+        ai.provider === "chatgpt-subscription"
+          ? consumeMastraGeneration(lapAnalystAgent.stream(requestPrompt, {
+            ...requestOptions,
+            modelSettings: { maxRetries: 0 },
+          } as never), true)
+          : lapAnalystAgent.generate(requestPrompt, requestOptions as never));
     const runStructured = deps.runAiStructured ?? runAiStructured;
     const result = await runStructured(ai, input, (requestContext) =>
       generate(prompt, { ...generationOptions, requestContext }),

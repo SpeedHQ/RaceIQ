@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { ProviderSetupState } from "./ai-state";
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
+import { ChatGptAccountSetup } from "./ChatGptAccountSetup";
 
 export function ProviderSetupSection({ state }: { state: ProviderSetupState }) {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export function ProviderSetupSection({ state }: { state: ProviderSetupState }) {
             </div>
           );
         })}
+        <ChatGptAccountSetup />
       </div>
     </section>
   );

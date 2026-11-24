@@ -1,4 +1,4 @@
-type AiProvider = "" | "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
+type AiProvider = "" | "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible" | "chatgpt-subscription";
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
@@ -7,6 +7,7 @@ export interface AiConfigSettings {
   openaiApiKeySet?: boolean;
   anthropicApiKeySet?: boolean;
   deepseekApiKeySet?: boolean;
+  chatGptSubscriptionConnected?: boolean;
   chatProvider?: AiProvider;
   chatModel?: string;
 }
@@ -17,6 +18,7 @@ function isProviderConfigured(provider: AiProvider, settings: AiConfigSettings):
   if (provider === "anthropic") return !!settings.anthropicApiKeySet;
   if (provider === "deepseek") return !!settings.deepseekApiKeySet;
   if (provider === "gemini") return !!settings.geminiApiKeySet;
+  if (provider === "chatgpt-subscription") return !!settings.chatGptSubscriptionConnected;
   return false;
 }
 

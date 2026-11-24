@@ -4,7 +4,7 @@ import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-m
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
-import { beginRequestAuthorization, endRequestAuthorization, httpAccess, type HttpAccess } from "./http-access";
+import { beginRequestAuthorization, endRequestAuthorization, httpAccess, withDirectLocalAiAccess, type HttpAccess } from "./http-access";
 
 type HttpApp = {
   fetch: (request: Request) => Response | Promise<Response>;
@@ -72,7 +72,7 @@ export function startHttpServer({ app, port, staticDir, devPublicDir, access = {
     // can stream them to disk or return the route's structured size error.
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
-      beginRequestAuthorization(req);
+      beginRequestAuthorization(req, server);
       const denied = await access.authorize(req);
       if (denied) return denied;
       const url = new URL(req.url);
@@ -84,7 +84,7 @@ export function startHttpServer({ app, port, staticDir, devPublicDir, access = {
       }
 
       if (url.pathname.startsWith("/api") || url.pathname.startsWith("/studio-api")) {
-        return app.fetch(req);
+        return withDirectLocalAiAccess(req, () => app.fetch(req));
       }
 
       if (staticDir) {

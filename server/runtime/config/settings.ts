@@ -13,7 +13,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "deepseek", "openai-compatible"]).default("");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "anthropic", "deepseek", "openai-compatible", "chatgpt-subscription"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -34,6 +34,7 @@ const AppSettingsSchema = z.object({
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
   chatReasoningLevel: z.enum(OPENAI_REASONING_LEVELS).default("medium"),
+  chatSubscriptionReasoningLevel: z.enum(OPENAI_REASONING_LEVELS).nullable().default(null),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
   // provider (aiProvider) so the user can point auto-tune at a different
   // model. Reuses the same stored API keys as the analysis section.

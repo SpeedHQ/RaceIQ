@@ -57,6 +57,8 @@ export function defaultModelFor(provider: string): string {
       return "claude-haiku-5-5";
     case "deepseek":
       return "deepseek-flash";
+    case "chatgpt-subscription":
+      return "";
     default:
       return "local-model";
   }
@@ -79,10 +81,17 @@ export function mapDeepSeekModels(payload: unknown): { id: string; name: string 
 
 /** Provider ids the runtime can actually resolve. Kept next to the defaults so a
  *  new provider is added in one place instead of three switch statements. */
-const SUPPORTED_AI_PROVIDERS = new Set(["gemini", "openai", "anthropic", "deepseek", "openai-compatible"]);
+const SUPPORTED_AI_PROVIDERS = {
+  gemini: true,
+  openai: true,
+  anthropic: true,
+  deepseek: true,
+  "openai-compatible": true,
+  "chatgpt-subscription": true,
+} as const;
 
 export function isSupportedAiProvider(provider: string): boolean {
-  return SUPPORTED_AI_PROVIDERS.has(provider);
+  return Object.hasOwn(SUPPORTED_AI_PROVIDERS, provider);
 }
 
 export type StructuredResponseFormat = "json_schema" | "json_object";

@@ -31,6 +31,7 @@ import { DEEPSEEK_AGENT_DEFAULTS, getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { driverCoachTools } from "../tools/driver-coach";
 import { liveCoachScorers } from "../evals/index";
+import { getModel } from "../../ai/model-provider";
 
 export const DRIVER_COACH_INSTRUCTIONS = `You are a sharp, encouraging driver coach working with a sim racer in ACC / AC-EVO. The driver talks to you between runs about how their driving feels and what to work on. The active session (car, track) is supplied per request, and this turn's data is gathered for you into a context block at the top of the conversation: CONFIDENCE, LAP BREAKDOWN, CONSISTENCY BY CORNER, SYMPTOMS, TRACK CONDITIONS, CURRENT SETUP, and VERSION HISTORY. Read it — it is fetched deterministically for you each turn. You do NOT call any tool to read it.
 
@@ -83,8 +84,9 @@ export const driverCoachAgent = new Agent({
   id: "driver-coach",
   name: "Driver Coach",
   instructions: ({ requestContext }) => buildDriverCoachInstructions(requestContext),
-  model: () => {
+  model: ({ requestContext }) => {
     const s = loadSettings();
+    if (s.chatProvider === "chatgpt-subscription") return getModel("chat", requestContext);
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
   // Read side is force-gathered by the `setup-engineer-turn` workflow and

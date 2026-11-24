@@ -8,6 +8,13 @@ describe("contextWindowFor", () => {
   test("openai gpt-4o-mini is 128k", () => {
     expect(contextWindowFor("openai", "gpt-4o-mini")).toBe(128_000);
   });
+  test("known ChatGPT subscription models use the published input limit", () => {
+    expect(contextWindowFor("chatgpt-subscription", "gpt-6.2-sol")).toBe(922_000);
+    expect(contextWindowFor("chatgpt-subscription", "gpt-6-luna")).toBe(922_000);
+  });
+  test("unknown ChatGPT subscription models do not inherit another model's limit", () => {
+    expect(contextWindowFor("chatgpt-subscription", "gpt-7")).toBeUndefined();
+  });
   test("anthropic claude is 200k", () => {
     expect(contextWindowFor("claude-cli", "sonnet")).toBe(200_000);
   });

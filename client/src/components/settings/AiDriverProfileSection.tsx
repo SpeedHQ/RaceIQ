@@ -1,10 +1,9 @@
 import { RefreshCw } from "lucide-react";
-import { SearchSelect } from "@/components/ui/SearchSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
-import { AiProviderPicker } from "./AiPickers";
+import { AiModelPicker, AiProviderPicker, AiSubscriptionUsage } from "./AiPickers";
 import type { AiDriverProfileState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
 import { defaultModelForProvider } from "./recommended-model";
@@ -84,20 +83,21 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
               </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
-            <SearchSelect
+            <AiModelPicker
               id="ai-driver-profile-model"
               value={driverProfileModel}
               onChange={(value) => {
                 setDriverProfileModel(value);
                 setDriverProfileThinkingBudget(null);
               }}
-              options={[{ value: "", label: m.ai_model_default() }, ...driverProfileModels.map((item) => ({ value: item.id, label: item.name }))]}
-              ariaLabel={m.ai_model_label()}
+              models={driverProfileModels}
+              explicit={driverProfileProvider === "chatgpt-subscription"}
+              recommend={false}
               className="w-full max-w-xs"
             />
           </div>
         )}
-        <div>
+        {driverProfileProvider !== "chatgpt-subscription" && <div>
           <Label htmlFor="ai-driver-profile-max-output-tokens" className="block text-xs text-app-text-muted mb-1">
             {m.ai_max_output_tokens_label()}
           </Label>
@@ -111,7 +111,7 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
             className="w-full max-w-xs"
           />
           <p className="text-xs text-app-text-muted mt-1">{m.ai_max_output_tokens_desc({ max: String(Math.max(512, Math.min(32_768, driverProfileModelContextLength ?? 32_768))) })}</p>
-        </div>
+        </div>}
         {driverProfileProvider === "gemini" && canShowDriverProfileModelPicker && (
           <div>
             <div id="ai-driver-profile-thinking-label" className="block text-xs text-app-text-muted mb-1">
@@ -137,7 +137,8 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
             )}
           </div>
         )}
-        {driverProfileProvider !== "" && !hasDriverProfileProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {driverProfileProvider === "chatgpt-subscription" && <AiSubscriptionUsage ready={hasDriverProfileProviderKey} />}
+        {driverProfileProvider !== "" && driverProfileProvider !== "chatgpt-subscription" && !hasDriverProfileProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && !aiModelsFetching && driverProfileModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
