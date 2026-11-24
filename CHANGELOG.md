@@ -33,6 +33,7 @@
 - Verify affected Turbo task selection against full selection when CI history is shallow.
 
 ### Internal
+- Require an explicitly configured model for AI evaluation runs.
 
 ## v0.21.1 - 2026-11-03
 
