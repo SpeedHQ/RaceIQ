@@ -223,16 +223,33 @@ export async function repairDirectCaptureManifests(): Promise<DirectCaptureRepai
       try {
         let primary: PublishedManifest | null = null;
         let backupRequired = false;
+        let primaryMissing = false;
         try { primary = await parseManifest(path); }
         catch (error) {
           if (!mayUseRecovery(error)) throw error;
           backupRequired = true;
+          primaryMissing = (error as NodeJS.ErrnoException).code === "ENOENT";
         }
         let candidate: Manifest;
         if (primary && primary.version !== 3) continue;
         if (primary?.version === 3 && primary.sourceCoordinates !== "native-wire-v1") continue;
         if (primary) candidate = primary;
-        else candidate = await parseRecoveryManifest(`${path}.recovery`);
+        else {
+          try {
+            candidate = await parseRecoveryManifest(`${path}.recovery`);
+          } catch (error) {
+            if (primaryMissing && (error as NodeJS.ErrnoException).code === "ENOENT") {
+              // Startup cleanup in another worker can remove a capture after this pass lists it.
+              const remaining = await readDb.select({ id: sessions.id }).from(sessions).where(or(
+                inArray(sessions.id, owners.map(({ id }) => id)),
+                eq(sessions.rawFile, path),
+                eq(sessions.captureManifestFile, path),
+              )).get();
+              if (!remaining) continue;
+            }
+            throw error;
+          }
+        }
         if (owners.length !== 1) fail("Manifest is referenced by multiple sessions");
         if (primary?.version === 3 && fullyPublished(owner, primary, ownedLaps, path)) continue;
         if (owner.rawFile !== path && owner.captureManifestFile !== path) fail("Manifest reference changed");

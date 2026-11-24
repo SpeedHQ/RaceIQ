@@ -2,6 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
+import * as fs from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -289,6 +290,41 @@ describe("direct capture repair through recording maintenance", () => {
       expect((await db.select().from(laps).where(eq(laps.id, source.lap.id)).get())?.captureChunkId).toBeNull();
     });
   }
+  test("maintenance continues when startup removes an empty capture after enumeration", async () => {
+    const source = await recording();
+    await db.delete(laps).where(eq(laps.sessionId, source.session.id)).run();
+    const healthy = await recording();
+    await unpublish(healthy);
+    const lstat = fs.lstat;
+    let removed = false;
+    const hook = spyOn(fs, "lstat").mockImplementation((async (...args: Parameters<typeof fs.lstat>) => {
+      if (!removed && args[0] === source.path) {
+        removed = true;
+        // Simulate another worker, which does not share this process's maintenance lock.
+        await db.delete(sessions).where(eq(sessions.id, source.session.id)).run();
+        await rm(source.path);
+        await rm(`${source.path}.recovery`);
+      }
+      return lstat(...args);
+    }) as typeof fs.lstat);
+    try {
+      await runSessionCaptureMaintenanceNow();
+      expect(removed).toBe(true);
+      await verifyReplay(healthy);
+    } finally {
+      hook.mockRestore();
+    }
+  });
+
+  test("missing primary and recovery still fail for an existing session", async () => {
+    const source = await recording();
+    await rm(source.path);
+    await rm(`${source.path}.recovery`);
+    await expect(runSessionCaptureMaintenanceNow()).rejects.toThrow();
+    expect(await readFile(source.chunkPath)).toEqual(source.chunkBytes);
+    expect(await db.select().from(sessions).where(eq(sessions.id, source.session.id)).get()).toBeDefined();
+  });
+
   for (const change of ["deleted", "repointed"] as const) {
     test(`does not publish stale ownership when session is ${change} during repair`, async () => {
       const source = await recording();
