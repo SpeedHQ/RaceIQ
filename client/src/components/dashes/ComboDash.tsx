@@ -15,8 +15,10 @@ interface ComboDashProps {
   tireHealthThresholds?: { green: number; yellow: number };
 }
 
-function gearLabel(gear: number): string {
+function gearLabel(gear: number | undefined, simulator?: LiveTelemetryView["simulator"]): string {
+  if (gear === undefined) return "N";
   if (gear <= 0) return "R";
+  if (simulator === "ams2") return gear === 11 ? "N" : String(gear);
   if (gear === 1) return "N";
   return String(gear - 1);
 }
@@ -37,7 +39,6 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
   const rpm = view?.engine.rpm ?? 0;
   const idle = view?.engine.idleRpm ?? 0;
   const max = view?.engine.maxRpm ?? 10000;
-  const gear = view?.inputs.gear ?? 1;
   const speed = (view?.motion.speedMps ?? 0) * (unitSystem === "metric" ? 3.6 : 2.23694);
   const unit = unitSystem === "metric" ? "km/h" : "mph";
   const lapNumber = view?.timing.lapNumber ?? 0;
@@ -80,7 +81,7 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
         <div className="grid grid-cols-3 gap-3 min-h-0">
           <div className="min-w-0 min-h-0">
             <Tile label="GEAR">
-              <div className="text-app-instrument-primary font-black leading-none">{gearLabel(gear)}</div>
+              <div className="text-app-instrument-primary font-black leading-none">{gearLabel(view?.inputs.gear, view?.simulator)}</div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">

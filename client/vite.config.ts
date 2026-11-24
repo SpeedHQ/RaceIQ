@@ -11,8 +11,12 @@ import { createLogger, defineConfig, type Plugin, type ProxyOptions, type ViteDe
 
 const configuredServerTarget = process.env.PROXY_TARGET;
 const serverTarget = configuredServerTarget ?? `http://localhost:${process.env.SERVER_PORT ?? "3117"}`;
+const localAiProxyToken = configuredServerTarget ? undefined : process.env.DEV_LOCAL_AI_PROXY_TOKEN;
+const portlessUrl = URL.parse(process.env.PORTLESS_URL ?? "");
+const relayedDashboardPorts = new Set<number>();
 
 const forwardDashboardOrigin: NonNullable<ProxyOptions["configure"]> = (proxy) => {
+  const proofHeader = "x-raceiq-local-ai-proxy";
   const forward = (outgoing: ClientRequest, incoming: IncomingMessage) => {
     // changeOrigin rewrites Host to the backend. Preserve the browser-facing
     // authority for both HTTP and WebSocket requests, overwriting caller values.
@@ -20,8 +24,21 @@ const forwardDashboardOrigin: NonNullable<ProxyOptions["configure"]> = (proxy) =
     outgoing.setHeader("x-forwarded-host", incoming.headers.host ?? "");
     outgoing.setHeader("x-forwarded-proto", "http");
   };
-  proxy.on("proxyReq", forward);
-  proxy.on("proxyReqWs", forward);
+  const forwardHttp = (outgoing: ClientRequest, incoming: IncomingMessage) => {
+    forward(outgoing, incoming);
+    outgoing.removeHeader(proofHeader);
+    const { remoteAddress, remotePort } = incoming.socket;
+    if (localAiProxyToken && portlessUrl?.protocol === "http:" && portlessUrl.hostname.endsWith(".localhost")
+      && incoming.headers.host === portlessUrl.host && incoming.url?.startsWith("/api/")
+      && remoteAddress === "127.0.0.1" && remotePort !== undefined && !relayedDashboardPorts.has(remotePort)) {
+      outgoing.setHeader(proofHeader, localAiProxyToken);
+    }
+  };
+  proxy.on("proxyReq", forwardHttp);
+  proxy.on("proxyReqWs", (outgoing, incoming) => {
+    forward(outgoing, incoming);
+    outgoing.removeHeader(proofHeader);
+  });
 };
 
 const paraglideBuildScript = path.resolve(import.meta.dirname, "../scripts/dev/paraglide-build.ts");
@@ -44,7 +61,7 @@ function dashboardPortPlugin(): Plugin {
       instance.httpServer?.once("listening", () => {
         const address = instance.httpServer?.address();
         if (!address || typeof address === "string") return;
-        listeners = startDashboardListeners(address.port, developmentDashboardHosts(process.env.RACEIQ_DEV_HTTP_HOSTS))
+        listeners = startDashboardListeners(address.port, developmentDashboardHosts(process.env.RACEIQ_DEV_HTTP_HOSTS), relayedDashboardPorts)
           .then((stop) => { stopListeners = stop; })
           .catch((error) => {
             instance.config.logger.error(String(error));

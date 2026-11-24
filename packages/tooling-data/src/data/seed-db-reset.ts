@@ -1,7 +1,7 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
-import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
+import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, tuneSessionThreadId } from "@raceiq/assistant/ai/chat-agent";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "@raceiq/backend-core/db/schema";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { PROFILE_NAME, SEED_MARKER } from "./seed-db-options";

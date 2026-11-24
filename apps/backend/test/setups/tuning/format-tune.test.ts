@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { formatTuneForPrompt } from "@raceiq/backend-core/ai/format-tune";
+import { formatTuneForPrompt } from "@raceiq/assistant/ai/format-tune";
 import type { TuneSettings } from "@raceiq/shared/racing/tuning/types";
 
 const SETTINGS: TuneSettings = {

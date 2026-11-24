@@ -8,6 +8,7 @@ apps/backend/test/ai/chat/compare-chat-message-context.test.ts
 apps/backend/test/ai/chat/driver-coach.test.ts
 apps/backend/test/ai/chat/stream-deadline.test.ts
 apps/backend/test/ai/chat/tune-chat-message.test.ts
+apps/backend/test/ai/chatgpt-subscription-routes.test.ts
 apps/backend/test/ai/context-window.test.ts
 apps/backend/test/ai/evals/drill-quality-scorer.test.ts
 apps/backend/test/ai/extract-json.test.ts
@@ -19,6 +20,7 @@ apps/backend/test/ai/prompts/tune-chat-intent-prompt.test.ts
 apps/backend/test/ai/prompts/tune-chat-prompt.test.ts
 apps/backend/test/ai/providers/analysis-provider-binding.test.ts
 apps/backend/test/ai/providers/anthropic-provider.test.ts
+apps/backend/test/ai/providers/chatgpt-subscription-adapter.test.ts
 apps/backend/test/ai/providers/deepseek-provider.test.ts
 apps/backend/test/ai/providers/google-provider-options.test.ts
 apps/backend/test/ai/chat/chat-route-context.test.ts
@@ -107,6 +109,8 @@ apps/backend/test/routes/runtime-features.test.ts
 apps/backend/test/routes/recording-directory.test.ts
 apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
+apps/backend/test/runtime/chatgpt-mac-accounts.test.ts
+apps/backend/test/runtime/chatgpt-subscription-ingress.test.ts
 apps/backend/test/runtime/http-server.test.ts
 apps/backend/test/runtime/dashboard-auth.test.ts
 apps/backend/test/runtime/dump-only.test.ts
@@ -220,3 +224,4 @@ apps/backend/test/session-capture/preopened-file-writer.test.ts
 apps/backend/test/session-capture/direct-recorder.test.ts
 apps/backend/test/session-capture/direct-recording-ingress.test.ts
 apps/backend/test/session-capture/classification-status.test.ts
+apps/backend/test/runtime/desktop-lifecycle.test.ts

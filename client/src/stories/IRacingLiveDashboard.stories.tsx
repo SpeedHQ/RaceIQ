@@ -10,8 +10,8 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "iracing"], fakeSessionLaps);
-queryClient.setQueryData(["track-name", 101, "iracing"], "Watkins Glen International");
-queryClient.setQueryData(["car-name", 1001, "iracing"], "GT3");
+queryClient.setQueryData(["track-name", "101", "iracing"], "Watkins Glen International");
+queryClient.setQueryData(["car-name", "1001", "iracing"], "GT3");
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeIRacingSemanticFixture;

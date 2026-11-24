@@ -20,6 +20,26 @@ describe("HTTP access policy", () => {
     expect((await (await createHttpAccess({ SERVER_PASSWORD: password })).authorize(request("/")))?.status).toBe(401);
   });
 
+  test("desktop listeners provide IPv4 loopback without dropping configured LAN hosts", async () => {
+    for (const host of ["::1", "[::1]"]) {
+      const access = await createHttpAccess({ RACEIQ_DESKTOP: "1", SERVER_HOST: host });
+      expect(access.hosts).toEqual([host, "127.0.0.1"]);
+      expect((await createHttpAccess({ SERVER_HOST: host })).hosts).toEqual([host]);
+    }
+    expect((await createHttpAccess({ RACEIQ_DESKTOP: "1", SERVER_HOST: "localhost" })).hosts).toEqual(["127.0.0.1"]);
+    for (const host of ["127.0.0.1", "0.0.0.0", "::"]) {
+      expect((await createHttpAccess({ RACEIQ_DESKTOP: "1", SERVER_HOST: host })).hosts).toEqual([host]);
+    }
+    const auth = {
+      getNetwork: async () => ({ hosts: ["192.168.1.10", "::1"], origins: [], originsEnabled: false }),
+    } as unknown as DashboardAuth;
+    const localhostAuth = {
+      getNetwork: async () => ({ hosts: ["192.168.1.10", "localhost", "127.0.0.1"], origins: [], originsEnabled: false }),
+    } as unknown as DashboardAuth;
+    expect((await createHttpAccess({ RACEIQ_DESKTOP: "1" }, localhostAuth)).hosts).toEqual(["192.168.1.10", "127.0.0.1"]);
+    expect((await createHttpAccess({ RACEIQ_DESKTOP: "1" }, auth)).hosts).toEqual(["192.168.1.10", "::1", "127.0.0.1"]);
+  });
+
   test("rejects invalid origins but permits an allowlist without a password", async () => {
     await expect(createHttpAccess({ SERVER_ALLOWED_ORIGINS: "https://example.com/path" })).rejects.toThrow();
     await expect(createHttpAccess({ SERVER_ALLOWED_ORIGINS: "https://user:pass@example.com" })).rejects.toThrow();

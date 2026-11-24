@@ -3,7 +3,10 @@ import { createServer } from "node:http";
 import { connect, type Socket } from "node:net";
 import { startDashboardListeners } from "../../dev/dashboard-listeners";
 
-const upstream = createServer((_request, response) => { response.end("dashboard"); });
+const relayedPorts = new Set<number>();
+const upstream = createServer((request, response) => {
+  response.end(relayedPorts.has(request.socket.remotePort ?? 0) ? "relayed" : "direct");
+});
 const upgraded = new Set<Socket>();
 upstream.on("upgrade", (_request, socket) => {
   upgraded.add(socket as Socket);
@@ -17,8 +20,9 @@ let stop: (() => Promise<void>) | undefined;
 try {
   const host = "::1";
   const url = `http://[${host}]:${address.port}`;
-  stop = await startDashboardListeners(address.port, ["127.0.0.1", host]);
-  assert.equal(await (await fetch(`${url}/`)).text(), "dashboard");
+  stop = await startDashboardListeners(address.port, ["127.0.0.1", host], relayedPorts);
+  assert.equal(await (await fetch(`http://127.0.0.1:${address.port}/`)).text(), "direct");
+  assert.equal(await (await fetch(`${url}/`)).text(), "relayed");
   await assert.rejects(fetch(`http://[::2]:${address.port}/`, { signal: AbortSignal.timeout(1000) }));
   const status = await new Promise<string>((resolve, reject) => {
     const socket = connect(address.port, host, () => {

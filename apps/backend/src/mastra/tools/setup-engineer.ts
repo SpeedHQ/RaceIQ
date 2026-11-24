@@ -16,7 +16,7 @@ import { unlinkSync } from "node:fs";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "@raceiq/backend-core/ai/chat-message-context";
+import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "@raceiq/assistant/ai/chat-message-context";
 
 import type { TuneDirection, TuneMagnitude } from "@raceiq/backend-core/ai/schemas";
 import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
@@ -28,10 +28,10 @@ import {
   setExperimentVersionNotesGuarded,
 } from "@raceiq/backend-core/db/experiment-version-queries";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
-import { changeSlug, computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
-import { saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
+import { changeSlug, computeChildLabel, nextFreeLabel } from "@raceiq/assistant/ai/version-label";
+import { saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/assistant/ai/chat-agent";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
-import { formatSymptoms } from "@raceiq/backend-core/ai/tune-chat-prompt";
+import { formatSymptoms } from "@raceiq/assistant/ai/tune-chat-prompt";
 import { buildAppliedChangesMarkdown } from "@raceiq/backend-core/setups/applied-change-markdown";
 import {
   computeSessionSymptoms,

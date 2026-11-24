@@ -32,7 +32,7 @@ import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consis
 import { hasWorldPositions } from "@raceiq/shared/racing/tracks/path";
 import { BulkDeleteSchema, LapsQuerySchema, CompareLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { resolveLapF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
+import { resolveLapF1Setup } from "@raceiq/assistant/ai/f1-setup-identity";
 
 const gzipAsync = promisify(gzip);
 

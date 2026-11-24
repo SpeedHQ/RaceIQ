@@ -3,7 +3,7 @@ import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend
 import { createExperimentVersion, resolveActiveTestId } from "@raceiq/backend-core/db/experiment-version-queries";
 import { setSessionHead as _setHead } from "@raceiq/backend-core/db/experiment-queries";
 import { loadActiveExperimentContext } from "../../../src/experiments/setup-lineage";
-import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
+import { computeChildLabel, nextFreeLabel } from "@raceiq/assistant/ai/version-label";
 import { getActiveExperiment, setActiveExperiment } from "@raceiq/backend-core/experiments/active"
 
 describe("head + active-test resolution", () => {
