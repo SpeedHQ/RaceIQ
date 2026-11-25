@@ -15,13 +15,15 @@ export function isForzaRaceOffPacket(buf: Buffer): boolean {
 }
 
 export function parseForzaPacket(buf: Buffer): TelemetryPacket | null {
-  // Accept both 311 (V1 sled) and 324 (dash) byte packets, and 331 (car dash with extras)
-  if (buf.length < 324) {
+  // Accept the 324-byte Dash packet and the 331-byte variant with tire wear/track ID.
+  // GT7 packets are also in this length neighborhood (296/316/344/368), so broad
+  // length acceptance here makes encrypted 368-byte GT7 packets look like Forza.
+  if (buf.length !== 324 && buf.length !== 331) {
     return null;
   }
 
   const isRaceOn = buf.readInt32LE(0);
-  if (isRaceOn === 0) {
+  if (isRaceOn !== 1) {
     return null;
   }
 

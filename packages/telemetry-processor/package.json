@@ -24,7 +24,8 @@
     "@raceiq/game-iracing": "workspace:*",
     "@raceiq/game-lmu": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
-    "@raceiq/game-ams2": "workspace:*"
+    "@raceiq/game-ams2": "workspace:*",
+    "@raceiq/game-gt7": "workspace:*"
   },
   "devDependencies": {
     "@raceiq/capture-formats": "workspace:*"

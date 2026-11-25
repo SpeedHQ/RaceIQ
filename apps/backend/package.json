@@ -87,6 +87,8 @@
     "@raceiq/tracks-catalogue": "workspace:*",
     "@raceiq/cars-catalogue": "workspace:*",
     "@raceiq/game-ams2": "workspace:*",
-    "@raceiq/game-ams2-metadata": "workspace:*"
+    "@raceiq/game-ams2-metadata": "workspace:*",
+    "@raceiq/game-gt7": "workspace:*",
+    "@raceiq/game-gt7-metadata": "workspace:*"
   }
 }

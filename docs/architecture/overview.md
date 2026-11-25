@@ -27,7 +27,7 @@ graph LR
 - `packages/tracks-catalogue/` and `packages/cars-catalogue/` own catalogue UI, server routes, browser-safe contracts and feature E2Es, with explicit public subpaths.
 - `apps/backend/` composes adapters, API routes, boot orchestration, imports, MoTeC targets, and AI workflows.
 - `client/` owns navigation, presentation state, live telemetry rendering, and historical-data queries.
-- HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default.
+- HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default. GT7 uses UDP port `33740` by default in relay and direct modes; direct mode also sends heartbeats on `33739`.
 
 For new or extracted product features, follow the [feature package pattern](feature-packages.md): one workspace owns top-level `ui/`, `server/`, `contracts/` and feature tests. Tracks and cars implement this convention; dashboard and unrelated features have not been automatically migrated. The app supplies typed host bindings to existing shared controls, hooks, routing and authenticated RPC.
 
@@ -43,6 +43,7 @@ Six metadata and backend adapters are available. Metadata adapters are composed 
 | Assetto Corsa Evo | `ac-evo` | Windows shared-memory reader | `/ac-evo` |
 | iRacing | `iracing` | Windows SDK/shared-memory source | `/iracing` |
 | Le Mans Ultimate | `lmu` | Windows `LMU_Data` shared-memory source | `/lmu` |
+| Gran Turismo 7 | `gt7` | UDP relay by default; optional direct PS5 capture | `/gt7` |
 
 Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, coordinate conventions, and car/track resolution. Each server `ServerGameAdapter` adds parsing and parser-state contracts, runtime policy, a lap-detector factory, and analysis context. Source lifecycle is composed separately: `apps/backend/src/runtime/native-sources.ts` supervises native readers, `live-readers.ts` holds their active instances, and `udp-listener.ts` receives UDP frames.
 

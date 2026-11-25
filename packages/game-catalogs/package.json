@@ -24,6 +24,7 @@
     "@raceiq/game-fm-2023-metadata": "workspace:*",
     "@raceiq/game-iracing-metadata": "workspace:*",
     "@raceiq/game-lmu-metadata": "workspace:*",
-    "@raceiq/game-ams2-metadata": "workspace:*"
+    "@raceiq/game-ams2-metadata": "workspace:*",
+    "@raceiq/game-gt7-metadata": "workspace:*"
   }
 }

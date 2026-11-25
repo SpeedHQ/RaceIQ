@@ -774,7 +774,21 @@ export class LiveTelemetryPipeline {
       detector.observeSourceRecord?.(rawByteOffset, end, rawOrdinal);
       if (detector.shouldCheckpointBeforeWrite(packet)) this.recorder.requestFullCheckpoint?.();
     }
+    const previousTrackId = detector.session?.trackId;
     await detector.feed(packet, rawByteOffset, rawOrdinal);
+    const identifiedSession = detector.session;
+    if (packet.gameId === "gt7" && previousTrackId === "unknown" &&
+        identifiedSession?.trackId && identifiedSession.trackId !== "unknown") {
+      resetLiveCalibration(identifiedSession.trackId);
+      this._calibrationBoundary = getTrackBoundariesById(identifiedSession.trackId, identifiedSession.gameId);
+      await this.sectorTracker.reset(identifiedSession.trackId, identifiedSession.gameId, identifiedSession.carId);
+      this.pitTracker.reset();
+      this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
+      this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
+      if (!this._skipHistorySeeding) {
+        await this.pitTracker.seedFromHistory(identifiedSession.trackId, identifiedSession.carId, identifiedSession.carPI, identifiedSession.gameId, adapter.runtime.pit);
+      }
+    }
 
     // If feed rotates the session, write the triggering source into the new recorder
     // and patch the detector offset to the canonical source position.

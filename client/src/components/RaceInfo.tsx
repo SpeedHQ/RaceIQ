@@ -44,12 +44,12 @@ export function RaceInfo({
             <div className="flex items-baseline gap-4 mb-2">
               <div>
                 <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_position()}</div>
-                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">P{view.timing.racePosition ?? "--"}</div>
+                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">P{view.timing.racePosition != null && view.timing.racePosition > 0 ? view.timing.racePosition : "--"}</div>
               </div>
               <div>
                 <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.race_lap()}</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {view.timing.lapNumber ?? "--"}
+                  {view.timing.lapNumber != null && view.timing.lapNumber > 0 ? view.timing.lapNumber : "--"}
                   {totalLaps && totalLaps > 0 ? `/${totalLaps}` : ""}
                 </div>
               </div>

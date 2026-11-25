@@ -2,8 +2,9 @@
   "name": "@raceiq/game-gt7",
   "private": true,
   "type": "module",
-  "exports": { "./parser": "./src/parser.ts" },
+  "exports": { ".": "./src/index.ts", "./parser": "./src/parser.ts" },
   "dependencies": {
+    "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/game-gt7-metadata": "workspace:*"
   },

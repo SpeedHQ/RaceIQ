@@ -15,11 +15,12 @@ import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
 import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { getRunningGame } from "@raceiq/backend-core/games/registry";
+import { getRunningGame, getServerGame } from "@raceiq/backend-core/games/registry";
 import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 import { encodeFrameLength } from "@raceiq/capture-formats/session/framing";
+import { createSocket, type Socket } from "node:dgram";
 
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
@@ -32,12 +33,16 @@ class UdpListener {
   private _packetsInWindow = 0;
   private _packetsPerSec = 0;
   private _socket: { stop(): void } | null = null;
+  private _gt7Socket: Socket | null = null;
+  private _gt7SocketIsPrimary = false;
+  private _gt7Heartbeat: ReturnType<typeof setInterval> | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
   private _recordingGameId: GameId | null = null;
   private _recorder: WorkerSessionRecorder | null = null;
   private _dumpOnly = false;
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
+  private _lastUdpGameId: GameId | null = null;
   private _lastRaceOn = false;
   private _lastWsPacketCount = 0;
   private _forzaRaceActive = false;
@@ -76,6 +81,18 @@ class UdpListener {
 
 
   async start(port: number = 5301, hostname: string = "0.0.0.0"): Promise<void> {
+    const gt7Mode = process.env.GT7_TELEMETRY_MODE ?? "relay";
+    const configuredGt7Port = process.env.GT7_UDP_PORT === undefined ? 33740 : Number(process.env.GT7_UDP_PORT);
+    if (!Number.isInteger(configuredGt7Port) || configuredGt7Port < 1024 || configuredGt7Port > 65535) {
+      throw new Error("GT7_UDP_PORT must be an integer between 1024 and 65535");
+    }
+    if (gt7Mode !== "relay" && gt7Mode !== "direct") {
+      throw new Error("GT7_TELEMETRY_MODE must be relay or direct");
+    }
+    const heartbeat = Buffer.from(process.env.GT7_PACKET_FORMAT ?? "C", "ascii");
+    if (gt7Mode === "direct" && !["A", "B", "~", "C"].includes(heartbeat.toString("ascii"))) {
+      throw new Error("GT7_PACKET_FORMAT must be A, B, ~, or C");
+    }
     this._port = port;
     this._hostname = hostname;
     console.log(`[UDP] Starting listener on ${hostname}:${port}...`);
@@ -118,7 +135,7 @@ class UdpListener {
       const wsCount = wsManager.packetCount;
       const telemetryPps = Math.round(((wsCount - this._lastWsPacketCount) * 1000) / elapsedMs);
       this._lastWsPacketCount = wsCount;
-      const runningGame = getRunningGame();
+      const runningGame = getRunningGame() ?? (this._lastUdpGameId === "gt7" && this._receiving ? getServerGame("gt7") : null);
       const session = this._dumpOnly ? null : lapDetector.session;
       const raceOn = runningGame?.id === "fm-2023"
         ? this._forzaRaceActive
@@ -175,8 +192,7 @@ class UdpListener {
     }, PACKETS_PER_SEC_WINDOW);
 
     // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
-    const dgram = require("node:dgram");
-    const sock = dgram.createSocket("udp4");
+    const sock = createSocket("udp4");
     sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
     await new Promise<void>((resolve, reject) => {
       sock.bind(port, hostname, () => {
@@ -193,6 +209,37 @@ class UdpListener {
       sock.on("error", reject);
     });
     this._socket = { stop: () => sock.close() };
+
+    if (configuredGt7Port === port) {
+      this._gt7Socket = sock;
+      this._gt7SocketIsPrimary = true;
+    } else {
+      const gt7Sock = createSocket("udp4");
+      gt7Sock.on("message", (frame) => { void this.handlePacket(frame); });
+      gt7Sock.on("error", (error) => console.error(`[GT7] UDP socket error: ${error.message}`));
+      await new Promise<void>((resolve, reject) => {
+        gt7Sock.bind(configuredGt7Port, hostname, resolve);
+        gt7Sock.once("error", reject);
+      });
+      this._gt7Socket = gt7Sock;
+    }
+
+    if (gt7Mode === "direct") {
+      const gt7Sock = this._gt7Socket!;
+      gt7Sock.setBroadcast(true);
+      const sendHeartbeat = () => {
+        const target = process.env.GT7_PS_IP ?? "255.255.255.255";
+        gt7Sock.send(heartbeat, 33739, target, (error) => {
+          if (error) console.error(`[GT7] Heartbeat failed: ${error.message}`);
+        });
+      };
+      sendHeartbeat();
+      this._gt7Heartbeat = setInterval(sendHeartbeat, 1600);
+      this._gt7Heartbeat.unref?.();
+      console.log(`[GT7] Direct telemetry on ${hostname}:${configuredGt7Port}; heartbeat format ${heartbeat.toString("ascii")}`);
+    } else {
+      console.log(`[GT7] Relay telemetry on ${hostname}:${configuredGt7Port}; heartbeat disabled`);
+    }
 
     console.log(`[UDP] Listening on ${hostname}:${port}`);
   }
@@ -224,6 +271,7 @@ class UdpListener {
     if (!packet) return;
 
     this._receiving = true;
+    this._lastUdpGameId = packet.gameId;
     if (packet.gameId === "fm-2023") this._forzaRaceActive = true;
     await processPacket(packet, sourceFrame, frameTimeMs);
   }
@@ -238,6 +286,15 @@ class UdpListener {
       this._socket = null;
       console.log("[UDP] Listener stopped");
     }
+    if (this._gt7Heartbeat) {
+      clearInterval(this._gt7Heartbeat);
+      this._gt7Heartbeat = null;
+    }
+    if (this._gt7Socket && !this._gt7SocketIsPrimary) {
+      this._gt7Socket.close();
+    }
+    this._gt7Socket = null;
+    this._gt7SocketIsPrimary = false;
     if (this._recorder) {
       // Await the flush on a clean shutdown. The format is append-only, so
       // even a hard kill only risks the last packet being truncated — but

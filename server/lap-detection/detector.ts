@@ -269,6 +269,12 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       console.log("[Lap Detector] Started receiving packets from pipeline");
       this._loggedFeedOnce = true;
     }
+    if (packet.gameId === "gt7" && packet.trackId !== "unknown" &&
+        this.currentSession?.gameId === "gt7" && this.currentSession.trackId === "unknown") {
+      await this.db.updateSessionCarTrack(this.currentSession.sessionId, this.currentSession.carId, packet.trackId);
+      this.currentSession.trackId = packet.trackId;
+      if (this.engine.state.session?.gameId === "gt7") this.engine.state.session.trackId = packet.trackId;
+    }
     await this.engine.feed(packet, rawByteOffset, rawOrdinal);
   }
 
@@ -276,7 +282,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
 
   private async startNewSession(packet: TelemetryPacket): Promise<SessionState | null> {
     const gameId = packet.gameId;
-    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType ?? packet.ams2?.sessionType;
+    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType ?? packet.ams2?.sessionType ?? packet.gt7?.sessionType;
     const carId = packet.carId;
     const trackId = packet.trackId;
     let sessionId: number;

@@ -3,7 +3,11 @@ import { parseForzaPacket } from "./parser";
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 
 export const forzaParser: TelemetryParser<null> = {
-  canHandle(buf) { return buf.length >= 324 && buf.length <= 400; },
+  canHandle(buf) {
+    if (buf.length !== 324 && buf.length !== 331) return false;
+    const isRaceOn = buf.readInt32LE(0);
+    return isRaceOn === 0 || isRaceOn === 1;
+  },
   tryParse(buf) { return parseForzaPacket(buf); },
   tryParseLapIndex(buf): LapIndexPacket | null {
     if (buf.length < 324) return null;

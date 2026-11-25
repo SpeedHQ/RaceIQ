@@ -11,6 +11,7 @@ import { captureIRacingParserCheckpoint, createIRacingParserState, restoreIRacin
 import { iracingParser } from "@raceiq/game-iracing/game-parser";
 import { ams2Parser, type AMS2ParserState } from "@raceiq/game-ams2/game-parser";
 import { lmuParser } from "@raceiq/game-lmu/game-parser";
+import { gt7Parser, type GT7ParserState } from "@raceiq/game-gt7/parser";
 
 import { acEvoParser } from "@raceiq/game-ac-evo/game-parser";
 export interface LiveGameParserCodec {
@@ -175,6 +176,23 @@ export function createLiveGameParserCodec(gameId: GameId): LiveGameParserCodec {
       };
     case "lmu":
       return frameLocalCodec((frame, timestampMs) => lmuParser.tryParse(frame, null, timestampMs));
+    case "gt7":
+      return {
+        createState: gt7Parser.createParserState,
+        captureState(state) {
+          const checkpoint = gt7Parser.captureParserCheckpoint(state);
+          if (!checkpoint) throw new Error("Unexpected checkpoint");
+          return checkpoint;
+        },
+        restoreState(checkpoint) {
+          const state = gt7Parser.restoreParserCheckpoint(null, checkpoint);
+          if (!state) throw new Error("Unexpected checkpoint");
+          return state;
+        },
+        parseFrame(frame, state, timestampMs) {
+          return gt7Parser.tryParse(frame, state as GT7ParserState, timestampMs);
+        },
+      };
   }
 }
 

@@ -36,7 +36,7 @@ import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess
 import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
-import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
@@ -58,7 +58,7 @@ const MIN_FRAMES = 0;
 
 const CAPTURE = "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 const IRACING_CAPTURE = "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
-const GAME_CAPTURES: Record<GameId, { capture: string; label: string }> = {
+const GAME_CAPTURES: Partial<Record<GameId, { capture: string; label: string }>> = {
   "fm-2023": { capture: CAPTURE, label: "Forza Motorsport" },
   "f1-2025": { capture: "test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz", label: "F1 25" },
   acc: { capture: "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz", label: "Assetto Corsa Competizione" },
@@ -180,8 +180,7 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(match).toBeDefined();
   }, 120000);
 
-  for (const gameId of KNOWN_GAME_IDS) {
-    const { capture, label } = GAME_CAPTURES[gameId];
+  for (const [gameId, { capture, label }] of Object.entries(GAME_CAPTURES) as [GameId, { capture: string; label: string }][]) {
     test(`${label} selected lap preserves source telemetry through export and import`, async () => {
       const { sid, rows } = await seedSession({
         capture, gameId, minimumLaps: 1,

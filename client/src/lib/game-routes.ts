@@ -83,6 +83,7 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
       return "acc";
     case "iracing":
     case "ams2":
+    case "gt7":
       return "forza";
     case "lmu":
       return "lmu";

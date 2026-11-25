@@ -19,6 +19,8 @@ bun run dev
 
 Standalone `bun run dev:server` defaults to HTTP/WebSocket port `3117`, Vite alone defaults to `5173`, and UDP telemetry defaults to persisted settings (`5301` initially). `bun run dev` overrides persisted UDP settings with port `5301`; set `RACEIQ_DEV_UDP_PORT` to override it. Multiple concurrent dev servers cannot all bind the same UDP port.
 
+GT7 uses relay mode by default: configure SimHub to forward original GT7 UDP datagrams to RaceIQ on port `33740`. Override with `GT7_UDP_PORT`. Relay mode sends no heartbeat; SimHub owns that. Set `GT7_TELEMETRY_MODE=direct` to send heartbeats to `33739`; optional `GT7_PS_IP` targets a specific console instead of broadcast, and `GT7_PACKET_FORMAT` selects `A`, `B`, `~`, or `C` (default `C`).
+
 Set `SERVER_PORT` to override automatic backend port selection or `DATA_DIR` to override development data location. Use `bun run dev --onboarding false` to bypass onboarding without changing persisted settings.
 
 ## Seed a disposable database

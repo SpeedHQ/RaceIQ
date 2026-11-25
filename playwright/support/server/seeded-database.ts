@@ -18,7 +18,7 @@ export function portableCapturePath(path: string): string {
   const normalized = path.replaceAll("\\", "/");
   const parts = normalized.split("/");
   if (parts.some((part) => !part || part === "." || part === ".." || /[:\0]/.test(part)) ||
-      !/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2)\/(?:(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?(?:\.opponents-removed\.capture-manifest\.json)?|capture-manifest\.json|(?:own|others)\/(?:[^/]+\/)+(?:capture-manifest\.json|manifest(?:\.live)?\.json|capture\.bin\.gz))$/.test(normalized)) {
+      !/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu|ams2|gt7)\/(?:(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?(?:\.opponents-removed\.capture-manifest\.json)?|capture-manifest\.json|(?:own|others)\/(?:[^/]+\/)+(?:capture-manifest\.json|manifest(?:\.live)?\.json|capture\.bin\.gz))$/.test(normalized)) {
     throw new Error(`Invalid seeded capture path: ${path}`);
   }
   return normalized;

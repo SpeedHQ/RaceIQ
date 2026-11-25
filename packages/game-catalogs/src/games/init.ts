@@ -6,6 +6,7 @@ import { accAdapter } from "@raceiq/game-acc-metadata/index";
 import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
 import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
 import { ams2Adapter } from "@raceiq/game-ams2-metadata/index";
+import { gt7Adapter } from "@raceiq/game-gt7-metadata/index";
 import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 
 export function gameAdaptersForFeatures(
@@ -15,7 +16,7 @@ export function gameAdaptersForFeatures(
     RACEIQ_FEATURE_AMS2_ADAPTER: import.meta.env.RACEIQ_FEATURE_AMS2_ADAPTER,
   }),
 ) {
-  const adapters = [forzaAdapter, f1Adapter, accAdapter, acEvoAdapter];
+  const adapters = [forzaAdapter, f1Adapter, accAdapter, acEvoAdapter, gt7Adapter];
   if (flags.iracingAdapter) adapters.push(iracingAdapter);
   adapters.push(lmuAdapter);
   if (flags.ams2Adapter) adapters.push(ams2Adapter);
