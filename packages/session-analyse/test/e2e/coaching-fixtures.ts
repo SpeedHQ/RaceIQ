@@ -24,7 +24,7 @@ export function hasAlignedSample(encoded: string, matches: (sample: number) => b
   return false;
 }
 
-export type CoachingDistanceProfile = "variable";
+export type CoachingDistanceProfile = "variable" | "gap";
 
 
 function createRecording(path: string, lapCount: number, signals: readonly CoachingSignal[], omittedChannels: readonly ("distance" | "speed" | "position")[], inputs: readonly ("throttle" | "brake" | "steering" | "rpm")[], distanceProfile?: CoachingDistanceProfile): void {

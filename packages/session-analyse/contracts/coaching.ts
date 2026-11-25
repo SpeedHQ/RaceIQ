@@ -37,7 +37,7 @@ export type ThreeToImproveResponse = z.infer<typeof ThreeToImproveResponseSchema
 
 export const ThreeToImproveEvidenceQuerySchema = z.object({
   lapId: z.coerce.number().int().positive().safe(),
-  sourceFrameIndex: z.coerce.number().int().nonnegative().safe(),
+  sourceFrameIndex: z.string().trim().min(1).pipe(z.coerce.number<string>().int().nonnegative().safe()),
 });
 
 export type ThreeToImproveEvidenceResponse = {

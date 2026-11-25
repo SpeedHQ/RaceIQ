@@ -3,7 +3,7 @@
 - AI Chat keeps Send beside the message field and puts Compact & New chat in the Chat actions menu.
 - Record and replay F1 2026 Season Pack telemetry, including its new cars and circuits, energy recovery, active aero, and overtake data.
 - Show F1 2026 ERS mode, energy availability, active aero, and overtake data in live telemetry and lap analysis.
-- In Session Analyse → Overview, see up to three driving priorities and open the recorded evidence behind each one.
+- In Session Analyse → Overview, see up to three driving priorities backed by recorded locations. Open evidence follows the current finding when insights refresh.
 
 ### Fixes
 - Restore replay links for laps in older AMS2 and AC Evo recordings.

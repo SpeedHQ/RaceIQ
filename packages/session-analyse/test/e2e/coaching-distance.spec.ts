@@ -68,6 +68,11 @@ test("coaching marker location follows recorded distance on variable-speed nativ
       expect(boundarySummary.items.map(({ id: itemId }) => itemId)).toEqual([id]);
       expect(boundarySummary.items[0]!.representative).toMatchObject({ lapId: fixture.lapIds[0], sourceFrameIndex: frame });
       expect(boundarySummary.items[0]!.location.fraction).toBeCloseTo(recordedFraction(frame) / recordedFraction(599), 12);
+      if (frame === 0) {
+        const url = `/api/sessions/${fixture.sessionId}/3-to-improve/evidence?lapId=${fixture.lapIds[0]}&sourceFrameIndex=`;
+        for (const blank of ["", "%20"]) expect((await request.get(url + blank, { headers })).status()).toBe(400);
+        expect((await request.get(url + "0", { headers })).status()).toBe(200);
+      }
 
       if (frame === 599) {
         const endEvidenceResponse = await request.get(
@@ -91,6 +96,33 @@ test("coaching marker location follows recorded distance on variable-speed nativ
     await expect(marker).toBeVisible();
     await marker.getByRole("button").click();
     await expect(page.getByTestId("three-to-improve-evidence")).toBeVisible();
+    await expect(page.getByTestId("coaching-evidence-chart")).toBeVisible();
+    setLapInsightSourceFrame(fixture.lapIds[0]!, 16);
+    await page.clock.install();
+    await page.clock.fastForward(6_000);
+    const refresh = page.waitForResponse((res) => res.url().endsWith(`/api/sessions/${fixture.sessionId}/3-to-improve`));
+    await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
+    await refresh;
+    await expect(page.getByTestId("three-to-improve-evidence")).toHaveCount(0);
+    await expect(marker).toBeVisible();
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("an event in a recorded distance gap cannot open evidence for the previous location", async ({ request }) => {
+  const fixture = await importCoachingRecording(request, { label: `coaching-gap-${Date.now()}`, lapCount: 1, signals: ["brake-drag"], distanceProfile: "gap" });
+  const headers = { "X-Game-Id": "iracing" };
+  const url = `/api/sessions/${fixture.sessionId}/3-to-improve`;
+  try {
+    const getSummary = async () => ThreeToImproveResponseSchema.parse(await (await request.get(url, { headers })).json());
+    await getSummary();
+    const lapId = fixture.lapIds[0]!;
+    setLapInsightSourceFrame(lapId, 2);
+    expect(await getSummary()).toMatchObject({ analyzedLapCount: 1, items: [], unlocatedEvidenceCount: 1 });
+    expect((await request.get(`${url}/evidence?lapId=${lapId}&sourceFrameIndex=2`, { headers })).status()).toBe(409);
+    setLapInsightSourceFrame(lapId, 3);
+    expect((await getSummary()).items[0]?.representative.sourceFrameIndex).toBe(3);
   } finally {
     await fixture.cleanup();
   }

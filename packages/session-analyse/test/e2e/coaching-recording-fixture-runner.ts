@@ -4,7 +4,7 @@ import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-re
 type CoachingSignal = "brake-drag" | "downshift" | "steering" | "throttle";
 type InputChannel = "throttle" | "brake" | "steering" | "rpm";
 type OmittedChannel = "distance" | "speed" | "position";
-type DistanceProfile = "variable";
+type DistanceProfile = "variable" | "gap";
 interface Options { lapCount: number; signals: CoachingSignal[]; omittedChannels: OmittedChannel[]; inputs: InputChannel[]; distanceProfile?: DistanceProfile }
 
 const LAP_SECONDS = 60;
@@ -68,7 +68,8 @@ function sourceFrame(lap: number, frame: number, signals: ReadonlySet<CoachingSi
       Lap: lap,
       LapLastLapTime: lap === 0 ? 0 : LAP_SECONDS,
       LapCurrentLapTime: lap > 0 && frame === 0 ? LAP_SECONDS : frame * FRAME_SECONDS,
-      ...(omittedChannels.has("distance") ? {} : { LapDist: fraction * TRACK_LENGTH_M, LapDistPct: fraction }),
+      ...(omittedChannels.has("distance") ? {} : { LapDist: fraction * TRACK_LENGTH_M }),
+      ...(omittedChannels.has("distance") || (distanceProfile === "gap" && frame === 2) ? {} : { LapDistPct: fraction }),
       ...(omittedChannels.has("position") ? {} : { PlayerCarPosition: 1 }),
       ...(inputs.has("throttle") ? { Throttle: throttle } : {}),
       ...(inputs.has("brake") ? { Brake: brake } : {}),

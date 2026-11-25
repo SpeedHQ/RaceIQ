@@ -9,7 +9,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapById, getLapIdentitiesByIds, getLapProcessingByIds, getLapsByIds, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
 import { getSessionProcessingById } from "@raceiq/backend-core/db/session-queries";
 import { getOrComputeLapInsightsForLap } from "@raceiq/backend-core/lap-analysis/metrics-store";
-import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
+import { alignLapSet, prepareLapSetAlignmentIndex, recordedLapFractions, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
@@ -18,7 +18,7 @@ import { GameIdSchema as HeaderGameIdSchema } from "@raceiq/shared/games/ids";
 import { ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, ThreeToImproveSessionParamSchema } from "../contracts/requests";
 import { ThreeToImproveEvidenceQuerySchema, type ThreeToImproveResponse } from "../contracts/coaching";
 import { getReviewLaps } from "./review-laps";
-import { selectCoachingPriorities, type CoachingLap } from "./coaching-selection";
+import { hasCoachingFrames, selectCoachingPriorities, type CoachingLap } from "./coaching-selection";
 
 function processingFailure(processing: readonly ProcessingMetadata[]) {
   const failed = processing.find((item) => item.state === "failed");
@@ -79,10 +79,8 @@ export function createSessionAnalyseRoutes(resolveLapCorners: (trackId: string |
       const input = alignmentInput(lap);
       const track = resolveTrack(gameId.data, lap.trackId);
       const alignmentIndex = prepareLapSetAlignmentIndex([input], { gridStepMeters: 1, trackLengthMeters: track.lengthMeters });
-      const distances = alignmentIndex.distancesByLapId.get(lap.id);
       const span = alignmentIndex.nominalSpanMeters;
-      const fraction = distances && Number.isFinite(distances[sourceFrameIndex]) && span > 0 ? distances[sourceFrameIndex]! / span : null;
-      if (fraction == null || fraction < 0 || fraction > 1) return c.json({ code: "COACHING_EVIDENCE_CHANGED", error: "Session evidence changed. Refresh the insights." }, 409);
+      const fraction = item.location.fraction;
       const start = Math.max(0, fraction - 0.02) * span;
       const end = Math.min(1, fraction + 0.02) * span;
       const aligned = encodeAlignedLapSet(alignLapSet([input], { gridStepMeters: Math.max(0.1, (end - start) / 599), trackLengthMeters: track.lengthMeters, distanceRangeMeters: { start, end }, preparedIndex: alignmentIndex })) as EncodedAlignedLapSet;
@@ -128,23 +126,22 @@ export function createSessionAnalyseRoutes(resolveLapCorners: (trackId: string |
       const insights = await getOrComputeLapInsightsForLap(lap);
       if (!insights) continue;
       analyzedLapCount++;
-      const input = alignmentInput(lap);
+      const actionable = insights.filter(hasCoachingFrames);
+      if (!actionable.length) continue;
       const track = resolveTrack(gameId, lap.trackId);
-      const alignmentIndex = prepareLapSetAlignmentIndex([input], { gridStepMeters: 1, trackLengthMeters: track.lengthMeters });
-      const distances = alignmentIndex.distancesByLapId.get(lap.id);
-      const span = alignmentIndex.nominalSpanMeters;
+      const fractions = recordedLapFractions(lap.telemetry);
       const sourceFractions = new Map<number, number>();
-      for (const insight of insights) {
+      for (const insight of actionable) {
         for (const sourceFrameIndex of insight.frameIndices) {
-          const distance = distances?.[sourceFrameIndex];
-          if (Number.isFinite(distance) && span > 0) sourceFractions.set(sourceFrameIndex, distance! / span);
+          const fraction = fractions?.[sourceFrameIndex];
+          if (fraction != null && Number.isFinite(fraction)) sourceFractions.set(sourceFrameIndex, fraction);
         }
       }
       const corners = track.segments.filter((segment) => segment.type === "corner");
       coachingLaps.push({
         lapId: lap.id,
         lapNumber: lap.lapNumber,
-        insights,
+        insights: actionable,
         fractionAtSourceFrame: (index) => sourceFractions.get(index) ?? null,
         cornerAtFraction: (fraction) => corners.find((segment) => fraction >= segment.startFrac && fraction <= segment.endFrac)?.name ?? null,
       });

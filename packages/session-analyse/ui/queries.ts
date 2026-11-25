@@ -18,12 +18,12 @@ export function useThreeToImprove(sessionId: number | null) {
 }
 
 export function useThreeToImproveEvidence(
-  request: { sessionId: number; lapId: number; sourceFrameIndex: number } | null,
+  request: { sessionId: number; lapId: number; sourceFrameIndex: number; fraction: number } | null,
 ) {
   const { useGameId, fetchThreeToImproveEvidence } = useSessionAnalyseHost();
   const gameId = useGameId();
   return useQuery({
-    queryKey: ["three-to-improve-evidence", gameId, request?.sessionId, request?.lapId, request?.sourceFrameIndex],
+    queryKey: ["three-to-improve-evidence", gameId, request?.sessionId, request?.lapId, request?.sourceFrameIndex, request?.fraction],
     queryFn: async () => {
       if (!gameId || !request) throw new Error("Coaching evidence scope is required");
       return fetchThreeToImproveEvidence(gameId, request.sessionId, request.lapId, request.sourceFrameIndex);

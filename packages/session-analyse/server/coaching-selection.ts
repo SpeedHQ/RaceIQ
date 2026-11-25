@@ -11,6 +11,10 @@ const FINDING_FAMILY: Readonly<Record<string, CoachingFamily>> = {
   "driving-understeer-scrub": "front-scrub",
 };
 
+export function hasCoachingFrames(insight: LapInsight): boolean {
+  return Object.hasOwn(FINDING_FAMILY, insight.id) && insight.frameIndices.length > 0;
+}
+
 export interface CoachingLap {
   lapId: number;
   lapNumber: number;

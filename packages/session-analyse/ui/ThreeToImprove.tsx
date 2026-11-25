@@ -16,9 +16,9 @@ const familyCopy: Record<CoachingFamily, { title: "coaching_family_brake_drag" |
 export function ThreeToImprove({ gameId, sessionId }: { gameId: GameId; sessionId: number }) {
   const { m, Button, CoachingEvidenceChart } = useSessionAnalyseHost();
   const summary = useThreeToImprove(sessionId);
-  const [selected, setSelected] = useState<{ lapId: number; sourceFrameIndex: number; fraction: number; family: CoachingFamily; lapNumber: number; cornerName: string | null; supportingLapCount: number } | null>(null);
-  const evidence = useThreeToImproveEvidence(selected && { sessionId, lapId: selected.lapId, sourceFrameIndex: selected.sourceFrameIndex });
-  const selectedStillPresent = selected != null && !summary.isError && summary.data?.items.some((item) => item.representative.lapId === selected.lapId && item.representative.sourceFrameIndex === selected.sourceFrameIndex);
+  const [selection, setSelected] = useState<{ id: string; lapId: number; sourceFrameIndex: number } | null>(null);
+  const selected = !summary.isError && selection ? summary.data?.items.find((item) => item.id === selection.id && item.representative.lapId === selection.lapId && item.representative.sourceFrameIndex === selection.sourceFrameIndex) : null;
+  const evidence = useThreeToImproveEvidence(selected ? { sessionId, ...selected.representative, fraction: selected.location.fraction } : null);
   const activeEvidenceButton = useRef<HTMLButtonElement | null>(null);
   const scope = useRef({ gameId, sessionId });
   useEffect(() => {
@@ -30,13 +30,13 @@ export function ThreeToImprove({ gameId, sessionId }: { gameId: GameId; sessionI
   const closeButton = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    if (selected && !selectedStillPresent) setSelected(null);
-  }, [selected, selectedStillPresent]);
+    if (selection && !selected) setSelected(null);
+  }, [selection, selected]);
   useEffect(() => {
-    if (selected) closeButton.current?.focus();
-  }, [selected]);
+    if (selection) closeButton.current?.focus();
+  }, [selection]);
   const aligned = useMemo(() => evidence.data ? decodeAlignedLapSet(evidence.data.aligned) : null, [evidence.data]);
-  const trace = aligned?.laps.find((lap) => lap.lapId === selected?.lapId);
+  const trace = aligned?.laps.find((lap) => lap.lapId === selected?.representative.lapId);
   const processingFailure = (summary.error as { status?: number; message?: string } | null)?.status === 422;
   const blockedSummary = blocked(summary.error);
   function blocked(error: unknown) {
@@ -70,23 +70,23 @@ export function ThreeToImprove({ gameId, sessionId }: { gameId: GameId; sessionI
                     <p className="mt-1 text-xs text-app-text-secondary">{pattern}</p>
                     <p className="mt-2 text-xs text-app-text"><span className="font-semibold">{m.coaching_next_run()}:</span> {action}</p>
                     <p className="mt-2 text-xs text-app-text-muted">{item.evidenceLevel === "single-lap" ? m.coaching_single_lap() : m.coaching_repeated({ count: item.supportingLapCount })}</p>
-                    <Button variant="app-outline" size="app-sm" className="mt-3" aria-label={`${m.coaching_evidence()} — ${m.coaching_lap({ lap: item.representative.lapNumber })}`} onClick={(event) => { activeEvidenceButton.current = event.currentTarget; setSelected({ ...item.representative, fraction: item.location.fraction, family: item.family, lapNumber: item.representative.lapNumber, cornerName: item.location.cornerName, supportingLapCount: item.supportingLapCount }); }}>{m.coaching_evidence()} · {m.coaching_lap({ lap: item.representative.lapNumber })}</Button>
+                    <Button variant="app-outline" size="app-sm" className="mt-3" aria-label={`${m.coaching_evidence()} — ${m.coaching_lap({ lap: item.representative.lapNumber })}`} onClick={(event) => { activeEvidenceButton.current = event.currentTarget; setSelected({ id: item.id, lapId: item.representative.lapId, sourceFrameIndex: item.representative.sourceFrameIndex }); }}>{m.coaching_evidence()} · {m.coaching_lap({ lap: item.representative.lapNumber })}</Button>
                   </article>;
                 })}
               </div>
             </>}
     {selected && <div role="region" aria-label={m.coaching_evidence()} className="mt-3 rounded border border-app-border p-3" data-testid="three-to-improve-evidence" onKeyDown={(event) => { if (event.key === "Escape") { setSelected(null); activeEvidenceButton.current?.focus(); } }}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-app-text">{m.coaching_lap({ lap: evidence.data?.representative.lapNumber ?? selected.lapNumber })}</h3>
+        <h3 className="text-sm font-semibold text-app-text">{m.coaching_lap({ lap: selected.representative.lapNumber })}</h3>
         <Button ref={closeButton} variant="app-ghost" size="icon-sm" aria-label={m.coaching_evidence_close()} onClick={() => { setSelected(null); activeEvidenceButton.current?.focus(); }}>×</Button>
       </div>
       {evidence.isLoading ? <p role="status" className="py-3 text-xs text-app-text-muted">{m.coaching_loading()}</p>
         : evidence.isError ? <div role="alert" className="flex flex-wrap items-center gap-2 py-3 text-xs text-status-danger"><span>{(evidence.error as { code?: string } | null)?.code === "COACHING_EVIDENCE_CHANGED" ? m.coaching_evidence_changed() : m.coaching_error()}</span><Button variant="app-outline" size="app-sm" onClick={() => { setSelected(null); void summary.refetch(); }}>{m.coaching_retry()}</Button></div>
           : aligned && trace ? <>
-            <p className="mb-2 text-xs text-app-text-secondary">{m[familyCopy[selected.family].title]()} — {selected.cornerName ? m.coaching_location_corner({ corner: selected.cornerName }) : m.coaching_location_percent({ percent: Math.round(selected.fraction * 100) })}</p>
+            <p className="mb-2 text-xs text-app-text-secondary">{m[familyCopy[selected.family].title]()} — {selected.location.cornerName ? m.coaching_location_corner({ corner: selected.location.cornerName }) : m.coaching_location_percent({ percent: Math.round(selected.location.fraction * 100) })}</p>
             <p className="mb-3 text-xs text-app-text-secondary">{m[familyCopy[selected.family].action]()}</p>
             <div tabIndex={0} aria-label={m.coaching_evidence()} className="max-h-[min(55dvh,32rem)] overflow-y-auto overscroll-contain rounded border border-app-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-primary">
-              <CoachingEvidenceChart trace={trace} markerFraction={evidence.data?.fraction ?? selected.fraction} />
+              <CoachingEvidenceChart trace={trace} markerFraction={evidence.data?.fraction ?? selected.location.fraction} />
             </div>
           </>
             : <p role="status" className="py-3 text-xs text-app-text-muted">{m.coaching_insufficient()}</p>}
