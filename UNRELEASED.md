@@ -12,7 +12,7 @@
 - Show the correct session type on the Sessions page for recorded and imported AC EVO sessions, even when the game reports its name late. Prevent pit results from marking a second lap as an out-lap.
 - Open the macOS app even when another service is using the default RaceIQ dashboard port.
 - Keep one full F1 lap replay when a flashback crosses the finish line and you drive across it again.
-- Replay the full F1 lap after a mid-lap flashback, using the driving line that reached the finish.
+- Keep F1 replay from the start of the lap through the last recorded point after a mid-lap flashback, even if you quit before the finish.
 - Correct F1 brake-bias percentages in Replay and align F1 car wheels and track overviews with replay orientation.
 - Keep F1 races in the same session when telemetry briefly reports a zero session UID.
 

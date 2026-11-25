@@ -2,7 +2,10 @@ import { expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
+import { decodeSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "@raceiq/lap-replay/contracts";
+import { replayRoutes } from "@raceiq/lap-replay/server";
+import { prepareSpectateLap } from "@raceiq/lap-replay/test-support/spectate-replay";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
@@ -14,7 +17,11 @@ import { getRecordingFixture } from "@raceiq/backend-core/test-support/recording
 import { readUdpDump } from "@raceiq/backend-core/test-support/recordings/udp";
 import { initServerGameAdapters } from "../../src/games/init";
 
-test("live F1 capture saves and replays a repeated packet segment", async () => {
+test.each([
+  { scenario: "uninterrupted lap", rewindTo: 25, quit: false, reason: null },
+  { scenario: "long flashback", rewindTo: 10, quit: false, reason: "rewind" },
+  { scenario: "quit after flashback", rewindTo: 24, quit: true, reason: "incomplete" },
+])("live F1 capture and replay: $scenario", async ({ rewindTo, quit, reason }) => {
   initServerGameAdapters();
   resetParserState("f1-2025");
   const fixture = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
@@ -28,11 +35,17 @@ test("live F1 capture saves and replays a repeated packet segment", async () => 
   }
   if (target < 0) throw new Error("F1 lap 2 target missing");
   const uid = original[target]!.readBigUInt64LE(7);
-  const targetTime = original[target]!.readFloatLE(15);
-  let rewindStart = target - 1;
-  while (rewindStart > 0 && original[rewindStart]!.readBigUInt64LE(7) === uid && original[rewindStart]!.readFloatLE(15) > targetTime - 1) rewindStart--;
-  expect(original[rewindStart]!.readBigUInt64LE(7)).toBe(uid);
-  const frames = [...original.slice(0, target), ...original.slice(rewindStart, rewindStart + 100), ...original.slice(target)];
+  resetParserState("f1-2025");
+  let resume = -1;
+  let stop = original.length;
+  for (let i = 0; i < original.length; i++) {
+    const packet = parsePacket(original[i]!);
+    if (packet?.LapNumber !== 2 || original[i]!.readBigUInt64LE(7) !== uid) continue;
+    if (resume < 0 && packet.CurrentLap >= rewindTo) resume = i;
+    if (packet.CurrentLap >= 32) { if (quit) stop = i; break; }
+  }
+  expect(resume).toBeGreaterThanOrEqual(0);
+  const frames = reason === null ? original : original.slice(0, target).concat(original.slice(resume, stop));
   resetParserState("f1-2025");
   const before = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map((row) => row.id));
   const recorder = new DirectSessionRecorderAdapter("others");
@@ -57,16 +70,29 @@ test("live F1 capture saves and replays a repeated packet segment", async () => 
     expect(failures).toEqual([]);
     const created = (await db.select().from(sessions).all()).filter((row) => !before.has(row.id));
     const stored = await db.select().from(laps).where(inArray(laps.sessionId, created.map((row) => row.id))).all();
-    const affected = stored.find((lap) => lap.lapNumber === 2 && lap.invalidReason === "rewind");
+    const affected = stored.find((lap) => lap.lapNumber === 2 && lap.invalidReason === reason);
     expect(affected).toBeDefined();
-    const later = stored.find((lap) => lap.sessionId === affected!.sessionId && lap.lapNumber === 3 && lap.isValid);
-    expect(later).toBeDefined();
-    const replayed = await getLapsByIds([affected!.id, later!.id]);
-    expect(replayed).toHaveLength(2);
-    expect(replayed.every((lap) => !lap.parseError && lap.telemetry.length > 30)).toBe(true);
-    const affectedReplay = replayed.find((lap) => lap.id === affected!.id)!;
-    expect(affectedReplay.telemetry.some((packet, index) => index > 0 && packet.TimestampMS < affectedReplay.telemetry[index - 1]!.TimestampMS)).toBe(true);
-    expect(replayed.find((lap) => lap.id === later!.id)!.telemetry.every((packet) => packet.LapNumber === 3)).toBe(true);
+    const [raw] = await getLapsByIds([affected!.id]);
+    expect(raw!.parseError).toBeFalsy();
+    expect(raw!.telemetry.some((p, i, all) => i > 0 && p.TimestampMS < all[i - 1]!.TimestampMS)).toBe(reason !== null);
+    const response = await replayRoutes.request(`/api/laps/${affected!.id}/semantic-telemetry`, {
+      headers: { "X-Game-Id": "f1-2025", Accept: SEMANTIC_REPLAY_MEDIA_TYPE },
+    });
+    expect(response.status).toBe(200);
+    const body = decodeSemanticLapTelemetry(await response.json());
+    const times = body.envelopes.map((frame) => Number(frame.values.find((v) => v.semanticId === "timing.current-lap")!.value));
+    expect(times[0]).toBe(0);
+    expect(times.every((time, i) => !i || time >= times[i - 1]!)).toBe(true);
+    expect(prepareSpectateLap(body).duration).toBeCloseTo(quit ? 31.967 : 87.316, 3);
+    if (reason === null) expect(times).toEqual(raw!.telemetry.map((p) => p.CurrentLap));
+    if (!quit) {
+      const later = stored.find((lap) => lap.sessionId === affected!.sessionId && lap.lapNumber === 3 && lap.isValid);
+      expect(later).toBeDefined();
+      const [replayed] = await getLapsByIds([later!.id]);
+      expect(replayed!.parseError).toBeFalsy();
+      expect(replayed!.telemetry.length).toBeGreaterThan(30);
+      expect(replayed!.telemetry.every((packet) => packet.LapNumber === 3)).toBe(true);
+    }
   } finally {
     unsubscribe();
     await pipeline.finalizeCurrentSession().catch(() => {});

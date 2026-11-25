@@ -310,7 +310,8 @@ export class OrdinalDetectorEngine {
       s.lastPacketTime = now;
       return;
     }
-    if (s.lapNumber >= 0 && s.lapBuffer.length > 30 && packet.LapNumber === s.lapNumber) {
+    const sameLapRewind = packet.LapNumber === s.lapNumber && s.lastTimestampMS > 0 && packet.TimestampMS < s.lastTimestampMS;
+    if (s.lapNumber >= 0 && s.lapBuffer.length > 30 && packet.LapNumber === s.lapNumber && !(packet.gameId === "f1-2025" && sameLapRewind)) {
       const reset = (this.effects.resolveLapReset ?? detectLapReset)(s.lapBuffer[s.lapBuffer.length - 1], s.lastLastLap, packet);
       if (reset.action === "complete-final-lap") {
         this.effects.log?.(`[Lap] Final lap completed: LastLap ${s.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`);

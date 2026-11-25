@@ -41,20 +41,22 @@ function processingFailure(processing: ProcessingMetadata) {
 }
 
 function f1FlashbackReplay(packets: TelemetryPacket[]): TelemetryPacket[] {
-  const kept: TelemetryPacket[] = [];
-  for (const packet of packets) {
-    let previous = kept.at(-1);
-    if (previous?.LapNumber === packet.LapNumber && packet.CurrentLap >= 0 && packet.CurrentLap < previous.CurrentLap - 0.001) {
+  let kept: TelemetryPacket[] | undefined;
+  for (let i = 1; i < packets.length; i++) {
+    const packet = packets[i]!;
+    let previous = packets[i - 1]!;
+    if (previous.LapNumber === packet.LapNumber && packet.TimestampMS < previous.TimestampMS) {
       // The game replaces this span of the lap after a flashback. Keep the
       // original capture intact and remove the abandoned attempt from replay.
-      while (previous?.LapNumber === packet.LapNumber && previous.CurrentLap >= packet.CurrentLap) {
+      kept ??= packets.slice(0, i);
+      while (kept.length && previous.LapNumber === packet.LapNumber && previous.TimestampMS >= packet.TimestampMS) {
         kept.pop();
-        previous = kept.at(-1);
+        previous = kept[kept.length - 1]!;
       }
     }
-    kept.push(packet);
+    kept?.push(packet);
   }
-  return kept;
+  return kept ?? packets;
 }
 
 export const replayRoutes = new Hono()
@@ -99,7 +101,7 @@ export const replayRoutes = new Hono()
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
       const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
-      const replayPackets = meta.gameId === "f1-2025" && meta.invalidReason === "rewind" ? f1FlashbackReplay(lap.telemetry) : lap.telemetry;
+      const replayPackets = meta.gameId === "f1-2025" ? f1FlashbackReplay(lap.telemetry) : lap.telemetry;
       const compact = c.req.header("Accept")?.split(",").some((value) => value.trim() === SEMANTIC_REPLAY_MEDIA_TYPE) ?? false;
       const encoder = compact ? createSemanticReplayEncoder() : undefined;
       const encodeContext = createLmuContextEncoder();
