@@ -232,6 +232,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
   setCurrentLapByteOffset(offset: number, rawOrdinal?: number): void { this.engine.setCurrentLapByteOffset(offset, rawOrdinal); }
   drainOwnershipTransitions(): LapOwnershipTransition[] { return this.engine.drainOwnershipTransitions(); }
   async snapshotIncompleteLap(): Promise<void> {
+    if (this.engine.hasCompletedCurrentLap()) return;
     this.engine.markProvisionalSnapshot();
     if (this.pendingIncompleteLapId !== null) return;
     if (this.pendingIncompleteLapWrite) return this.pendingIncompleteLapWrite;
