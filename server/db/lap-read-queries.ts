@@ -795,16 +795,6 @@ export async function getLapsRaw(ids?: number[]) {
 }
 
 
-export async function getLapCountsByTrack(gameId: GameId): Promise<Map<string, number>> {
-  const rows = await readDb.select({ trackId: sessions.trackId, count: sql<number>`count(*)` })
-    .from(laps)
-    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .where(and(eq(sessions.gameId, gameId), sql`${sessions.trackId} != ''`))
-    .groupBy(sessions.trackId)
-    .all();
-  return new Map(rows.map((r) => [r.trackId, Number(r.count)]));
-}
-
 // ---------------------------------------------------------------------------
 // Driver profiles (cached summary snapshots)
 // ---------------------------------------------------------------------------

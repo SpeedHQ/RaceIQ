@@ -183,6 +183,24 @@ describe("affected verification selector", () => {
         ".gitignore",
         "UNRELEASED.md",
         "client/src/main.tsx",
+        "client/src/components/home/HomePageView.tsx",
+        "client/src/components/tunes/ExperimentWorkspace.tsx",
+        "client/src/components/tunes/experiment/ExperimentList.tsx",
+        "client/src/components/ui/table.tsx",
+        "client/src/routes/index.tsx",
+        "client/src/routes/fm23/index.tsx",
+        "client/src/routes/$gameid/experiments.$experimentId.tsx",
+        "client/src/routes/$gameid/cars.tsx",
+        "client/src/routes/$gameid/tracks.index.tsx",
+        "packages/cars-catalogue/ui/cars/CarsPage.tsx",
+        "packages/cars-catalogue/server/car-routes.ts",
+        "packages/tracks-catalogue/server/catalog-routes.ts",
+        "server/db/discovered-cars.ts",
+        "server/db/lap-read-queries.ts",
+        "server/db/schema.ts",
+        "server/db/track-queries.ts",
+        "server/session-capture/direct-recorder.ts",
+        "apps/backend/test/session-capture/direct-recorder.test.ts",
         "bun.lock",
         "scripts/ci/affected-verification.ts",
         "playwright/config/projects.ts",
@@ -252,6 +270,84 @@ describe("affected verification selector", () => {
       assertAffected(feature);
       expect(projects(feature).has("tracks-catalogue")).toBe(true);
       expect(projects(feature).has("sessions-page")).toBe(true);
+      expect(projects(feature).has("cars-catalogue")).toBe(false);
+      const cars = select("packages/cars-catalogue/ui/cars/CarsPage.tsx");
+      assertAffected(cars);
+      expect(projects(cars).has("cars-catalogue")).toBe(true);
+      expect(projects(cars).has("tracks-catalogue")).toBe(false);
+      for (const [path, owner, peer] of [
+        ["client/src/routes/$gameid/cars.tsx", "cars-catalogue", "tracks-catalogue"],
+        ["client/src/routes/$gameid/tracks.index.tsx", "tracks-catalogue", "cars-catalogue"],
+      ] as const) {
+        const selection = select(path);
+        assertAffected(selection);
+        expect(projects(selection).has(owner)).toBe(true);
+        expect(projects(selection).has(peer)).toBe(false);
+      }
+      for (const [path, owner, peer] of [
+        ["packages/cars-catalogue/server/car-routes.ts", "cars-catalogue", "tracks-catalogue"],
+        ["packages/tracks-catalogue/server/catalog-routes.ts", "tracks-catalogue", "cars-catalogue"],
+      ] as const) {
+        const selection = select(path);
+        assertAffected(selection);
+        expect(projects(selection).has(owner)).toBe(true);
+        expect(projects(selection).has(peer)).toBe(false);
+      }
+      const recorderPaths = [
+        "server/session-capture/direct-recorder.ts",
+        "apps/backend/test/session-capture/direct-recorder.test.ts",
+        "UNRELEASED.md",
+      ].map((path) => resolve(fixture, path));
+      const originalRecorderFiles = recorderPaths.map((path) => readFileSync(path));
+      const recorder = selectChanges(
+        () => recorderPaths.forEach((path, i) => writeFileSync(path, Buffer.concat([originalRecorderFiles[i]!, Buffer.from("\n")]))),
+        () => recorderPaths.forEach((path, i) => writeFileSync(path, originalRecorderFiles[i]!)),
+      );
+      assertAffected(recorder);
+      expect(projects(recorder).has("cars-catalogue")).toBe(false);
+      expect(projects(recorder).has("tracks-catalogue")).toBe(true);
+      const carDiscovery = select("server/db/discovered-cars.ts");
+      assertAffected(carDiscovery);
+      expect(projects(carDiscovery).has("cars-catalogue")).toBe(true);
+      const lapQueries = select("server/db/lap-read-queries.ts");
+      assertAffected(lapQueries);
+      expect(projects(lapQueries).has("tracks-catalogue")).toBe(true);
+      expect(projects(lapQueries).has("cars-catalogue")).toBe(false);
+      const trackCounts = select("server/db/track-queries.ts");
+      assertAffected(trackCounts);
+      expect(projects(trackCounts).has("tracks-catalogue")).toBe(true);
+      expect(projects(trackCounts).has("cars-catalogue")).toBe(false);
+      const schema = select("server/db/schema.ts");
+      assertAffected(schema);
+      expect(projects(schema).has("cars-catalogue")).toBe(true);
+      expect(projects(schema).has("tracks-catalogue")).toBe(true);
+      for (const path of [
+        "client/src/components/home/HomePageView.tsx",
+        "client/src/components/tunes/ExperimentWorkspace.tsx",
+        "client/src/components/tunes/experiment/ExperimentList.tsx",
+        "client/src/routes/index.tsx",
+        "client/src/routes/fm23/index.tsx",
+        "client/src/routes/$gameid/experiments.$experimentId.tsx",
+      ]) {
+        const selection = select(path);
+        assertAffected(selection);
+        expect(projects(selection).has("cars-catalogue"), path).toBe(false);
+        expect(projects(selection).has("tracks-catalogue"), path).toBe(false);
+        expect(selection.build, path).toBe(true);
+      }
+      const newHomePanel = resolve(fixture, "client/src/components/home/NewPanel.tsx");
+      const added = selectChanges(
+        () => writeFileSync(newHomePanel, "export const NewPanel = () => null;\n"),
+        () => rmSync(newHomePanel),
+      );
+      assertAffected(added);
+      expect(projects(added).has("cars-catalogue")).toBe(false);
+      expect(projects(added).has("tracks-catalogue")).toBe(false);
+      expect(added.build).toBe(true);
+      const sharedTable = select("client/src/components/ui/table.tsx");
+      assertAffected(sharedTable);
+      expect(projects(sharedTable).has("cars-catalogue")).toBe(true);
+      expect(projects(sharedTable).has("tracks-catalogue")).toBe(true);
       const setup = select("playwright/tests/setup/sparse-split-migration.spec.ts");
       assertAffected(setup);
       expect(projects(setup).has("seeded-e2e")).toBe(true);

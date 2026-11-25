@@ -84,6 +84,7 @@
     "browser:runtime:impact": {},
     "browser:seed:impact": {},
     "browser:fresh:impact": {},
+    "e2e:catalogue-runtime:impact": {},
     "browser:tunes:impact": {},
     "browser:tunes-unseeded:impact": {},
     "browser:seeded-e2e:impact": {},

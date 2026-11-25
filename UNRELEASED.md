@@ -17,3 +17,4 @@
 - Require an explicitly configured model for AI evaluation runs.
 - Keep ongoing release notes in `UNRELEASED.md` and move them into `CHANGELOG.md` only when publishing a release.
 - Select affected verification jobs before allocating CI runners. Keep full coverage when CI cannot verify which jobs are affected.
+- Select Cars and Tracks Playwright projects from feature dependencies and shared runtime inputs. Home and Experiments UI changes skip both; recorder-only changes skip Cars.

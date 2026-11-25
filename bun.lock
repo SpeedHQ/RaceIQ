@@ -264,7 +264,6 @@
       "dependencies": {
         "@base-ui/react": "^1.8.0",
         "@hono/zod-validator": "0.9.1",
-        "@raceiq/backend-core": "workspace:*",
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc-metadata": "workspace:*",
