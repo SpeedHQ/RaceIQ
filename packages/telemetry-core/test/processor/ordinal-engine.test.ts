@@ -23,7 +23,7 @@ function engineFixture(persistCompleted = true) {
   let engine: OrdinalDetectorEngine;
   engine = new OrdinalDetectorEngine({
     now: () => now++,
-    createSession: async () => ({ carId: "car", trackId: "track", gameId: "fm-2023" }),
+    createSession: async (packet) => ({ carId: "car", trackId: "track", gameId: packet.gameId, sessionUID: packet.sessionUID }),
     finalizeLap: async (_packet, state) => {
       engine.trimRunningStartPackets();
       if (persistCompleted) persisted.push({ offset: state.lapByteOffset, count: state.lapFrameCount });
@@ -280,6 +280,51 @@ describe("ordinal detector source ownership", () => {
       lapNumber: 3, startOffset: 3_000, startOrdinal: 30, status: "incomplete",
     });
     expect(transitions.some((item) => item.kind === "window-finalized")).toBe(false);
+  });
+
+  test.each([1, 3])("keeps the full F1 lap %d when a flashback crosses the finish line again", async (lap) => {
+    const { engine, persisted } = engineFixture();
+    let ordinal = 10;
+    const push = (lapNumber: number, currentLap: number, lastLap: number, timestamp: number) => {
+      const index = ordinal++;
+      return feed(engine, {
+        gameId: "f1-2025", sessionUID: "qualifying", LapNumber: lapNumber,
+        CurrentLap: currentLap, LastLap: lastLap, TimestampMS: timestamp,
+      }, index * 10, index);
+    };
+    for (let index = 0; index < 35; index++) await push(lap, index * 2, 81, 10_000 + index * 2_000);
+    await push(lap + 1, 0, 70.397, 80_397);
+    await push(lap + 1, 3, 70.397, 83_397);
+    const recrossingOffset = ordinal * 10;
+    await push(lap, 67.398, 81, 77_398);
+    await push(lap, 70.402, 81, 80_402);
+    const nextLapOffset = ordinal * 10;
+    await push(lap + 1, 0, 70.407, 80_407);
+    await push(lap + 1, 69, 70.407, 149_407);
+    await push(lap + 2, 0, 70, 150_407);
+
+    expect(persisted).toEqual([{ offset: 100, count: 35 }, { offset: nextLapOffset, count: 2 }]);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.filter(({ kind, window }) => kind === "window-finalized" && window?.lapNumber === lap)).toHaveLength(1);
+    expect(transitions.find(({ kind, window }) => kind === "window-abandoned" && window?.startOffset === recrossingOffset)?.window).toMatchObject({
+      lapNumber: lap, frameCount: 2,
+    });
+  });
+
+  test("keeps F1 lap numbers reusable in a new session after an unfinished recrossing", async () => {
+    const { engine, persisted } = engineFixture();
+    const push = (ordinal: number, sessionUID: string, values: Partial<TelemetryPacket>) =>
+      feed(engine, { gameId: "f1-2025", sessionUID, ...values }, ordinal * 10, ordinal);
+    await push(10, "first", { LapNumber: 1, CurrentLap: 70 });
+    await push(11, "first", { LapNumber: 2, CurrentLap: 0, LastLap: 71 });
+    await push(12, "first", { LapNumber: 1, CurrentLap: 65 });
+    await push(13, "second", { LapNumber: 1, CurrentLap: 0 });
+    await push(14, "second", { LapNumber: 2, CurrentLap: 0, LastLap: 72 });
+
+    expect(persisted).toEqual([{ offset: 100, count: 1 }, { offset: 130, count: 1 }]);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.some(({ kind }) => kind === "final-incomplete")).toBe(false);
+    expect(transitions.some(({ kind, window }) => kind === "window-abandoned" && window?.startOffset === 120)).toBe(true);
   });
 
   test("abandons discarded ownership exactly once on restart", async () => {

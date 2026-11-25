@@ -9,7 +9,7 @@ import { LmuSupplementalRest } from "@raceiq/game-lmu/test-support/supplemental-
 import { normalizeLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
 import { encodeLMUSourceFrame, decodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { LMU_SHARED_MEMORY_SIZE, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY_INFO_SIZE, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO, LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE, LMU_SCORING_VEHICLE_SIZE } from "@raceiq/capture-formats/lmu/layout";
-import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import { LiveTelemetryProjector, type LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { isLiveTelemetryFrameMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { encodeLmuContext, decodeLmuContext, isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
@@ -373,6 +373,44 @@ describe("LMU Phase 1 player pipeline", () => {
 });
 
 describe("LMU scoring competitor snapshots", () => {
+  test("preserves scalar competitor positions through native source dispatch and live context encoding", async () => {
+    const memory = playerMemory();
+    const projector = new LiveTelemetryProjector();
+    const projected: LiveProjection[] = [];
+    const source = new LMUTelemetrySource({
+      rest: false,
+      reader: { start() {}, async stop() {}, readLatest: () => memory },
+      dispatchRawFrame: async (rawFrame) => {
+        const packet = normalizeLMUSourceFrame(decodeLMUSourceFrame(rawFrame)!)!;
+        projected.push(projector.project({ packet, receivedAtMs: 1000 + projected.length }));
+      },
+      publishUnavailable() {},
+    });
+    try {
+      memory.writeUInt8(3, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.place);
+      expect(await source.pollOnce()).toBe(true);
+      const first = projected[0]!;
+      expect(isLiveTelemetryFrameMessageV1(JSON.parse(JSON.stringify(first.frame)), first.schema!)).toBe(true);
+      const context = decodeLmuContext(JSON.parse(JSON.stringify(first.frame!.lmu)))!;
+      expect(context.competitors?.[0]).toMatchObject({
+        vehicleId: 42,
+        channels: { "race.competitor.position": { value: 3, state: "ok", unit: "count" } },
+      });
+
+      memory.writeUInt8(0, LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.place);
+      memory.writeDoubleLE(10.5, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
+      expect(await source.pollOnce()).toBe(true);
+      const next = projected[1]!.frame!;
+      expect(isLiveTelemetryFrameMessageV1(JSON.parse(JSON.stringify(next)), first.schema!)).toBe(true);
+      const invalid = decodeLmuContext(JSON.parse(JSON.stringify(next.lmu)))!;
+      expect(invalid.competitors?.[0]?.channels["race.competitor.position"]).toMatchObject({
+        value: null, state: "invalid", unit: "count",
+      });
+    } finally {
+      await source.stop();
+    }
+  });
+
   test("keeps mID identity through reorder, increments reuse incarnations, rejects duplicates and supports no-player grids", () => {
     const memory = playerMemory();
     const tracker = new LmuOpponentIdentityTracker();

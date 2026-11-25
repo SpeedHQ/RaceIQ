@@ -130,21 +130,48 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-Playwright projects are CI boundaries, not individual test files:
+Build & Test selects verification jobs once, before runner allocation. It uses
+the PR base and head to select browser projects from Turbo task inputs. The
+compiled jobs run Playwright directly, without caching results. Fresh install,
+tunes, and unseeded tunes run independently. Selected seeded projects keep the
+existing seven shard indices and share one seed artifact. The WebGPU job keeps
+its existing runner eligibility and requests the seed separately. `record-demo`
+remains outside the default gate.
 
-| CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
-| --- | --- | --- | --- |
-| Compiled E2E | `all` | All configured projects, including `tracks-catalogue` and `cars-catalogue` | All functional, responsive, and Chromium device projects |
+Manual dispatch and standalone reusable verification default to full coverage
+for their eligible jobs. Manual affected mode requires distinct, resolvable
+refs with common history and a head matching the checkout. Untrusted ranges
+or incomplete ownership select full coverage with a diagnostic. An invalid
+Playwright inventory fails planning. Main-branch ordinary suites remain full;
+lint and typecheck still use the push range when available. See
+[`scripts/README.md`](../../scripts/README.md) for local ordinary suite selection.
 
-`.github/workflows/playwright-dev.yml` and the release workflow each invoke
-the reusable workflow once. The invocation starts the `all` server set and
-runs every configured E2E project in one `bunx playwright test` process.
+Inspect browser and visual selection without building or seeding:
+
+```sh
+bun scripts/ci/affected-verification.ts --mode full
+bun scripts/ci/affected-verification.ts --mode affected --base <base-ref> --head <head-ref>
+```
+
+The selector writes one JSON object to stdout and diagnostics to stderr. The
+plan includes the comparison refs, job and shard selections, required
+artifacts, and expected job results. It maps Turbo task IDs to jobs, not paths
+to jobs. Deleted inputs use the merge-base inventory. A move includes both
+the previous and current consumers, or falls back to full when either
+inventory is untrustworthy. Changes limited to unconsumed Markdown under
+`docs/` can select no build, desktop, browser, or visual jobs.
+
+The visual comparison job combines only the selected responsive or Storybook
+artifacts and checks their PR and base commit. Neither selected means no
+publication. The `Verification` check rejects failed, cancelled, or
+unexpectedly skipped selected jobs. Local selection does not prove runner
+allocation, artifact publication, or hardware rendering.
 
 New `.spec.ts` files matching an existing `testMatch` pattern are included
-automatically; no workflow edit is needed. Adding a new Playwright project or
-changing a `testMatch` boundary requires updating the reusable workflow inputs
-and this table. The reusable job runs `bunx playwright test --list` first and
-fails if its project selection discovers zero tests.
+automatically. Adding a Playwright project or changing its boundary also requires
+updating the selector inventory and its impact tasks. The reusable job runs
+`bunx playwright test --list` first and fails if its project selection discovers
+zero tests.
 
 The reusable `.github/workflows/playwright.yml` accepts project flags, server
 mode, server set, runner, optional `dist` artifact, and result artifact name.
@@ -186,7 +213,7 @@ Inspect affected impact and execution tasks without starting servers:
 bunx turbo run e2e:impact test:e2e --affected --filter='@raceiq/*-catalogue' --dry=json
 ```
 
-Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md) and [catalogue verification](../../advisor-plans/catalogues-contract.md#verification-outcomes).
+Turbo uses package defaults and inherited root inputs, not manually maintained feature file lists. A feature-only UI/server/spec edit selects its owner; genuine shared dependencies select their consumers. Invalid explicit SCM references fail; valid shallow history without a merge base falls back conservatively. See the [feature package pattern](../architecture/feature-packages.md).
 
 These commands do not replace the broad existing CI matrix. Local selection evidence does not establish that GitHub provisioned fewer jobs.
 

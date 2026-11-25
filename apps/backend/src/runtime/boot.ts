@@ -19,7 +19,7 @@ import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/rec
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { setDumpOnlyTelemetryRouting } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { udpListener } from "./udp-listener";
-import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
+import { PUBLIC_DIR, ROOT_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
@@ -35,6 +35,9 @@ import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-pr
 import { notifyDriverProfileLap } from "../driver-profile/runner";
 import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
+import { readDesktopHostOptions } from "./desktop-host";
+import { chatGptAccounts, directChatGptPilot } from "./chatgpt-subscription-runtime";
+import { getChatGptPricing } from "@raceiq/assistant/ai/chatgpt-chat-pricing";
 
 export interface BootOptions {
   httpPort?: number;
@@ -55,21 +58,25 @@ function recordingGameIdFromArgs(args: readonly string[]): string | null {
 }
 
 export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
+  const desktop = readDesktopHostOptions();
   const upgradingAccess = !isFirstRun();
   initGameAdapters(serverReleaseFeatures);
   initServerGameAdapters(serverReleaseFeatures);
   initMotecTargets();
   registerDriverProfileLapNotifier(notifyDriverProfileLap);
+  void getChatGptPricing("boot");
 
-  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html")) ? PUBLIC_DIR : null;
+  const assetDir = IS_COMPILED ? PUBLIC_DIR
+    : directChatGptPilot && chatGptAccounts ? resolve(ROOT_DIR, "client", "dist") : null;
+  const staticDir = assetDir && existsSync(resolve(assetDir, "index.html")) ? assetDir : null;
   if (staticDir) {
     console.log(`[Server] Serving static assets from ${staticDir}`);
   }
   const devPublicDir = !IS_COMPILED ? PUBLIC_DIR : null;
 
-  preventMacSleep();
+  if (!desktop) preventMacSleep();
 
-  const httpPort = options.httpPort ?? (Number(process.env.SERVER_PORT) || 3117);
+  const httpPort = options.httpPort ?? desktop?.httpPort ?? (Number(process.env.SERVER_PORT) || 3117);
   const onboardingOverride = getOnboardingOverride();
   if (onboardingOverride !== null) {
     console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
@@ -107,8 +114,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   // Empty-session cleanup runs after repair so pending candidates remain available.
 
   console.log("[Server] Starting RaceIQ Server...");
-  clearHttpPort(httpPort);
-  console.log("[Boot] Port cleared");
+  // A native app may never kill another listener to claim a port.
+  if (!desktop && httpPort !== 0) {
+    clearHttpPort(httpPort);
+    console.log("[Boot] Port cleared");
+  }
 
   // Dynamic import is required here: dev-studio pulls @mastra/hono and the
   // DuckDB-backed Mastra instance, which must stay out of the production bundle.
@@ -163,8 +173,10 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
   setDumpOnlyTelemetryRouting(dumpMode);
+  let udpListening = false;
   try {
     await udpListener.start(udpPort);
+    udpListening = true;
   } catch (error) {
     console.error(`[UDP] Unable to listen on port ${udpPort}; recording processing remains available:`, error);
   }
@@ -178,15 +190,19 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   const trayUrl = trayCandidates.find((url) => httpAccess.allowsOrigin(url, new Request(url)))
     ?? process.env.SERVER_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).find(Boolean)
     ?? trayCandidates[0];
-  startTray(trayUrl);
+  if (!desktop) startTray(trayUrl);
 
-  if (firstRun) {
+  if (firstRun && !desktop) {
     openFirstRunDashboard(boundHttpPort);
   }
 
   if (!dumpMode) startMaintenanceJobs();
 
   console.log("[Server] RaceIQ Server is ready!");
+  if (desktop) {
+    // Unadorned machine-readable stdout, independent of diagnostic log formatting.
+    process.stdout.write(`${JSON.stringify({ type: "raceiq-ready", protocolVersion: 1, url: `http://${desktop.hostname}:${boundHttpPort}`, udpPort, udpListening })}\n`);
+  }
   process.send?.({ type: "shutdown-ready" });
 
   return { httpServer, httpPort: boundHttpPort, udpPort };

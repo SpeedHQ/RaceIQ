@@ -10,9 +10,7 @@ const recordingFile = "acc-2026-04-12T20-41-21-436Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);
 
 describe(recordingFile, () => {
-  test("pit lap sectors null, outlap and valid laps have correct sectors", async () => {
-    if (!existsSync(recording)) return;
-
+  test.skipIf(!existsSync(recording))("pit lap sectors null, outlap and valid laps have correct sectors", async () => {
     const { laps } = await parseDump(accRecordingSupport, recording);
     for (const l of laps) console.log(lapSummary(l));
 
@@ -22,11 +20,13 @@ describe(recordingFile, () => {
     // Lap 0: pit lap — recording started mid-lap inside pit, sectors null
     expect(laps[0].isValid).toBe(false);
     expect(laps[0].invalidReason).toBe("pit lap");
+    expect(laps[0].classification).toBe("pit_lap");
     expect(laps[0].sectors).toBeNull();
 
     // Lap 1: outlap with valid sectors
     expect(laps[1].isValid).toBe(false);
     expect(laps[1].invalidReason).toBe("outlap");
+    expect(laps[1].classification).toBe("out_lap");
     assertBrandHatchSectorBounds(laps[1]);
 
     // Laps 2-3: clean laps

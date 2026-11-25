@@ -117,7 +117,7 @@ test("real upgrade restores limited results, preserves them offline, and repairs
       await classificationPage.close();
     }
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Updates", exact: true }).click();
+    await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
     const maintenance = page.locator('section[aria-labelledby="classification-migration-heading"]');
     await expect(maintenance).toContainText("Source file missing");
     for (const width of [390, 1440]) {

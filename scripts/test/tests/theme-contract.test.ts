@@ -272,7 +272,7 @@ describe("frontend theme contract", () => {
     expect(runtimeSource).not.toContain("tireTempColorHex");
     expect(runtimeSource).not.toMatch(/\btext-app-(?:bg|surface)\b/);
     expect(runtimeSource).not.toMatch(
-      /\bbg-(?:app-accent|status-(?:success|danger|warning|info))(?![/\w-])[^"'`\r\n]*\btext-app-(?:text|bg|surface)\b/,
+      /\bbg-(?:app-accent|status-(?:success|danger|warning|info))(?![/\w-])[^"'`\r\n]*\btext-app-(?:text|bg|surface)(?![\w-])/,
     );
     expect(runtimeSource).not.toMatch(
       /\b(?:hover|group-hover):(?:bg-app-(?:bg|surface-alt|surface|border|border-input|text)|border-app-(?:border|border-input|text-dim))(?:\/(?:\d+|\[[^\]]+\]))?(?=["'`\s}])/,

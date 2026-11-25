@@ -6,9 +6,12 @@ import { authenticatedFetch } from "@/lib/rpc";
 import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileState, ProviderSetupState } from "./ai-state";
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
+import { modelsOrFallback } from "./recommended-model";
+import type { OpenAiReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
 
-type SavedAnalysisBaseline = { provider: string; model: string; thinkingBudget: number | null; localEndpoint: string };
-type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null };
+type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null; reasoningLevel: OpenAiReasoningLevel };
+type SavedAnalysisBaseline = SavedChatBaseline & { localEndpoint: string };
+type SavedSubscriptionChatBaseline = SavedChatBaseline & { subscriptionReasoningLevel: OpenAiReasoningLevel | null };
 type DriverProfileSettings = {
   driverProfileBackgroundEnabled?: boolean;
   driverProfileProvider?: string;
@@ -40,6 +43,7 @@ export function useAiSettings(): AiSettingsState {
   const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "");
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [thinkingBudget, setThinkingBudget] = useState<number | null>(displaySettings.aiThinkingBudget ?? null);
+  const [reasoningLevel, setReasoningLevel] = useState(displaySettings.aiReasoningLevel ?? "medium");
   const [apiKey, setApiKey] = useState("");
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const apiKeyRef = useRef("");
@@ -52,6 +56,7 @@ export function useAiSettings(): AiSettingsState {
     provider: displaySettings.aiProvider ?? "",
     model: displaySettings.aiModel ?? "",
     thinkingBudget: (displaySettings.aiProvider ?? "") === "gemini" ? (displaySettings.aiThinkingBudget ?? null) : null,
+    reasoningLevel: displaySettings.aiReasoningLevel ?? "medium",
     localEndpoint: displaySettings.localEndpoint ?? "http://localhost:1234/v1",
   }));
 
@@ -63,27 +68,33 @@ export function useAiSettings(): AiSettingsState {
     const nextModel = displaySettings.aiModel ?? "";
     const nextLocalEndpoint = displaySettings.localEndpoint ?? "http://localhost:1234/v1";
     const nextThinkingBudget = nextProvider === "gemini" ? (displaySettings.aiThinkingBudget ?? null) : null;
+    const nextReasoningLevel = displaySettings.aiReasoningLevel ?? "medium";
     setProvider(nextProvider);
     setModel(nextModel);
     setLocalEndpoint(nextLocalEndpoint);
     setThinkingBudget(nextThinkingBudget);
-    setAnalysisBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, localEndpoint: nextLocalEndpoint });
-  }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.aiThinkingBudget, displaySettings.localEndpoint]);
+    setReasoningLevel(nextReasoningLevel);
+    setAnalysisBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, reasoningLevel: nextReasoningLevel, localEndpoint: nextLocalEndpoint });
+  }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.aiThinkingBudget, displaySettings.aiReasoningLevel, displaySettings.localEndpoint]);
 
   const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "");
   const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatThinkingBudget, setChatThinkingBudget] = useState<number | null>(displaySettings.chatThinkingBudget ?? null);
+  const [chatReasoningLevel, setChatReasoningLevel] = useState(displaySettings.chatReasoningLevel ?? "medium");
+  const [chatSubscriptionReasoningLevel, setChatSubscriptionReasoningLevel] = useState(displaySettings.chatSubscriptionReasoningLevel ?? null);
   const chatApiKeyRef = useRef("");
   const setChatApiKeyValue = (value: string) => {
     chatApiKeyRef.current = value;
     setChatApiKey(value);
   };
   const [chatSaveError, setChatSaveError] = useState<string | null>(null);
-  const [chatBaseline, setChatBaseline] = useState<SavedChatBaseline>(() => ({
+  const [chatBaseline, setChatBaseline] = useState<SavedSubscriptionChatBaseline>(() => ({
     provider: displaySettings.chatProvider ?? "",
     model: displaySettings.chatModel ?? "",
     thinkingBudget: (displaySettings.chatProvider ?? "") === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null,
+    reasoningLevel: displaySettings.chatReasoningLevel ?? "medium",
+    subscriptionReasoningLevel: displaySettings.chatSubscriptionReasoningLevel ?? null,
   }));
   const chatSynced = useRef(false);
   useEffect(() => {
@@ -92,11 +103,15 @@ export function useAiSettings(): AiSettingsState {
     const nextProvider = displaySettings.chatProvider ?? "";
     const nextModel = displaySettings.chatModel ?? "";
     const nextThinkingBudget = nextProvider === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null;
+    const nextReasoningLevel = displaySettings.chatReasoningLevel ?? "medium";
+    const nextSubscriptionReasoningLevel = displaySettings.chatSubscriptionReasoningLevel ?? null;
     setChatProvider(nextProvider);
     setChatModel(nextModel);
     setChatThinkingBudget(nextThinkingBudget);
-    setChatBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget });
-  }, [settingsLoaded, displaySettings.chatProvider, displaySettings.chatModel, displaySettings.chatThinkingBudget]);
+    setChatReasoningLevel(nextReasoningLevel);
+    setChatSubscriptionReasoningLevel(nextSubscriptionReasoningLevel);
+    setChatBaseline({ provider: nextProvider, model: nextModel, thinkingBudget: nextThinkingBudget, reasoningLevel: nextReasoningLevel, subscriptionReasoningLevel: nextSubscriptionReasoningLevel });
+  }, [settingsLoaded, displaySettings.chatProvider, displaySettings.chatModel, displaySettings.chatThinkingBudget, displaySettings.chatReasoningLevel, displaySettings.chatSubscriptionReasoningLevel]);
 
   const [autoTuneProvider, setAutoTuneProvider] = useState<string>(displaySettings.autoTuneProvider ?? "");
   const [autoTuneModel, setAutoTuneModel] = useState(displaySettings.autoTuneModel ?? "");
@@ -175,6 +190,8 @@ export function useAiSettings(): AiSettingsState {
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
+    anthropic: !!displaySettings.anthropicApiKeySet,
+    deepseek: !!displaySettings.deepseekApiKeySet,
     "openai-compatible": !!displaySettings.openaiCompatibleApiKeySet,
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
@@ -182,6 +199,8 @@ export function useAiSettings(): AiSettingsState {
       if (!prev || typeof prev !== "object") return prev;
       if (providerKeyId === "gemini") return { ...(prev as Record<string, unknown>), geminiApiKeySet: isSet };
       if (providerKeyId === "openai") return { ...(prev as Record<string, unknown>), openaiApiKeySet: isSet };
+      if (providerKeyId === "anthropic") return { ...(prev as Record<string, unknown>), anthropicApiKeySet: isSet };
+      if (providerKeyId === "deepseek") return { ...(prev as Record<string, unknown>), deepseekApiKeySet: isSet };
       if (providerKeyId === "openai-compatible") return { ...(prev as Record<string, unknown>), openaiCompatibleApiKeySet: isSet };
       return prev;
     });
@@ -193,41 +212,63 @@ export function useAiSettings(): AiSettingsState {
     });
   };
   const { aiProviders, aiModels, aiModelsFetching, aiModelsError, modelsRefreshing, refreshModels: refreshModelsAction } = useAiModelData(selectedProviders, keyStatus);
-  const models = isAiProvider(provider) ? (aiModels?.[provider] ?? []) : [];
+  const subscriptionReady = aiProviders?.some((entry) => entry.id === "chatgpt-subscription" && entry.ready) ?? false;
+  keyStatus["chatgpt-subscription"] = subscriptionReady;
+  const subscriptionModels = subscriptionReady && !aiModelsFetching && !modelsRefreshing && !aiModelsError
+    ? aiModels?.["chatgpt-subscription"] ?? []
+    : [];
+  const models = provider === "chatgpt-subscription"
+    ? subscriptionModels.filter((entry) => entry.features.includes("analysis"))
+    : modelsOrFallback(provider, isAiProvider(provider) ? (aiModels?.[provider] ?? []) : []);
   const hasProviderKey = provider === "openai-compatible" || (keyStatus[provider] ?? false);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(model || "gemini-flash-latest");
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
-  const chatModels = isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : [];
+  const chatModels = chatProvider === "chatgpt-subscription"
+    ? subscriptionModels.filter((entry) => entry.features.includes("chat"))
+    : modelsOrFallback(chatProvider, isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : []);
   const hasChatProviderKey = chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(chatModel || "gemini-flash-latest");
   const effectiveChatThinkingBudget = chatModelSupportsThinking ? chatThinkingBudget : null;
   const modelErrors = aiModels?._errors ?? {};
-  const providerModelError = isAiProvider(provider) ? (modelErrors[provider] ?? null) : null;
-  const chatProviderModelError = isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
-  const autoTuneModels = isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : [];
+  const modelErrorFor = (value: string) => {
+    const error = isAiProvider(value) ? (modelErrors[value] ?? null) : null;
+    return error && value === "chatgpt-subscription" ? m.ai_load_models_failed() : error;
+  };
+  const providerModelError = modelErrorFor(provider);
+  const chatProviderModelError = modelErrorFor(chatProvider);
+  const autoTuneModels = autoTuneProvider === "chatgpt-subscription"
+    ? subscriptionModels.filter((entry) => entry.features.includes("autoTune"))
+    : modelsOrFallback(autoTuneProvider, isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : []);
   const hasAutoTuneProviderKey = autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
-  const autoTuneProviderModelError = isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
-  const driverProfileModels = isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : [];
+  const autoTuneProviderModelError = modelErrorFor(autoTuneProvider);
+  const driverProfileModels = driverProfileProvider === "chatgpt-subscription"
+    ? subscriptionModels.filter((entry) => entry.features.includes("driverProfile"))
+    : modelsOrFallback(driverProfileProvider, isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : []);
   const hasDriverProfileProviderKey = driverProfileProvider === "openai-compatible" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(driverProfileModel || "gemini-flash-latest");
   const selectedDriverProfileModel = driverProfileModels.find((mm) => mm.id === driverProfileModel);
   const driverProfileModelContextLength = selectedDriverProfileModel?.contextLength;
   const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
-  const driverProfileProviderModelError = isAiProvider(driverProfileProvider) ? (modelErrors[driverProfileProvider] ?? null) : null;
+  const driverProfileProviderModelError = modelErrorFor(driverProfileProvider);
+  const isSelectable = (providerId: string, modelId: string, offered: { id: string }[]) =>
+    providerId !== "chatgpt-subscription" || offered.some((entry) => entry.id === modelId);
 
   const nextThinkingBudget = provider === "gemini" ? effectiveThinkingBudget : null;
   const analysisConfigDirty =
     provider !== analysisBaseline.provider ||
     model !== analysisBaseline.model ||
     nextThinkingBudget !== analysisBaseline.thinkingBudget ||
+    reasoningLevel !== analysisBaseline.reasoningLevel ||
     (provider === "openai-compatible" && localEndpoint !== analysisBaseline.localEndpoint);
-  const canSaveAnalysis = analysisConfigDirty || apiKey.trim().length > 0;
+  const canSaveAnalysis = (analysisConfigDirty || apiKey.trim().length > 0) && isSelectable(provider, model, models);
   const nextChatThinkingBudget = chatProvider === "gemini" ? effectiveChatThinkingBudget : null;
-  const chatConfigDirty = chatProvider !== chatBaseline.provider || chatModel !== chatBaseline.model || nextChatThinkingBudget !== chatBaseline.thinkingBudget;
+  const chatConfigDirty = chatProvider !== chatBaseline.provider || chatModel !== chatBaseline.model
+    || nextChatThinkingBudget !== chatBaseline.thinkingBudget || chatReasoningLevel !== chatBaseline.reasoningLevel
+    || chatSubscriptionReasoningLevel !== chatBaseline.subscriptionReasoningLevel;
   const [providerSetupKeys, setProviderSetupKeys] = useState<Record<string, string>>({});
   const saveProviderKey = useCallback(
     async (providerKeyId: string, apiKey: string) => {
@@ -250,9 +291,9 @@ export function useAiSettings(): AiSettingsState {
     },
     [saveSettings],
   );
-  const canSaveChat = chatConfigDirty || chatApiKey.trim().length > 0;
+  const canSaveChat = (chatConfigDirty || chatApiKey.trim().length > 0) && isSelectable(chatProvider, chatModel, chatModels);
   const autoTuneConfigDirty = autoTuneProvider !== autoTuneBaseline.provider || autoTuneModel !== autoTuneBaseline.model;
-  const canSaveAutoTune = autoTuneConfigDirty || autoTuneApiKey.trim().length > 0;
+  const canSaveAutoTune = (autoTuneConfigDirty || autoTuneApiKey.trim().length > 0) && isSelectable(autoTuneProvider, autoTuneModel, autoTuneModels);
   const nextDriverProfileThinkingBudget = driverProfileProvider === "gemini" ? effectiveDriverProfileThinkingBudget : null;
   const driverProfileConfigDirty =
     driverProfileBackgroundEnabled !== driverProfileBaseline.backgroundEnabled ||
@@ -260,7 +301,10 @@ export function useAiSettings(): AiSettingsState {
     driverProfileModel !== driverProfileBaseline.model ||
     nextDriverProfileThinkingBudget !== driverProfileBaseline.thinkingBudget ||
     driverProfileMaxOutputTokens !== driverProfileBaseline.maxOutputTokens;
-  const canSaveDriverProfile = driverProfileConfigDirty || driverProfileApiKey.trim().length > 0;
+  const disablingProfile = !driverProfileBackgroundEnabled && driverProfileBaseline.backgroundEnabled
+    && driverProfileProvider === driverProfileBaseline.provider && driverProfileModel === driverProfileBaseline.model;
+  const canSaveDriverProfile = (driverProfileConfigDirty || driverProfileApiKey.trim().length > 0)
+    && (disablingProfile || isSelectable(driverProfileProvider, driverProfileModel, driverProfileModels));
 
   const saveApiKey = useMutation({
     mutationFn: async (payload: { provider: string; apiKey: string }) => {
@@ -277,8 +321,8 @@ export function useAiSettings(): AiSettingsState {
       const providerKeyId = PROVIDER_KEY_MAP[provider];
       const keyPromise = apiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: apiKeyRef.current }) : null;
       const updates: Record<string, unknown> = { aiProvider: provider, aiModel: model, aiThinkingBudget: nextThinkingBudget };
+      if (reasoningLevel !== analysisBaseline.reasoningLevel) updates.aiReasoningLevel = reasoningLevel;
       if (provider === "openai-compatible") updates.localEndpoint = localEndpoint;
-      updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
         updateKeyStatusInSettingsCache(providerKeyId, true);
@@ -287,12 +331,12 @@ export function useAiSettings(): AiSettingsState {
       }
       console.info(`[AI Settings] analysis save completed in ${Math.round(performance.now() - startedAt)}ms`);
       qc.invalidateQueries({ queryKey: ["settings"] });
-      setAnalysisBaseline({ provider, model, thinkingBudget: nextThinkingBudget, localEndpoint: provider === "openai-compatible" ? localEndpoint : analysisBaseline.localEndpoint });
+      setAnalysisBaseline({ provider, model, thinkingBudget: nextThinkingBudget, reasoningLevel, localEndpoint: provider === "openai-compatible" ? localEndpoint : analysisBaseline.localEndpoint });
     } catch (err) {
       console.error(`[AI Settings] analysis save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
       setSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
     }
-  }, [analysisBaseline.localEndpoint, apiKey, localEndpoint, model, nextThinkingBudget, provider, qc, saveApiKey, saveSettings]);
+  }, [analysisBaseline.localEndpoint, analysisBaseline.reasoningLevel, apiKey, localEndpoint, model, nextThinkingBudget, provider, qc, reasoningLevel, saveApiKey, saveSettings]);
   useEffect(() => {
     if (!settingsLoaded || !canSaveAnalysis) return;
     const timeout = setTimeout(() => void handleSave(), 500);
@@ -303,8 +347,10 @@ export function useAiSettings(): AiSettingsState {
     try {
       const providerKeyId = PROVIDER_KEY_MAP[chatProvider];
       const keyPromise = chatApiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: chatApiKeyRef.current }) : null;
-      const updates = { chatProvider, chatModel, chatThinkingBudget: nextChatThinkingBudget };
-      updateSettingsInCache(updates);
+      const updates = { chatProvider, chatModel, chatThinkingBudget: nextChatThinkingBudget,
+        ...(chatReasoningLevel !== chatBaseline.reasoningLevel ? { chatReasoningLevel } : {}),
+        ...(chatSubscriptionReasoningLevel !== chatBaseline.subscriptionReasoningLevel ? { chatSubscriptionReasoningLevel } : {}),
+      };
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
         updateKeyStatusInSettingsCache(providerKeyId, true);
@@ -312,11 +358,11 @@ export function useAiSettings(): AiSettingsState {
         setChatApiKey("");
       }
       qc.invalidateQueries({ queryKey: ["settings"] });
-      setChatBaseline({ provider: chatProvider, model: chatModel, thinkingBudget: nextChatThinkingBudget });
+      setChatBaseline({ provider: chatProvider, model: chatModel, thinkingBudget: nextChatThinkingBudget, reasoningLevel: chatReasoningLevel, subscriptionReasoningLevel: chatSubscriptionReasoningLevel });
     } catch (err) {
       setChatSaveError(err instanceof Error ? err.message : m.ai_save_chat_settings_failed());
     }
-  }, [chatApiKey, chatModel, chatProvider, nextChatThinkingBudget, qc, saveApiKey, saveSettings]);
+  }, [chatApiKey, chatBaseline.reasoningLevel, chatBaseline.subscriptionReasoningLevel, chatModel, chatProvider, chatReasoningLevel, chatSubscriptionReasoningLevel, nextChatThinkingBudget, qc, saveApiKey, saveSettings]);
   useEffect(() => {
     if (!settingsLoaded || !canSaveChat) return;
     const timeout = setTimeout(() => void handleChatSave(), 500);
@@ -328,7 +374,6 @@ export function useAiSettings(): AiSettingsState {
       const providerKeyId = PROVIDER_KEY_MAP[autoTuneProvider];
       const keyPromise = autoTuneApiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: autoTuneApiKeyRef.current }) : null;
       const updates = { autoTuneProvider, autoTuneModel };
-      updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
         updateKeyStatusInSettingsCache(providerKeyId, true);
@@ -359,7 +404,6 @@ export function useAiSettings(): AiSettingsState {
         driverProfileThinkingBudget: nextDriverProfileThinkingBudget,
         driverProfileMaxOutputTokens,
       };
-      updateSettingsInCache(updates);
       await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
         updateKeyStatusInSettingsCache(providerKeyId, true);
@@ -433,6 +477,8 @@ export function useAiSettings(): AiSettingsState {
       setModel,
       thinkingBudget,
       setThinkingBudget,
+      reasoningLevel,
+      setReasoningLevel,
       apiKey,
       setApiKey: setApiKeyValue,
       localEndpoint,
@@ -463,6 +509,10 @@ export function useAiSettings(): AiSettingsState {
       setChatModel,
       chatThinkingBudget,
       setChatThinkingBudget,
+      chatReasoningLevel,
+      setChatReasoningLevel,
+      chatSubscriptionReasoningLevel,
+      setChatSubscriptionReasoningLevel,
       chatApiKey,
       setChatApiKey: setChatApiKeyValue,
       keyStatus,

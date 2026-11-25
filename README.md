@@ -14,6 +14,7 @@
   <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest"><img src="https://img.shields.io/github/downloads/SpeedHQ/RaceIQ/total?style=for-the-badge&color=blue&label=downloads" alt="Downloads"></a>
   <a href="https://github.com/SpeedHQ/RaceIQ/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SpeedHQ/RaceIQ?style=for-the-badge&color=blue" alt="License"></a>
   <a href="https://deepwiki.com/SpeedHQ/RaceIQ"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  <a href="https://marscontrol.dev/?ref=raceiq"><img src="https://img.shields.io/badge/CI%20sponsor-MARS-blue?style=for-the-badge" alt="CI sponsored by MARS"></a>
 </p>
 
 <p align="center">
@@ -57,15 +58,18 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 
 ## Supported Games
 
-| Game | Priority | Public Tunes | Public Guides | Tune Creator |
-|------|----------|--------------|---------------|--------------|
-| Assetto Corsa Evo | High | No | No | No |
-| iRacing | High - Blocked | No | No | No |
-| Le Mans Ultimate | High | No | No | No |
-| F1 2025 | Medium | Yes | Yes | No |
-| Assetto Corsa Competizione | Medium | Yes | Yes | No |
-| Forza Motorsport 2023 | Low | No | No | Yes |
+| Game | Priority |
+|------|----------|
+| Assetto Corsa Evo | High |
+| iRacing | High |
+| Le Mans Ultimate | High |
+| Automobilista 2 | High |
+| F1 2025 | Medium |
+| Assetto Corsa Competizione | Medium |
+| Forza Motorsport 2023 | Low |
+
 Lower priority means slower turnaround on new features for that title — it does not mean deprecated. All supported games keep working.
+
 ## Supported Languages
 
 RaceIQ's interface is available in 16 languages.
@@ -131,6 +135,10 @@ AI analysis is optional. Add your API key in the RaceIQ settings panel — multi
 Want to run AI entirely on your own PC? See the [Local AI setup guide](docs/user-guides/openai-compatible-ai.md).
 
 ## Sponsorship
+
+<p align="center">
+  <a href="https://marscontrol.dev/?ref=raceiq"><img src="https://marscontrol.dev/mars-icon.svg" alt="MARS" width="120"><br>MARS</a>
+</p>
 
 Looking to sponsor this project or interested in a commercial license? Contact **Snazzie** on [Discord](https://discord.gg/ZNXKyYPumT) or find my socials on [GitHub](https://github.com/Snazzie).
 

@@ -1,10 +1,14 @@
-type AiProvider = "" | "gemini" | "openai" | "openai-compatible";
+import type { AiProvider as RegisteredAiProvider } from "@raceiq/shared/integrations/ai/providers";
+type AiProvider = "" | RegisteredAiProvider;
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
   geminiApiKeySet?: boolean;
   aiModel?: string;
   openaiApiKeySet?: boolean;
+  anthropicApiKeySet?: boolean;
+  deepseekApiKeySet?: boolean;
+  chatGptSubscriptionConnected?: boolean;
   chatProvider?: AiProvider;
   chatModel?: string;
 }
@@ -12,7 +16,10 @@ export interface AiConfigSettings {
 function isProviderConfigured(provider: AiProvider, settings: AiConfigSettings): boolean {
   if (provider === "openai-compatible") return true;
   if (provider === "openai") return !!settings.openaiApiKeySet;
+  if (provider === "anthropic") return !!settings.anthropicApiKeySet;
+  if (provider === "deepseek") return !!settings.deepseekApiKeySet;
   if (provider === "gemini") return !!settings.geminiApiKeySet;
+  if (provider === "chatgpt-subscription") return !!settings.chatGptSubscriptionConnected;
   return false;
 }
 

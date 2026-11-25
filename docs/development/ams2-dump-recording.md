@@ -12,8 +12,11 @@ bun install --frozen-lockfile
 bun run dev:dump:ams2
 ```
 
-The command starts the normal development proxy/client and backend with
-`--record=ams2`. It starts the native recorder even before AMS2 is running.
+The command starts the development proxy, then runs the AMS2 backend with
+`--record=ams2 --dump-only` and the client through the shared dump launcher.
+Dump-only mode skips ordinary session processing and recording maintenance.
+The launcher waits for cooperative recorder finalization before exiting.
+The native recorder starts even before AMS2 is running.
 Wait for `[AMS2] Recording mode: <path>` before entering a session. Dumps are
 written to `test/artifacts/sessions/ams2-<UTC timestamp>-<unique suffix>.bin`.
 The output header is created immediately, even before any source frames arrive.

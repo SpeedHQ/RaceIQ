@@ -9,33 +9,36 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
  * the new normal — the regression test then measures relative drift against
  * the most recent committed baseline.
  *
- *   bun run ai:baseline
+ *   EVALS_MODEL=gemini-3-flash bun run ai:baseline
  */
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
-import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
+import { buildAnalystPrompt } from "@raceiq/assistant/ai/analyst-prompt";
+import { compareLapHeader } from "@raceiq/assistant/ai/compare-engineer";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
+  getEvalApiKey,
+  resolveEvalProvider,
   resolveEvalModelId,
-} from "../../src/mastra/evals/eval-agents";
+} from "@raceiq/assistant/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "../../src/mastra/evals/fixtures";
-import { analystScorers, compareScorers, scoreOutput } from "../../src/mastra/evals/index";
+} from "@raceiq/assistant/mastra/evals/fixtures";
+import { analystScorers, compareScorers, scoreOutput } from "@raceiq/assistant/mastra/evals/index";
 
-if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.error("Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");
+const evalApiKey = await getEvalApiKey();
+if (!evalApiKey) {
+  console.error(`Missing ${resolveEvalProvider()} API key. Configure it in Settings.`);
   process.exit(1);
 }
 
@@ -72,7 +75,7 @@ for (const fx of listLapFixtures()) {
     deriveCornerDefs(fx),
     fx.units,
   );
-  const agent = buildEvalLapAnalystAgent();
+  const agent = buildEvalLapAnalystAgent(evalApiKey);
   const response = await agent.generate(prompt);
   const output = response.text ?? "";
   const gt = {
@@ -98,7 +101,7 @@ for (const fx of listComparePairFixtures()) {
   }
   console.log(`[run]  ${fx.id} (compare)`);
   const prompt = buildComparePrompt(fx, packetsA, packetsB);
-  const agent = buildEvalCompareEngineerAgent(fx.units);
+  const agent = buildEvalCompareEngineerAgent(fx.units, evalApiKey);
   const response = await agent.generate(prompt);
   const output = response.text ?? "";
   const gt = {

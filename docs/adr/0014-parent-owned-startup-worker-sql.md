@@ -3,7 +3,6 @@ status: accepted
 ---
 # Keep startup-worker SQL transactions in parent-owned native handles
 
-Plan: [Prerequisite-safe startup and coordinated dashboard writes](../plans/prerequisite-safe-startup-and-dashboard-writes.md).
 
 Related decision: [SQLite dashboard read model](0010-sqlite-dashboard-read-model.md).
 

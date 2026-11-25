@@ -154,7 +154,8 @@ const geometry = useMemo(() => {
   // Leave room for numbered markers outside the track stroke.
   const scale = Math.min(152 / (bounds.maxX - bounds.minX || 1), 60 / (bounds.maxZ - bounds.minZ || 1));
   const project = (point: { x: number; z: number }) => ({
-    x: (200 - (bounds.maxX - bounds.minX) * scale) / 2 + (point.x - bounds.minX) * scale,
+    x: (200 - (bounds.maxX - bounds.minX) * scale) / 2 +
+      (pair.gameId === "f1-2025" ? bounds.maxX - point.x : point.x - bounds.minX) * scale,
     y: (108 - (bounds.maxZ - bounds.minZ) * scale) / 2 + (point.z - bounds.minZ) * scale,
   });
   const projectString = (point: { x: number; z: number }) => {
@@ -220,7 +221,7 @@ const poseA = geometry?.project(snapshot.a?.pose ?? { x: Number.NaN, z: Number.N
 const poseB = geometry?.project(snapshot.b?.pose ?? { x: Number.NaN, z: Number.NaN });
 return (
   <section
-    className="group/overview absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-h-[calc(100%-1.5rem)] overflow-y-auto max-sm:z-30 max-sm:w-[calc(100%-5rem)] max-sm:bg-app-bg max-sm:opacity-100"
+    className="group/overview absolute left-3 top-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border border-app-border bg-app-bg/75 p-2.5 text-app-label text-app-text opacity-50 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100 max-h-[calc(100%-1.5rem)] overflow-y-auto max-sm:z-30 max-sm:w-[calc(100%-1.5rem)] max-sm:bg-app-bg max-sm:opacity-100"
     aria-label={m.spectate_overview()}
     data-focus-mode={focus.mode}
   >

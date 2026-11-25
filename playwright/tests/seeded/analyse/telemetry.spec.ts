@@ -71,6 +71,11 @@ for (const game of SEEDED_GAME_CASES) {
     await page.goto(`/${game.prefix}/sessions/${lap.sessionId}/replay/${lap.id}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => page.evaluate(() => Number((window as unknown as Record<string, unknown>).__totalFrames ?? 0)), { timeout: 30_000 }).toBe(lap.telemetry.length);
+    if (game.gameId === "iracing") {
+      // iRacing SDK records lap progress, not world coordinates. Metrics must remain seekable without a car pose.
+      await expect(page.getByRole("alert")).toContainText("Recorded car position unavailable");
+      await expect(page.getByRole("alert").getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+    }
 
     const representativeFrames = [0, Math.floor(lap.telemetry.length / 2), lap.telemetry.length - 1];
     for (const frame of representativeFrames) {
@@ -116,11 +121,13 @@ for (const game of SEEDED_GAME_CASES) {
       expect(await metricRowText(page, "Brake Bias")).toContain(`${(parityPacket.acc!.brakeBias * 100).toFixed(1)}%`);
     }
     if (game.gameId === "f1-2025") {
-      const ersModes = ["None", "Low", "Medium", "High", "Overtake"] as const;
+      const ersModes = ["None", "Medium", "Hotlap", "Overtake"] as const;
+      const ersMode = parityPacket.ErsDeployMode;
+      expect(ersMode, "seeded F1 ERS deployment mode").toBeDefined();
       expect(await metricRowText(page, "ERS Store")).toContain(`${(((parityPacket.ErsStoreEnergy ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Deployed")).toContain(`${(((parityPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Harvested")).toContain(`${(((parityPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
-      expect((await metricRowText(page, "Mode")).toLowerCase()).toContain((ersModes[parityPacket.ErsDeployMode ?? 0] ?? "Unknown").toLowerCase());
+      expect((await metricRowText(page, "Mode")).toLowerCase()).toContain((ersModes[ersMode!] ?? "Unknown").toLowerCase());
       expect(await metricRowText(page, "Fuel")).toContain(
         `${((lap.telemetry[0]!.Fuel - parityPacket.Fuel) * 100).toFixed(1)}% used ${(parityPacket.Fuel * 100).toFixed(1)}% left`,
       );

@@ -16,6 +16,14 @@ export interface CoachingRecording {
 }
 export const COACHING_FRAME_COUNT = 600;
 
+export function hasAlignedSample(encoded: string, matches: (sample: number) => boolean): boolean {
+  const bytes = Buffer.from(encoded, "base64");
+  for (let offset = 0; offset < bytes.length; offset += Float32Array.BYTES_PER_ELEMENT) {
+    if (matches(bytes.readFloatLE(offset))) return true;
+  }
+  return false;
+}
+
 export type CoachingDistanceProfile = "variable";
 
 

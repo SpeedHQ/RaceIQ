@@ -9,4 +9,3 @@ Remove per-packet stringify/SHA256 and obsolete canonicalInput provenance contra
 
 Consequence: provenance no longer identifies exact normalized packet bytes or detects parser nondeterminism by itself. Preserve result processor ID when only provenance metadata changes, avoiding forced replay of historical sessions solely for fingerprint removal.
 
-Plan: [Removal and serialization audit](../plans/remove-decoded-stream-hash.md).

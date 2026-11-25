@@ -105,7 +105,7 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
         const recordedValidity = gameId === "acc" ? resolveAccRecordedLapValidity(capture.packets, capture.trigger !== undefined) : null;
         const quality = assessLapRecording(capture.packets, capture.lapTime, { closed: !pitReason });
         const classification = classifyLapCategory(capture.packets, pitReason, capture.trigger, quality.valid);
-        const trackLimitReason = gameId === "ac-evo" && quality.valid && !pitReason ? classifyKunosTrackLimits(capture.packets) : null;
+        const trackLimitReason = gameId === "ac-evo" && quality.valid ? classifyKunosTrackLimits(capture.packets) : null;
         const valid = !capture.silent && recordedValidity !== false && quality.valid && !trackLimitReason;
         const reason = capture.silent ? "incomplete at end of input" : recordedValidity === false ? "game reported invalid" : !quality.valid ? quality.reason : trackLimitReason;
         push(capture.processorSessionKey || sessionKey, capture.lapNumber, capture.lapTime, capture.packets, valid, reason, capture.byteOffset, capture.byteOffset === null ? 0 : capture.frameCount, !capture.silent, classification);

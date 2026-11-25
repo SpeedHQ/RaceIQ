@@ -12,7 +12,7 @@ const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);
 
 describe(recordingFile, () => {
-  test("5 laps: outlap + 3 valid + incomplete tail", async () => {
+  test("5 laps: valid outlap + 3 valid pace laps + incomplete tail", async () => {
     if (!existsSync(recording)) return;
 
     const { laps, wsNotifications, rawPackets } = await parseDump(accRecordingSupport, recording);
@@ -23,7 +23,7 @@ describe(recordingFile, () => {
     generateRecordingVisualizations(recordingFile, laps, rawPackets);
 
     expect(laps.length).toBe(5);
-    expect(laps.filter((l) => l.isValid).length).toBe(3);
+    expect(laps.filter((l) => l.isValid).length).toBe(4);
 
     // All laps belong to the same session
     const sessionIds = new Set(laps.map((l) => l.sessionId));
@@ -31,9 +31,10 @@ describe(recordingFile, () => {
     // ACC lap detector is 1-indexed (LapNumber = completedLaps + 1).
     expect(laps.map((l) => l.lapNumber)).toEqual([1, 2, 3, 4, 5]);
 
-    // Lap 1: joining lap (recording started mid-lap, from pit)
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("outlap");
+    // Lap 1: valid pit-exit recording, excluded from pace by classification.
+    expect(laps[0].isValid).toBe(true);
+    expect(laps[0].invalidReason).toBeNull();
+    expect(laps[0].classification).toBe("out_lap");
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
     // Laps 2-4: valid clean laps
@@ -68,15 +69,19 @@ describe(recordingFile, () => {
     expect(laps[4].isValid).toBe(false);
     expect(laps[4].invalidReason).toBe("incomplete");
 
-    // lap-saved notifications: lap 1 invalid, laps 2-4 valid with best lap tracking
+    // A valid outlap does not set the session's pace best.
     expect(lapSaved[0].lapNumber).toBe(1);
-    expect(lapSaved[0].isValid).toBe(false);
+    expect(lapSaved[0].isValid).toBe(true);
+    expect(lapSaved[0].classification).toBe("out_lap");
+    expect(lapSaved[0].estimatedBestLapTime).toBe(0);
     expect(lapSaved[1].lapNumber).toBe(2);
     expect(lapSaved[1].isValid).toBe(true);
     expect(lapSaved[1].estimatedBestLapTime).toBe(lapSaved[1].lapTime);
     expect(lapSaved[2].lapNumber).toBe(3);
     expect(lapSaved[2].isValid).toBe(true);
+    expect(lapSaved[2].estimatedBestLapTime).toBe(Math.min(lapSaved[1].lapTime, lapSaved[2].lapTime));
     expect(lapSaved[3].lapNumber).toBe(4);
     expect(lapSaved[3].isValid).toBe(true);
+    expect(lapSaved[3].estimatedBestLapTime).toBe(Math.min(lapSaved[1].lapTime, lapSaved[2].lapTime, lapSaved[3].lapTime));
   }, 300_000); // replays a full recorded UDP session; full-suite CPU contention can exceed 120s
 });

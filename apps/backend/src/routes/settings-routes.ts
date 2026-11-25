@@ -14,7 +14,7 @@ import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backe
 import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
-import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "@raceiq/backend-core/runtime/platform/launch-on-login";
+import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir, isDesktopStartupOwned, isLaunchOnLoginSupported } from "@raceiq/backend-core/runtime/platform/launch-on-login";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { getRunningGame } from "@raceiq/backend-core/games/registry";
@@ -22,12 +22,25 @@ import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/record
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
-import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";
-import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { getAnthropicModelsDetailed, getDeepSeekModelsDetailed, getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/assistant/ai/providers";
+import { getAiProviderApiKey, getLocalApiKey } from "@raceiq/assistant/ai/openai-compatible-provider";
+import { isSupportedAiProvider } from "@raceiq/assistant/ai/provider-capabilities";
+import { getChatGptCatalog } from "@raceiq/assistant/ai/chatgpt-subscription-catalog";
+import { getChatGptPricing } from "@raceiq/assistant/ai/chatgpt-chat-pricing";
+import { hasDirectLocalAiAccess, isTrustedLocalRequest } from "../runtime/http-access";
+import { chatGptAccounts } from "../runtime/chatgpt-subscription-runtime";
+import { ChatGptAccountError } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import { CHATGPT_SUBSCRIPTION_ERROR_STATUS, CHATGPT_SUBSCRIPTION_PROVIDER, chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import { selectedAiSettings } from "@raceiq/assistant/ai/ai-runtime";
+import type { AiFeature } from "@raceiq/assistant/ai/ai-features";
+
+const subscriptionFeatures = ["analysis", "chat", "autoTune", "driverProfile"] as const satisfies readonly AiFeature[];
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedOpenAiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedAnthropicModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedDeepseekModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
@@ -39,7 +52,7 @@ export type AiProviderDiscovery = {
 
 
 export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
-  return getProviders();
+  return getProviders().filter(({ id }) => id !== CHATGPT_SUBSCRIPTION_PROVIDER);
 }
 
 export function shouldCheckCredentialStatus(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -79,26 +92,45 @@ export const settingsRoutes = new Hono()
     let hasOpenaiKey = false;
     let hasAnthropicKey = false;
     let hasOpenAiCompatibleKey = false;
+    let hasDeepseekKey = false;
     if (shouldCheckCredentialStatus()) {
       hasGeminiKey = !!(await getSecret("gemini-api-key"));
       hasOpenaiKey = !!(await getSecret("openai-api-key"));
       hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
       hasOpenAiCompatibleKey = !!(await getLocalApiKey());
+      hasDeepseekKey = !!(await getSecret("deepseek-api-key"));
     }
+    const subscriptionState = chatGptAccounts && isTrustedLocalRequest(c.req.raw) ? await chatGptAccounts.state() : null;
+    const chatGptSubscriptionConnected = subscriptionState?.accounts.some((account) =>
+      account.id === subscriptionState.activeAccountId && account.session === "connected") ?? false;
     return c.json({
       ...settings,
       resolvedRecordingDirectory: resolveRecordingDirectory(),
       udpPort: udpListener.port,
       openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,
+      deepseekApiKeySet: hasDeepseekKey,
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
+      chatGptSubscriptionConnected,
       isCompiled: IS_COMPILED,
+      launchOnLoginSupported: isLaunchOnLoginSupported(),
+      launchOnLoginOwner: isDesktopStartupOwned() ? "desktop" : "server",
     });
   })
 
+  .get("/api/ai-chat-pricing", async (c) => c.json(await getChatGptPricing()))
+
   // GET /api/ai-providers — available providers
-  .get("/api/ai-providers", async (c) => c.json(await getAiProviderDiscovery()))
+  .get("/api/ai-providers", async (c) => {
+    c.header("Cache-Control", "no-store");
+    const providers = await getAiProviderDiscovery();
+    if (!chatGptAccounts || !isTrustedLocalRequest(c.req.raw)) return c.json(providers);
+    const state = await chatGptAccounts.state();
+    if (state.availability !== "available") return c.json(providers);
+    const ready = state.accounts.some((account) => account.id === state.activeAccountId && account.session === "connected");
+    return c.json([...providers, { id: CHATGPT_SUBSCRIPTION_PROVIDER, name: "ChatGPT subscription", ready }]);
+  })
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
@@ -110,7 +142,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "openai-compatible"),
+        .filter(isSupportedAiProvider),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -152,6 +184,36 @@ export const settingsRoutes = new Hono()
       console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
     }
 
+    const shouldFetchDeepSeek = useRequestedProviders
+      ? requestedProviders.has("deepseek")
+      : settings.aiProvider === "deepseek" || settings.chatProvider === "deepseek"
+        || settings.autoTuneProvider === "deepseek" || settings.driverProfileProvider === "deepseek";
+    // Static fallback keeps the picker usable before a successful fetch.
+    let deepseekModels: { id: string; name: string }[] = [
+      { id: "deepseek-flash", name: "DeepSeek Flash" },
+      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+    ];
+    let deepseekError: string | null = null;
+    if (shouldFetchDeepSeek) {
+      const deepseekKey = await getSecret("deepseek-api-key");
+      if (!deepseekKey) {
+        deepseekError = "DeepSeek API key not set.";
+        cachedDeepseekModels = null;
+      } else if (!forceRefresh && cachedDeepseekModels?.key === deepseekKey
+        && Date.now() - cachedDeepseekModels.at < MODELS_CACHE_TTL_MS) {
+        deepseekModels = cachedDeepseekModels.models;
+      } else {
+        const fetchedDeepSeek = await getDeepSeekModelsDetailed(deepseekKey);
+        deepseekError = fetchedDeepSeek.error;
+        if (fetchedDeepSeek.models.length > 0) {
+          deepseekModels = fetchedDeepSeek.models.map((m) => ({ id: m.id, name: m.name }));
+          cachedDeepseekModels = { key: deepseekKey, models: deepseekModels, at: Date.now() };
+        } else if (cachedDeepseekModels?.key === deepseekKey) {
+          deepseekModels = cachedDeepseekModels.models;
+        }
+      }
+    }
+
     const shouldFetchOpenAi = useRequestedProviders
       ? requestedProviders.has("openai")
       : settings.aiProvider === "openai" || settings.chatProvider === "openai";
@@ -173,6 +235,31 @@ export const settingsRoutes = new Hono()
           : cachedOpenAiModels?.key === openAiKey ? cachedOpenAiModels.models : [];
         if (fetchedOpenAi.models.length > 0) {
           cachedOpenAiModels = { key: openAiKey, models: openAiModels, at: Date.now() };
+        }
+      }
+    }
+
+    const shouldFetchAnthropic = useRequestedProviders
+      ? requestedProviders.has("anthropic")
+      : settings.aiProvider === "anthropic" || settings.chatProvider === "anthropic";
+    let anthropicModels: { id: string; name: string }[] = [];
+    let anthropicError: string | null = null;
+    if (shouldFetchAnthropic) {
+      const anthropicKey = await getAiProviderApiKey("anthropic");
+      if (!anthropicKey) {
+        anthropicError = "Anthropic API key not set.";
+        cachedAnthropicModels = null;
+      } else if (!forceRefresh && cachedAnthropicModels?.key === anthropicKey
+        && Date.now() - cachedAnthropicModels.at < MODELS_CACHE_TTL_MS) {
+        anthropicModels = cachedAnthropicModels.models;
+      } else {
+        const fetchedAnthropic = await getAnthropicModelsDetailed(anthropicKey);
+        anthropicError = fetchedAnthropic.error;
+        anthropicModels = fetchedAnthropic.models.length > 0
+          ? fetchedAnthropic.models
+          : cachedAnthropicModels?.key === anthropicKey ? cachedAnthropicModels.models : [];
+        if (fetchedAnthropic.models.length > 0) {
+          cachedAnthropicModels = { key: anthropicKey, models: anthropicModels, at: Date.now() };
         }
       }
     }
@@ -224,17 +311,30 @@ export const settingsRoutes = new Hono()
       console.info("[AI] ai-models local fetch skipped (provider not local)");
     }
 
+    const subscription = requestedProviders.has(CHATGPT_SUBSCRIPTION_PROVIDER);
+    const subscriptionResult = subscription && chatGptAccounts && isTrustedLocalRequest(c.req.raw)
+      ? await chatGptAccounts.bindActive().then((grant) => getChatGptCatalog(grant, forceRefresh))
+        .then((models) => ({ models, error: null }),
+          (error: unknown) => ({ models: [], error: error instanceof ChatGptAccountError ? error.code : "upstream_unavailable" }))
+      : { models: [], error: subscription ? "unavailable" : null };
+    if (subscription) c.header("Cache-Control", "no-store");
+
     return c.json({
       "gemini": geminiModels,
       "openai": openAiModels,
+      "anthropic": anthropicModels,
+      // Live catalogue when available, otherwise the built-in model list.
+      "deepseek": deepseekModels,
       "openai-compatible": localModels,
-      "_errors": { gemini: geminiError, openai: openAiError, "openai-compatible": localError },
+      ...(subscription ? { [CHATGPT_SUBSCRIPTION_PROVIDER]: subscriptionResult.models } : {}),
+      "_errors": { gemini: geminiError, openai: openAiError, anthropic: anthropicError, "openai-compatible": localError, deepseek: deepseekError,
+        ...(subscription ? { [CHATGPT_SUBSCRIPTION_PROVIDER]: subscriptionResult.error } : {}) },
     });
   })
 
   // PUT /api/ai-key — store or clear an AI provider API key
   .put("/api/ai-key", zValidator("json", z.object({
-    provider: z.enum(["gemini", "openai", "openai-compatible", "anthropic", "local"]),
+    provider: z.enum(["gemini", "openai", "deepseek", "openai-compatible", "anthropic", "local"]),
     apiKey: z.string().max(8192).refine((value) => !value.includes("\0")),
   }).strict()), async (c) => {
     const body = c.req.valid("json");
@@ -262,7 +362,33 @@ export const settingsRoutes = new Hono()
     for (const key of Object.keys(body)) {
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
+    if (provided.launchOnLogin === true && isDesktopStartupOwned()) {
+      return c.json({ error: "Backend launch on login is not supported", code: "LAUNCH_ON_LOGIN_UNSUPPORTED" }, 409);
+    }
     const merged = { ...current, ...provided };
+    const subscriptionsToCheck = subscriptionFeatures.flatMap((feature) => {
+      const next = selectedAiSettings(merged, feature);
+      if (next.provider !== CHATGPT_SUBSCRIPTION_PROVIDER) return [];
+      const prev = selectedAiSettings(current, feature);
+      const enablesProfile = feature === "driverProfile" && merged.driverProfileBackgroundEnabled && !current.driverProfileBackgroundEnabled;
+      return enablesProfile || next.provider !== prev.provider || next.model !== prev.model ? [{ feature, model: next.model }] : [];
+    });
+    if (subscriptionsToCheck.length) {
+      if (!hasDirectLocalAiAccess()) return c.json({ code: "forbidden", error: "Use the local RaceIQ desktop session." }, 403);
+      if (!chatGptAccounts) return c.json({ code: "unavailable", error: "ChatGPT is not available on this installation." }, 503);
+      try {
+        const binding = await chatGptAccounts.bindActive();
+        const catalog = await getChatGptCatalog(binding);
+        for (const { feature, model } of subscriptionsToCheck) {
+          if (!catalog.some((entry) => entry.id === model && entry.features.includes(feature))) {
+            return c.json({ code: "model_unavailable", error: "Choose an available ChatGPT model in Settings." }, 409);
+          }
+        }
+      } catch (error) {
+        const code = error instanceof ChatGptAccountError ? error.code : "upstream_unavailable";
+        return c.json({ code, error: chatGptRecoveryMessage(error) ?? "ChatGPT did not complete the request. Try again." }, CHATGPT_SUBSCRIPTION_ERROR_STATUS[code]);
+      }
+    }
     if (!isRecordingRetentionPolicyValid(merged)) {
       return c.json({
         code: "INVALID_RETENTION_POLICY",
@@ -281,7 +407,7 @@ export const settingsRoutes = new Hono()
       if (typeof merged.cacheMaxMB === "number") {
         setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
       }
-      if ("launchOnLogin" in provided) {
+      if ("launchOnLogin" in provided && isLaunchOnLoginSupported()) {
         if (merged.launchOnLogin) {
           enableLaunchOnLogin(getLaunchOnLoginExeDir());
         } else {

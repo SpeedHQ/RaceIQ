@@ -58,6 +58,7 @@ function acceptLiveCaptureLifecycle(data: Record<string, unknown>) {
 function invalidateCaptureReadiness() {
   queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
   queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+  queryClient.invalidateQueries({ queryKey: ["track-laps"] });
   queryClient.invalidateQueries({ queryKey: ["opponent-lap-catalog"] });
 }
 

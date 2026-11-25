@@ -174,6 +174,7 @@ for (const gameId of requiredGames) {
     await expect(page.getByRole("group", { name: "Circuit segment map" })).toBeVisible();
     await page.getByRole("button", { name: "Telemetry", exact: true }).click();
     await expect(body).toHaveAttribute("data-panel-collapsed", "false");
+    await expect(body).toHaveAttribute("data-panel-width", resized!);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(body).toBeVisible();
     await expect(body).toHaveAttribute("data-panel-width", resized!);

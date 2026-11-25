@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { createServer } from "node:net";
 import { parseOnboardingOverride } from "@raceiq/backend-core/runtime/options";
@@ -55,6 +55,7 @@ const environment = {
   ...process.env,
   SERVER_PORT: serverPort,
   RACEIQ_DEV_PORTLESS_NAME: portlessName,
+  DEV_LOCAL_AI_PROXY_TOKEN: process.platform === "darwin" ? randomBytes(32).toString("hex") : "",
   ...(udpPort ? { RACEIQ_DEV_UDP_PORT: udpPort } : {}),
 };
 console.log(`[Dev] Portless name: ${portlessName}; backend HTTP: ${serverPort}${udpPort ? `; worktree UDP: ${udpPort}` : ""}`);

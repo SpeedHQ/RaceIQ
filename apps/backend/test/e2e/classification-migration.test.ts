@@ -4,11 +4,11 @@ import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { initServerGameAdapters } from "../../src/games/init";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import { createClient } from "@libsql/client/sqlite3";
 import { bootstrap, runMigrations } from "@raceiq/backend-core/test-support/db/migrations";
 import Database from "libsql";
-import { cp, mkdir, mkdtemp, rename, rm, unlink } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -46,6 +46,15 @@ let f1Baseline: string;
 let temporary: string;
 let freshClassifications: unknown[];
 let freshRawSource: string;
+const temporaryDirectories: string[] = [];
+
+afterEach(async () => {
+  // libsql statement finalizers release Windows file handles after the test stack returns.
+  if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
+  for (const directory of temporaryDirectories.splice(0)) {
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 60_000);
 
 beforeAll(async () => {
   temporary = await mkdtemp(join(tmpdir(), "raceiq-classification-upgrade-"));
@@ -134,7 +143,7 @@ test("historical MoTeC imports remain unchanged and outside classification inven
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -184,7 +193,7 @@ test("an obsolete terminal failure requeues a newer source revision before repor
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -239,7 +248,7 @@ test("normal boot classifies historical recordings in place and skips completed 
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -298,7 +307,7 @@ test("missing source completes with limitations without retries or metadata loss
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -361,7 +370,7 @@ for (const barrier of ["beforeTransaction", "insideTransaction", "afterCommitBef
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(directory);
     }
   }, 240_000);
 }
@@ -435,7 +444,7 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(directory);
     }
   }, 240_000);
 }
@@ -485,7 +494,7 @@ test("bounded decoding leaves HTTP, supported imports, and manual processing usa
     expect(final.completed).toBeGreaterThan(0);
   } finally {
     await server?.stop();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -547,7 +556,7 @@ test("live UDP capture starts before paused historical decoding is released", as
     try { reservation.close(); } catch { /* Already released before the listener bound. */ }
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -598,7 +607,7 @@ test("#222 scalar-matching capture preserves ambiguous historical boundaries wit
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 
@@ -628,9 +637,15 @@ test("same-path source replacement discards stale decoding before committing met
       if (Date.now() >= deadline) throw new Error(`Decode barrier not reached:\n${server.output}`);
       await Bun.sleep(20);
     }
-    const replacement = join(directory, "replacement.bin");
-    await Bun.write(replacement, Buffer.from([0, 16, 0, 0, 1, 2, 3]));
-    await rename(replacement, source.raw_file);
+    const replacementBytes = Buffer.from([0, 16, 0, 0, 1, 2, 3]);
+    if (process.platform === "win32") {
+      // Windows cannot rename over the decoder's open file; change the same source revision in place.
+      await writeFile(source.raw_file, replacementBytes);
+    } else {
+      const replacement = join(directory, "replacement.bin");
+      await writeFile(replacement, replacementBytes);
+      await rename(replacement, source.raw_file);
+    }
     await Bun.write(join(barrierDir, "duringDecodeBatch.release"), "");
     const final = await settled(running.address);
     expect(final.status).toBe("attention");
@@ -645,7 +660,7 @@ test("same-path source replacement discards stale decoding before committing met
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 test("idle inventory reconciliation tracks replacement and deleted source groups", async () => {
@@ -701,7 +716,7 @@ test("idle inventory reconciliation tracks replacement and deleted source groups
   } finally {
     await server?.stop();
     database?.close();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 for (const [malformedBootstrap, completeLap] of [[false, false], [true, false], [false, true]] as const) {
@@ -794,7 +809,7 @@ for (const [malformedBootstrap, completeLap] of [[false, false], [true, false], 
     } finally {
       await server?.stop();
       database?.close();
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(directory);
     }
   }, 240_000);
 }
@@ -907,7 +922,7 @@ test("production migration replays selected ACC trailing context without extendi
     await server?.stop();
     database?.close();
     sparse?.cleanup();
-    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(directory);
   }
 }, 240_000);
 

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { detectBrowser } from "@/lib/browser-detect";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { ClassificationMigrationMaintenance } from "@/components/ClassificationMigration";
 
 export function DiagnosticsSection() {
   const [status, setStatus] = useState<"idle" | "downloading" | "error">("idle");
@@ -47,9 +48,14 @@ export function DiagnosticsSection() {
 
   return (
     <section className="space-y-6">
-      <div>
-        <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_diagnostics()}</h2>
-        <p className="text-xs text-app-text-muted mb-4">{m.diag_desc()}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_diagnostics()}</h2>
+          <p className="text-xs text-app-text-muted mb-4">{m.diag_desc()}</p>
+        </div>
+        <Button onClick={handleDownload} disabled={status === "downloading"} className="shrink-0">
+          {status === "downloading" ? m.diag_collecting() : m.diag_download_button()}
+        </Button>
       </div>
 
       <div className="space-y-3">
@@ -64,12 +70,10 @@ export function DiagnosticsSection() {
             </li>
           </ul>
         </div>
-
-        <Button onClick={handleDownload} disabled={status === "downloading"} className="w-full">
-          {status === "downloading" ? m.diag_collecting() : m.diag_download_button()}
-        </Button>
+        <ClassificationMigrationMaintenance />
 
         {status === "error" && <p className="text-xs text-status-danger">{errorMsg}</p>}
+
       </div>
     </section>
   );

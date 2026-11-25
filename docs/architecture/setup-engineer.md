@@ -35,8 +35,8 @@ Low-confidence data never blocks a recommendation. The response reports its limi
 
 ## Primary implementation
 
-- `apps/backend/src/mastra/workflows/setup-engineer-turn.ts`: prerequisite workflow
-- `apps/backend/src/mastra/agents/setup-engineer.ts`: agent instructions and tool registration
+- `packages/assistant/src/mastra/workflows/setup-engineer-turn.ts`: prerequisite workflow
+- `packages/assistant/src/mastra/agents/setup-engineer.ts`: agent instructions and tool registration; the backend supplies experiment tools
 - `apps/backend/src/mastra/tools/setup-engineer.ts`: experiment actions and optional analyses
 - `apps/backend/src/experiments/lap-evidence/aggregate.ts`: lap selection and aggregate context
 - `server/lap-analysis/consistency.ts`: per-corner consistency analysis

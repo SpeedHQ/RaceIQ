@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -18,8 +18,8 @@ export interface SourceUpgradeHarness {
   readonly previousSha: string;
   readonly mainSha: string;
   checkoutPrevious(): Promise<void>;
+  preparePreviousSeed(): Promise<void>;
   seedPrevious(): Promise<void>;
-  validateConvertedCaptures(): Promise<void>;
   checkoutMain(): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -44,11 +44,12 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   const workspace = tempRoot;
   const checkoutDir = join(tempRoot, "source");
   const dataDir = join(tempRoot, "data");
+  const fixtureDataDir = join(tempRoot, "fixture-preparation");
   mkdirSync(dataDir, { recursive: true });
   const memory: string[] = [];
   let memorySize = 0;
   const processes = new Set<ChildProcess>();
-  let phase: "created" | "previous" | "seeded" | "main" | "running" | "disposed" = "created";
+  let phase: "created" | "previous" | "prepared" | "seeded" | "main" | "running" | "disposed" = "created";
   let runningFrom: "seeded" | "main" | undefined;
   let previousTag = "";
   let previousSha = "";
@@ -64,6 +65,8 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
     while (memorySize > MAX_MEMORY_LOG && memory.length > 1) memorySize -= memory.shift()!.length;
   };
   const bun = process.env.BUN_EXECUTABLE ?? "bun";
+  let previousBun = bun;
+  let previousEnv: NodeJS.ProcessEnv = process.env;
   const git = async (args: string[], cwd = callerRoot) => run("git", args, cwd);
   const run = (command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env, timeout = COMMAND_TIMEOUT) => new Promise<string>((resolvePromise, reject) => {
     record(`$ ${command} ${args.map((arg) => JSON.stringify(arg)).join(" ")} (cwd=${cwd})`);
@@ -163,14 +166,14 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   };
   const apiURL = () => `http://127.0.0.1:${serverPort}`;
   const baseURL = () => `http://127.0.0.1:${uiPort}`;
-  const waitReady = async (url: string, label: string, child: ChildProcess, expectedStatus: number, headers?: Record<string, string>) => {
+  const waitReady = async (url: string, label: string, child: ChildProcess, expectedStatus: number | number[]) => {
     const deadline = Date.now() + START_TIMEOUT;
     while (Date.now() < deadline) {
       if (childError) throw new Error(`${label} failed to spawn: ${childError}. See ${logPath}`);
       if (child.exitCode !== null || child.signalCode !== null) throw new Error(`${label} exited before readiness. See ${logPath}`);
       try {
-        const response = await fetch(url, { headers, signal: AbortSignal.timeout(2_000) });
-        if (response.status === expectedStatus) return;
+        const response = await fetch(url, { signal: AbortSignal.timeout(2_000) });
+        if ((Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus]).includes(response.status)) return;
       } catch { /* Retry within the bounded startup deadline. */ }
       await delay(250);
     }
@@ -179,97 +182,6 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
   const harness: SourceUpgradeHarness = {
     workspace, checkoutDir, dataDir, get baseURL() { return baseURL(); }, get apiURL() { return apiURL(); },
     get previousTag() { return previousTag; }, get previousSha() { return previousSha; }, get mainSha() { return mainSha; },
-    async validateConvertedCaptures() {
-      if (phase !== "seeded") throw new Error(`validateConvertedCaptures invalid in phase ${phase}`);
-      const script = `
-        import Database from "libsql";
-        import { iterateSessionCaptureRecordsFromSource } from "./server/session-capture/source-loader.ts";
-        import { existsSync } from "node:fs";
-        import { resolve } from "node:path";
-        import { DecompressionStream } from "node:stream/web";
-        // Resolve capture modules from the checked-out release's pre/post-package layout.
-        const captureModules = existsSync("./server/session-capture/framing.ts") ? "./server/session-capture/" : "./packages/capture-formats/src/session/";
-        const { META_FRAME_MAGIC, readFramePrefix } = await import(captureModules + "framing");
-        const { isLmuSparseFrame } = await import(captureModules + "lmu-sparse");
-        const { isKunosSparseFrame } = await import(captureModules + "kunos-sparse");
-        const { isGenericSparseFrame } = await import(captureModules + "generic-sparse");
-        const database = new Database(resolve(process.env.DATA_DIR!, "app.db"), { readonly: true });
-        try {
-          const rows = database.prepare("SELECT * FROM sessions ORDER BY game_id, id").all();
-          if (!rows.length) throw new Error("No sessions found at conversion boundary");
-          let failures = 0;
-          for (const row of rows) {
-            const file = String(row.raw_file ?? "");
-            const label = \`game=\${row.game_id} session=\${row.id} file=\${file || "(missing)"}\`;
-            try {
-              if (!file || Number(row.capture_format_version) !== 1) throw new Error(\`missing converted provenance (captureFormatVersion=\${row.capture_format_version ?? "null"})\`);
-              if (!existsSync(file)) throw new Error("recording file missing");
-              const blob = Bun.file(file);
-              const zipPrefix = Buffer.from(await blob.slice(0, 2).arrayBuffer());
-              let stream = blob.stream();
-              if (zipPrefix[0] === 0x1f && zipPrefix[1] === 0x8b) stream = stream.pipeThrough(new DecompressionStream("gzip"));
-              const reader = stream.getReader();
-              let pending = Buffer.alloc(0), initialized = false, marker = false, delta = false, checkpoints = 0;
-              try {
-                while (true) {
-                  const next = await reader.read();
-                  if (next.done) break;
-                  pending = pending.length ? Buffer.concat([pending, next.value]) : Buffer.from(next.value);
-                  if (!initialized) {
-                    if (pending.length < 8) continue;
-                    if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
-                      const length = pending.readUInt32LE(4);
-                      if (length > 16 * 1024 * 1024) throw new Error("oversized capture metadata");
-                      if (pending.length < 8 + length) continue;
-                      pending = pending.subarray(8 + length);
-                    }
-                    initialized = true;
-                  }
-                  while (pending.length >= 4) {
-                    if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
-                      if (pending.length < 8) break;
-                      const length = pending.readUInt32LE(4);
-                      if (length > 16 * 1024 * 1024) throw new Error("oversized capture metadata");
-                      if (pending.length < 8 + length) break;
-                      // v0.19.2 predates named sparse marker exports; use its persisted wire values.
-                      if (length === 8 && pending.readUInt32LE(8) === 0x31505352 && pending.readUInt32LE(12) === 1) marker = true;
-                      pending = pending.subarray(8 + length);
-                      continue;
-                    }
-                    const length = pending.readUInt32LE(0) & 0x7fffffff;
-                    if (length <= 0 || length > 16 * 1024 * 1024) throw new Error("invalid capture record length");
-                    const prefix = readFramePrefix(pending, 0);
-                    if (!prefix) {
-                      if (pending.length >= 12) throw new Error("invalid capture frame prefix");
-                      break;
-                    }
-                    if (pending.length < prefix.prefixBytes + prefix.length) break;
-                    const frame = pending.subarray(prefix.prefixBytes, prefix.prefixBytes + prefix.length);
-                    if (isLmuSparseFrame(frame) || isKunosSparseFrame(frame) || isGenericSparseFrame(frame)) delta = true;
-                    else checkpoints++;
-                    pending = pending.subarray(prefix.prefixBytes + prefix.length);
-                  }
-                }
-                if (!initialized || pending.length) throw new Error("truncated capture record");
-              } finally {
-                await reader.cancel();
-                reader.releaseLock();
-              }
-              let frames = 0;
-              const source = { rawFile: file, source: row.source == null ? null : String(row.source), gameId: String(row.game_id), captureFormatVersion: Number(row.capture_format_version), carOrdinal: Number(row.car_ordinal ?? -1), trackOrdinal: Number(row.track_ordinal ?? -1), carId: String(row.car_id ?? ""), trackId: String(row.track_id ?? "") };
-              for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) if (record.kind === "frame") frames++;
-              if (!frames) throw new Error("capture contains no decodable frames");
-              const classification = marker ? (delta ? "marker+delta" : "marker+checkpoint-only") : (delta ? "delta-without-marker" : checkpoints ? "checkpoint-only" : "no-frame-data");
-              console.log(\`[upgrade-boundary] \${label} captureFormatVersion=1 \${classification} frames=\${frames}\`);
-            } catch (error) { failures++; console.error(\`[upgrade-boundary] FAIL \${label}: \${error instanceof Error ? error.message : String(error)}\`); }
-          }
-          if (failures) throw new Error(\`\${failures}/\${rows.length} converted recording boundary checks failed\`);
-        } finally {
-          database.close();
-        }
-      `;
-      await run(bun, ["-e", script], checkoutDir, { ...process.env, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir });
-    },
     async checkoutPrevious() {
       if (phase !== "created") throw new Error(`checkoutPrevious invalid in phase ${phase}`);
       const configuredSource = process.env.RACEIQ_UPGRADE_REPOSITORY;
@@ -294,22 +206,60 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
         await git(["fetch", "--no-tags", "origin", `refs/tags/${previousTag}:refs/tags/${previousTag}`, "+refs/heads/main:refs/remotes/origin/main"], checkoutDir);
       }
       await readRefs(previousTag || tag!);
-      await git(["checkout", "--detach", previousSha], checkoutDir);
+      await run("git", ["checkout", "--detach", previousSha], checkoutDir, process.env, 5 * 60_000);
       phase = "previous";
     },
-    async seedPrevious() {
-      if (phase !== "previous") throw new Error(`seedPrevious invalid in phase ${phase}`);
-      await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
-      const seedEnv: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, APPDATA: dataDir, RACEIQ_APP_ROOT: checkoutDir };
+    async preparePreviousSeed() {
+      if (phase !== "previous") throw new Error(`preparePreviousSeed invalid in phase ${phase}`);
+      if (!existsSync(join(checkoutDir, "apps/backend/src/session-capture/split-manager.ts"))) {
+        throw new Error(`${previousTag} does not support pre-split upgrade fixtures`);
+      }
+      const manifest: unknown = JSON.parse(readFileSync(join(checkoutDir, "package.json"), "utf8"));
+      const packageManager = manifest && typeof manifest === "object" && "packageManager" in manifest ? manifest.packageManager : undefined;
+      if (typeof packageManager !== "string" || !/^bun@\d+\.\d+\.\d+$/.test(packageManager)) throw new Error(`Released checkout requires an exact Bun version: ${String(packageManager)}`);
+      const bunDir = join(tempRoot, "release-bun");
+      await run("npm", ["install", "--prefix", bunDir, "--no-save", "--no-package-lock", packageManager], checkoutDir);
+      const binDir = join(bunDir, "node_modules", ".bin");
+      previousBun = join(binDir, process.platform === "win32" ? "bun.cmd" : "bun");
+      previousEnv = { ...process.env, PATH: `${binDir}${process.platform === "win32" ? ";" : ":"}${process.env.PATH ?? ""}` };
+      await run(previousBun, ["install", "--frozen-lockfile"], checkoutDir, previousEnv);
+      mkdirSync(fixtureDataDir);
+      writeFileSync(join(fixtureDataDir, "settings.json"), JSON.stringify({ recordingDirectory: join(dataDir, "sessions") }));
+      const seedEnv: NodeJS.ProcessEnv = { ...previousEnv, DATA_DIR: fixtureDataDir, APPDATA: fixtureDataDir, RACEIQ_APP_ROOT: checkoutDir };
       delete seedEnv.RACEIQ_E2E;
-      await run(bun, ["run", "db:seed"], checkoutDir, seedEnv, 10 * 60_000);
-      record(`seeded all released game fixtures into data=${dataDir}`);
+      await run(previousBun, ["run", "db:seed"], checkoutDir, seedEnv, 10 * 60_000);
+      const bundled = join(callerRoot, "split-seed-recordings.ts");
+      const repoScript = join(repoRoot, "apps/backend/scripts/data/split-seed-recordings.ts");
+      const source = existsSync(bundled) ? bundled : repoScript;
+      const destination = join(checkoutDir, "apps/backend/scripts/data/.upgrade-prepare-split-seed.ts");
+      writeFileSync(destination, readFileSync(source), { flag: "wx" });
+      try {
+        await run(previousBun, [destination], checkoutDir, seedEnv, 5 * 60_000);
+      } finally {
+        unlinkSync(destination);
+      }
+      phase = "prepared";
+    },
+    async seedPrevious() {
+      if (phase !== "prepared") throw new Error(`seedPrevious invalid in phase ${phase}`);
+      const settingsPath = join(fixtureDataDir, "settings.json");
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
+      writeFileSync(settingsPath, JSON.stringify({ ...settings, recordingDirectory: null }));
+      const entries = readdirSync(fixtureDataDir);
+      if (!entries.includes("app.db") || entries.some((entry) => existsSync(join(dataDir, entry)))) {
+        throw new Error("Cannot install prepared seed into base data directory");
+      }
+      for (const entry of entries) {
+        if (entry !== "app.db") renameSync(join(fixtureDataDir, entry), join(dataDir, entry));
+      }
+      renameSync(join(fixtureDataDir, "app.db"), join(dataDir, "app.db"));
+      record(`seeded ${previousTag} from verified per-lap fixtures into data=${dataDir}`);
       phase = "seeded";
     },
     async checkoutMain() {
       if (phase !== "seeded") throw new Error(`checkoutMain invalid in phase ${phase}`);
       if (processes.size) throw new Error("Cannot switch refs while child processes are running");
-      await git(["checkout", "--detach", mainSha], checkoutDir);
+      await run("git", ["checkout", "--detach", mainSha], checkoutDir, process.env, 5 * 60_000);
       await run(bun, ["install", "--frozen-lockfile"], checkoutDir);
       phase = "main";
     },
@@ -319,20 +269,21 @@ export async function createSourceUpgradeHarness(): Promise<SourceUpgradeHarness
       if (!generatedHashes.has(refSha)) {
         const generator = join(checkoutDir, "scripts/dev/paraglide-dev.ts");
         if (!existsSync(generator)) throw new Error(`Source checkout lacks supported Paraglide generator: ${generator}`);
-        await run(bun, [generator, "--once"], checkoutDir);
+        await run(phase === "seeded" ? previousBun : bun, [generator, "--once"], checkoutDir, phase === "seeded" ? previousEnv : process.env);
         generatedHashes.add(refSha);
       }
-      const runtimeEnv: NodeJS.ProcessEnv = { ...process.env };
+      const runtimeEnv: NodeJS.ProcessEnv = { ...(phase === "seeded" ? previousEnv : process.env) };
       delete runtimeEnv.RACEIQ_E2E;
+      delete runtimeEnv.PW_SKIP_STARTUP_SPLIT_MIGRATION;
       runtimeEnv.RACEIQ_APP_ROOT = checkoutDir;
       const commonEnv = { ...runtimeEnv, DATA_DIR: dataDir, APPDATA: dataDir, SERVER_PORT: String(serverPort), UDP_PORT: String(udpPort) };
-      const backend = spawn(bun, ["run", "apps/backend/src/index.ts"], { cwd: checkoutDir, env: commonEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
+      const backend = spawn(phase === "seeded" ? previousBun : bun, ["run", "apps/backend/src/index.ts"], { cwd: checkoutDir, env: commonEnv, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
       processes.add(backend);
       for (const stream of [backend.stdout, backend.stderr]) stream?.on("data", (chunk: Buffer) => record(`[backend] ${chunk.toString().trimEnd()}`));
       backend.once("error", (error) => { childError = error.message; });
-      if (phase === "seeded") await waitReady(`${apiURL()}/api/cars`, "previous backend", backend, 200, { "X-Game-Id": "ac-evo" });
+      if (phase === "seeded") await waitReady(`${apiURL()}/api/auth/status`, "previous backend", backend, [200, 404]);
       else await waitReady(`${apiURL()}/api/auth/status`, "main backend", backend, 200);
-      const client = spawn(bun, ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(uiPort), "--strictPort"], { cwd: join(checkoutDir, "client"), env: { ...commonEnv, SERVER_PORT: String(serverPort), PROXY_TARGET: apiURL(), PORT: String(uiPort) }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
+      const client = spawn(phase === "seeded" ? previousBun : bun, ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(uiPort), "--strictPort"], { cwd: join(checkoutDir, "client"), env: { ...commonEnv, SERVER_PORT: String(serverPort), PROXY_TARGET: apiURL(), PORT: String(uiPort) }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
       processes.add(client);
       for (const stream of [client.stdout, client.stderr]) stream?.on("data", (chunk: Buffer) => record(`[client] ${chunk.toString().trimEnd()}`));
       client.once("error", (error) => { childError = error.message; });

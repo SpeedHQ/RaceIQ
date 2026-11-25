@@ -101,25 +101,39 @@ for (const game of REVIEW_GAMES) {
     if (!targetLap || targetLap.sessionId == null || !targetLap.trackId || !targetLap.carId) {
       throw new Error(`Seeded target lap ${target.id} has incomplete route metadata`);
     }
+    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${targetLap.sessionId}&limit=5`);
+    expect(reviewResponse.ok()).toBe(true);
+    const eligibleLaps = await reviewResponse.json() as LapMeta[];
+    if (game.gameId === "ac-evo") {
+      expect(eligibleLaps, "AC Evo target session has no eligible default review laps").toEqual([]);
+    } else {
+      expect(eligibleLaps.length, "ACC target session has eligible default review laps").toBeGreaterThan(0);
+    }
 
     await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${encodeURIComponent(targetLap.trackId)}&car=${encodeURIComponent(targetLap.carId)}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page.getByRole("menuitem", { name: "Analyse Session", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));
-    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${targetLap.sessionId}&limit=5`);
-    expect(reviewResponse.ok()).toBe(true);
-    const reviewLaps = (await reviewResponse.json()) as LapMeta[];
-    if (reviewLaps.length > 0) {
-      await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
-    } else {
+    const sessionUrl = new URL(page.url());
+    for (const parameter of ["lap", "track", "car"]) {
+      expect(sessionUrl.searchParams.has(parameter), `Analyse Session clears explicit ${parameter} selection`).toBe(false);
+    }
+    if (game.gameId === "ac-evo") {
       await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeHidden();
+      expect(new URL(page.url()).searchParams.has("laps")).toBe(false);
+      expect(new URL(page.url()).searchParams.has("primary")).toBe(false);
+    } else {
+      await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+      await expect.poll(() => new URL(page.url()).searchParams.get("laps")?.split(",").sort())
+        .toEqual(eligibleLaps.map((lap) => String(lap.id)).sort());
     }
   });
 
 }
 
-test("Analyse session review preserves invalid laps for ac-evo", async ({ page, request }) => {
+test("Analyse session review excludes invalid defaults but preserves explicit ac-evo inspection", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
   const lapsResponse = await request.get("/api/laps?gameId=ac-evo");
   expect(lapsResponse.ok()).toBe(true);
@@ -134,9 +148,42 @@ test("Analyse session review preserves invalid laps for ac-evo", async ({ page, 
   expect(reviewResponse.ok()).toBe(true);
   expect(await reviewResponse.json()).toEqual([]);
 
-  await page.goto(`/ac-evo/sessions/analyse?session=${sessionId}`, { waitUntil: "domcontentloaded" });
+  const expectedLaps = [...sessionLaps].sort((a, b) => a.lapTime - b.lapTime).slice(0, 5);
+  const heavyReads: string[] = [];
+  page.on("request", (request) => {
+    if (alignedBody(request)) heavyReads.push(request.url());
+  });
+  await page.goto(`/ac-evo/sessions/${sessionId}/analyse`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("No valid laps are available for review.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Back to Sessions", exact: true })).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("laps")).toBe(false);
+  expect(heavyReads, "invalid-only default review does not load telemetry").toEqual([]);
+
+  const query = new URLSearchParams({
+    laps: JSON.stringify(expectedLaps.map((lap) => lap.id).join(",")),
+    primary: String(expectedLaps[0]!.id),
+  });
+  const alignedResponse = page.waitForResponse((response) => alignedBody(response.request())?.step === 1);
+  await page.goto(`/ac-evo/sessions/${sessionId}/analyse?${query}`, { waitUntil: "domcontentloaded" });
+  expect((await alignedResponse).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Analyse", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`primary=${expectedLaps[0]!.id}(?:&|$)`));
+  await page.getByRole("button", { name: `Laps: ${expectedLaps.length} · Primary: Lap ${expectedLaps[0]!.lapNumber}`, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Choose laps to display" });
+  await expect(dialog).toBeVisible();
+  for (const lap of expectedLaps) {
+    await expect(dialog.getByRole("checkbox", { name: `Display Lap ${lap.lapNumber}`, exact: true })).toBeChecked();
+  }
+  await expect(dialog.getByText("Invalid", { exact: true })).toHaveCount(sessionLaps.length);
+  const primary = expectedLaps[expectedLaps.length - 1]!;
+  await dialog.getByRole("radio", { name: `Primary Lap ${primary.lapNumber}`, exact: true }).check();
+  await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`primary=${primary.id}(?:&|$)`));
+  await expect(page.getByRole("button", { name: `Analyse lap ${primary.lapNumber}`, exact: true })).toBeVisible();
+  const unchanged = await request.get(`/api/laps?gameId=ac-evo&sessionId=${sessionId}`);
+  expect(((await unchanged.json()) as LapMeta[]).sort((a, b) => a.id - b.id).map((lap) => [lap.id, lap.isValid, lap.invalidReason]))
+    .toEqual([...sessionLaps].sort((a, b) => a.id - b.id).map((lap) => [lap.id, lap.isValid, lap.invalidReason]));
   expect(browserErrors.errors, "unexpected browser errors for invalid AC Evo session").toEqual([]);
 });
  

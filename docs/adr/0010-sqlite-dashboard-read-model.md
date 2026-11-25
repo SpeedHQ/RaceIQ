@@ -35,4 +35,3 @@ UTC daily rollups cannot by themselves exactly reproduce browser-local daily cha
 
 Additional derived schema, migrations, trigger coverage, versioned processing and backfill operations must be maintained. SQL triggers do not remove the need for capture finalization hooks, client refresh events or concurrency tests. The proposal is accepted for implementation only after maintainer approval; neither this document nor the plan claims performance targets have already passed.
 
-Plan: [Implementation phases and success criteria](../../advisor-plans/001-sqlite-dashboard-read-model.md).

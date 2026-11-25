@@ -46,6 +46,13 @@ function numericShape(value: unknown): unknown {
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, numericShape(item)]));
   return null;
 }
+function frameValues(frame: SemanticReplayFrame): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const entry of frame.values) {
+    values[entry.semanticId] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
+  }
+  return values;
+}
 function interpolateShape(left: unknown, right: unknown, fraction: number): unknown {
   const a = number(left),
     b = number(right);
@@ -155,10 +162,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     // A reset starts another lap/interval. Do not splice it into this recording.
     if (time < previousTime - 0.001) break;
 if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay), maximumGapSeconds)) run++;
-    const values: Record<string, unknown> = {};
-    for (const entry of frame.values) {
-      values[entry.semanticId] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
-    }
+    const values = frameValues(frame);
     const traveled = number(values["timing.distance-traveled"]);
     let distance = NaN;
     const index = lowerBound(aligned, time, (point) => point.time);
@@ -321,7 +325,7 @@ export function sampleLap(lap: SpectateLap, time: number, holdPose: boolean): Sp
   if (time > last.time) return holdPose ? { time: last.time, distance: Number.isFinite(last.distance) ? last.distance : null, pose: poseOf(last.values, opponent), values: {} } : null;
   const index = lowerBound(samples, time, (sample) => sample.time);
   const right = samples[index]!;
-  if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: poseOf(right.values, opponent), values: right.values };
+  if (right.time === time) return { time, distance: Number.isFinite(right.distance) ? right.distance : null, pose: poseOf(right.values, opponent), values: right.values, frame: right.frame };
   const left = samples[index - 1];
 if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, opponent, lap.maximumGapSeconds)) return null;
   const fraction = (time - left.time) / (right.time - left.time);
@@ -336,7 +340,7 @@ if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, 
     } else values[key] = interpolateShape(a, b, fraction);
   }
   const distance = Number.isFinite(left.distance) && Number.isFinite(right.distance) ? left.distance + (right.distance - left.distance) * fraction : null;
-  return { time, distance, pose: poseOf(values, opponent), values };
+  return { time, distance, pose: poseOf(values, opponent), values, frame: left.frame };
 }
 
 /** Equal-distance samples retain plateau departure; lowerBound still finds earliest arrival. */
@@ -379,20 +383,28 @@ let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, 
     previousFrame: number | null = null;
   let transition: { from: number; to: number; start: number } | null = null;
   let snapshot: SpectateSnapshot;
+  let selectedFrame: { side: "a" | "b"; time: number; frame: SemanticReplayFrame; values: Readonly<Record<string, unknown>> } | null = null;
+  const readLap = (lap: SpectateLap, side: "a" | "b", target: number, holdPose: boolean) => {
+    const reading = sampleLap(lap, target, holdPose);
+    if (reading && lap.motionSamples) Object.assign(reading, sampleMotion(lap.motionSamples, target, holdPose, isOpponentReplay(lap.replay), lap.maximumGapSeconds));
+    if (reading && selectedFrame?.side === side && selectedFrame.time === target) {
+      if (reading.frame !== selectedFrame.frame) reading.distance = null;
+      reading.frame = selectedFrame.frame;
+      reading.values = selectedFrame.values;
+      reading.pose = poseOf(selectedFrame.values, isOpponentReplay(lap.replay));
+    }
+    return reading;
+  };
   const read = (target: number, holdPose = true) => {
-    const opponentA = isOpponentReplay(a.replay);
-    const ra = sampleLap(a, target, holdPose);
-if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, target, holdPose, opponentA, a.maximumGapSeconds));
+    const ra = readLap(a, "a", target, holdPose);
     if (!b) return { a: ra, b: null };
     const opponentB = isOpponentReplay(b.replay);
     if (!positionLock) {
-      const rb = sampleLap(b, target, holdPose);
-      if (rb && b.motionSamples) Object.assign(rb, sampleMotion(b.motionSamples, target, holdPose, opponentB, b.maximumGapSeconds));
+      const rb = readLap(b, "b", target, holdPose);
       return { a: ra, b: rb };
     }
     const bTime = ra?.distance == null ? null : arrivalAt(bProgress, ra.distance, opponentB, b.maximumGapSeconds);
-    const rb = bTime === null ? null : sampleLap(b, bTime, holdPose);
-    if (rb && b.motionSamples && bTime !== null) Object.assign(rb, sampleMotion(b.motionSamples, bTime, holdPose, opponentB, b.maximumGapSeconds));
+    const rb = bTime === null ? null : readLap(b, "b", bTime, holdPose);
     return { a: ra, b: rb };
   };
   const timeAt = (now: number) => {
@@ -416,6 +428,7 @@ if (ra && a.motionSamples) Object.assign(ra, sampleMotion(a.motionSamples, targe
   };
   const stop = () => {
     cancelFrame();
+    selectedFrame = null;
     transition = null;
   };
   const frame = (now: number) => {
@@ -509,6 +522,7 @@ const target = arrivalAt(aProgress, distance, isOpponentReplay(a.replay), a.maxi
       const index = lowerBound(lap.samples, frame.sequence, (sample) => sample.frame?.sequence ?? Infinity);
       const sample = lap.samples[Math.min(index, lap.samples.length - 1)]!;
       let target = sample.time;
+      if (index < lap.samples.length && sample.frame !== frame) positionLock = false;
       if (side === "b" && positionLock) {
 const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, sample.distance, isOpponentReplay(a.replay), a.maximumGapSeconds) : null;
         const nativeTime = Number.isFinite(sample.distance) ? arrivalAt(bProgress, sample.distance, isOpponentReplay(b!.replay), b?.maximumGapSeconds) : null;
@@ -517,6 +531,7 @@ const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, samp
       }
       stop();
       time = Math.max(0, Math.min(duration, target));
+      if (index < lap.samples.length) selectedFrame = { side, time: sample.time, frame, values: sample.frame === frame ? sample.values : frameValues(frame) };
       seekGeneration++;
       publish();
       start();

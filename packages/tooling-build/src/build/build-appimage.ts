@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
 const tools = [
-  { name: "appimagetool", url: "https://api.github.com/repos/AppImage/appimagetool/releases/assets/610035789", sha256: "95cbe7cce9717fce90c484e34052ee7c7f1d7635b33c12525b4776826a7d29b6" },
-  { name: "runtime", url: "https://api.github.com/repos/AppImage/type2-runtime/releases/assets/596078161", sha256: "156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074" },
+  { name: "appimagetool", url: "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage", sha256: "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0" },
+  { name: "runtime", url: "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64", sha256: "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d" },
 ];
 
 async function main() {
@@ -27,7 +27,7 @@ async function main() {
     const payload = join(appDir, "usr/lib/raceiq");
     mkdirSync(payload, { recursive: true });
     await Bun.$`cp -a ${dist}/. ${payload}/`.quiet();
-    writeFileSync(join(appDir, "AppRun"), `#!/bin/sh\nset -eu\nappdir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nif [ -z "${"{DATA_DIR:-}"}" ]; then DATA_DIR="${"${APPDATA:-$HOME}/RaceIQ"}"; fi\nexport DATA_DIR\nmkdir -p "$DATA_DIR"\nexec "$appdir/usr/lib/raceiq/raceiq" "$@"\n`);
+    writeFileSync(join(appDir, "AppRun"), `#!/bin/sh\nset -eu\nappdir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nif [ -z "\${DATA_DIR:-}" ]; then DATA_DIR="\${APPDATA:-$HOME}/RaceIQ"; fi\nexport DATA_DIR\nmkdir -p "$DATA_DIR"\nexec "$appdir/usr/lib/raceiq/raceiq" "$@"\n`);
     chmodSync(join(appDir, "AppRun"), 0o755);
     writeFileSync(join(appDir, "raceiq.desktop"), "[Desktop Entry]\nType=Application\nName=RaceIQ\nExec=AppRun\nIcon=raceiq\nTerminal=true\nCategories=Utility;\n");
     copyFileSync(join(root, "assets/raceiq-icon.png"), join(appDir, "raceiq.png"));

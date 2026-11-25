@@ -110,6 +110,12 @@ export class OrdinalDetectorEngine {
   private ownershipTrackingEnabled = false;
   private pendingOwnershipTransitions: DetectorOwnershipTransition[] = [];
   private lastInputTelemetry: TelemetryPacket | null = null;
+  private readonly completedF1Laps = new Set<number>();
+
+  hasCompletedCurrentLap(): boolean {
+    return this.completedF1Laps.has(this.state.lapNumber);
+  }
+
   getOwnershipState(): DetectorOwnershipState {
     const s = this.state;
     return Object.freeze({
@@ -291,6 +297,7 @@ export class OrdinalDetectorEngine {
         s.lapNumber = -1; s.lapBuffer = []; s.lapIsValid = true; s.invalidReason = null;
         s.session = { ...identity, sessionKey: ++this.sessionSequence, gameId: packet.gameId };
         s.completedLapCount = 0; s.lastTimestampMS = 0; s.distanceAtLapStart = packet.DistanceTraveled;
+        this.completedF1Laps.clear();
         s.lapByteOffset = null; s.lapFrameCount = 0; this.lapStartOrdinal = null; this.lapFrameOrdinals = [];
         this.ownershipEndOrdinal = null;
         s.fuelAtLapStart = packet.Fuel; s.tireWearAtLapStart = tireWear(packet);
@@ -303,14 +310,15 @@ export class OrdinalDetectorEngine {
       s.lastPacketTime = now;
       return;
     }
-    if (s.lapNumber >= 0 && s.lapBuffer.length > 30 && packet.LapNumber === s.lapNumber) {
+    const sameLapRewind = packet.LapNumber === s.lapNumber && s.lastTimestampMS > 0 && packet.TimestampMS < s.lastTimestampMS;
+    if (s.lapNumber >= 0 && s.lapBuffer.length > 30 && packet.LapNumber === s.lapNumber && !(packet.gameId === "f1-2025" && sameLapRewind)) {
       const reset = (this.effects.resolveLapReset ?? detectLapReset)(s.lapBuffer[s.lapBuffer.length - 1], s.lastLastLap, packet);
       if (reset.action === "complete-final-lap") {
         this.effects.log?.(`[Lap] Final lap completed: LastLap ${s.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`);
         await this.complete(packet);
       } else if (reset.action === "reset-untimed-lap") {
         this.effects.log?.("[Lap] Untimed start-line crossing — starting lap buffer");
-        this.reset(packet);
+        this.reset(packet, true);
       } else if (reset.action === "reset-restart") {
         this.reset(packet, true);
       }
@@ -355,7 +363,7 @@ export class OrdinalDetectorEngine {
     this.trimRunningStartPackets(true);
     const window = this.activeWindow("incomplete");
     if (window) s.lapFrameCount = window.frameCount;
-    if (s.lapBuffer.length && s.lapBuffer[s.lapBuffer.length - 1].CurrentLap >= 10) {
+    if (!this.hasCompletedCurrentLap() && s.lapBuffer.length && s.lapBuffer[s.lapBuffer.length - 1].CurrentLap >= 10) {
       await this.effects.finalizeIncompleteLap(s);
       this.publishOwnership("final-incomplete", window);
     } else {
@@ -379,6 +387,10 @@ export class OrdinalDetectorEngine {
     if (!s.session || s.lapBuffer.length < 30 || s.lapNumber < 0 || !s.lastPacketTime || s.session.gameId === "fm-2023") return;
     const silenceMs = this.effects.now() - s.lastPacketTime;
     if (silenceMs < 10_000) return;
+    if (this.hasCompletedCurrentLap()) {
+      await this.flushIncompleteLap();
+      return;
+    }
     this.trimRunningStartPackets(true);
     if (s.lapBuffer.length < 30) return;
     const last = s.lapBuffer[s.lapBuffer.length - 1];
@@ -393,9 +405,6 @@ export class OrdinalDetectorEngine {
   private async complete(next: TelemetryPacket): Promise<void> {
     const s = this.state;
     if (!s.session || !s.lapBuffer.length) { this.reset(next); return; }
-    const last = s.lapBuffer[s.lapBuffer.length - 1];
-    if (s.fuelAtLapStart >= 0) { s.fuelHistory.push({ lap:s.lapNumber, fuelStart:s.fuelAtLapStart, fuelEnd:last.Fuel, fuelUsed:s.fuelAtLapStart-last.Fuel }); if(s.fuelHistory.length>50)s.fuelHistory.shift(); }
-    if (s.tireWearAtLapStart.fl >= 0) { const end=tireWear(last), start=s.tireWearAtLapStart; s.tireWearHistory.push({lap:s.lapNumber,start:{...start},end,worn:{fl:start.fl-end.fl,fr:start.fr-end.fr,rl:start.rl-end.rl,rr:start.rr-end.rr}}); if(s.tireWearHistory.length>50)s.tireWearHistory.shift(); }
     const boundaryOrdinal = this.ownershipEndOrdinal === null
       ? this.processingSourceOrdinal ?? this.currentSourceOrdinal
       : Math.min(this.processingSourceOrdinal ?? this.currentSourceOrdinal ?? this.ownershipEndOrdinal + 1, this.ownershipEndOrdinal + 1);
@@ -403,8 +412,19 @@ export class OrdinalDetectorEngine {
       ? boundaryOrdinal - this.lapStartOrdinal
       : s.lapFrameCount;
     s.lapFrameCount = ownedFrameCount;
+    if (this.hasCompletedCurrentLap()) {
+      // A flashback can recross the finish with only the end of an already
+      // saved lap. Keep the first complete capture and store this span as auxiliary.
+      this.publishOwnership("window-abandoned", this.activeWindow("incomplete", ownedFrameCount));
+      this.reset(next);
+      return;
+    }
+    const last = s.lapBuffer[s.lapBuffer.length - 1];
+    if (s.fuelAtLapStart >= 0) { s.fuelHistory.push({ lap:s.lapNumber, fuelStart:s.fuelAtLapStart, fuelEnd:last.Fuel, fuelUsed:s.fuelAtLapStart-last.Fuel }); if(s.fuelHistory.length>50)s.fuelHistory.shift(); }
+    if (s.tireWearAtLapStart.fl >= 0) { const end=tireWear(last), start=s.tireWearAtLapStart; s.tireWearHistory.push({lap:s.lapNumber,start:{...start},end,worn:{fl:start.fl-end.fl,fr:start.fr-end.fr,rl:start.rl-end.rl,rr:start.rr-end.rr}}); if(s.tireWearHistory.length>50)s.tireWearHistory.shift(); }
     const saved = await this.effects.finalizeLap(next, s);
     if (saved) {
+      if (s.session.gameId === "f1-2025") this.completedF1Laps.add(s.lapNumber);
       s.completedLapCount++;
       this.publishOwnership("window-finalized", this.activeWindow("final", s.lapFrameCount));
     } else {

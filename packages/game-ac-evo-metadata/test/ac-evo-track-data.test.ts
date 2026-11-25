@@ -37,6 +37,21 @@ describe("AC Evo native track lookup", () => {
     expect(getAcEvoTracks().get(gpId)?.id).toBe(gpId);
   });
 
+  test("resolves native Spa geometry without changing identity or substituting layouts", () => {
+    const name = "Circuit de Spa Francorchamps";
+    const id = acEvoTrackId(name, "GP");
+    const expected = { id, name, variant: "GP", commonTrackName: "spa", setupFolder: "spa" };
+    expect(getAcEvoTrackByName(name, "GP")).toMatchObject(expected);
+    expect(getAcEvoTrackByName(name, "Unknown Layout")).toBeUndefined();
+    injectDiscoveredAcEvoTracks([
+      { id, name, trackName: name, trackConfiguration: "GP" },
+      { id: acEvoTrackId(name, "Unknown Layout"), name, trackName: name, trackConfiguration: "Unknown Layout" },
+    ]);
+    expect(getAcEvoTrackByName(name, "GP")).toMatchObject(expected);
+    expect(getAcEvoTracks().get(id)).toMatchObject(expected);
+    expect(getAcEvoTrackByName(name, "Unknown Layout")?.commonTrackName).toBe(name);
+  });
+
   test("keeps curated geometry and setup metadata when a known track is discovered", () => {
     const id = acEvoTrackId("Spa-Francorchamps", "GP");
     injectDiscoveredAcEvoTracks([

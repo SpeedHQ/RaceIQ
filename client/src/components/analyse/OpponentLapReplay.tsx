@@ -103,6 +103,9 @@ export function OpponentLapReplay({ anchor, opponentLapId, sourceRevision }: { a
   if (!replayQuery.data || replayQuery.data.envelopes.length === 0) return <>{selector}<State state="empty">{m.analyse_no_telemetry_data()}</State></>;
   return <section data-testid="opponent-lap-replay" data-opponent-state="ready" data-opponent-lap-id={opponentLapId} className="flex h-full min-h-0 flex-1 flex-col gap-2 p-3">
     <header className="flex flex-wrap items-center justify-start gap-3 border-b border-app-border pb-3 text-sm text-app-text-secondary">
+      <Button variant="app-ghost" size="app-sm" onClick={() => { void navigate({ to: "/lmu/sessions" as never, search: {} as never, state: { opponentReplayReturnSessionId: activeAnchor.sessionId } as never, resetScroll: false }); }}>
+        {m.label_sessions()}
+      </Button>
       {selector}
     </header>
     <SingleReplaySession gameId="lmu" lap={metadata} replay={replayQuery.data} outline={outline} segments={segments} trackLengthM={trackLengthM} ai={() => null} aiOpen={false} onAiOpenChange={() => undefined} panelHeaderTarget={null} />

@@ -50,7 +50,7 @@ export interface RecordingLayoutMigrationStatus {
   sessionCount: number;
   progress: {
     status: "idle" | "running" | "success" | "partial" | "error";
-    phase: "organizing" | "relocating" | null;
+    phase: "waiting-for-session" | "organizing" | "relocating" | null;
     done: number;
     total: number;
     migrated: number;

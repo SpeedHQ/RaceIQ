@@ -1,6 +1,6 @@
-import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { expect, test } from "@playwright/test";
-import { importCoachingRecording } from "./coaching-fixtures";
+import { hasAlignedSample, importCoachingRecording } from "./coaching-fixtures";
 
 test("coaching evidence follows persisted language and speed units without changing source telemetry", async ({ page, request }) => {
   const settingsResponse = await request.get("/api/settings");
@@ -57,9 +57,8 @@ test("coaching evidence follows persisted language and speed units without chang
       { headers: { "X-Game-Id": "iracing" } },
     );
     expect(telemetryResponse.ok()).toBe(true);
-    const detail = await telemetryResponse.json() as { aligned: Parameters<typeof decodeAlignedLapSet>[0] };
-    const aligned = decodeAlignedLapSet(detail.aligned);
-    expect(aligned.laps[0]!.speedMps.some((speed) => Math.abs(speed - 4_000 / 60) < 0.01)).toBe(true);
+    const detail = await telemetryResponse.json() as { aligned: EncodedAlignedLapSet };
+    expect(hasAlignedSample(detail.aligned.laps[0]!.speedMps, (speed) => Math.abs(speed - 4_000 / 60) < 0.01)).toBe(true);
   } finally {
     try {
       await updateSettings({

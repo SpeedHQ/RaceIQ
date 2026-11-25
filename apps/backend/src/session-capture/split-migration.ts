@@ -5,7 +5,6 @@ import { withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 import { liveCaptures, sessionCaptureSplitJobs, sessions } from "@raceiq/backend-core/db/schema";
 import { enqueueSessionCaptureSplit, getQueuedSessionCaptureSplitJobs, type SessionCaptureSplitWork } from "@raceiq/backend-core/db/session-queries";
 import { isSparseCaptureFile } from "@raceiq/backend-core/session-capture/source-loader";
-import { getRecordingStorageActivity } from "@raceiq/backend-core/session-capture/storage-activity";
 
 type SplitMigrationStatus = "idle" | "running" | "success" | "partial" | "error";
 interface SplitMigrationProgress {
@@ -122,10 +121,6 @@ export async function consentToStartupSplitMigration(): Promise<{
   sessionCount: number;
   progress: SplitMigrationProgress;
 }> {
-  const activity = getRecordingStorageActivity();
-  if (activity.imports > 0 || activity.relocating) {
-    throw Object.assign(new Error("Recording storage is busy"), { code: activity.relocating ? "MOVE_ACTIVE" : "IMPORT_ACTIVE" });
-  }
   const current = await getStartupSplitMigrationStatus();
   if (!consented || current.progress.status !== "running") {
     // Folder organization can move a queued source or replace its inode before consent.

@@ -1,10 +1,14 @@
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AiModelPicker, AiProviderPicker } from "./AiPickers";
+import { AiModelPicker, AiProviderPicker, AiSubscriptionUsage } from "./AiPickers";
 import { m } from "@/paraglide/messages";
 import { Label } from "@/components/ui/label";
 import type { AiChatState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
+import { defaultModelForProvider } from "./recommended-model";
+import { OpenAiReasoningLevel } from "./OpenAiReasoningLevel";
+import { chatGptReasoningLevels } from "@raceiq/shared/integrations/ai/openai-reasoning";
+
 export function AiChatSection({ state }: { state: AiChatState }) {
   const {
     chatProvider,
@@ -30,7 +34,7 @@ export function AiChatSection({ state }: { state: AiChatState }) {
     <div className="space-y-4">
       {/* Chat provider */}
       <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_chat_provider_title()}</h2>
-      <p className="text-xs text-app-text-muted mb-4">{m.ai_chat_provider_desc()}</p>
+      {chatProvider !== "chatgpt-subscription" && <p className="text-xs text-app-text-muted mb-4">{m.ai_chat_provider_desc()}</p>}
       <div className="space-y-4">
         <div>
           <Label htmlFor="ai-chat-provider" className="block text-xs text-app-text-muted mb-1">
@@ -41,7 +45,7 @@ export function AiChatSection({ state }: { state: AiChatState }) {
             value={chatProvider}
             onChange={(value) => {
               setChatProvider(value);
-              setChatModel("");
+              setChatModel(defaultModelForProvider(value));
               setChatThinkingBudget(null);
             }}
             providers={aiProviders}
@@ -75,8 +79,18 @@ export function AiChatSection({ state }: { state: AiChatState }) {
                 setChatThinkingBudget(null);
               }}
               models={chatModels}
+              explicit={chatProvider === "chatgpt-subscription"}
             />
           </div>
+        )}
+        {chatProvider === "openai" && (
+          <OpenAiReasoningLevel id="ai-chat-reasoning"
+            value={state.chatReasoningLevel} onChange={state.setChatReasoningLevel} />
+        )}
+        {chatProvider === "chatgpt-subscription" && chatModel && (
+          <OpenAiReasoningLevel id="ai-chat-reasoning"
+            levels={chatGptReasoningLevels(chatModel)}
+            value={state.chatSubscriptionReasoningLevel} onChange={state.setChatSubscriptionReasoningLevel} />
         )}
         {chatProvider === "gemini" && canShowChatModelPicker && (
           <div>
@@ -103,7 +117,8 @@ export function AiChatSection({ state }: { state: AiChatState }) {
             )}
           </div>
         )}
-        {chatProvider !== "" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {chatProvider === "chatgpt-subscription" && <AiSubscriptionUsage ready={hasChatProviderKey} />}
+        {chatProvider !== "" && chatProvider !== "chatgpt-subscription" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {chatProvider !== "" && hasChatProviderKey && !aiModelsFetching && chatModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>

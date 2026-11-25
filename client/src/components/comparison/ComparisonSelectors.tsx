@@ -146,7 +146,7 @@ export function OpponentLapSelector({ laps: recordedLaps, sessions: recordedSess
     setPendingId(value ?? "");
   }, [value, committedSessionKey, committedDriver]);
   const pending = laps.find((lap) => lap.opponentLapId === pendingId);
-  const sessions = [...new Set((recordedSessions ?? laps).map((session) => session.sessionKey))];
+  const sessions = [...new Set((recordedSessions ?? recordedLaps).map((session) => session.sessionKey))];
   const drivers = [...new Map(laps.filter((lap) => !sessionKey || lap.sessionKey === sessionKey)
     .map((lap) => [identity(lap), lap])).values()];
   const filtered = laps.filter((lap) => (!sessionKey || lap.sessionKey === sessionKey) && (!driver || identity(lap) === driver));

@@ -1,3 +1,4 @@
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
@@ -5,18 +6,21 @@ import { Hono, type TypedResponse } from "hono";
 
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
-import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
+import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
+import { chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
 import { getAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
-import { setupContextForLap } from "../../ai/lap-setup-context";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { buildChatSystemPrompt } from "@raceiq/backend-core/ai/chat-prompt";
-import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
-import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
+import { buildChatSystemPrompt } from "@raceiq/assistant/ai/chat-prompt";
+import { buildGoogleReasoningProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
+import { streamAgentTurnResponse } from "@raceiq/assistant/ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
 import {
   CHAT_RESOURCE_ID,
@@ -26,11 +30,13 @@ import {
   ensureSystemPrompt,
   listThreadGenerations,
   resolveActiveThread,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-agent";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/assistant/ai/chat-message-context";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
 
 const ChatMessageParamsSchema = IdParamSchema.extend({
   messageId: z.string().min(1).max(256).regex(/^\S+$/),
@@ -166,11 +172,13 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "openai-compatible" ? "local-model" : "gemini-flash-latest");
+      || (defaultModelFor(chatProvider));
 
-    const visionCapability = resolveChatVisionCapability(chatProvider, chatModelLabel);
-    if (chatRequestHasImage(messages) && visionCapability !== "supported") {
-      const error = visionCapability === "unsupported"
+    // Gate on the stored model, never on the defaulted label: an empty
+    // chatModel must not resolve to an image-capable model implicitly.
+    const imageGate = gateChatImages(chatProvider, settings.chatModel, messages);
+    if (!imageGate.allowed) {
+      const error = imageGate.capability === "unsupported"
         ? "This chat model does not support images. Remove the image or choose a verified image-capable chat model."
         : "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.";
       return c.json({ error }, 400);
@@ -181,6 +189,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
     const turnStartedAt = Date.now();
     try {
       const requestContext = new RequestContext();
+      const subscriptionUsage: (ChatGptRequestUsage | null)[] | undefined = chatProvider === "chatgpt-subscription" ? [] : undefined;
+      if (subscriptionUsage) createModelContext(await resolveAi("chat", settings, undefined, (usage) => subscriptionUsage.push(usage)), requestContext);
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       requestContext.set(CHAT_TURN_MESSAGES_KEY, messages);
       const stream = await agent.stream(
@@ -189,7 +199,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: "medium" },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },
@@ -201,6 +211,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
         memory: memoryProvider(),
         threadId,
         turnStartedAt,
+        subscriptionUsage,
         diagnostic: {
           provider: chatProvider,
           model: chatModelLabel,
@@ -211,7 +222,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       });
     } catch (err: unknown) {
       console.error("[Chat] Stream failed:", err instanceof Error ? err.message : "Unknown provider error");
-      return c.json({ error: "Chat request failed. Check provider settings and retry." }, 500);
+      const recovery = chatProvider === "chatgpt-subscription" ? chatGptRecoveryMessage(err) : null;
+      return c.json({ error: recovery ?? "Chat request failed. Check provider settings and retry." }, recovery ? 409 : 500);
     }
   })
 

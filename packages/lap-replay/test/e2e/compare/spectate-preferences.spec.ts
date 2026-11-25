@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { compareQuery, getDistinctPair } from "../../../../../playwright/tests/seeded/compare/interaction-helpers"
 import { getSeededLaps } from "../../../../../playwright/tests/seeded/compare/helpers";
+import { cleanDisposable, importDisposableLap } from "../../../../../playwright/tests/support/session-fixtures";
 
 test("Spectate panel headers stay aligned and remember opened panels", async ({ page, request }) => {
   test.setTimeout(180_000);
@@ -252,7 +253,13 @@ test("Spectate remembers vertical toolbar toggles across view changes and reload
 });
 
 test("Compare toolbar controls telemetry and AI across both views", async ({ page, request }, testInfo) => {
-  const pair = await getDistinctPair(request, "fm-2023");
+  const sourcePair = await getDistinctPair(request, "fm-2023");
+  const disposable = await importDisposableLap(request, "fm-2023", "compare-toolbar", sourcePair.lapA.id);
+  try {
+  const lapA = (await getSeededLaps(request, "fm-2023")).find((lap) => disposable.lapIds.includes(lap.id));
+  expect(lapA, "isolated comparison toolbar lap").toBeDefined();
+  if (!lapA) throw new Error("Disposable comparison lap is missing");
+  const pair = { lapA, lapB: sourcePair.lapB };
   await page.goto(`/fm23/compare?${compareQuery(pair)}&view=spectate`);
   const view = page.locator("[data-spectate-view]");
   const telemetry = page.getByRole("button", { name: "Telemetry", exact: true });
@@ -337,6 +344,9 @@ test("Compare toolbar controls telemetry and AI across both views", async ({ pag
   await telemetry.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("compare-toolbar-narrow.png"), fullPage: true, animations: "disabled" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await cleanDisposable(request, disposable);
+  }
 });
 
 
@@ -573,13 +583,6 @@ test("AMS2 Spectate renders animated suspension for both cars", async ({ page, r
     await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
   }
   for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
-  const before = await canvas.evaluate(node => ({ a: (node as HTMLCanvasElement).dataset.aBodyHeave, b: (node as HTMLCanvasElement).dataset.bBodyHeave }));
-  await page.getByRole("button", { name: "Play replay", exact: true }).click();
-  for (const side of ["a", "b"] as const) {
-    await expect.poll(() => canvas.getAttribute(`data-${side}-body-heave`)).not.toBe(before[side]);
-    await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
-  }
-  await page.getByRole("button", { name: "Pause replay", exact: true }).click();
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
   const initialPhi = Number(await canvas.getAttribute("data-camera-phi"));
@@ -590,4 +593,18 @@ test("AMS2 Spectate renders animated suspension for both cars", async ({ page, r
   await expect.poll(async () => Number(await canvas.getAttribute("data-camera-phi"))).toBeGreaterThan(initialPhi + .1);
   for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
   await page.screenshot({ path: testInfo.outputPath("ams2-suspension-pair.png"), animations: "disabled" });
+  await page.getByRole("combobox", { name: "Playback speed" }).selectOption({ label: "0.25×" });
+  const before = await canvas.evaluate(node => {
+    const { aBodyHeave, bBodyHeave } = (node as HTMLCanvasElement).dataset;
+    return [Number(aBodyHeave), Number(bBodyHeave)];
+  });
+  expect(before.every(Number.isFinite)).toBe(true);
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  for (const [index, side] of ["a", "b"].entries()) {
+    await expect.poll(async () => {
+      const value = await canvas.getAttribute(`data-${side}-body-heave`);
+      return value !== null && Number.isFinite(Number(value)) && Number(value) !== before[index];
+    }).toBe(true);
+    await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  }
 });

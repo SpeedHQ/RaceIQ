@@ -15,7 +15,7 @@ test("settings sections expose accessible controls and state changes", async ({ 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ current: "seeded", latest: null, updateAvailable: false, checked: true, lastChecked: "2026-01-01T00:00:00.000Z" }),
+      body: JSON.stringify({ current: "seeded", latest: null, updateAvailable: false, updatesDisabled: true, externalUpdateUrl: null, downloadUrl: null, newReleases: [], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null, checked: true, lastChecked: "2026-01-01T00:00:00.000Z" }),
     });
   });
 
@@ -95,7 +95,7 @@ test("settings sections expose accessible controls and state changes", async ({ 
     await page.getByLabel("Volume").fill("25");
     await expect.poll(() => page.evaluate(() => localStorage.getItem("forza-sound-volume"))).toBe("0.25");
 
-    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("button", { name: "Recording" }).click();
     await expect(page.getByText("Telemetry Cache")).toBeVisible();
     await expect(page.getByLabel("Cache size limit")).toBeVisible();
     await page.getByLabel("Cache size limit").fill("8");

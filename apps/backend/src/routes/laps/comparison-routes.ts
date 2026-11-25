@@ -1,24 +1,28 @@
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
 import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "@raceiq/shared/games/ids";
-import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
+import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { extractJson } from "@raceiq/assistant/ai/extract-json";
 import { compareLaps } from "@raceiq/backend-core/lap-analysis/comparison";
 import { getOrComputeLapInsightsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
-import { buildCompareInsightsBlock } from "@raceiq/backend-core/ai/insight-format";
-import { buildCompareChatSystemPrompt } from "@raceiq/backend-core/ai/compare-chat-prompt";
-import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "@raceiq/backend-core/ai/inputs-compare-prompt";
+import { buildCompareInsightsBlock } from "@raceiq/assistant/ai/insight-format";
+import { buildCompareChatSystemPrompt } from "@raceiq/assistant/ai/compare-chat-prompt";
+import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "@raceiq/assistant/ai/inputs-compare-prompt";
 import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
-import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
-import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "@raceiq/backend-core/ai/analysis-run-registry";
-import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
+import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
+import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "@raceiq/assistant/ai/analysis-run-registry";
+import { streamAgentTurnResponse } from "@raceiq/assistant/ai/agent-stream";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 import {
   CHAT_RESOURCE_ID,
   compareChatThreadId,
@@ -27,12 +31,16 @@ import {
   ensureSystemPrompt,
   listThreadGenerations,
   resolveActiveThread,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
-import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-agent";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
+import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/assistant/ai/chat-message-context";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
-import { linkedTuneSetupForLap, setupContextForLap } from "../../ai/lap-setup-context";
+import { linkedTuneSetupForLap, setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
+import { consumeMastraGeneration } from "@raceiq/assistant/ai/stream-mastra-generation";
+import { toClientAiError } from "@raceiq/assistant/ai/provider-error";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
@@ -165,7 +173,10 @@ export const comparisonRoutes = new Hono()
 
     try {
       const start = performance.now();
-      const result = await compareEngineerAgent.generate(prompt, {
+      const subscription = settings.aiProvider === "chatgpt-subscription";
+      const requestContext = subscription ? createModelContext(await resolveAi("analysis", settings)) : undefined;
+      const options = {
+        requestContext,
         structuredOutput: {
           schema: InputsCompareSchema,
           // LM Studio only accepts `response_format: json_schema` (it rejects
@@ -175,25 +186,53 @@ export const comparisonRoutes = new Hono()
           // Prompt injection keeps the answer on the plain-text channel, which
           // those models fill normally. Hosted providers parse native structured
           // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "openai-compatible" ? { jsonPromptInjection: true } : {}),
+          ...(settings.aiProvider === "openai-compatible" || settings.aiProvider === "anthropic" ? { jsonPromptInjection: true } : {}),
         },
         // Every other AI route already caps output and disables reasoning on
         // local models (analyse, lap chat, compare chat). This one did not, so
         // a thinking model such as qwen3.5 could reason unboundedly and push the
         // request past Bun.serve's 255s idleTimeout — surfacing to the client as
         // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        modelSettings: {
+          // Leave enough output budget for the full structured comparison.
+          maxOutputTokens: settings.aiProvider === "deepseek" ? 16384 : 8192,
+          temperature: 0,
+        },
         providerOptions: {
-          openai: { reasoningEffort: "medium" },
+          openai: { reasoningEffort: openAiReasoningEffort(settings.aiProvider, settings.aiReasoningLevel) },
           google: buildGoogleThinkingProviderOptions(
             settings.aiModel || "gemini-flash-latest",
             settings.aiThinkingBudget,
           ) as never,
         },
-      });
+      };
+      const result = subscription
+        ? await consumeMastraGeneration(compareEngineerAgent.stream(prompt, { ...options, modelSettings: { maxRetries: 0 } }), true)
+        : await compareEngineerAgent.generate(prompt, options);
       const durationMs = Math.round(performance.now() - start);
 
-      const object = (result as any).object;
+      let object = (result as any).object;
+      if (!object) {
+        // Providers that receive the schema as prompt text (DeepSeek, Anthropic,
+        // local servers) may answer with valid JSON wrapped in prose or fences.
+        // Parse that instead of failing the whole comparison.
+        const raw = typeof (result as any).text === "string" ? (result as any).text : "";
+        if (raw.trim()) {
+          try {
+            object = InputsCompareSchema.parse(JSON.parse(extractJson(raw)));
+          } catch (parseError) {
+            console.warn(
+              "[InputsCompare] structured output fallback failed:",
+              parseError instanceof Error ? parseError.message.slice(0, 200) : String(parseError).slice(0, 200),
+              "| raw:",
+              raw.slice(0, 400),
+            );
+            object = undefined;
+          }
+        } else {
+          console.warn("[InputsCompare] structured output missing and text channel was empty");
+        }
+      }
       if (!object) {
         throw new Error(
           settings.aiProvider === "openai-compatible"
@@ -334,12 +373,11 @@ export const comparisonRoutes = new Hono()
     }
 
     const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "openai-compatible"
-          ? "local-model"
-          : "gemini-flash-latest");
-    if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
+      || (defaultModelFor(chatProvider));
+    // Gate on the stored model, never on the defaulted label: an empty
+    // chatModel must not resolve to an image-capable model implicitly.
+    const imageGate = gateChatImages(chatProvider, settings.chatModel, messages);
+    if (!imageGate.allowed) {
       return c.json({ error: "This chat model has no verified image support. Remove the image or choose an image-capable chat model." }, 400);
     }
     await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
@@ -349,6 +387,8 @@ export const comparisonRoutes = new Hono()
     const turnStartedAt = Date.now();
     try {
       const requestContext = new RequestContext();
+      const subscriptionUsage: (ChatGptRequestUsage | null)[] | undefined = chatProvider === "chatgpt-subscription" ? [] : undefined;
+      if (subscriptionUsage) createModelContext(await resolveAi("chat", settings, undefined, (usage) => subscriptionUsage.push(usage)), requestContext);
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       const stream = await compareChatAgent.stream(
         messages,
@@ -356,7 +396,7 @@ export const comparisonRoutes = new Hono()
           requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
-            openai: { reasoningEffort: "medium" },
+            openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         },
@@ -368,6 +408,7 @@ export const comparisonRoutes = new Hono()
         memory: getChatMemory(),
         threadId,
         turnStartedAt,
+        subscriptionUsage,
         diagnostic: {
           provider: chatProvider,
           model: chatModelLabel,
@@ -378,6 +419,7 @@ export const comparisonRoutes = new Hono()
       });
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);
+      if (chatProvider === "chatgpt-subscription") return c.json({ error: toClientAiError(err).message }, 409);
       return c.json({ error: "Chat request failed. Check provider settings and retry." }, 500);
     }
   })

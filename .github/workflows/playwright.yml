@@ -56,10 +56,19 @@ on:
         description: "Branch or ref to test"
         required: false
         type: string
+      seed-ready:
+        description: Whether a required upstream seed artifact completed successfully
+        type: boolean
+        default: true
+      verification-receipt:
+        description: Matrix row name for the browser aggregate
+        type: string
+        default: ""
 
 
 jobs:
   playwright:
+    if: inputs.seed-ready
     timeout-minutes: 30
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
@@ -67,9 +76,10 @@ jobs:
         with:
           ref: ${{ inputs.target-ref || github.ref }}
           fetch-depth: 0
+          filter: blob:none
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -161,3 +171,17 @@ jobs:
             crash.log
           retention-days: 7
           if-no-files-found: warn
+
+      - name: Record successful browser row
+        if: inputs.verification-receipt != ''
+        env:
+          ROW: ${{ inputs.verification-receipt }}
+        run: bun -e 'await Bun.write(`playwright/${process.env.ROW}.txt`, process.env.ROW)'
+      - name: Upload successful browser row receipt
+        if: inputs.verification-receipt != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: verification-browser-${{ inputs.verification-receipt }}
+          path: playwright/${{ inputs.verification-receipt }}.txt
+          if-no-files-found: error
+          retention-days: 1

@@ -35,6 +35,8 @@ export interface SpectateReading {
   distance: number | null;
   pose: SpectatePose | null;
   values: Readonly<Record<string, unknown>>;
+  /** Source packet selected by playback or an exact frame seek. */
+  frame?: SemanticReplayFrame;
 }
 export interface SpectateSnapshot {
   time: number;

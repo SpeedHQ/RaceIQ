@@ -57,6 +57,20 @@ describe("semantic telemetry catalog artifacts", () => {
       enumVariable.enumDomain = enumDomain;
     }
   });
+  test("describes each LMU scoring snapshot derivation", () => {
+    for (const [id, normalization] of [
+      ["race.competitor.current-lap-number", "completed laps + 1"],
+      ["race.competitor.class-position", "rank positive overall places among vehicles with the same class"],
+      ["race.competitor.lap-fraction", "lap distance / track length when distance is within track bounds"],
+      ["fuel.competitor.ambiguous-fuel-fraction", "native byte / 255"],
+      ["motion.competitor.speed", "magnitude of finite local velocity components"],
+    ] as const) {
+      expect(getTelemetryVariable(id).games.lmu).toMatchObject({
+        kind: "derived",
+        normalization,
+      });
+    }
+  });
   test("emits deterministic versioned artifacts from one catalog build", async () => {
     expect(TELEMETRY_CATALOG.metadata).toMatchObject({
       catalogVersion: TELEMETRY_CATALOG_VERSION,

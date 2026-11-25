@@ -10,8 +10,29 @@ const VALUE_NAME = "RaceIQ";
 const ENABLED_BYTES = "02,00,00,00,00,00,00,00,00,00,00,00";
 const DISABLED_BYTES = "03,00,00,00,00,00,00,00,00,00,00,00";
 
+// Each check runs PowerShell synchronously and blocks the server, and
+// loadSettings() checks on every call. Cache briefly; our own writes reset it.
+const LAUNCH_ON_LOGIN_CACHE_MS = 60_000;
+let launchOnLoginCache: { value: boolean; at: number } | null = null;
+// The native desktop shell owns its own startup entry, independently of the backend.
+export function isDesktopStartupOwned(): boolean {
+  return process.env.RACEIQ_DESKTOP === "1";
+}
+
+export function isLaunchOnLoginSupported(): boolean {
+  return !isDesktopStartupOwned() && IS_WINDOWS && IS_COMPILED;
+}
+
+
 export function isLaunchOnLoginEnabled(): boolean {
-  if (!IS_WINDOWS || !IS_COMPILED) return false;
+  if (!isLaunchOnLoginSupported()) return false;
+  if (launchOnLoginCache && Date.now() - launchOnLoginCache.at < LAUNCH_ON_LOGIN_CACHE_MS) return launchOnLoginCache.value;
+  const value = readLaunchOnLoginEnabled();
+  launchOnLoginCache = { value, at: Date.now() };
+  return value;
+}
+
+function readLaunchOnLoginEnabled(): boolean {
   try {
     // Entry must exist in Run key
     const exists = runPowerShellCommand(`(Get-ItemProperty -Path '${REG_PATH}' -Name '${VALUE_NAME}' -ErrorAction SilentlyContinue).${VALUE_NAME}`);
@@ -25,16 +46,18 @@ export function isLaunchOnLoginEnabled(): boolean {
 }
 
 export function enableLaunchOnLogin(exeDir: string): void {
-  if (!IS_WINDOWS || !IS_COMPILED) return;
+  if (!isLaunchOnLoginSupported()) return;
   const exePath = join(exeDir, "raceiq.exe");
   runPowerShellCommand(`Set-ItemProperty -Path '${REG_PATH}' -Name '${VALUE_NAME}' -Value '"${exePath}"'`);
   runPowerShellCommand(`$bytes = [byte[]](${ENABLED_BYTES} -split ',' | ForEach-Object { [Convert]::ToByte($_.Trim(), 16) }); New-ItemProperty -Path '${APPROVED_PATH}' -Name '${VALUE_NAME}' -Value $bytes -PropertyType Binary -Force | Out-Null`);
+  launchOnLoginCache = { value: true, at: Date.now() };
 }
 
 export function disableLaunchOnLogin(): void {
-  if (!IS_WINDOWS || !IS_COMPILED) return;
+  if (!isLaunchOnLoginSupported()) return;
   // Keep the Run entry but mark as disabled in StartupApproved (same as Task Manager disable)
   runPowerShellCommand(`$bytes = [byte[]](${DISABLED_BYTES} -split ',' | ForEach-Object { [Convert]::ToByte($_.Trim(), 16) }); New-ItemProperty -Path '${APPROVED_PATH}' -Name '${VALUE_NAME}' -Value $bytes -PropertyType Binary -Force | Out-Null`);
+  launchOnLoginCache = { value: false, at: Date.now() };
 }
 
 export function getLaunchOnLoginExeDir(): string {

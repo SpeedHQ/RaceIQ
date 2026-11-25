@@ -3,7 +3,6 @@ status: proposed
 ---
 # Incremental live lap capture publication
 
-Plan: [Live lossless lap splitting](../plans/live-lossless-lap-splitting.md)
 
 Related decisions: [Package-owned indexed capture splitting](0011-package-owned-indexed-capture-splitting.md), [Indexed gzip storage](0012-indexed-session-lap-archive.md).
 

@@ -3,11 +3,10 @@ status: superseded
 ---
 # Indexed gzip storage for split session captures
 
-Plan: [Indexed session lap archive implementation](../plans/indexed-session-lap-archive.md)
 
 Related decision: [Package-owned indexed capture splitting](0011-package-owned-indexed-capture-splitting.md).
 
-Superseded by the explicit physical-per-lap requirement in [ADR 0011](0011-package-owned-indexed-capture-splitting.md) and the [physical-file cutover plan](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase). The content below records the earlier proposal, not the current completed-session output format.
+Superseded by the explicit physical-per-lap requirement in [ADR 0011](0011-package-owned-indexed-capture-splitting.md). The content below records the earlier proposal, not the current completed-session output format.
 
 ## Context
 

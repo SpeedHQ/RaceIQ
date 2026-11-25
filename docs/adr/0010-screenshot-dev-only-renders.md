@@ -9,4 +9,3 @@ Remove those unused operations while retaining dependency installation, seeded b
 
 Partition both revisions across four render jobs using the same `--shard=N/4` arguments. This reduces each job's screenshot workload while preserving the complete inventory and existing artifact merge behavior.
 
-Plan: [CI screenshot render repair](../plans/ci-screenshot-renders.md)

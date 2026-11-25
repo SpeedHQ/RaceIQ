@@ -6,7 +6,7 @@ Agreed convention for new and extracted product features. `@raceiq/tracks-catalo
 
 A feature owns its UI, server behavior, feature-local contracts and tests in **one workspace**. The application composes features; it does not own their implementations. This boundary supports feature-level Turbo impact selection without splitting every feature into separate UI/server/test packages.
 
-Decision: [Feature-owned E2E boundaries](../adr/0015-e2e-aware-package-extraction.md). Implemented extractions: [catalogue contract and verification](../../advisor-plans/catalogues-contract.md), [lap replay](../../advisor-plans/lap-replay-contract.md), [Sessions page](../../advisor-plans/sessions-page-contract.md), and [Session Analyse](../../advisor-plans/session-analyse-contract.md). Dashboard extraction and the broader selective-CI rollout remain deferred.
+Decision: [Feature-owned E2E boundaries](../adr/0015-e2e-aware-package-extraction.md). Implemented extractions include catalogues, lap replay, Sessions page, and Session Analyse. Dashboard extraction and broader selective-CI rollout remain deferred.
 
 ## Layout
 
@@ -161,6 +161,3 @@ A feature extraction is complete only when its code and tests are owned together
 - [Architecture overview](overview.md)
 - [Frontend development](../contributing/frontend.md)
 - [End-to-end testing](../contributing/e2e-testing.md)
-- [Catalogue contract and integrated verification](../../advisor-plans/catalogues-contract.md)
-- [Sessions page contract and integrated verification](../../advisor-plans/sessions-page-contract.md)
-- [Deferred dashboard extraction proposal](../../advisor-plans/002-e2e-extraction-contract.md)

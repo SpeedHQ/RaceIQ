@@ -21,34 +21,6 @@ async function waitForServer(url: string): Promise<void> {
   throw new Error("Storybook preview did not become ready");
 }
 
-async function replaceRemoteMaps(page: Page): Promise<number> {
-  const sources = await page.locator("[data-marketing-track-wall] img").evaluateAll((images) => images.map((image) => image.getAttribute("src")).filter((src): src is string => Boolean(src && /^https?:/.test(src))));
-  let failures = 0;
-  const results = new Map<string, string | null>();
-  for (let offset = 0; offset < sources.length; offset += 12) {
-    await Promise.all(sources.slice(offset, offset + 12).map(async (source) => {
-      try {
-        const response = await fetch(source);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const contentType = response.headers.get("content-type")?.split(";", 1)[0] || "image/svg+xml";
-        results.set(source, `data:${contentType};base64,${Buffer.from(await response.arrayBuffer()).toString("base64")}`);
-      } catch {
-        failures += 1;
-        results.set(source, null);
-      }
-    }));
-  }
-  await page.locator("[data-marketing-track-wall] img").evaluateAll((images, replacements) => {
-    for (const image of images) {
-      const source = image.getAttribute("src");
-      const replacement = source ? replacements[source] : undefined;
-      if (replacement) image.setAttribute("src", replacement);
-      else if (source && /^https?:/.test(source)) image.replaceWith(Object.assign(document.createElement("div"), { className: "flex items-center justify-center h-full text-app-subtext text-app-text-dim", textContent: "No outline available" }));
-    }
-  }, Object.fromEntries(results));
-  return failures;
-}
-
 async function inlineStyles(page: Page): Promise<string> {
   const styles = await page.locator("link[rel=stylesheet], style").evaluateAll((nodes) => nodes.map((node) => ({ tag: node.tagName, href: node instanceof HTMLLinkElement ? node.href : null, text: node.textContent || "" })));
   let css = "";
@@ -93,7 +65,6 @@ async function main() {
     await page.goto(url, { waitUntil: "networkidle" });
     const articleCount = await page.locator("[data-marketing-track-wall] article").count();
     if (articleCount !== expectedCount) throw new Error(`Story rendered ${articleCount} articles; expected ${expectedCount}`);
-    const failedMaps = await replaceRemoteMaps(page);
     const css = await inlineStyles(page);
     const rootHtml = await page.locator("[data-marketing-track-wall]").evaluate((element) => element.outerHTML);
     const html = `<!-- RaceIQ marketing track wall; synthetic counts; source story marketing-track-wall--browse-background -->\n<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="color-scheme" content="dark"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RaceIQ track wall</title><style>${css}</style></head><body>${rootHtml}</body></html>\n`;
@@ -124,7 +95,7 @@ async function main() {
     if (!checks.gameIds) throw new Error("Offline export is missing one or more game IDs");
     if (!checks.overflow || !checks.finalVisible) throw new Error("Offline export cannot scroll to the final card");
     await browser.close();
-    console.log(`Exported ${articleCount} layouts to ${outputPath}; failed remote maps: ${failedMaps}`);
+    console.log(`Exported ${articleCount} layouts to ${outputPath}`);
   } finally {
     server?.kill();
     await removeRuntimeData(buildDir);

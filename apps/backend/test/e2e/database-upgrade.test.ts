@@ -107,7 +107,7 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
     });
     if (authSetup.status !== 200 && authSetup.status !== 409) throw new Error("Fixture auth setup failed: " + authSetup.status);
     console.log("[E2E] Backend HTTP:", backend.httpServer.port);
-  `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe" });
+  `], { cwd: ROOT, env: environment(dataDir), stdout: "pipe", stderr: "pipe", ipc() {} });
   let output = "";
   const consume = async (stream: ReadableStream<Uint8Array>) => {
     const decoder = new TextDecoder();
@@ -169,9 +169,12 @@ function startBranch(dataDir: string, pauseStage: "historical" | "lmu-identity" 
       if (stopPromise) return stopPromise;
       stopPromise = (async () => {
         if (!exited) {
-          proc.kill("SIGTERM");
+          // Windows process signals terminate the child without running its shutdown handler.
+          const signal = process.platform === "win32" ? "SIGINT" : "SIGTERM";
+          if (process.platform === "win32") proc.send({ type: "shutdown" });
+          else proc.kill(signal);
           if (pauseStage && output.includes("[E2E] Stage entered:")) {
-            await waitFor("[Server] Received SIGTERM");
+            await waitFor(`[Server] Received ${signal}`);
             await this.releaseStage();
           }
         }
@@ -415,7 +418,7 @@ test("stop drains a paused startup stage and suppresses every successor", async 
     expect(backend.output()).not.toContain("Shutdown grace expired");
   } finally {
     await backend?.stop();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(temporary);
   }
 }, 60_000);
 
@@ -459,7 +462,8 @@ test("current ambiguous and nonrace results remain terminal across real backend 
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 120_000);
 
@@ -510,7 +514,7 @@ for (const journalState of ["unfinished", "malformed", "unreadable"] as const) {
       }
     } finally {
       await backend?.stop();
-      await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      temporaryDirectories.push(temporary);
     }
   }, 60_000);
 }
@@ -554,7 +558,7 @@ test.each([true, false])("recording splitting completes with UDP conflict %s", a
   } finally {
     await backend?.stop();
     occupied.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    temporaryDirectories.push(temporary);
   }
 }, 60_000);
 

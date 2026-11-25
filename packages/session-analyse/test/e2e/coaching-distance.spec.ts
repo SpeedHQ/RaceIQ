@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { ThreeToImproveResponseSchema } from "../../contracts";
 import { setLapInsightSourceFrame } from "./coaching-db-fixtures";
-import { importCoachingRecording } from "./coaching-fixtures";
+import { hasAlignedSample, importCoachingRecording } from "./coaching-fixtures";
 
 const recordedFraction = (frame: number) => {
   const u = frame / 600;
@@ -37,15 +37,14 @@ test("coaching marker location follows recorded distance on variable-speed nativ
     const detail = await detailResponse.json() as {
       representative: { sourceFrameIndex: number };
       fraction: number;
-      aligned: Parameters<typeof decodeAlignedLapSet>[0];
+      aligned: EncodedAlignedLapSet;
     };
     expect(detail.representative.sourceFrameIndex).toBe(105);
     expect(detail.fraction).toBeCloseTo(expectedFraction, 12);
-    const aligned = decodeAlignedLapSet(detail.aligned);
-    expect(aligned.laps).toHaveLength(1);
-    const lap = aligned.laps[0]!;
+    expect(detail.aligned.laps).toHaveLength(1);
+    const lap = detail.aligned.laps[0]!;
     const expectedSpeed = (1 - 0.08 * Math.PI * Math.cos(2 * Math.PI * (105 / 600))) * 4_000 / 60;
-    expect(lap.speedMps.some((speed) => Math.abs(speed - expectedSpeed) < 0.02)).toBe(true);
+    expect(hasAlignedSample(lap.speedMps, (speed) => Math.abs(speed - expectedSpeed) < 0.02)).toBe(true);
 
     const headers = { "X-Game-Id": "iracing" };
     const mutatedFinding = setLapInsightSourceFrame(fixture.lapIds[0]!, 0);
@@ -79,11 +78,11 @@ test("coaching marker location follows recorded distance on variable-speed nativ
         const endEvidence = await endEvidenceResponse.json() as {
           representative: { sourceFrameIndex: number };
           fraction: number;
-          aligned: Parameters<typeof decodeAlignedLapSet>[0];
+          aligned: EncodedAlignedLapSet;
         };
         expect(endEvidence.representative.sourceFrameIndex).toBe(599);
         expect(endEvidence.fraction).toBe(1);
-        expect(decodeAlignedLapSet(endEvidence.aligned).laps.map(({ lapId }) => lapId)).toEqual([fixture.lapIds[0]]);
+        expect(endEvidence.aligned.laps.map(({ lapId }) => lapId)).toEqual([fixture.lapIds[0]]);
       }
     }
 

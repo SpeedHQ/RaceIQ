@@ -6,6 +6,7 @@ import { AMS2SharedMemoryReader, type AMS2ReadDiagnostics } from "./memory-reade
 import { AMS2_LAYOUT as L } from "./layout";
 import { encodeAMS2Frame, isAMS2SessionEndFrame } from "./frame";
 import { normalizeAMS2Frame } from "./normalizer";
+import { isAMS2StaleSessionTransition } from "./session-transition";
 import { AMS2DumpRecorder, type AMS2RecorderContract } from "./recorder";
 import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "@raceiq/backend-core/games/shared/win-timer-resolution";
 interface FrameReader {
@@ -185,7 +186,7 @@ export class AMS2TelemetrySource {
       const sessionState = memory.readUInt32LE(L.mSessionState);
       // AMS2 briefly changes session type before clearing the previous session's
       // finished timing. Keep those bytes in dumps, but do not open a live session.
-      if (this.sessionState !== null && sessionState !== this.sessionState && memory.readUInt32LE(L.mRaceState) === 3) {
+      if (isAMS2StaleSessionTransition(this.sessionState, sessionState, memory.readUInt32LE(L.mRaceState))) {
         this.diagnostics.staleTransition++;
         writeDump();
         return false;

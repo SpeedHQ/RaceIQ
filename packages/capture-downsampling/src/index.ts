@@ -1,5 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import { F1_PACKET_IDS, parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { F1_PACKET_IDS, isF1PacketFormat, parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import { canHandleLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
@@ -122,7 +122,7 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     if (record.kind === "frame" && input.gameId === "f1-2025") {
       if (record.frame.length < 29) throw new DownsampleRecordingError("unsupported-format", "Truncated F1 packet");
       const h = parseF1Header(record.frame);
-      if (h.packetFormat !== 2025) throw new DownsampleRecordingError("unsupported-format", "Invalid F1 packet header");
+      if (!isF1PacketFormat(h.packetFormat)) throw new DownsampleRecordingError("unsupported-format", "Invalid F1 packet header");
       if (currentF1UID !== h.sessionUID) {
         latestF1Telemetry.clear();
         currentF1UID = h.sessionUID;
@@ -193,7 +193,7 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     } else if (input.gameId === "f1-2025") {
       if (record.frame.length < 29) throw new DownsampleRecordingError("unsupported-format", "Truncated F1 packet");
       const h = parseF1Header(record.frame);
-      if (h.packetFormat !== 2025) throw new DownsampleRecordingError("unsupported-format", "Invalid F1 packet header");
+      if (!isF1PacketFormat(h.packetFormat)) throw new DownsampleRecordingError("unsupported-format", "Invalid F1 packet header");
       gameTime = h.sessionTime * 1000;
       eligible = F1_THROTTLED[h.packetId] === true;
       stream = eligible ? `f1:${h.sessionUID}:${h.packetId}` : `f1-ancillary:${h.sessionUID}`;

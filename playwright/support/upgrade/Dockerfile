@@ -1,5 +1,5 @@
 ARG PLAYWRIGHT_VERSION=1.62.1
-ARG BUN_VERSION=1.4.3
+ARG BUN_VERSION=1.4.4
 FROM oven/bun:${BUN_VERSION} AS bun
 FROM mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble
 ARG PLAYWRIGHT_VERSION
@@ -19,6 +19,7 @@ WORKDIR /smoke/harness
 COPY playwright/upgrade-smoke.config.ts ./playwright/upgrade-smoke.config.ts
 COPY playwright/support/upgrade/source-release.ts ./playwright/support/upgrade/source-release.ts
 COPY playwright/tests/upgrade/source-release.spec.ts ./playwright/tests/upgrade/source-release.spec.ts
+COPY apps/backend/scripts/data/split-seed-recordings.ts ./split-seed-recordings.ts
 
 ENV CI=true \
     RACEIQ_APP_ROOT=/smoke/harness \

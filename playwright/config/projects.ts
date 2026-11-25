@@ -4,7 +4,9 @@ import type { E2ERuntime } from "./runtime";
 
 export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestConfig["projects"]> {
   const freshBaseURL = `http://localhost:${runtime.devServer ? runtime.freshInstall.clientPort : runtime.freshInstall.port}`;
-  const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
+  const seededBaseURL = runtime.devServer
+    ? `http://localhost:${runtime.seeded.clientPort}`
+    : `http://127.0.0.1:${runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
   const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
   const sequentialImportSpecs = [
@@ -89,7 +91,8 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: {
         baseURL: seededBaseURL,
         viewport: { width: 1440, height: 900 },
-        launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : [])] },
+        channel: process.platform === "win32" ? "chromium" : undefined,
+        launchOptions: { args: ["--enable-unsafe-webgpu", ...(process.platform === "darwin" ? ["--use-angle=metal"] : process.platform === "win32" ? ["--use-angle=d3d11"] : [])] },
       },
     },
     {

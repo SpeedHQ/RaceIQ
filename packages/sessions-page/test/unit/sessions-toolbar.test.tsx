@@ -7,6 +7,7 @@ import type { SessionsPageHost } from "../../contracts";
 
 mock.module("@tanstack/react-router", () => ({
   useNavigate: () => () => undefined,
+  useLocation: () => ({ state: {} }),
   useSearch: () => ({}),
 }));
 

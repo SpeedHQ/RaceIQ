@@ -41,7 +41,7 @@ async function execute(work: SessionCaptureSplitWork): Promise<void> {
     }
     await withSessionCaptureMaintenanceLock(async () => {
       if (!await validateSessionCaptureSplitRevision(work)) throw Object.assign(new Error("Source revision changed before splitting"), { code: "SOURCE_REVISION" });
-      const source = { rawFile: work.sourcePath, source: null, gameId: work.gameId, carId: work.carId, trackId: work.trackId };
+      const source = { rawFile: work.sourcePath, source: null, gameId: work.gameId, carId: work.carId, trackId: work.trackId, captureFormatVersion: work.captureFormatVersion };
       let sequence = 1;
       let progressWrite: Promise<void> = Promise.resolve();
       let pendingProgress: Extract<WorkerMessage, { type: "progress" }> | null = null;

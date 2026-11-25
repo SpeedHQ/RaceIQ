@@ -58,15 +58,23 @@ function notifyReservationWaiters(): void {
   for (const resolve of reservationWaiters) resolve();
 }
 
-function waitForStorageActivityChange(): Promise<void> {
-  return new Promise((resolveWait) => {
-    const resolve = () => {
-      reservationWaiters.delete(resolve);
-      resolveWait();
-    };
-    reservationWaiters.add(resolve);
-    if (!imports && !reservedOperation && !relocating) resolve();
-  });
+function waitForStorageActivityChange(signal?: AbortSignal): Promise<void> {
+  const { promise, resolve: resolveWait, reject: rejectWait } = Promise.withResolvers<void>();
+  const resolve = () => {
+    reservationWaiters.delete(resolve);
+    signal?.removeEventListener("abort", abort);
+    resolveWait();
+  };
+  const abort = () => {
+    reservationWaiters.delete(resolve);
+    signal?.removeEventListener("abort", abort);
+    rejectWait(signal!.reason);
+  };
+  reservationWaiters.add(resolve);
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  else if (!imports && !reservedOperation && !relocating) resolve();
+  return promise;
 }
 
 export class RecordingStorageBusyError extends Error {
@@ -91,13 +99,14 @@ export function reserveRecordingStorageOperation(kind: StorageOperation): () => 
   };
 }
 
-export async function reserveRecordingStorageOperationWhenIdle(kind: StorageOperation): Promise<() => void> {
+export async function reserveRecordingStorageOperationWhenIdle(kind: StorageOperation, signal?: AbortSignal): Promise<() => void> {
   while (true) {
+    signal?.throwIfAborted();
     try {
       return reserveRecordingStorageOperation(kind);
     } catch (error) {
       if (!(error instanceof RecordingStorageBusyError)) throw error;
-      await waitForStorageActivityChange();
+      await waitForStorageActivityChange(signal);
     }
   }
 }

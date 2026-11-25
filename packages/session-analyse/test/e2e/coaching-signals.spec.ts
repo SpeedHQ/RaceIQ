@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { ThreeToImproveResponseSchema } from "../../contracts";
-import { COACHING_FRAME_COUNT, importCoachingRecording } from "./coaching-fixtures";
+import { COACHING_FRAME_COUNT, hasAlignedSample, importCoachingRecording } from "./coaching-fixtures";
 
 const EXPECTED_PRIORITY = [
   { family: "brake-drag", id: "brake-drag:8" },
@@ -80,18 +80,18 @@ test("real recording signal evidence ranks whole-session priorities and opens di
       gameId: string;
       representative: { lapId: number; lapNumber: number; sourceFrameIndex: number };
       fraction: number;
-      aligned: Parameters<typeof decodeAlignedLapSet>[0];
+      aligned: EncodedAlignedLapSet;
     };
     expect(detail.sessionId).toBe(fixture.sessionId);
     expect(detail.gameId).toBe("iracing");
     expect(detail.representative).toEqual(brakePriority.representative);
     expect(detail.fraction).toBe(brakePriority.location.fraction);
-    const aligned = decodeAlignedLapSet(detail.aligned);
-    expect(aligned.laps).toHaveLength(1);
-    expect(aligned.laps[0]!.lapId).toBe(brakePriority.representative.lapId);
-    expect(aligned.laps[0]!.speedMps.some((speed) => Math.abs(speed - 4_000 / 60) < 0.01)).toBe(true);
-    expect(aligned.laps[0]!.throttle.some((throttle) => throttle > 0.85)).toBe(true);
-    expect(aligned.laps[0]!.brake.some((brake) => brake > 0.09 && brake < 0.11)).toBe(true);
+    expect(detail.aligned.laps).toHaveLength(1);
+    const lap = detail.aligned.laps[0]!;
+    expect(lap.lapId).toBe(brakePriority.representative.lapId);
+    expect(hasAlignedSample(lap.speedMps, (speed) => Math.abs(speed - 4_000 / 60) < 0.01)).toBe(true);
+    expect(hasAlignedSample(lap.throttle, (throttle) => throttle > 0.85)).toBe(true);
+    expect(hasAlignedSample(lap.brake, (brake) => brake > 0.09 && brake < 0.11)).toBe(true);
 
     const lapResponse = await request.get("/api/laps?gameId=iracing");
     expect(lapResponse.ok()).toBe(true);

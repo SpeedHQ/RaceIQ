@@ -1,7 +1,13 @@
-import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/backend-core/ai/chat-run-registry";
+import { defaultModelFor } from "@raceiq/assistant/ai/provider-capabilities";
+import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/assistant/ai/chat-run-registry";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
+import { gateChatImages } from "@raceiq/shared/integrations/ai/chat-vision";
+import { openAiReasoningEffort } from "@raceiq/shared/integrations/ai/openai-reasoning";
+import { CHATGPT_SUBSCRIPTION_ERROR_STATUS, chatGptRecoveryMessage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import type { ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
@@ -21,20 +27,23 @@ import {
   getChatSystemPrompt,
   ensureSystemPrompt,
   deleteChatLineage,
-} from "@raceiq/backend-core/ai/chat-agent";
-import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
-import { startDetachedAgentTurn } from "@raceiq/backend-core/ai/agent-stream";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/backend-core/ai/chat-message-context";
+} from "@raceiq/assistant/ai/chat-agent";
+import { buildGoogleReasoningProviderOptions } from "@raceiq/assistant/ai/google-provider-options";
+import { startDetachedAgentTurn } from "@raceiq/assistant/ai/agent-stream";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/assistant/ai/chat-message-context";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
+import { configureAiProviderEnvironment } from "@raceiq/assistant/ai/openai-compatible-provider";
 import { setupEngineerTurnWorkflow } from "../mastra/workflows/setup-engineer-turn";
 import { resolveExperimentChatBranch } from "../experiments/chat-branch-context";
 import { Hono } from "hono";
 import { EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY } from "../mastra/tools/setup-engineer-request-context";
+import { resolveAi } from "@raceiq/assistant/ai/ai-runtime";
+import { createModelContext } from "@raceiq/assistant/ai/model-provider";
+import { ChatGptAccountError } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
 
 const chatRunHeads = new WeakMap<object, number | null>();
 
@@ -129,6 +138,18 @@ export const tuneChatRoutes = new Hono()
       const { id } = c.req.valid("param");
       const { messages, extendedContext, headVersionId } = c.req.valid("json");
 
+      // Hard gate before branch resolution, message persistence, run admission,
+      // or streaming. The stored chat model is read with no default: an
+      // image-bearing turn must never reach an implicitly chosen model.
+      const settings = loadSettings();
+      const imageGate = gateChatImages(settings.chatProvider, settings.chatModel, messages);
+      if (!imageGate.allowed) {
+        const error = imageGate.capability === "unsupported"
+          ? "This chat model does not support images. Remove the image or choose a verified image-capable chat model."
+          : "Image support for this chat model is unknown. Remove the image or choose a verified image-capable chat model.";
+        return c.json({ error }, 400);
+      }
+
       // Resolve UI's checked-out branch before thread creation, persistence,
       // provider selection, or agent startup.
       const resolved = await resolveExperimentChatBranch(id, headVersionId);
@@ -171,6 +192,21 @@ export const tuneChatRoutes = new Hono()
       }
       chatRunHeads.set(run, headVersionId);
       try {
+      const reqCtx = new RequestContext();
+      const subscriptionUsage: (ChatGptRequestUsage | null)[] | undefined = settings.chatProvider === "chatgpt-subscription" ? [] : undefined;
+      if (subscriptionUsage) {
+        try {
+          createModelContext(await resolveAi("chat", settings, undefined, (usage) => subscriptionUsage.push(usage)), reqCtx);
+        } catch (error) {
+          finishRun(run);
+          const code = error instanceof ChatGptAccountError ? error.code
+            : error instanceof AiProviderError ? (error.statusCode === 403 ? "forbidden" : "model_unavailable")
+            : "upstream_unavailable";
+          const message = error instanceof AiProviderError ? error.message
+            : chatGptRecoveryMessage(error) ?? "ChatGPT did not complete the request. Try again.";
+          return c.json({ code, error: message }, CHATGPT_SUBSCRIPTION_ERROR_STATUS[code]);
+        }
+      }
       // Persist the incoming user message NOW, not at turn end. Mastra's
       // memory only writes the turn's messages when the stream finishes, so a
       // reload mid-turn made the just-sent user message vanish from history
@@ -218,7 +254,6 @@ export const tuneChatRoutes = new Hono()
       // symptoms, track conditions, history) via the registered Mastra workflow
       // so the model always has current context and never has to call a read
       // tool or supply a session id. Studio-observable.
-      const reqCtx = new RequestContext();
       reqCtx.set("gameId", gameId);
       reqCtx.set("sessionId", id);
       reqCtx.set(EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY, branch);
@@ -242,7 +277,6 @@ export const tuneChatRoutes = new Hono()
       // NDJSON helper (assistant-ui speaks the AI SDK v5 UI-message-stream
       // protocol instead). Keep this block in sync with chat-stream.ts if
       // the provider matrix changes.
-      const settings = loadSettings();
       const chatProvider = settings.chatProvider;
       if (!chatProvider) {
         finishRun(run);
@@ -253,11 +287,7 @@ export const tuneChatRoutes = new Hono()
       // Same model-label fallback chain chat-stream.ts uses, so thinking support
       // is detected off the model that will actually run.
       const chatModelLabel = settings.chatModel
-        || (chatProvider === "openai"
-          ? "gpt-4o-mini"
-          : chatProvider === "openai-compatible"
-            ? "local-model"
-            : "gemini-flash-latest");
+        || (defaultModelFor(chatProvider));
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier
@@ -287,7 +317,7 @@ Only these IDs are current evidence. Empty/undriven branches have no attached ev
         requestContext: reqCtx,
         abortSignal: run.abortController.signal,
         providerOptions: {
-          openai: { reasoningEffort: "medium" },
+          openai: { reasoningEffort: openAiReasoningEffort(chatProvider, settings.chatReasoningLevel) },
           google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
       });
@@ -298,6 +328,7 @@ Only these IDs are current evidence. Empty/undriven branches have no attached ev
           memory: getChatMemory(),
           threadId,
           turnStartedAt,
+          subscriptionUsage,
           abortSignal: run.abortController.signal,
         });
 

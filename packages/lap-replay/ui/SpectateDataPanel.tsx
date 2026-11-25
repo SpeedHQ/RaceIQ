@@ -25,7 +25,7 @@ while (lo < hi) {
   if (lap.samples[mid]!.time <= (reading?.time ?? -Infinity)) lo = mid + 1;
   else hi = mid;
 }
-const envelope = reading && reading.time <= lap.duration && Object.keys(reading.values).length > 0 ? lap.samples[lo - 1]?.frame : undefined;
+const envelope = reading && reading.time <= lap.duration && Object.keys(reading.values).length > 0 ? reading.frame ?? lap.samples[lo - 1]?.frame : undefined;
 const metadata = side === "a" ? pair.comparison.lapA : pair.comparison.lapB ?? pair.comparison.lapA;
 const currentFrame = useMemo<SemanticAnalysisFrame | null>(() => envelope ? {
   values: semanticValues(envelope.values),
