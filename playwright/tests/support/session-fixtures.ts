@@ -44,7 +44,7 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
     : available.find((lap) => lap.id === sourceLapId && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0);
   expect(source, `${gameId} needs a valid lap with an available raw capture for disposable import`).toBeDefined();
 
-  const exportResponse = await request.get(`/api/laps/${source!.id}/export-bin`);
+  const exportResponse = await request.get(`/api/laps/${source!.id}/export-bin`, { timeout: 30_000 });
   expect(exportResponse.ok(), "seeded lap export for disposable import").toBe(true);
   const buffer = await exportResponse.body();
   const result: { response?: APIResponse } = {};

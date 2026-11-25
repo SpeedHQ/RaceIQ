@@ -154,7 +154,8 @@ const geometry = useMemo(() => {
   // Leave room for numbered markers outside the track stroke.
   const scale = Math.min(152 / (bounds.maxX - bounds.minX || 1), 60 / (bounds.maxZ - bounds.minZ || 1));
   const project = (point: { x: number; z: number }) => ({
-    x: (200 - (bounds.maxX - bounds.minX) * scale) / 2 + (point.x - bounds.minX) * scale,
+    x: (200 - (bounds.maxX - bounds.minX) * scale) / 2 +
+      (pair.gameId === "f1-2025" ? bounds.maxX - point.x : point.x - bounds.minX) * scale,
     y: (108 - (bounds.maxZ - bounds.minZ) * scale) / 2 + (point.z - bounds.minZ) * scale,
   });
   const projectString = (point: { x: number; z: number }) => {

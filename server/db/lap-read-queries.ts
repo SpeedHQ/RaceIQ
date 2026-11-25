@@ -316,6 +316,7 @@ type LapMetadataRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  invalidReason: string | null;
   classification: LapMeta["classification"];
   isFavorite: number | boolean;
   createdAt: string;
@@ -349,7 +350,7 @@ type LapMetadataRow = {
 async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined> {
   return readDb.select({
     id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
-    isValid: laps.isValid, classification: laps.classification, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
+    isValid: laps.isValid, invalidReason: laps.invalidReason, classification: laps.classification, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
     rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
     carId: sessions.carId, trackId: sessions.trackId,
     captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
@@ -415,7 +416,7 @@ export async function getLapMetaById(
   const [projected] = knownProcessing
     ? [{ ...row, processing: knownProcessing }]
     : await withLapProcessingMetadata([row]);
-  return { ...buildLapResult(projected!, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion };
+  return { ...buildLapResult(projected!, []), invalidReason: row.invalidReason ?? undefined, rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion };
 }
 
 export async function getLapById(
