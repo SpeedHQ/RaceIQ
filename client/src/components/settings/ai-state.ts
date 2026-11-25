@@ -57,6 +57,8 @@ export interface AiChatState {
   setChatThinkingBudget: (value: number | null) => void;
   chatReasoningLevel: OpenAiReasoningLevel;
   setChatReasoningLevel: (value: OpenAiReasoningLevel) => void;
+  chatSubscriptionReasoningLevel: OpenAiReasoningLevel | null;
+  setChatSubscriptionReasoningLevel: (value: OpenAiReasoningLevel | null) => void;
   chatApiKey: string;
   setChatApiKey: (value: string) => void;
   keyStatus: Record<string, boolean>;

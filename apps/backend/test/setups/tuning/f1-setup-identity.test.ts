@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { f1SetupFingerprint, summarizeF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
+import { f1SetupFingerprint, summarizeF1Setup } from "@raceiq/assistant/ai/f1-setup-identity";
 import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 
 function baseSetup(overrides: Partial<F1CarSetup> = {}): F1CarSetup {

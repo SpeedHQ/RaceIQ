@@ -3,9 +3,10 @@
 import { useAuiState } from "@assistant-ui/react";
 import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@raceiq/shared/integrations/ai/context-window"
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { estimateChatGptApiCost, type ChatGptRequestUsage } from "@raceiq/shared/integrations/ai/chatgpt-subscription";
+import { useQuery } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { authenticatedFetch, client } from "@/lib/rpc";
@@ -20,33 +21,38 @@ const RATE_PER_MTOK: Record<string, { in: number; out: number }> = {
 
 export function TokenUsageFooter({
   compactThreadId,
-  historyQueryKey,
-  compacting,
-  setCompacting,
   generations,
   viewingGen,
   activeGen,
   onViewGen,
-  onForked,
 }: {
   compactThreadId?: string;
-  historyQueryKey: unknown[];
-  compacting: boolean;
-  setCompacting: (v: boolean) => void;
   generations: ChatGeneration[];
   viewingGen: number;
   activeGen: number;
   onViewGen: (gen: number) => void;
-  onForked: (newGen: number) => void;
 }) {
   const usage = useThreadTokenUsage();
   const { displaySettings } = useSettings();
-  const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const [compactMsg, setCompactMsg] = useState<string | null>(null);
-  const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
-  const provider = settings.chatProvider ?? settings.aiProvider ?? "";
-  const model = settings.chatModel ?? settings.aiModel ?? "";
+  const subscriptionUsage = useAuiState((s) => {
+    const lastAssistant = s.thread.messages.findLast((message) => message.role === "assistant");
+    return lastAssistant?.metadata.custom.subscriptionUsage as ChatGptRequestUsage[] | undefined;
+  });
+  const { data: pricing } = useQuery({
+    queryKey: ["ai-chat-pricing"],
+    queryFn: async () => {
+      const res = await client.api["ai-chat-pricing"].$get();
+      if (!res.ok) throw new Error(`AI chat pricing failed (${res.status})`);
+      return res.json();
+    },
+    enabled: Boolean(subscriptionUsage?.length),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const subscriptionCost = subscriptionUsage && pricing ? estimateChatGptApiCost(subscriptionUsage, pricing) : null;
+  const provider = displaySettings.chatProvider ?? "";
+  const model = displaySettings.chatModel ?? "";
   const { data: openAiCompatibleModels } = useQuery({
     queryKey: ["ai-models", "openai-compatible-context"],
     queryFn: async () => {
@@ -80,34 +86,11 @@ export function TokenUsageFooter({
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
   const activeThreadId = generations.find((g) => g.active)?.threadId ?? compactThreadId;
 
-  async function onNewChat() {
-    if (!compactThreadId || compacting || isRunning) return;
-    setCompacting(true);
-    setCompactMsg(null);
-    try {
-      const res = await client.api.chats[":threadId"].compact.$post({ param: { threadId: compactThreadId } });
-      if (!res.ok) {
-        const body: unknown = await res.json().catch(() => ({}));
-        const error = body && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
-        setCompactMsg(error ?? m.ai_chat_compact_failed());
-      } else {
-        const body = (await res.json()) as { generation: number };
-        await queryClient.invalidateQueries({ queryKey: ["chat-generations", compactThreadId] });
-        await queryClient.invalidateQueries({ queryKey: historyQueryKey.slice(0, -1) });
-        onForked(body.generation);
-      }
-    } catch {
-      setCompactMsg(m.ai_chat_compact_failed());
-    } finally {
-      setCompacting(false);
-      setTimeout(() => setCompactMsg(null), 4000);
-    }
-  }
-
   const maxGen = generations.length ? generations[generations.length - 1].generation : activeGen;
   const hasUsage = (usage?.totalTokens ?? 0) > 0;
   return (
     <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-app-micro text-app-text-muted tabular-nums">
+      {model && <span className="min-w-0 break-all">{m.ai_model_label()}: {model}</span>}
       <span className="flex items-center gap-1" title={level === "ok" ? undefined : m.ai_chat_context_filling()}>
         <span>
           {formatTokens(used)} / {limit != null ? formatTokens(limit) : "?"}
@@ -123,7 +106,14 @@ export function TokenUsageFooter({
       {hasUsage && usage!.outputTokens != null && <span>{m.ai_chat_output_short()} {usage!.outputTokens}</span>}
       {hasUsage && (usage!.reasoningTokens ?? 0) > 0 && <span>{m.ai_chat_reasoning_short()} {usage!.reasoningTokens}</span>}
       {hasUsage && (usage!.cachedInputTokens ?? 0) > 0 && <span>{m.ai_chat_cached_short()} {usage!.cachedInputTokens}</span>}
-      {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
+      {!isRunning && subscriptionCost != null && subscriptionCost > 0 && pricing?.fetchedAt != null && (
+        <span title={m.ai_chat_api_rates_fetched({ date: new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium" }).format(pricing.fetchedAt) })}>
+          {m.ai_chat_estimated_api_cost({ amount: new Intl.NumberFormat(getLocale(), {
+            style: "currency", currency: "USD", maximumFractionDigits: 8,
+          }).format(subscriptionCost) })}
+        </span>
+      )}
+      {!subscriptionUsage && hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
       {maxGen > 1 && (
         <span className="flex items-center gap-0.5">
           <Button
@@ -161,18 +151,6 @@ export function TokenUsageFooter({
           {m.common_cancel()}
         </Button>
       )}
-      {compactThreadId && (
-        <Button
-          type="button"
-          onClick={onNewChat}
-          disabled={compacting || isRunning}
-          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-40"
-          title={m.ai_chat_compact_title()}
-        >
-          {compacting ? m.ai_chat_compacting() : m.ai_chat_compact_new_chat()}
-        </Button>
-      )}
-      {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
     </div>
   );
 }

@@ -17,7 +17,8 @@ process.env.PW_SEED_SCREENSHOTS = "1";
 process.env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");
 delete process.env.PW_SEEDED_DATABASE;
 seedScreenshotData(repoDir, dataDir);
-const { chatThreadId, compareChatThreadId, getChatMemory } = await import("@raceiq/backend-core/ai/chat-agent");
+// Load after the seed environment is configured; chat memory initializes from DATA_DIR.
+const { chatThreadId, compareChatThreadId, getChatMemory } = await import("@raceiq/assistant/ai/chat-agent");
 
 const database = new Database(resolve(dataDir, "app.db"));
 try {

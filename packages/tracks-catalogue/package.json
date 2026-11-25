@@ -23,6 +23,7 @@
     "@hono/zod-validator": "0.9.1",
     "zod": "^4.6.5",
     "@raceiq/shared": "workspace:*",
+    "@raceiq/assistant": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*",

@@ -1,0 +1,126 @@
+/**
+ * Build the system prompt for the chat agent.
+ * Includes the same telemetry context as the analysis prompt,
+ * plus the original analysis as reference.
+ */
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { Tune } from "@raceiq/shared/racing/tuning/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "@raceiq/backend-core/lap-analysis/report"
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { buildCornerData } from "./corner-data";
+import { formatTuneForPrompt } from "./format-tune";
+import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
+import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+interface CornerDef {
+  index: number;
+  label: string;
+  distanceStart: number;
+  distanceEnd: number;
+}
+
+function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, language: string) {
+  const baseUnits = unit === "metric" ? "km/h, meters, bar" : "mph, feet, psi";
+  const units = `${baseUnits}, °${temperatureUnit}`;
+  return `You are a racing engineer. Answer the driver's questions about their lap using the telemetry data below.
+
+Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}`;
+}
+
+export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lapTime: number }): string {
+  return `Current lap: Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s\nInternal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${lap.id ?? "unavailable"}`;
+}
+
+export function buildChatSystemPrompt(
+  lap: {
+    id?: number;
+    lapNumber: number;
+    lapTime: number;
+    isValid: boolean;
+    carId: string;
+    trackId: string;
+    gameId?: GameId;
+  },
+  packets: TelemetryPacket[],
+  corners: CornerDef[],
+  unit: UnitSystem = "metric",
+  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
+  tune?: Tune,
+  analysisJson?: string,
+  language: string = "en",
+): string {
+  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+  const serverAdapter = tryGetServerGame(gameId);
+  const carIdentity = lap.carId;
+  const trackIdentity = lap.trackId;
+  const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
+  const carName = resolveCarName(carIdentity, gameId);
+  const trackName = resolveTrackName(trackIdentity, gameId);
+
+  const exportText = generateExport(lap, packets, unit, temperatureUnit);
+  const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
+
+  let tuneText = "";
+  if (tune) {
+    tuneText =
+      "\n" +
+      formatTuneForPrompt({
+        name: tune.name,
+        author: tune.author,
+        category: tune.category,
+        settings: tune.settings,
+      }) +
+      "\n";
+  }
+
+  let analysisContext = "";
+  if (analysisJson) {
+    try {
+      const parsed = JSON.parse(analysisJson);
+      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict ?? "Not provided"}\n`;
+      if (parsed.corners?.length) {
+        analysisContext += `Problem corners: ${parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ")}\n`;
+      }
+      if (parsed.technique?.length) {
+        analysisContext += `Technique tips: ${parsed.technique.map((t: any) => t.tip).join("; ")}\n`;
+      }
+      if (parsed.setup?.length) {
+        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.component ?? "Setup"}: current ${s.current ?? "unspecified"}, target ${s.target ?? "unspecified"}${s.reason ? ` (${s.reason})` : ""}`).join("; ")}\n`;
+      }
+    } catch {
+      analysisContext = `\n--- PREVIOUS ANALYSIS ---\n${analysisJson}\n`;
+    }
+  }
+
+
+  // Game-specific extended context
+  let extendedContext = "";
+  if (serverAdapter?.buildAiContext && packets.length > 0) {
+    extendedContext = serverAdapter.buildAiContext(packets);
+  }
+
+  // Game-specific system prompt override (use chat version, not analysis JSON version)
+  const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
+
+  return `${chatSystemPrompt(unit, temperatureUnit, language)}
+${gameSystemNote}
+--- SESSION IDENTITY ---
+Game: ${gameName}
+Game ID: ${gameId ?? "unknown"}
+Car: ${carName}
+Car ID: ${carIdentity}
+Track: ${trackName}
+Track ID: ${trackIdentity}
+${formatLapChatIdentity(lap)}
+--- LAP CONTEXT ---
+Car: ${carName}
+Track: ${trackName}
+Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s${lap.isValid ? "" : " (INVALID)"}
+${tuneText}${analysisContext}
+--- TELEMETRY DATA ---
+${exportText}
+${cornerData}
+${extendedContext}`;
+}

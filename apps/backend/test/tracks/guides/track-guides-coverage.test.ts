@@ -2,7 +2,7 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildTrackGuideContext } from "@raceiq/backend-core/ai/track-guides";
+import { buildTrackGuideContext } from "@raceiq/assistant/ai/track-guides";
 
 /** Minimal CSV row parser (no embedded commas/quotes in these files) */
 function parseCsv(path: string): Record<string, string>[] {
