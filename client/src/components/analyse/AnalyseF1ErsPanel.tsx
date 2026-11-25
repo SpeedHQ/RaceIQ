@@ -21,8 +21,9 @@ const availabilityLabel = (value: boolean | undefined) => value === undefined ? 
 const enabledLabel = (value: boolean | undefined) => value === undefined ? "—" : value ? m.common_enabled() : m.common_disabled();
 const distanceLabel = (value: number | undefined) => value === undefined || value <= 0 ? "—" : `${value} m`;
 function ersModeLabel(mode: number | null, wireFormat: number | undefined): string {
-  const name = getF1ErsDeployModeName(mode ?? undefined, wireFormat);
-  if (name === undefined && mode === 4 && (wireFormat === undefined || wireFormat === 2025)) return m.f1live_ers_overtake();
+  const format = wireFormat ?? 2025;
+  const name = getF1ErsDeployModeName(mode ?? undefined, format);
+  if (name === undefined && mode === 4 && format === 2025) return m.f1live_ers_overtake();
   switch (name) {
     case "none": return m.f1ers_mode_none();
     case "medium": return m.f1ers_mode_medium();

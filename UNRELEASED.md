@@ -21,3 +21,4 @@
 - Keep ongoing release notes in `UNRELEASED.md` and move them into `CHANGELOG.md` only when publishing a release.
 - Select affected verification jobs before allocating CI runners. Keep full coverage when CI cannot verify which jobs are affected.
 - Keep F1 2025 track-guide coverage checks scoped to F1 25 entries as F1 2026 identities join the catalog.
+- Verify seeded Playwright flows against the trusted local origin and stabilize replay and capture export checks.
