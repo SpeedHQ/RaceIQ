@@ -190,6 +190,7 @@ describe("affected verification selector", () => {
       const fixtureFiles = [
         ".gitignore",
         "UNRELEASED.md",
+        "client/index.html",
         "client/src/main.tsx",
         "client/src/components/home/HomePageView.tsx",
         "client/src/components/tunes/ExperimentWorkspace.tsx",
@@ -208,6 +209,7 @@ describe("affected verification selector", () => {
         "server/db/lap-read-queries.ts",
         "server/db/schema.ts",
         "server/db/track-queries.ts",
+        "server/session-capture/frame-time.ts",
         "server/telemetry/replay.ts",
         "packages/game-ac-evo/src/game-parser.ts",
         "packages/capture-formats/src/session/framing.ts",
@@ -304,6 +306,7 @@ describe("affected verification selector", () => {
         expect(unaffected.benchmark, path).toBe(false);
       }
       for (const path of [
+        "server/session-capture/frame-time.ts",
         "server/telemetry/replay.ts",
         "packages/game-ac-evo/src/game-parser.ts",
         "packages/capture-formats/src/session/framing.ts",
@@ -395,11 +398,14 @@ describe("affected verification selector", () => {
       assertAffected(trackCounts);
       expect(projects(trackCounts).has("tracks-catalogue")).toBe(true);
       expect(projects(trackCounts).has("cars-catalogue")).toBe(false);
-      const schema = select("server/db/schema.ts");
-      assertAffected(schema);
-      expect(projects(schema).has("cars-catalogue")).toBe(true);
-      expect(projects(schema).has("tracks-catalogue")).toBe(true);
-      expect(projects(schema).has("seeded-imports")).toBe(true);
+      for (const path of ["server/db/schema.ts", "client/index.html"]) {
+        const selection = select(path);
+        assertAffected(selection);
+        const selectedProjects = projects(selection);
+        for (const project of ["cars-catalogue", "tracks-catalogue", "seeded-imports"]) {
+          expect(selectedProjects.has(project), `${path}: ${project}`).toBe(true);
+        }
+      }
       for (const path of [
         "client/src/components/home/HomePageView.tsx",
         "client/src/components/tunes/ExperimentWorkspace.tsx",

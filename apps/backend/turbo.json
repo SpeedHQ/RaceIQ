@@ -88,6 +88,7 @@
         "$TURBO_ROOT$/server/db/{index,lap-read-queries,migrations,schema,telemetry-replay-storage}.ts",
         "$TURBO_ROOT$/server/games/registry.ts",
         "$TURBO_ROOT$/server/runtime/config/**",
+        "$TURBO_ROOT$/server/session-capture/frame-time.ts",
         "$TURBO_ROOT$/server/telemetry/replay.ts",
         "$TURBO_ROOT$/packages/capture-formats/src/session/{framing,limits,*-sparse}.ts",
         "$TURBO_ROOT$/packages/capture-formats/src/ac-evo/structs.ts",

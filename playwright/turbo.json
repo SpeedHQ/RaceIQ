@@ -31,6 +31,7 @@
         "$TURBO_ROOT$/client/src/styles/**",
         "$TURBO_ROOT$/client/src/index.css",
         "$TURBO_ROOT$/client/src/main.tsx",
+        "$TURBO_ROOT$/client/index.html",
         "$TURBO_ROOT$/client/messages/**",
         "$TURBO_ROOT$/client/public/**",
         "$TURBO_ROOT$/client/package.json",
