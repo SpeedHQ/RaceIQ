@@ -39,6 +39,8 @@
   },
   "scripts": {
     "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
-    "typecheck": "bun check --project tsconfig.json"
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/capture-formats",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/capture-formats"
   }
 }

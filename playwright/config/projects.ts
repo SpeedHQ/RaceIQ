@@ -4,7 +4,7 @@ import type { E2ERuntime } from "./runtime";
 
 export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestConfig["projects"]> {
   const freshBaseURL = `http://localhost:${runtime.devServer ? runtime.freshInstall.clientPort : runtime.freshInstall.port}`;
-  const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
+  const seededBaseURL = runtime.devServer ? `http://localhost:${runtime.seeded.clientPort}` : `http://127.0.0.1:${runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
   const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
   const sequentialImportSpecs = [

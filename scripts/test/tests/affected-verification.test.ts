@@ -193,6 +193,7 @@ describe("affected verification selector", () => {
         "client/src/routes/$gameid/cars.tsx",
         "client/src/routes/$gameid/tracks.index.tsx",
         "packages/cars-catalogue/ui/cars/CarsPage.tsx",
+        "packages/cars-catalogue/test/e2e/lmu-cars.spec.ts",
         "packages/cars-catalogue/server/car-routes.ts",
         "packages/tracks-catalogue/server/catalog-routes.ts",
         "server/db/discovered-cars.ts",
@@ -201,6 +202,8 @@ describe("affected verification selector", () => {
         "server/db/track-queries.ts",
         "server/session-capture/direct-recorder.ts",
         "apps/backend/test/session-capture/direct-recorder.test.ts",
+        "packages/game-lmu/test/e2e/browser/settings/lmu-recording-policy.spec.ts",
+        "playwright/tests/seeded/settings/storage.spec.ts",
         "bun.lock",
         "scripts/ci/affected-verification.ts",
         "playwright/config/projects.ts",
@@ -275,6 +278,10 @@ describe("affected verification selector", () => {
       assertAffected(cars);
       expect(projects(cars).has("cars-catalogue")).toBe(true);
       expect(projects(cars).has("tracks-catalogue")).toBe(false);
+      expect(projects(cars).has("seeded-imports")).toBe(false);
+      const lmuCars = select("packages/cars-catalogue/test/e2e/lmu-cars.spec.ts");
+      assertAffected(lmuCars);
+      expect(projects(lmuCars)).toEqual(new Set(["cars-catalogue"]));
       for (const [path, owner, peer] of [
         ["client/src/routes/$gameid/cars.tsx", "cars-catalogue", "tracks-catalogue"],
         ["client/src/routes/$gameid/tracks.index.tsx", "tracks-catalogue", "cars-catalogue"],
@@ -306,6 +313,23 @@ describe("affected verification selector", () => {
       assertAffected(recorder);
       expect(projects(recorder).has("cars-catalogue")).toBe(false);
       expect(projects(recorder).has("tracks-catalogue")).toBe(true);
+      expect(projects(recorder).has("seeded-imports")).toBe(true);
+      for (const path of [
+        "packages/game-lmu/test/e2e/browser/settings/lmu-recording-policy.spec.ts",
+        "playwright/tests/seeded/settings/storage.spec.ts",
+      ]) {
+        const recording = select(path);
+        assertAffected(recording);
+        expect(projects(recording).has("seeded-imports"), path).toBe(true);
+        expect(projects(recording).has("cars-catalogue"), path).toBe(false);
+      }
+      const lmuFixture = resolve(fixture, "packages/game-lmu/test/fixtures/sessions/impact-fixture.bin.gz");
+      const addedFixture = selectChanges(
+        () => { mkdirSync(dirname(lmuFixture), { recursive: true }); writeFileSync(lmuFixture, "fixture"); },
+        () => rmSync(lmuFixture),
+      );
+      assertAffected(addedFixture);
+      expect(projects(addedFixture).has("seeded-imports")).toBe(true);
       const carDiscovery = select("server/db/discovered-cars.ts");
       assertAffected(carDiscovery);
       expect(projects(carDiscovery).has("cars-catalogue")).toBe(true);
@@ -321,6 +345,7 @@ describe("affected verification selector", () => {
       assertAffected(schema);
       expect(projects(schema).has("cars-catalogue")).toBe(true);
       expect(projects(schema).has("tracks-catalogue")).toBe(true);
+      expect(projects(schema).has("seeded-imports")).toBe(true);
       for (const path of [
         "client/src/components/home/HomePageView.tsx",
         "client/src/components/tunes/ExperimentWorkspace.tsx",

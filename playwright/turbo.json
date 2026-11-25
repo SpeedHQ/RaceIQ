@@ -72,8 +72,26 @@
       "inputs": ["tests/seeded/routes/**"]
     },
     "browser:seeded-imports:impact": {
-      "dependsOn": ["browser:seed:impact"],
-      "inputs": ["tests/seeded/analyse/core-flow.spec.ts", "tests/seeded/dev-tools/server-import.spec.ts", "tests/seeded/settings/storage.spec.ts", "$TURBO_ROOT$/packages/game-lmu/test/e2e/**", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/**"]
+      "dependsOn": [
+        "e2e:catalogue-runtime:impact",
+        "@raceiq/game-lmu#transit",
+        "@raceiq/lap-replay#transit",
+        "@raceiq/session-analyse#transit",
+        "@raceiq/tooling-data#transit"
+      ],
+      "inputs": [
+        "tests/seeded/analyse/{core-flow.spec,controls,fixtures}.ts",
+        "tests/seeded/dev-tools/{server-import.spec,helpers}.ts",
+        "tests/seeded/settings/storage.spec.ts",
+        "$TURBO_ROOT$/packages/game-lmu/test/e2e/browser/**",
+        "$TURBO_ROOT$/packages/game-lmu/test/support/**",
+        "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/**",
+        "$TURBO_ROOT$/packages/sessions-page/{contracts,server,ui}/**",
+        "$TURBO_ROOT$/client/src/components/home/**",
+        "$TURBO_ROOT$/client/src/routes/{dev,index}.tsx",
+        "$TURBO_ROOT$/client/src/routes/$gameid/{compare,sessions,sessions.*,tracks,tracks.*}.tsx",
+        "$TURBO_ROOT$/client/src/routes/$gameid/sessions/**"
+      ]
     },
     "browser:webgpu:impact": {
       "dependsOn": ["browser:seed:impact", "@raceiq/lap-replay#transit"],
