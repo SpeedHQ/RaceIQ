@@ -46,6 +46,39 @@ test("retains each F1 telemetry family state at an interior lap endpoint", async
   }
 });
 
+test("downsamples F1 2026 recordings with the shared packet-format check", async () => {
+  const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-2026-"));
+  try {
+    const frames = Array.from({ length: 30 }, (_, tick) => {
+      const frame = Buffer.alloc(29);
+      frame.writeUInt16LE(2026, 0);
+      frame[6] = 0;
+      frame.writeBigUInt64LE(1n, 7);
+      frame.writeFloatLE(tick / 50, 15);
+      frame.writeUInt32LE(tick, 19);
+      return frame;
+    });
+    const source = { gameId: "f1-2025" as const, records: records(frames), createTelemetryParser: parser, lapIndexes: [] };
+    const inspection = await inspectDownsampleRecording(source);
+    expect(inspection.streams).toHaveLength(1);
+    expect(inspection.streams[0]).toMatchObject({ stream: "f1:1:0", clock: "f1-session-time" });
+
+    const outputPath = join(root, "f1-2026-downsampled.bin");
+    const result = await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+    expect(result.frameCount).toBeGreaterThan(0);
+    const outputRecords = [...iterateSessionCaptureRecords(readFileSync(outputPath))];
+    const outputSource = { ...source, records: async function* () { yield* outputRecords; } };
+    await validateDownsampleRecording(outputSource, result);
+    const outputFormats = outputRecords
+      .filter((record) => record.kind === "frame")
+      .map((record) => record.frame.readUInt16LE(0));
+    expect(outputFormats.length).toBeGreaterThan(0);
+    expect(outputFormats.every((format) => format === 2026)).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("retains latest F1 family update immediately before indexed lap start", async () => {
   const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-prelap-"));
   try {
