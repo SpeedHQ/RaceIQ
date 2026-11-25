@@ -5,7 +5,7 @@ This is the first auxiliary chunk from a real AC EVO recording that startup main
 Run from the repository root:
 
 ```sh
-bun test packages/game-lmu/test/e2e/backend/session-capture/direct-capture-repair.test.ts -t "recorded inline parser bootstrap"
+bun test --config bunfig.integration.toml apps/backend/test/session-capture/direct-capture-repair.test.ts -t "recorded inline parser bootstrap"
 ```
 
 The same test and fixture at baseline `900faf29b` reproduce the missing-bootstrap error. With the fix, maintenance publishes the manifest, preserves the chunk bytes, and succeeds on a repeat run. The AMS2 ownership fixture separately tests restoration of a saved lap link.

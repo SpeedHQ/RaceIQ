@@ -24,7 +24,8 @@ import { getRecordingMaintenanceController } from "@raceiq/backend-core/session-
 import { readLmuOpponentRetention } from "@raceiq/backend-core/session-capture/lmu-companion";
 import { installDatabaseWriteTestHooks, withDatabaseWrite } from "@raceiq/backend-core/db/write-coordination";
 import { fixtureFrames } from "@raceiq/backend/test-support/fixture-frames";
-import { fixturePath } from "../../../support/fixtures";
+
+const sharedFixturePath = (name: string) => join(import.meta.dir, "../../../../test/artifacts/sessions", name);
 
 interface RepairRecording {
   session: typeof sessions.$inferSelect;
@@ -60,7 +61,7 @@ async function recording(recordLmuOpponents = false): Promise<RepairRecording> {
   const session = await db.insert(sessions).values({ gameId: "lmu", carId: "repair-car", trackId: "repair-track", rawFile: path, captureFormatVersion: 1 }).returning().get();
   sessionIds.push(session.id);
   const lap = await db.insert(laps).values({ sessionId: session.id, lapNumber: 1, lapTime: 90, isValid: true, isFavorite: true, notes: "preserve my lap", rawByteOffset: META_FRAME_BYTES, rawFrameCount: 2 }).returning().get();
-  const native = fixtureFrames(readFileSync(fixturePath("sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")), "lmu").slice(0, 2).map((frame) => frame.bytes);
+  const native = fixtureFrames(readFileSync(join(import.meta.dir, "../../../../packages/game-lmu/test/fixtures/sessions/lmu-real-opponents-grid-2026-10-22.bin.gz")), "lmu").slice(0, 2).map((frame) => frame.bytes);
   const capture = new DirectCaptureRecording("lmu", directory, path, { recordLmuOpponents });
   try {
     await capture.ready;
@@ -111,7 +112,7 @@ describe("direct capture repair through recording maintenance", () => {
       sessionId: session.id, lapNumber: 1, lapTime: 52.990020751953125, isValid: true,
       rawByteOffset: 223699588, rawFrameCount: 4157,
     }).returning().get();
-    const bytes = gunzipSync(await readFile(fixturePath("sessions/ams2-legacy-owned-offset.bin.gz")));
+    const bytes = gunzipSync(await readFile(sharedFixturePath("ams2-legacy-owned-offset.bin.gz")));
     const chunkId = crypto.randomUUID();
     const chunkPath = join(directory, "lap.bin");
     // Native coordinates come from the original manifest. The stored offset reflects redaction.
@@ -149,7 +150,7 @@ describe("direct capture repair through recording maintenance", () => {
       gameId: "ac-evo", carId: "fixture-car", trackId: "fixture-track", rawFile: path, captureFormatVersion: 1,
     }).returning().get();
     sessionIds.push(session.id);
-    const bytes = gunzipSync(await readFile(fixturePath("sessions/evo-inline-bootstrap.bin.gz")));
+    const bytes = gunzipSync(await readFile(sharedFixturePath("evo-inline-bootstrap.bin.gz")));
     const chunkPath = join(directory, "auxiliary.bin");
     const manifest: Manifest = {
       version: 3, gameId: "ac-evo", sourceRevision: crypto.randomUUID(),

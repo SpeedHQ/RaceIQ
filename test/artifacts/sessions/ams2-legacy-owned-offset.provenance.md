@@ -7,7 +7,7 @@ The fixture contains one recording chunk. Participant names and bytes beyond the
 Run from the repository root with Bun:
 
 ```sh
-bun test packages/game-lmu/test/e2e/backend/session-capture/direct-capture-repair.test.ts -t "recorded driving prefix"
+bun test --config bunfig.integration.toml apps/backend/test/session-capture/direct-capture-repair.test.ts -t "recorded driving prefix"
 ```
 
 To check the baseline, run the same test and fixture in a disposable checkout at `900faf29b`. Copy the test file and fixture into the same repository-relative paths. The old maintenance code rejects the lap with an ownership mismatch. With the repair, the test verifies the restored link and native frame range, preservation of the saved lap row and chunk bytes, and a successful repeat pass.
