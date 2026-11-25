@@ -22,6 +22,15 @@ on:
         required: false
         type: string
         default: ""
+      head-ref:
+        description: "Optional immutable PR head revision"
+        required: false
+        type: string
+        default: ""
+      base-ref:
+        type: string
+        required: false
+        default: ""
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -50,6 +59,8 @@ jobs:
     steps:
       - name: Resolve pull request revisions
         id: pull-request
+        env:
+          PLANNED_BASE: ${{ inputs.base-ref }}
         uses: actions/github-script@v9
         with:
           script: |
@@ -60,12 +71,13 @@ jobs:
               pull_number: prNumber,
             });
             core.setOutput("base-ref", pull.base.ref);
-            core.setOutput("base-sha", pull.base.sha);
+            core.setOutput("base-sha", process.env.PLANNED_BASE || pull.base.sha);
 
       - uses: actions/checkout@v7
         with:
-          ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
+          ref: ${{ inputs.head-ref || format('refs/pull/{0}/head', github.event.pull_request.number || inputs.pr) }}
           fetch-depth: 0
+          filter: blob:none
 
       - uses: actions/setup-node@v7
         with:
@@ -187,13 +199,17 @@ jobs:
         id: base-storybook-render
         working-directory: client
         env:
-          RACEIQ_STORYBOOK_ROOT: ${{ runner.temp }}/raceiq-base/client
-          RACEIQ_SNAPSHOT_TEST_DIR: ${{ runner.temp }}/raceiq-base/client/src/stories
           RACEIQ_STORYBOOK_PREBUILT: "1"
+          RACEIQ_STORYBOOK_ROOT: ${{ runner.temp }}/raceiq-base/client
+          RACEIQ_UI_DIFF_CAPTURE: "1"
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
-        run: bunx playwright test --update-snapshots --reporter=line --grep-invert "covered stories render without API requests"
-        # Missing base screenshots remain reviewable as additions.
+        run: |
+          export RACEIQ_SNAPSHOT_TEST_DIR="$(mktemp -d "$PWD/src/.base-capture.XXXXXX")"
+          trap 'rm -rf "$RACEIQ_SNAPSHOT_TEST_DIR"' EXIT
+          cp src/stories/{dashboards.snapshot,theme.snapshot,reusable-ui.snapshot,snapshot-test,storybook-ready}.ts "$RACEIQ_SNAPSHOT_TEST_DIR/"
+          cp "$RACEIQ_STORYBOOK_ROOT/src/stories/snapshot-cases.ts" "$RACEIQ_SNAPSHOT_TEST_DIR/"
+          bunx playwright test --update-snapshots --reporter=line
         continue-on-error: true
       - name: Render PR snapshots
         if: steps.pr-storybook-build.outcome == 'success'
@@ -207,22 +223,31 @@ jobs:
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
       - name: Prepare PR snapshot preview
+        if: ${{ !cancelled() }}
         env:
           PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
           PR_SNAPSHOT_BASE_RENDER_DIR: ${{ runner.temp }}/base-snapshots
           PR_SNAPSHOT_RENDER_STATUS: ${{ steps.storybook-render.outcome }}
           PR_SNAPSHOT_CURRENT_RENDER_DIR: ${{ runner.temp }}/pr-snapshots
-          PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
+          PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-sha }}
           PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: bun packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts
 
       - name: Upload Storybook preview artifact
         uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
         with:
           name: pr-visual-storybook-preview
           path: pr-preview/
+          if-no-files-found: error
           retention-days: 14
 
-      - name: Warn about incomplete Storybook renders
-        if: steps.base-storybook-build.outcome == 'failure' || steps.pr-storybook-build.outcome == 'failure' || steps.base-storybook-render.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
-        run: bun packages/tooling-ui/src/ui/report-snapshot-failure.ts pr-preview
+      - name: Fail incomplete Storybook renders
+        if: ${{ !cancelled() && (steps.base-storybook-build.outcome != 'success' || steps.pr-storybook-build.outcome != 'success' || steps.base-storybook-render.outcome != 'success' || steps.storybook-render.outcome != 'success') }}
+        run: |
+          bun packages/tooling-ui/src/ui/report-snapshot-failure.ts pr-preview \
+            "Build base Storybook: ${{ steps.base-storybook-build.outcome }}" \
+            "Build PR Storybook: ${{ steps.pr-storybook-build.outcome }}" \
+            "Render base snapshots: ${{ steps.base-storybook-render.outcome }}" \
+            "Render PR snapshots: ${{ steps.storybook-render.outcome }}"
+          exit 1

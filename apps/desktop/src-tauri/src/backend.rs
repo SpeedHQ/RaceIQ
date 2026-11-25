@@ -1,11 +1,9 @@
 use serde::Deserialize;
 use std::io::{BufRead, BufReader};
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    mpsc, Mutex,
-};
+use std::sync::{atomic::AtomicBool, mpsc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Url};
 use tauri_plugin_dialog::DialogExt;
@@ -47,10 +45,19 @@ pub fn save_keep_running(app: &AppHandle, enabled: bool) -> Result<(), String> {
     .map_err(|error| error.to_string())
 }
 
-fn ensure_server_port_available(port: u16) -> Result<(), String> {
-    std::net::TcpListener::bind(("0.0.0.0", port))
-        .map(|listener| drop(listener))
-        .map_err(|_| format!("Port {port} is already in use. Close the existing RaceIQ server before launching the desktop app."))
+fn reserve_server_port(preferred: Option<u16>) -> Result<(TcpListener, u16), String> {
+    let listener = match preferred {
+        Some(port) => TcpListener::bind(("127.0.0.1", port)).map_err(|_| {
+            format!("Port {port} is already in use. Close the existing RaceIQ server before launching the desktop app.")
+        })?,
+        None => TcpListener::bind(("127.0.0.1", 0))
+            .map_err(|error| format!("Unable to reserve a local backend port: {error}"))?,
+    };
+    let port = listener
+        .local_addr()
+        .map_err(|error| format!("Unable to read reserved backend port: {error}"))?
+        .port();
+    Ok((listener, port))
 }
 
 #[derive(Deserialize)]
@@ -102,17 +109,17 @@ pub fn start(app: &AppHandle) -> Result<Url, String> {
     if state.shutdown.is_started() {
         return Err("Launch cancelled".into());
     }
-    let configured_port = std::env::var("SERVER_PORT")
+    let preferred_port = std::env::var("SERVER_PORT")
         .ok()
         .and_then(|value| value.parse::<u16>().ok())
-        .filter(|port| *port != 0)
-        .unwrap_or(3117);
-    ensure_server_port_available(configured_port)?;
+        .filter(|port| *port != 0);
+    let (reserved_port, server_port) = reserve_server_port(preferred_port)?;
+    drop(reserved_port);
     let mut child = Command::new(resources.join("raceiq"))
         .current_dir(&resources)
         .env("RACEIQ_DESKTOP", "1")
         .env("DATA_DIR", directory)
-        .env("SERVER_PORT", "0")
+        .env("SERVER_PORT", server_port.to_string())
         .env("RACEIQ_DISABLE_IN_APP_UPDATE", "1")
         .env_remove("RACEIQ_TEST_MODE")
         .env_remove("RACEIQ_E2E")
@@ -228,7 +235,18 @@ pub fn stop(app: &AppHandle) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_url;
+    use super::{reserve_server_port, validate_url};
+
+    #[test]
+    fn reserves_concrete_ephemeral_port_for_backend() {
+        let (listener, port) = reserve_server_port(None).expect("local port available");
+        assert_ne!(port, 0);
+        assert_eq!(
+            listener.local_addr().expect("listener address").port(),
+            port
+        );
+    }
+
     #[test]
     fn accepts_only_the_owned_loopback_http_origin() {
         assert!(validate_url("http://127.0.0.1:3132").is_ok());

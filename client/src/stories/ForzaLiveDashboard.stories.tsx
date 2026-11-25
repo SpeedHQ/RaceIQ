@@ -10,8 +10,8 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
-queryClient.setQueryData(["track-name", 7, "fm-2023"], "Road America");
-queryClient.setQueryData(["car-name", 1742, "fm-2023"], "BMW M4");
+queryClient.setQueryData(["track-name", "7", "fm-2023"], "Road America");
+queryClient.setQueryData(["car-name", "1742", "fm-2023"], "BMW M4");
 queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {

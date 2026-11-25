@@ -3,6 +3,6 @@
   "extends": ["//"],
   "tasks": {
     "transit": { "inputs": ["$TURBO_DEFAULT$", "!test/**"] },
-    "e2e:impact": { "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/client/src/features/lap-replay-host.tsx"] }
+    "e2e:impact": { "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/client/src/features/lap-replay-host.tsx", "!test/e2e/compare/spectate-native-camera.spec.ts", "!test/e2e/compare/spectate-transition.spec.ts"] }
   }
 }

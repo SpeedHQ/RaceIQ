@@ -7,6 +7,10 @@
   "scripts": {
     "lint": "node ../client/node_modules/oxlint/bin/oxlint .",
     "test": "playwright test --workers=1",
+    "ci:check-shards": "cd .. && bun run test:shards",
+    "ci:check-locales": "cd .. && bun run i18n:check-keys",
+    "ci:check-db-upgrade": "cd .. && bun scripts/ci/check-db-upgrade.ts",
+    "ci:check-telemetry": "cd .. && bun scripts/ci/check-telemetry-catalog.ts",
     "test:ui": "bunx turbo run test --filter=raceiq-e2e -- --ui",
     "screenshots": "playwright test --config=marketing-screenshots.config.ts",
     "screenshots:mobile": "bun ../scripts/run-browser-verification.ts screenshots",
@@ -14,6 +18,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
+    "@raceiq/assistant": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/game-lmu": "workspace:*",

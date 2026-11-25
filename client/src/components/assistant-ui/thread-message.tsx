@@ -14,6 +14,7 @@ import { EditComposer } from "./thread-composer";
 import { RegenerateContext, ThreadComponentsContext } from "./thread-context";
 import { ReasoningGroupFallback, ReasoningPart } from "./thread-reasoning";
 import { m } from "@/paraglide/messages";
+import { localizeChatGptRecovery } from "@/lib/chatgpt-recovery";
 
 
 export const ThreadMessage: FC = () => {
@@ -25,13 +26,22 @@ export const ThreadMessage: FC = () => {
   return <AssistantMessageComponent />;
 };
 
-const MessageError: FC = () => (
-  <MessagePrimitive.Error>
-    <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm">
-      <p className="aui-message-error-message">{m.ai_chat_request_failed_recovery()}</p>
-    </ErrorPrimitive.Root>
-  </MessagePrimitive.Error>
-);
+const MessageError: FC = () => {
+  const error = useAuiState((s) => {
+    const status = s.message.status as { type?: string; reason?: string; error?: unknown } | undefined;
+    if (status?.type !== "incomplete" || status.reason !== "error") return "";
+    if (typeof status.error === "string") return status.error;
+    if (status.error && typeof status.error === "object" && "message" in status.error && typeof status.error.message === "string") return status.error.message;
+    return "";
+  });
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm">
+        <p className="aui-message-error-message">{localizeChatGptRecovery(error) ?? m.ai_chat_request_failed_recovery()}</p>
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
+  );
+};
 
 const AssistantMessage: FC = () => {
   const { Text: TextComponent, ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);

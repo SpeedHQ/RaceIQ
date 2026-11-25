@@ -113,6 +113,7 @@ function stint(opts: { startId: number; experimentId: number; versionId: number;
       carId: "42",
       trackId: "7",
       sectorTimes: [30.1, 33.5, 30.6],
+      processing: { state: "ready" as const, stage: null, error: null },
     };
   });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { STREAM_STALL_LIMITS, withStallDeadline } from "@raceiq/backend-core/ai/agent-stream";
-import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
+import { STREAM_STALL_LIMITS, withStallDeadline } from "@raceiq/assistant/ai/agent-stream";
+import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 
 /** A source that accepts the subscription and then never produces anything. */
 function silentSource<T>(): AsyncIterable<T> {

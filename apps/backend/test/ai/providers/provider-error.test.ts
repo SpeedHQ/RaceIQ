@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/backend-core/ai/provider-error";
+import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/assistant/ai/provider-error";
 
 describe("toClientAiError", () => {
   test("surfaces upstream response body details and retryability", () => {
@@ -70,5 +70,10 @@ describe("toClientAiError", () => {
       modelId: null,
       upstream: null,
     });
+  });
+
+  test("replaces a ChatGPT account code with recovery copy", () => {
+    const out = toClientAiError(Object.assign(new Error("reauth_required"), { code: "reauth_required" }));
+    expect(out.message).toBe("Reconnect ChatGPT in Settings.");
   });
 });
