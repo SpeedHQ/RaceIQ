@@ -121,11 +121,13 @@ for (const game of SEEDED_GAME_CASES) {
       expect(await metricRowText(page, "Brake Bias")).toContain(`${(parityPacket.acc!.brakeBias * 100).toFixed(1)}%`);
     }
     if (game.gameId === "f1-2025") {
-      const ersModes = ["None", "Low", "Medium", "High", "Overtake"] as const;
+      const ersModes = ["None", "Medium", "Hotlap", "Overtake"] as const;
+      const ersMode = parityPacket.ErsDeployMode;
+      expect(ersMode, "seeded F1 ERS deployment mode").toBeDefined();
       expect(await metricRowText(page, "ERS Store")).toContain(`${(((parityPacket.ErsStoreEnergy ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Deployed")).toContain(`${(((parityPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Harvested")).toContain(`${(((parityPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
-      expect((await metricRowText(page, "Mode")).toLowerCase()).toContain((ersModes[parityPacket.ErsDeployMode ?? 0] ?? "Unknown").toLowerCase());
+      expect((await metricRowText(page, "Mode")).toLowerCase()).toContain((ersModes[ersMode!] ?? "Unknown").toLowerCase());
       expect(await metricRowText(page, "Fuel")).toContain(
         `${((lap.telemetry[0]!.Fuel - parityPacket.Fuel) * 100).toFixed(1)}% used ${(parityPacket.Fuel * 100).toFixed(1)}% left`,
       );
