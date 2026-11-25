@@ -19,6 +19,7 @@ WORKDIR /smoke/harness
 COPY playwright/upgrade-smoke.config.ts ./playwright/upgrade-smoke.config.ts
 COPY playwright/support/upgrade/source-release.ts ./playwright/support/upgrade/source-release.ts
 COPY playwright/tests/upgrade/source-release.spec.ts ./playwright/tests/upgrade/source-release.spec.ts
+COPY apps/backend/scripts/data/split-seed-recordings.ts ./split-seed-recordings.ts
 
 ENV CI=true \
     RACEIQ_APP_ROOT=/smoke/harness \

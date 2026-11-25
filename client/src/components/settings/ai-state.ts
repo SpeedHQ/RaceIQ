@@ -1,3 +1,5 @@
+import type { OpenAiReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
+
 type ProviderInfo = { id: string; name: string };
 type AsyncAction = { mutate: () => void; isPending: boolean; isError: boolean };
 export type ProviderSetupState = {
@@ -20,6 +22,8 @@ export interface AiAnalysisState {
   setModel: (value: string) => void;
   thinkingBudget: number | null;
   setThinkingBudget: (value: number | null) => void;
+  reasoningLevel: OpenAiReasoningLevel;
+  setReasoningLevel: (value: OpenAiReasoningLevel) => void;
   apiKey: string;
   setApiKey: (value: string) => void;
   localEndpoint: string;
@@ -51,6 +55,10 @@ export interface AiChatState {
   setChatModel: (value: string) => void;
   chatThinkingBudget: number | null;
   setChatThinkingBudget: (value: number | null) => void;
+  chatReasoningLevel: OpenAiReasoningLevel;
+  setChatReasoningLevel: (value: OpenAiReasoningLevel) => void;
+  chatSubscriptionReasoningLevel: OpenAiReasoningLevel | null;
+  setChatSubscriptionReasoningLevel: (value: OpenAiReasoningLevel | null) => void;
   chatApiKey: string;
   setChatApiKey: (value: string) => void;
   keyStatus: Record<string, boolean>;

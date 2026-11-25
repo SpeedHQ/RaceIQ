@@ -7,8 +7,8 @@ import {
   resetProviderCircuits,
   retryDelayMs,
   type RetryPolicy,
-} from "@raceiq/backend-core/ai/providers";
-import { AiProviderError } from "@raceiq/backend-core/ai/provider-error";
+} from "@raceiq/assistant/ai/providers";
+import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 
 const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {

@@ -5,6 +5,71 @@
     "test": {
       "dependsOn": ["@raceiq/tooling-build#build"],
       "env": ["NODE_ENV", "RACEIQ_*", "BUN_TEST_WORKERS", "E2E_SERVER_MODE", "PW_*"]
+    },
+    "browser:runtime:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit"],
+      "inputs": ["config/**", "support/server/**", "playwright.config.ts", "tsconfig.json", "tests/support/**", "$TURBO_ROOT$/scripts/playwright-ci.ts", "$TURBO_ROOT$/packages/tooling-build/src/build/**", "$TURBO_ROOT$/tsconfig.base.json"]
+    },
+    "browser:seed:impact": {
+      "dependsOn": ["browser:runtime:impact"],
+      "inputs": ["tests/setup/**", "$TURBO_ROOT$/packages/tooling-data/src/data/**", "$TURBO_ROOT$/apps/backend/scripts/data/**", "$TURBO_ROOT$/test/artifacts/**"]
+    },
+    "browser:fresh:impact": {
+      "dependsOn": ["browser:runtime:impact"],
+      "inputs": ["tests/fresh-install/**", "$TURBO_ROOT$/packages/tooling-data/src/data/seed-db-options.ts"]
+    },
+    "browser:tunes:impact": {
+      "dependsOn": ["browser:seed:impact"],
+      "inputs": ["tests/tunes/**"]
+    },
+    "browser:tunes-unseeded:impact": {
+      "dependsOn": ["browser:runtime:impact"],
+      "inputs": ["tests/tunes/ac-evo.spec.ts", "tests/tunes/acc.spec.ts", "tests/tunes/support/**", "$TURBO_ROOT$/packages/tooling-data/src/data/seed-db-options.ts"]
+    },
+    "browser:seeded-e2e:impact": {
+      "dependsOn": ["browser:seed:impact"],
+      "inputs": ["tests/seeded/**", "!tests/seeded/routes/**/*.spec.ts", "!tests/seeded/analyse/core-flow.spec.ts", "!tests/seeded/dev-tools/server-import.spec.ts", "!tests/seeded/settings/storage.spec.ts"]
+    },
+    "browser:seeded-routes:impact": {
+      "dependsOn": ["browser:seed:impact"],
+      "inputs": ["tests/seeded/routes/**"]
+    },
+    "browser:seeded-imports:impact": {
+      "dependsOn": ["browser:seed:impact"],
+      "inputs": ["tests/seeded/analyse/core-flow.spec.ts", "tests/seeded/dev-tools/server-import.spec.ts", "tests/seeded/settings/storage.spec.ts", "$TURBO_ROOT$/packages/game-lmu/test/e2e/**", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/**"]
+    },
+    "browser:webgpu:impact": {
+      "dependsOn": ["browser:seed:impact", "@raceiq/lap-replay#transit"],
+      "inputs": ["$TURBO_ROOT$/packages/lap-replay/test/e2e/compare/spectate-native-camera.spec.ts", "$TURBO_ROOT$/packages/lap-replay/test/e2e/compare/spectate-transition.spec.ts", "$TURBO_ROOT$/packages/lap-replay/test/e2e/support/**"]
+    },
+    "visual:responsive:impact": {
+      "dependsOn": ["browser:seed:impact"],
+      "inputs": ["responsive-screenshots.config.ts", "tests/responsive/**", "$TURBO_ROOT$/scripts/ci/workflow-ops.ts", "$TURBO_ROOT$/scripts/run-browser-verification.ts"]
+    },
+    "visual:storybook:impact": {
+      "dependsOn": ["client#transit", "@raceiq/tooling-ui#transit"],
+      "inputs": ["$TURBO_ROOT$/client/.storybook/**", "$TURBO_ROOT$/client/src/stories/**", "$TURBO_ROOT$/client/playwright.config.ts", "$TURBO_ROOT$/client/tsconfig.stories.json", "$TURBO_ROOT$/packages/tooling-ui/src/ui/**"]
+    },
+    "verify:build:impact": {
+      "dependsOn": ["client#transit", "@raceiq/backend#transit", "@raceiq/tooling-build#transit"],
+      "inputs": ["$TURBO_ROOT$/server/**", "!$TURBO_ROOT$/server/test-support/**", "$TURBO_ROOT$/shared/**", "$TURBO_ROOT$/package.json", "$TURBO_ROOT$/tsconfig.base.json"]
+    },
+    "verify:desktop:impact": {
+      "dependsOn": ["verify:build:impact"],
+      "inputs": ["$TURBO_ROOT$/apps/desktop/**", "$TURBO_ROOT$/scripts/desktop/**", "$TURBO_ROOT$/scripts/build-browser.ts"]
+    },
+    "ci:check-shards": {
+      "inputs": ["$TURBO_ROOT$/**/*.test.ts", "$TURBO_ROOT$/**/*.test.tsx", "$TURBO_ROOT$/**/test/*-files.txt", "$TURBO_ROOT$/**/package.json", "$TURBO_ROOT$/scripts/test/check-shards.ts", "$TURBO_ROOT$/scripts/test/owners.ts"]
+    },
+    "ci:check-locales": {
+      "inputs": ["$TURBO_ROOT$/client/messages/*.json", "$TURBO_ROOT$/client/project.inlang/settings.json", "$TURBO_ROOT$/scripts/i18n/check-message-keys.ts"]
+    },
+    "ci:check-db-upgrade": {
+      "inputs": ["$TURBO_ROOT$/scripts/ci/check-db-upgrade.ts", "$TURBO_ROOT$/apps/backend/test/db/**", "$TURBO_ROOT$/apps/backend/src/db/**", "$TURBO_ROOT$/server/db/migrations.ts", "$TURBO_ROOT$/packages/tooling-data/src/data/**"]
+    },
+    "ci:check-telemetry": {
+      "dependsOn": ["@raceiq/tooling-catalog#transit"],
+      "inputs": ["$TURBO_ROOT$/scripts/ci/check-telemetry-catalog.ts", "$TURBO_ROOT$/shared/telemetry/**", "$TURBO_ROOT$/shared/telemetry-catalog.generated.json"]
     }
   }
 }

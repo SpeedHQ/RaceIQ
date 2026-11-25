@@ -21,7 +21,7 @@ export interface TelemetryPacket {
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
   lmu?: LMUExtendedData;
-  ams2?: {carName: string; trackName: string; trackLengthM: number; lapDistanceM: number; sessionType: string; lapInvalidated: boolean; inPits: boolean};
+  ams2?: { carName: string; trackName: string; trackLengthM: number; lapDistanceM: number; sessionType: string; lapInvalidated: boolean; inPits: boolean };
   lmuContext?: LmuLiveContext;
   extendedRaceIQ?: RaceIQExtendedData;
 
@@ -153,7 +153,6 @@ export interface TelemetryPacket {
   CurrentLap: number;
   CurrentRaceTime: number;
 
-
   // Lap/position
   LapNumber: number; // u16
   RacePosition: number; // u8
@@ -215,7 +214,6 @@ export interface TelemetryPacket {
   Power: number; // f32 watts
   Torque: number; // f32 newton meters
 
-
   // Brake temps (ACC only)
   BrakeTempFrontLeft?: number;
   BrakeTempFrontRight?: number;
@@ -229,18 +227,18 @@ export interface TelemetryPacket {
   TirePressureRearRight?: number;
 
   // DRS/ERS (F1 only)
-  DrsActive?: number;       // 1 = open, 0 = closed
-  ErsStoreEnergy?: number;  // joules
-  ErsDeployMode?: number;   // 0=none, 1=low, 2=medium, 3=high, 4=overtake
-  ErsDeployed?: number;     // joules deployed this lap
-  ErsHarvested?: number;    // joules harvested this lap
+  DrsActive?: number; // 1 = open, 0 = closed
+  ErsStoreEnergy?: number; // joules
+  ErsDeployMode?: number; // F1: 0=none, 1=medium, 2=hotlap; 3=overtake (2025 UDP), boost (2026 UDP)
+  ErsDeployed?: number; // joules deployed this lap
+  ErsHarvested?: number; // joules harvested this lap
 
   // Weather/track conditions (F1/ACC)
-  WeatherType?: number;     // 0=clear, 1=light cloud, 2=overcast, 3=light rain, 4=heavy rain, 5=storm
-  TrackTemp?: number;       // °C
-  AirTemp?: number;         // °C
-  RainPercent?: number;     // 0-100
+  WeatherType?: number; // 0=clear, 1=light cloud, 2=overcast, 3=light rain, 4=heavy rain, 5=storm
+  TrackTemp?: number; // °C
+  AirTemp?: number; // °C
+  RainPercent?: number; // 0-100
 
   // Tyre compound (F1: visual compound number, ACC: string via acc.tireCompound)
-  TyreCompound?: number;    // F1 visual: 16=soft, 17=medium, 18=hard, 7=inter, 8=wet
+  TyreCompound?: number; // F1 visual: 16=soft, 17=medium, 18=hard, 7=inter, 8=wet
 }

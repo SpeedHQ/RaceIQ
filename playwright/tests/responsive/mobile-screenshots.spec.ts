@@ -72,7 +72,12 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         const replayPrefix = screenshotCase.kind === "analyse-actions" ? "fm23" : "f125";
         const target = replayGame ? await getSeededLapTarget(request, replayGame) : null;
         const path = target ? `/${replayPrefix}/sessions/${target.sessionId}/replay/${target.id}` : screenshotCase.path;
-        await p.goto(path, { waitUntil: "networkidle" });
+        await p.goto(path, { waitUntil: replayGame ? "domcontentloaded" : "networkidle" });
+        if (replayGame) {
+          await expect(p.getByRole("button", { name: "Actions", exact: true })).toBeVisible();
+          const notice = p.getByRole("dialog").filter({ has: p.getByRole("heading", { name: "Historical lap classification" }) });
+          if (await notice.isVisible()) await notice.getByRole("button", { name: "Close" }).click();
+        }
         await startSparseSplitMigration(p);
         await dismissTransientNotification(p);
         if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
@@ -95,11 +100,11 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await openSettings(p, viewport.width);
           await p.getByRole("combobox", { name: "Search language...", exact: true }).click();
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
-        } else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
-          // Base revision can overlap this trigger at phone width; keyboard still opens the menu for comparison.
-          await p.getByRole("button", { name: "Overlays", exact: true }).focus();
-          await p.keyboard.press("Enter");
+        } else if (screenshotCase.kind === "analyse-actions") {
+          await p.getByRole("button", { name: "Actions", exact: true }).click();
           await expect(p.getByRole("menu")).toBeVisible();
+        } else if (screenshotCase.kind === "analyse-data-panel-loaded") {
+          // The loaded panel itself is the screenshot target.
         } else {
           await p.getByRole("button", { name: "Export / Import" }).click();
           await expect(p.getByRole("menu")).toBeVisible();

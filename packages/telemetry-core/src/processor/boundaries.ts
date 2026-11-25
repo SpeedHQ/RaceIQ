@@ -29,7 +29,9 @@ export function detectSessionBoundary(
   if (packet.sessionUID && session.sessionUID && packet.sessionUID !== session.sessionUID) {
     return "session-uid-changed";
   }
-  if (currentLapNumber > 1 && packet.LapNumber === 1 && packet.LapNumber < currentLapNumber) {
+  // A flashback can return to lap 1 without changing the F1 session.
+  const sameF1Session = packet.gameId === "f1-2025" && !!session.sessionUID && session.sessionUID !== "0" && packet.sessionUID === session.sessionUID;
+  if (!sameF1Session && currentLapNumber > 1 && packet.LapNumber === 1 && packet.LapNumber < currentLapNumber) {
     return "lap-number-reset";
   }
   if (!session.sessionUID && lastBufferedDistance !== null && lastBufferedDistance > 1000 && packet.DistanceTraveled < 500) {

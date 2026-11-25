@@ -1,3 +1,6 @@
+apps/backend/test/ai/chatgpt-credential-store.test.ts
+apps/backend/test/ai/chatgpt-subscription-oauth.test.ts
+apps/backend/test/ai/providers/chatgpt-chat-pricing.test.ts
 apps/backend/test/ai/diagnostic-logging.test.ts
 apps/backend/test/ai/tools/generate-lap-analysis.test.ts
 apps/backend/test/archive/bounded-unzip.test.ts
