@@ -10,6 +10,7 @@ const queryInventory = JSON.stringify({
     ...Object.keys(JSON.parse(readFileSync(resolve(root, "playwright/turbo.json"), "utf8")).tasks as object)
       .map((task) => `raceiq-e2e#${task}`),
     ...["tracks-catalogue", "cars-catalogue", "lap-replay", "sessions-page", "session-analyse"].map((owner) => `@raceiq/${owner}#e2e:impact`),
+    "@raceiq/backend#bench:replay",
   ].map((taskId) => ({ taskId, directory: ".", inputs: { "scripts/i18n/check-message-keys.ts": "hash" }, dependencies: [] })),
 });
 
@@ -63,6 +64,10 @@ describe("affected verification selector", () => {
     expect(selection.nativeWebgpu).toBe(true);
     expect(selection.responsive).toBe(true);
     expect(selection.storybook).toBe(true);
+    expect(selection.benchmark).toBe(true);
+    const nonPr = JSON.parse(run("--mode", "full", "--scope", "non-pr").stdout.toString());
+    expect(nonPr.benchmark).toBe(false);
+    expect(nonPr.expected.test).toBe(true);
   });
 
   test("full selection covers real Playwright discovery without record-demo", () => {
@@ -163,7 +168,10 @@ describe("affected verification selector", () => {
   test("real Turbo selects independent jobs, transitive consumers, and previous owners", () => {
     const fixture = mkdtempSync(resolve(tmpdir(), "raceiq-impact-real-"));
     const command = (args: string[], cwd = fixture) => {
-      const result = Bun.spawnSync(args, { cwd, stdout: "pipe", stderr: "pipe" });
+      const result = Bun.spawnSync(args, {
+        cwd, stdout: "pipe", stderr: "pipe",
+        env: { ...Bun.env, GITHUB_OUTPUT: resolve(fixture, ".git/verification-output") },
+      });
       if (result.exitCode !== 0) throw new Error(`${args.join(" ")}: ${result.stderr.toString()}`);
       return result.stdout.toString().trim();
     };
@@ -200,6 +208,13 @@ describe("affected verification selector", () => {
         "server/db/lap-read-queries.ts",
         "server/db/schema.ts",
         "server/db/track-queries.ts",
+        "server/telemetry/replay.ts",
+        "packages/game-ac-evo/src/game-parser.ts",
+        "packages/capture-formats/src/session/framing.ts",
+        "packages/game-f1-2025/test/e2e/f1-2025-recording.test.ts",
+        "apps/backend/test/benchmarks/replay-process-bench.ts",
+        "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+        "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
         "server/session-capture/direct-recorder.ts",
         "apps/backend/test/session-capture/direct-recorder.test.ts",
         "packages/game-lmu/test/e2e/browser/settings/lmu-recording-policy.spec.ts",
@@ -269,6 +284,45 @@ describe("affected verification selector", () => {
       const projects = (selection: { browserMatrix: { projects: string[] }[] }) =>
         new Set(selection.browserMatrix.flatMap((row) => row.projects));
       const assertAffected = (selection: { mode: string; reason: string }) => expect(selection.mode, selection.reason).toBe("affected");
+      const recordingOnly = select("packages/game-f1-2025/test/e2e/f1-2025-recording.test.ts");
+      assertAffected(recordingOnly);
+      expect(recordingOnly.expected).toMatchObject({ test: true, "playwright-e2e": false, "visual-regression": false });
+      expect(recordingOnly.benchmark).toBe(false);
+      expect(readFileSync(resolve(fixture, ".git/verification-output"), "utf8").trimEnd()).toEndWith(`plan=${JSON.stringify(recordingOnly)}`);
+      const recordingTasks = JSON.parse(command([
+        "bunx", "--no-install", "turbo", "query", "affected", "--tasks", "test:e2e:recordings", "--base", base, "--head", recordingOnly.head,
+      ]));
+      expect(recordingTasks.data.affectedTasks.items.map((item: { fullName: string }) => item.fullName))
+        .toContain("@raceiq/game-f1-2025#test:e2e:recordings");
+      for (const path of [
+        "client/src/components/home/HomePageView.tsx",
+        "server/session-capture/direct-recorder.ts",
+        "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+      ]) {
+        const unaffected = select(path);
+        assertAffected(unaffected);
+        expect(unaffected.benchmark, path).toBe(false);
+      }
+      for (const path of [
+        "server/telemetry/replay.ts",
+        "packages/game-ac-evo/src/game-parser.ts",
+        "packages/capture-formats/src/session/framing.ts",
+        "apps/backend/test/benchmarks/replay-process-bench.ts",
+        "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+      ]) {
+        const affected = select(path);
+        expect(affected.mode, `${path}: ${affected.reason}`).toBe("affected");
+        expect(affected.benchmark, path).toBe(true);
+      }
+      const replayPath = resolve(fixture, "server/telemetry/replay.ts");
+      const originalReplay = readFileSync(replayPath);
+      const removedReplay = selectChanges(() => rmSync(replayPath), () => writeFileSync(replayPath, originalReplay));
+      assertAffected(removedReplay);
+      expect(removedReplay.benchmark).toBe(true);
+      const invalidRange = JSON.parse(command([
+        "bun", resolve(fixture, "scripts/ci/affected-verification.ts"), "--mode", "affected", "--base", "not-a-ref", "--head", removedReplay.head,
+      ]));
+      expect(invalidRange).toMatchObject({ mode: "full", benchmark: true });
       const feature = select("packages/tracks-catalogue/ui/track/TrackCard.tsx");
       assertAffected(feature);
       expect(projects(feature).has("tracks-catalogue")).toBe(true);

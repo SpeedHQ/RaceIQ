@@ -20,3 +20,4 @@
 - Select Cars and Tracks Playwright projects from feature dependencies and shared runtime inputs. Home and Experiments UI changes skip both; recorder-only changes skip Cars.
 - Skip the seeded import and recording Playwright project on Cars-only changes without skipping the Le Mans Ultimate cars journey.
 - Run compiled seeded Playwright projects on the trusted IPv4 loopback origin so Analyse can check ChatGPT subscription availability without credentials.
+- Skip PR replay benchmarks before allocating a benchmark runner when no benchmark inputs changed.

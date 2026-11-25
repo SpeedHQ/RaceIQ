@@ -95,6 +95,7 @@
     "visual:storybook:impact": {},
     "verify:build:impact": {},
     "verify:desktop:impact": {},
+    "bench:replay": {},
     "ci:check-shards": { "cache": false },
     "ci:check-locales": { "cache": false },
     "ci:check-db-upgrade": { "cache": false },

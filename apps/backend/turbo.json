@@ -73,6 +73,38 @@
         "$TURBO_ROOT$/packages/telemetry-core/test/support-resolver.ts"
       ]
     },
+    "bench:replay": {
+      "cache": false,
+      "inputs": [
+        "package.json",
+        "src/games/init.ts",
+        "scripts/quality/{process-bench,bench-compare}.ts",
+        "test/benchmarks/{process-bench-*,mitata-harness,replay-process-bench}.ts",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/bunfig.toml",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/scripts/ci/workflow-ops.ts",
+        "$TURBO_ROOT$/scripts/quality/run-bench-ci.ts",
+        "$TURBO_ROOT$/server/db/{index,lap-read-queries,migrations,schema,telemetry-replay-storage}.ts",
+        "$TURBO_ROOT$/server/games/registry.ts",
+        "$TURBO_ROOT$/server/runtime/config/**",
+        "$TURBO_ROOT$/server/telemetry/replay.ts",
+        "$TURBO_ROOT$/packages/capture-formats/src/session/{framing,limits,*-sparse}.ts",
+        "$TURBO_ROOT$/packages/capture-formats/src/ac-evo/structs.ts",
+        "$TURBO_ROOT$/packages/capture-formats/src/iracing/{source-frame,source-frame-codec}.ts",
+        "$TURBO_ROOT$/packages/capture-formats/src/kunos/pack-triplet.ts",
+        "$TURBO_ROOT$/packages/capture-formats/src/lmu/{layout,partition,source-frame}.ts",
+        "$TURBO_ROOT$/packages/game-ac-evo/src/**",
+        "$TURBO_ROOT$/packages/game-ac-evo-metadata/src/**",
+        "$TURBO_ROOT$/packages/game-catalogs/src/games/**",
+        "$TURBO_ROOT$/packages/telemetry-core/src/telemetry/{normalization.ts,replay/**,resolver/**,derivations/**}",
+        "$TURBO_ROOT$/shared/games/**",
+        "$TURBO_ROOT$/shared/platform/runtime/{data-paths,release-feature-flags}.ts",
+        "$TURBO_ROOT$/shared/telemetry/{catalog,replay,resolver}/**",
+        "$TURBO_ROOT$/shared/telemetry/lmu-context.ts",
+        "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"
+      ]
+    },
     "test:e2e:recordings": {
       "dependsOn": [
         "transit",
