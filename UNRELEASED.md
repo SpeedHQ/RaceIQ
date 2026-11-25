@@ -5,6 +5,8 @@
 - Show F1 2026 ERS mode, energy availability, active aero, and overtake data in live telemetry and lap analysis.
 
 ### Fixes
+- Restore replay links for laps in older AMS2 and AC Evo recordings.
+- Show the correct gear in the Portable Combo dashboard for Automobilista 2.
 - Keep recording telemetry when a possible lap start is never confirmed.
 - Retry temporary Anthropic service failures so analysis can recover without another request from you.
 - Preserve Automobilista 2 parser state when splitting recorded sessions into laps, allowing seeded sessions to migrate and replay correctly.
