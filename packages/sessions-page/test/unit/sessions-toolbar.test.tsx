@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { createElement, type ComponentProps } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { host, m } from "../fixtures/host";
@@ -109,4 +110,30 @@ describe("Sessions toolbar controls", () => {
     toolbar(new Set([lap.id, secondLap.id]), [lap, secondLap]);
     expect(capturedButtons.find(({ children }) => children === m.sessions_compare_two())?.disabled).toBe(false);
   });
+});
+
+test("AMS2 race preserves recorded incomplete durations that equal earlier lap times", async () => {
+  const { SessionLapTable } = await import("../../ui/SessionLapTable");
+  const children = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+  const tableHost = {
+    ...host, Table: children, TableHeader: children, TableBody: children,
+    TableRow: children, TableCell: children, TableHead: children,
+    bestSectorLapIds: () => [], formatLapTime: (time: number) => `lap-time-${time}`,
+  };
+  const race: SessionMeta = { ...session, gameId: "ams2", sessionType: "race" };
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={new QueryClient()}>
+      <SessionsPageProvider host={tableHost}>
+        <SessionLapTable session={race} laps={[
+          { ...lap, isValid: false, invalidReason: "game-invalidated" },
+          { ...secondLap, isValid: false, invalidReason: "incomplete" },
+          { ...lap, id: 103, lapNumber: 3, isValid: false, invalidReason: "incomplete" },
+          { ...lap, id: 104, lapNumber: 4, lapTime: 91, isValid: false, invalidReason: "incomplete" },
+        ]} sectorCount={0} lapSortKey="lap" lapSortDir="asc" toggleLapSort={() => {}}
+          selectedLaps={new Set()} toggleLapSelection={() => {}} refreshProcessingStatus={() => {}} />
+      </SessionsPageProvider>
+    </QueryClientProvider>,
+  );
+  expect(markup.match(/lap-time-90/g)).toHaveLength(3);
+  expect(markup).toContain("lap-time-91");
 });

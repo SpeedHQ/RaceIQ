@@ -34,7 +34,12 @@ describe("AMS2 native capture",()=>{
     const later = { ...start, CurrentLap: 60 };
     expect(classifyAMS2PitCycle([start, later], 0)).toBeNull();
     expect(classifyAMS2PitCycle([{ ...start, CurrentLap: 10 }, later], 0)).toBe("outlap");
-    expect(classifyAMS2PitCycle([{ ...start, LapNumber: 2 }, later], 0)).toBe("outlap");
+    const laterRaceStart = { ...start, LapNumber: 2, CurrentLap: 0.2, ams2: { ...start.ams2!, lapDistanceM: 5 } };
+    const laterRaceEnd = { ...laterRaceStart, CurrentLap: 60 };
+    expect(classifyAMS2PitCycle([laterRaceStart, laterRaceEnd], 0)).toBeNull();
+    expect(classifyAMS2PitCycle([{ ...laterRaceStart, CurrentLap: 10 }, laterRaceEnd], 0)).toBe("outlap");
+    expect(classifyAMS2PitCycle([{ ...laterRaceStart, ams2: { ...laterRaceStart.ams2, inPits: true } }, laterRaceEnd], 0)).toBe("outlap");
+    expect(classifyAMS2PitCycle([{ ...start, CurrentLap: 0.2 }, later], 0)).toBe("outlap");
     expect(classifyAMS2PitCycle([{ ...start, ams2: { ...start.ams2!, sessionType: "practice" } }, later], 0)).toBeNull();
     const pit = { ...start, ams2: { ...start.ams2!, inPits: true } };
     expect(classifyAMS2PitCycle([pit, later], 0)).toBe("outlap");

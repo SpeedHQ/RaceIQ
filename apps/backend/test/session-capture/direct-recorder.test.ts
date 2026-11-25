@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { Effect } from "effect";
+import { verifyManifest } from "@raceiq/capture-splitting";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
@@ -6,7 +8,7 @@ import { tmpdir } from "node:os";
 import { gunzipSync } from "node:zlib";
 import { join } from "node:path";
 import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
-import { encodeFrameLength, encodeParserBootstrapFrame, iterateSessionCaptureRecords, iterateSessionFrames, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
+import { encodeMetaFrame, encodeFrameLength, encodeParserBootstrapFrame, iterateSessionCaptureRecords, iterateSessionFrames, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
@@ -138,7 +140,7 @@ describe("DirectCaptureRecording", () => {
     expect(publishedLaps.every((lap) => lap.captureChunkId !== null && lap.sourceFrameCount === 1)).toBe(true);
     expect(publishedLaps.map((lap) => lap.sourceFrameStart)).toEqual([0, 1]);
   });
-  it("publishes a fresh AMS2 lap after abandoning the only opening window", async () => {
+  it.each([false, true])("verifies AMS2 rotation after abandoning the opening window (rotated window abandoned: %p)", async (abandonRotatedWindow) => {
     initServerGameAdapters({ ams2Adapter: true, iracingAdapter: false, f1Experiments: false });
     resetParserState("ams2");
     const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-abandoned-opening-"));
@@ -171,19 +173,60 @@ describe("DirectCaptureRecording", () => {
     capture.writeRecord(frames[1]!, 101);
     capture.writeRecord(frames[2]!, 102);
     const timed: DetectorOwnershipWindow = { ...opening, revision: 3, startOffset: boundaryOffset, startOrdinal: 2 };
-    capture.processTransitions([
-      ownershipTransition("window-abandoned", { ...opening, revision: 2, frameCount: 2 }),
-      ownershipTransition("window-start", timed),
-    ], locator);
-    capture.writeRecord(frames[3]!, 103);
-    capture.processTransitions([ownershipTransition("window-finalized", { ...timed, revision: 4, frameCount: 2, status: "final" })], null);
-    capture.bindLap({ sessionId: session.id, lapId: lap.id, lapNumber: 1, startByteOffset: boundaryOffset, frameCount: 2 });
+    capture.processTransitions([ownershipTransition("window-abandoned", { ...opening, revision: 2, frameCount: 2 })], null);
+    if (abandonRotatedWindow) {
+      capture.processTransitions([ownershipTransition("candidate-start", { ...timed, frameCount: 0, preparationOnly: true })], locator);
+      capture.writeRecord(frames[3]!, 103);
+      capture.processTransitions([ownershipTransition("window-start", { ...timed, revision: 4, frameCount: 2 })], null);
+    } else {
+      capture.processTransitions([ownershipTransition("window-start", timed)], locator);
+      capture.writeRecord(frames[3]!, 103);
+    }
+    if (abandonRotatedWindow) {
+      capture.processTransitions([ownershipTransition("window-abandoned", { ...timed, revision: 5, frameCount: 2 })], null);
+    } else {
+      capture.processTransitions([ownershipTransition("window-finalized", { ...timed, revision: 4, frameCount: 2, status: "final" })], null);
+      capture.bindLap({ sessionId: session.id, lapId: lap.id, lapNumber: 1, startByteOffset: boundaryOffset, frameCount: 2 });
+    }
     await capture.stop();
     expect(capture.rotationCount).toBe(1);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     expect(manifest.chunks).toHaveLength(2);
-    expect(manifest.chunks[0]).toMatchObject({ kind: "auxiliary", recordCount: 2, sourceByteStart: META_FRAME_BYTES, sourceByteEnd: boundaryOffset, trailingContextFrameCount: 1 });
+    expect(manifest.chunks[0]).toMatchObject({ kind: "auxiliary", recordCount: 2, sourceByteStart: META_FRAME_BYTES, sourceByteEnd: boundaryOffset, trailingContextFrameCount: abandonRotatedWindow ? 2 : 1 });
+    const sourcePath = join(directory, "source.bin");
+    await writeFile(sourcePath, Buffer.concat([encodeMetaFrame(frames.length),
+      ...frames.flatMap((frame, index) => [encodeFrameLength(frame.length, 100 + index), frame]),
+    ]));
+    expect(await Effect.runPromise(verifyManifest(sourcePath, directory, manifest, { gameId: "ams2" }))).toEqual(manifest);
+    await expect(Effect.runPromise(verifyManifest(sourcePath, directory, { ...manifest, gameId: "fm-2023" }))).rejects.toThrow("auxiliary chunk has lap metadata");
     const chunk = manifest.chunks[1];
+    const chunkPath = join(directory, chunk.path);
+    const chunkBytes = await readFile(chunkPath);
+    const prefix = [...iterateSessionCaptureRecords(chunkBytes, undefined, { strict: true })];
+    const contextFrame = prefix.find(record => record.kind === "frame" && record.offset < chunk.sourceRecordByteOffset);
+    if (!contextFrame || contextFrame.kind !== "frame") throw new Error("Expected a recorder-generated parser context frame");
+    const corrupted = Buffer.from(chunkBytes);
+    corrupted[contextFrame.endOffset - 1] = corrupted[contextFrame.endOffset - 1]! ^ 1;
+    await writeFile(chunkPath, corrupted);
+    try {
+      await expect(Effect.runPromise(verifyManifest(sourcePath, directory, manifest, { gameId: "ams2" }))).rejects.toThrow("parser context does not match source");
+    } finally {
+      await writeFile(chunkPath, chunkBytes);
+    }
+
+    if (abandonRotatedWindow) {
+      expect(chunk).toMatchObject({ kind: "auxiliary", sourceByteStart: boundaryOffset });
+      expect(chunk.parserBootstrapHash).toMatch(/^[a-f0-9]{64}$/);
+      const invalidOwnership = structuredClone(manifest);
+      invalidOwnership.chunks[1].ownedFrameCount = 1;
+      await expect(Effect.runPromise(verifyManifest(sourcePath, directory, invalidOwnership, { gameId: "ams2" }))).rejects.toThrow("auxiliary chunk has lap metadata");
+      const invalidTrailing = structuredClone(manifest);
+      invalidTrailing.chunks[1].trailingContextFrameCount = 1;
+      await expect(Effect.runPromise(verifyManifest(sourcePath, directory, invalidTrailing, { gameId: "ams2" }))).rejects.toThrow("trailing context mismatch");
+      invalidTrailing.chunks[1].trailingContextFrameCount = 1_201;
+      await expect(Effect.runPromise(verifyManifest(sourcePath, directory, invalidTrailing, { gameId: "ams2" }))).rejects.toThrow("auxiliary chunk has lap metadata");
+      return;
+    }
     expect(chunk).toMatchObject({ kind: "lap", lapId: String(lap.id), recordCount: 2, ownedFrameCount: 2, sourceByteStart: boundaryOffset, firstOrdinal: 2 });
     const records = [...iterateSessionCaptureRecords(await readFile(join(directory, chunk.path)), chunk.sourceRecordByteOffset, { strict: true })].filter(record => record.kind === "frame");
     expect(records.map(record => record.frame)).toEqual(frames.slice(2));

@@ -9,13 +9,17 @@ import { Effect, Schema } from "effect";
 import {
   encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame,
   encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecordsAsync,
-  type SessionCaptureRecord,
+  PARSER_BOOTSTRAP_VERSION, type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { MAX_CAPTURE_MANIFEST_BYTES, ChunkSchema, ManifestSchema, PublishedManifestSchema, type Chunk, type PublishedManifest, type GameId, type LapWindow, type Progress } from "./contract";
 import { openCaptureArchive } from "./archive";
 import { encodeStreamingFrame, matchesNativeRecord } from "./streaming";
 const STATEFUL_GAME_IDS = new Set<GameId>(["ac-evo", "ams2", "f1-2025", "iracing"]);
+// Direct capture parser anchors are spaced 64 native frames apart.
+const MAX_AMS2_PARSER_CONTEXT_FRAMES = 64;
+// DirectCaptureRecording can retain up to this many frames while a start candidate is pending.
+const MAX_AMS2_TRAILING_CONTEXT_FRAMES = 1_200;
 const MAX_AUXILIARY_MEMBER_BYTES = 64 * 1024 * 1024;
 
 
@@ -399,6 +403,8 @@ export const verifyManifest = (
         onProgress?.(verifiedRecords, verifiedFrames, value.endOffset);
         return value;
       };
+      const directAMS2 = manifest.version === 3 && manifest.sourceCoordinates === "native-wire-v1" && manifest.gameId === "ams2";
+      const recentSourceFrames: SessionCaptureRecord[] = [];
       let expectedOrdinal = 0;
       const seenLapIds = new Set<string>();
       const archive = manifest.version === 4 ? await openCaptureArchive(join(outputDirectory, manifest.archiveFile), manifest) : null;
@@ -409,18 +415,23 @@ export const verifyManifest = (
           chunk.sourceByteEnd <= chunk.sourceByteStart) {
           throw new SplitFailure("VERIFY", `invalid chunk range: ${chunkPath}`);
         }
+        const nativePrefixOffset = directAMS2 && "sourceRecordByteOffset" in chunk ? chunk.sourceRecordByteOffset : undefined;
+        const maxTrailingFrames = nativePrefixOffset === undefined ? 1 : MAX_AMS2_TRAILING_CONTEXT_FRAMES;
         if (chunk.kind === "lap") {
           if (!chunk.lapId || chunk.lapNumber === undefined || seenLapIds.has(chunk.lapId) ||
               chunk.ownedFrameByteOffset === undefined || chunk.ownedFrameCount === undefined ||
               (STATEFUL_GAME_IDS.has(manifest.gameId) !== (chunk.parserBootstrapHash !== undefined)) ||
               (chunk.parserBootstrapHash !== undefined && !/^[0-9a-f]{64}$/.test(chunk.parserBootstrapHash)) ||
-              ![0, 1].includes(chunk.trailingContextFrameCount ?? 0)) {
+              (chunk.trailingContextFrameCount ?? 0) > maxTrailingFrames) {
             throw new SplitFailure("VERIFY", `invalid or duplicate lap chunk: ${chunkPath}`);
           }
           seenLapIds.add(chunk.lapId);
         } else if (chunk.lapId !== undefined || chunk.lapNumber !== undefined ||
           chunk.ownedFrameByteOffset !== undefined || chunk.ownedFrameCount !== undefined ||
-          chunk.parserBootstrapHash !== undefined || chunk.trailingContextFrameCount !== undefined) {
+          (chunk.parserBootstrapHash !== undefined &&
+            (nativePrefixOffset === undefined || !/^[0-9a-f]{64}$/.test(chunk.parserBootstrapHash))) ||
+          (chunk.trailingContextFrameCount !== undefined &&
+            (nativePrefixOffset === undefined || chunk.trailingContextFrameCount > maxTrailingFrames))) {
           throw new SplitFailure("VERIFY", `auxiliary chunk has lap metadata: ${chunkPath}`);
         }
         if (chunk.firstOrdinal !== expectedOrdinal) throw new SplitFailure("VERIFY", `ordinal gap or overlap at ${expectedOrdinal}`);
@@ -429,13 +440,41 @@ export const verifyManifest = (
         const outputIterator = iterateSessionCaptureRecordsAsync(outputStream, { strict: true })[Symbol.asyncIterator]();
         try {
           let outputNext = await outputIterator.next();
+          let bootstrapEndOffset: number | undefined;
           if (chunk.parserBootstrapHash !== undefined) {
             if (outputNext.done || outputNext.value.kind !== "parser-bootstrap" ||
                 outputNext.value.gameId !== manifest.gameId ||
+                (nativePrefixOffset !== undefined && outputNext.value.formatVersion !== PARSER_BOOTSTRAP_VERSION) ||
                 createHash("sha256").update(outputNext.value.payload).digest("hex") !== chunk.parserBootstrapHash) {
               throw new SplitFailure("VERIFY", `parser bootstrap mismatch: ${chunkPath}`);
             }
+            bootstrapEndOffset = outputNext.value.endOffset;
             outputNext = await outputIterator.next();
+          }
+          if (nativePrefixOffset !== undefined && bootstrapEndOffset !== undefined) {
+            // Rotation copies the native frames immediately preceding the new source range.
+            if (!outputNext.done && outputNext.value.kind === "segment-context") {
+              const contextFrames: SessionCaptureRecord[] = [];
+              outputNext = await outputIterator.next();
+              while (!outputNext.done && outputNext.value.kind === "frame") {
+                if (contextFrames.length === recentSourceFrames.length) {
+                  throw new SplitFailure("VERIFY", `parser context exceeds source history: ${chunkPath}`);
+                }
+                contextFrames.push(outputNext.value);
+                outputNext = await outputIterator.next();
+              }
+              if (contextFrames.length === 0 || outputNext.done || outputNext.value.kind !== "segment-context-end" ||
+                  outputNext.value.endOffset !== nativePrefixOffset) {
+                throw new SplitFailure("VERIFY", `invalid parser context boundary: ${chunkPath}`);
+              }
+              const expectedContext = recentSourceFrames.slice(-contextFrames.length);
+              if (!contextFrames.every((record, index) => matchesNativeRecord(record, expectedContext[index]!))) {
+                throw new SplitFailure("VERIFY", `parser context does not match source: ${chunkPath}`);
+              }
+              outputNext = await outputIterator.next();
+            } else if (bootstrapEndOffset !== nativePrefixOffset) {
+              throw new SplitFailure("VERIFY", `invalid parser bootstrap boundary: ${chunkPath}`);
+            }
           }
           let chunkRecordCount = 0;
           let chunkFrameCount = 0;
@@ -454,6 +493,10 @@ export const verifyManifest = (
             if (original.kind === "frame") {
               chunkFrameCount++;
               firstFrameOffset ??= outputNext.value.offset;
+              if (directAMS2) {
+                recentSourceFrames.push(original);
+                if (recentSourceFrames.length > MAX_AMS2_PARSER_CONTEXT_FRAMES) recentSourceFrames.shift();
+              }
             }
             chunkRecordCount++;
             expectedOrdinal++;
@@ -466,8 +509,8 @@ export const verifyManifest = (
               (chunkFrameCount !== chunk.ownedFrameCount || firstFrameOffset !== chunk.ownedFrameByteOffset)) {
             throw new SplitFailure("VERIFY", `owned frame window mismatch: ${chunkPath}`);
           }
+          const deferredSourceRecords: SessionCaptureRecord[] = [];
           for (let index = 0; index < (chunk.trailingContextFrameCount ?? 0); index++) {
-            const deferredSourceRecords: SessionCaptureRecord[] = [];
             let original = await readSourceRecord();
             while (original && (original.kind === "segment-context" || original.kind === "segment-context-end")) {
               deferredSourceRecords.push(original);
@@ -478,9 +521,10 @@ export const verifyManifest = (
                 !matchesNativeRecord(outputNext.value, original)) {
               throw new SplitFailure("VERIFY", `trailing context mismatch: ${chunkPath}`);
             }
-            pendingSourceRecords.unshift(...deferredSourceRecords, original);
+            deferredSourceRecords.push(original);
             outputNext = await outputIterator.next();
           }
+          pendingSourceRecords.unshift(...deferredSourceRecords);
           if (!outputNext.done) throw new SplitFailure("VERIFY", `unexpected output record: ${chunkPath}`);
         } finally {
           await outputIterator.return?.(0);
