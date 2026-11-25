@@ -1,0 +1,8 @@
+{
+  "name": "@raceiq/game-gt7-metadata",
+  "private": true,
+  "type": "module",
+  "exports": { "./index": "./src/index.ts", "./tracks": "./src/tracks.ts" },
+  "dependencies": { "@raceiq/shared": "workspace:*" },
+  "scripts": { "typecheck": "bun check --project tsconfig.json" }
+}

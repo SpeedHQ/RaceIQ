@@ -1,0 +1,15 @@
+{
+  "name": "@raceiq/game-gt7",
+  "private": true,
+  "type": "module",
+  "exports": { "./parser": "./src/parser.ts" },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/game-gt7-metadata": "workspace:*"
+  },
+  "scripts": {
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-gt7"
+  }
+}

@@ -139,7 +139,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     typesSource,
     typesTree,
     "TelemetryPacket",
-  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu", "ams2"].includes(field.name));
+  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu", "ams2", "gt7"].includes(field.name));
   const packetFieldNames = packetFields.map((field) => field.name);
   const packetSets = wheelFieldSets(packetFieldNames);
 
@@ -161,6 +161,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     iracing: [],
     lmu: [],
     ams2: [],
+    gt7: [],
   };
   for (const set of packetSets) {
     const semantic = normalizedSemantic(set);

@@ -19,6 +19,7 @@ const GAME_META: Record<GameId, { label: string; tag: string }> = {
   iracing: { label: "iRacing", tag: "iRacing" },
   ams2: { label: "Automobilista 2", tag: "AMS2" },
   lmu: { label: "Le Mans Ultimate", tag: "LMU" },
+  gt7: { label: "Gran Turismo 7", tag: "GT7" },
 };
 
 type MapKind = "inline-svg" | "none";

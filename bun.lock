@@ -408,6 +408,19 @@
         "@raceiq/shared": "workspace:*",
       },
     },
+    "packages/game-gt7": {
+      "name": "@raceiq/game-gt7",
+      "dependencies": {
+        "@raceiq/game-gt7-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/game-gt7-metadata": {
+      "name": "@raceiq/game-gt7-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
     "packages/game-iracing": {
       "name": "@raceiq/game-iracing",
       "dependencies": {
@@ -1483,6 +1496,10 @@
     "@raceiq/game-fm-2023": ["@raceiq/game-fm-2023@workspace:packages/game-fm-2023"],
 
     "@raceiq/game-fm-2023-metadata": ["@raceiq/game-fm-2023-metadata@workspace:packages/game-fm-2023-metadata"],
+
+    "@raceiq/game-gt7": ["@raceiq/game-gt7@workspace:packages/game-gt7"],
+
+    "@raceiq/game-gt7-metadata": ["@raceiq/game-gt7-metadata@workspace:packages/game-gt7-metadata"],
 
     "@raceiq/game-iracing": ["@raceiq/game-iracing@workspace:packages/game-iracing"],
 

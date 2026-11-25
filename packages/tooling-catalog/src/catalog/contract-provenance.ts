@@ -78,7 +78,12 @@ export function enrichCatalogContracts(
     variable.limitations ??= [];
 
     for (const gameId of GAME_IDS) {
-      const mapping = variable.games[gameId];
+      const mapping = variable.games[gameId] ?? {
+        kind: "unavailable" as const,
+        reason: "source-not-provided" as const,
+        description: `${gameId} does not provide this semantic channel.`,
+      };
+      variable.games[gameId] = mapping;
       if (mapping.kind === "unavailable") continue;
       const sources = Array.isArray(mapping.sources)
         ? mapping.sources

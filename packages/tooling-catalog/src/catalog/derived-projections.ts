@@ -117,6 +117,7 @@ function addSectorDerivedVariables(
         "current lap time - time at native sector-index transition",
         "RaceIQ times LMU native sector transitions.",
       ),
+      gt7: unavailable("source-not-provided", "GT7 telemetry does not provide sector boundaries or split times."),
     },
   );
 
@@ -203,6 +204,7 @@ function addSectorDerivedVariables(
         "source-not-provided",
         "LMU source frames expose current sector index but not completed current-lap sector splits.",
       ),
+      gt7: unavailable("source-not-provided", "GT7 telemetry does not provide sector boundaries or split times."),
     },
   );
 
@@ -246,6 +248,7 @@ function addSectorDerivedVariables(
         "source-not-provided",
         "LMU source frames do not expose completed sector split times.",
       ),
+      gt7: unavailable("source-not-provided", "GT7 telemetry does not provide sector boundaries or split times."),
     },
   );
 
@@ -429,6 +432,7 @@ function addCrossSourceProjections(
       "source-not-provided",
       "Forza packet provides fuel fraction but no tank capacity, so litres cannot be derived safely.",
     ),
+    gt7: unavailable("source-not-provided", "GT7 fuel capacity is not a reliable fuel-volume channel across combustion and electric cars."),
     "f1-2025": derivedLink(
       "fraction and L",
       ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],

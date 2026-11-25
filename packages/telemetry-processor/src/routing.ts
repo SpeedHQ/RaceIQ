@@ -18,5 +18,6 @@ export function getGameParser(gameId: GameId): TelemetryParser<any> {
     case "f1-2025": return f1Parser;
     case "iracing": return iracingParser;
     case "lmu": return lmuParser;
+    case "gt7": throw new Error("GT7 parser routing is added with the live adapter integration");
   }
 }

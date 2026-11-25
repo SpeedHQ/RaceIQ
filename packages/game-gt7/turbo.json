@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["game"],
+  "tasks": {
+    "test": {
+      "inputs": ["$TURBO_EXTENDS$", "test/fixtures/gt7-format-c-packet.bin"]
+    }
+  }
+}

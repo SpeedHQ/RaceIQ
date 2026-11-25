@@ -2,7 +2,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 
 export const SEED_MARKER = "raceiq-demo-seed-v1";
 export const PROFILE_NAME = "RaceIQ Demo Driver";
-export const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "ams2", "lmu"];
+export const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "ams2", "lmu", "gt7"];
 export const LMU_MULTIPLAYER_FIXTURE_PARTS = [
   "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part01",
   "packages/game-lmu/test/fixtures/laps/lmu-2026-10-22T21-59-41-929Z-f9c5a07c-aa24-42bb-a574-50784313fe93.bin.gz.part02",
@@ -31,6 +31,7 @@ export const FIXTURES: Record<GameId, string[]> = {
   iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
   ams2: ["test/artifacts/sessions/ams2-race-pit-stop.bin.gz"],
   lmu: [...LMU_MULTIPLAYER_FIXTURE_PARTS],
+  gt7: [],
 };
 
 export type SeedOptions = {

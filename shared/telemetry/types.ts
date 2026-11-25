@@ -3,6 +3,16 @@ import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
 import type { IRacingExtendedData } from "./iracing";
 import type { LMUExtendedData, LmuLiveContext } from "./lmu";
+export interface GT7ExtendedData {
+  /** Packet-derived coarse session type. GT7 does not expose event identity. */
+  sessionType: "race" | "time-trial";
+  /** GT7 suggested gear; undefined when the packet has no suggestion. */
+  suggestedGear?: number;
+  /** GT7 car category, available in packet format C. */
+  carCategory?: string;
+  /** Stable remapped aids: TCS=1, ASM=2, handbrake=4, rev limiter=8. */
+  driverAids: number;
+}
 export interface RaceIQExtendedData {
   /** UTC epoch milliseconds when source frame was acquired; absent in historical captures. */
   frameTimeMs?: number;
@@ -22,6 +32,7 @@ export interface TelemetryPacket {
   iracing?: IRacingExtendedData;
   lmu?: LMUExtendedData;
   ams2?: {carName: string; trackName: string; trackLengthM: number; lapDistanceM: number; sessionType: string; lapInvalidated: boolean; inPits: boolean};
+  gt7?: GT7ExtendedData;
   lmuContext?: LmuLiveContext;
   extendedRaceIQ?: RaceIQExtendedData;
 
