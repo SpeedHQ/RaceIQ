@@ -43,7 +43,11 @@ export function HomePageView({
   onPeriodTabChange,
 }: HomePageViewProps) {
   const sessionMetadataQuery = useSessions({ allGames: gameId == null });
-  const statusIds = useMemo(() => [...sessions.map((session) => session.id), ...(latestSession ? [latestSession.id] : [])], [latestSession, sessions]);
+  const statusIds = useMemo(() => {
+    const ids = sessions.map((session) => session.id);
+    if (latestSession) ids.push(latestSession.id);
+    return ids;
+  }, [latestSession, sessions]);
   const sessionProcessing = useMemo(
     () => indexProcessingById(sessionMetadataQuery.data, statusIds),
     [sessionMetadataQuery.data, statusIds],
