@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { ROOT_DIR } from "../root";
-import { resolve } from "node:path";
+import clientPackage from "../../../../client/package.json";
 
 const repoRoot = ROOT_DIR;
-const image = "mcr.microsoft.com/playwright:v1.62.0-jammy";
+const image = `mcr.microsoft.com/playwright:v${clientPackage.devDependencies["@playwright/test"]}-noble`;
 const command = "bun run snapshot:test";
 const bootstrap = [
   "set -euo pipefail",

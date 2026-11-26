@@ -255,11 +255,13 @@ describe("generateLapAnalysis", () => {
   });
 
   test.each([
-    ["gpt-5.4-mini", "medium", "medium", null],
+    ["gpt-6-luna", "medium", "medium", null],
+    ["gpt-6-luna", "xhigh", "xhigh", null],
+    ["gpt-6-luna", "none", "none", null],
+    ["gpt-6-luna", "none", "none", "upstream"],
     ["gpt-5.4-mini", "xhigh", "xhigh", null],
-    ["gpt-6-sol", "none", "none", "upstream"],
-    ["gpt-6.2-sol", "none", undefined, "sdk"],
     ["gpt-4.1-mini", "medium", undefined, null],
+    ["gpt-4.1-mini", "high", undefined, "sdk"],
   ] as const)("runs structured analysis with tools on %s with %s reasoning", async (model, level, reasoning, rejection) => {
     const deps = makeDeps();
     const settings = deps.loadSettings!();

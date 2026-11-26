@@ -12,7 +12,7 @@
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/tooling-marketing"
   },
   "dependencies": {
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.65.1",
     "@raceiq/shared": "workspace:*",
     "@raceiq/tooling-ui": "workspace:*",
     "@raceiq/game-fm-2023-metadata": "workspace:*",

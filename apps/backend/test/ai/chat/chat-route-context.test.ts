@@ -254,11 +254,11 @@ describe("lap chat route context and targeted removal", () => {
   });
 
   test.each([
-    ["gpt-6-sol", "medium", "medium", null],
-    ["gpt-6-sol", "max", "max", null],
-    ["gpt-6-sol", "none", "none", null],
-    ["gpt-6-sol", "none", "none", "upstream"],
-    ["gpt-6.2-sol", "none", undefined, "sdk"],
+    ["gpt-6-luna", "medium", "medium", null],
+    ["gpt-6-luna", "max", "max", null],
+    ["gpt-6-luna", "none", "none", null],
+    ["gpt-6-luna", "none", "none", "upstream"],
+    ["gpt-4.1-mini", "high", undefined, "sdk"],
   ] as const)("streams OpenAI Responses on %s with %s reasoning (%s on wire, %s rejection)", async (model, level, reasoning, rejection) => {
     const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
     const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model,
