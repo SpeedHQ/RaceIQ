@@ -16,7 +16,7 @@ import { SCENE_PRESENTATION } from "@raceiq/scene-3d/wireframe-utils";
 import { getGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { disposeWheelResource, type WheelResource } from "@raceiq/scene-3d/wireframe/Wheel";
-import { createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } from "@raceiq/scene-3d/wireframe/AnalysisWheels";
+import { analysisWheelTelemetryIndex, createAnalysisWheels, updateAnalysisWheels, type AnalysisWheelConfig } from "@raceiq/scene-3d/wireframe/AnalysisWheels";
 import { createDrivetrainResource, type DrivetrainResource } from "@raceiq/scene-3d/wireframe/Drivetrain";
 import { createWheelLabelResource, disposeWheelLabelResource, updateWheelLabelResource, updateWheelLabelScale, type WheelLabelConfig, type WheelLabelResource } from "@raceiq/scene-3d/wireframe/WheelLabels";
 import { createTireTrailResource, updateTireTrailResource, disposeTireTrailResource, type TireTrailResource } from "@raceiq/scene-3d/wireframe/TireTrails";
@@ -28,6 +28,9 @@ import { FOCUS_ZOOM_NEAR, FOCUS_ZOOM_SNAP_OUT, focusLaneWidth, focusZoomBlend, o
 import { sampleMotion, spectateSamplePosition } from "./spectate-replay"
 const color = (name: string) => resolveCssColor(`var(${name})`);
 import { hasTelemetryGap } from "./telemetry-gap";
+
+const CHASE_CAMERA_PHI = 1.15;
+const OVERHEAD_CAMERA_PHI = 0.35;
 
 export function estimatedRaceLineSegments(samples: readonly SpectateSample[], opponent = false, maximumGapSeconds?: number): number[] {
   const positions: number[] = [];
@@ -45,9 +48,9 @@ export function estimatedRaceLineSegments(samples: readonly SpectateSample[], op
   }
   return positions;
 }
-export function translateEstimatedRaceLineToScene(positions: number[], origin: TrackPoint, y: number): void {
+export function translateEstimatedRaceLineToScene(positions: number[], origin: TrackPoint, y: number, flipX = false): void {
   for (let i = 0; i < positions.length; i += 3) {
-    positions[i] -= origin.x;
+    positions[i] = (flipX ? -positions[i]! : positions[i]!) - origin.x;
     positions[i + 1] = y;
     positions[i + 2] -= origin.z;
   }
@@ -213,6 +216,16 @@ export class SpectateSceneRuntime {
     this.wake();
   }
   setDirectionLock(enabled: boolean) {
+    if (enabled && !this.directionLock) {
+      this.deltaScratch.copy(this.camera.position).sub(this.controls.target);
+      this.sphericalScratch.setFromVector3(this.deltaScratch);
+      if (this.sphericalScratch.phi < OVERHEAD_CAMERA_PHI) {
+        this.sphericalScratch.phi = CHASE_CAMERA_PHI;
+        this.camera.position.setFromSpherical(this.sphericalScratch).add(this.controls.target);
+        this.camera.lookAt(this.controls.target);
+        this.controls.update();
+      }
+    }
     this.directionLock = enabled;
     this.wake();
   }
@@ -257,6 +270,7 @@ export class SpectateSceneRuntime {
   private fpsCap: number;
   private forceWebGL: boolean;
   private readonly resources: ReplayModelResources;
+  private readonly flipSceneX: boolean;
   private drawing = false;
   private visibilityChanged = () => {
     if (document.hidden) this.lastWheelUpdate = null;
@@ -267,6 +281,7 @@ export class SpectateSceneRuntime {
     this.fpsCap = Number.isFinite(fpsCap) && fpsCap > 0 ? fpsCap : 30;
     this.forceWebGL = forceWebGL;
     this.pair = pair;
+    this.flipSceneX = pair.gameId === "f1-2025";
     this.controller = controller;
     this.ready = onReady;
     this.zoomIndicator = zoomIndicator;
@@ -274,7 +289,7 @@ export class SpectateSceneRuntime {
     const initialPoses = [controller.getSnapshot().a?.pose, controller.getSnapshot().b?.pose].filter((pose): pose is SpectatePose => !!pose);
     if (initialPoses.length)
       this.origin.set(
-        initialPoses.reduce((sum, pose) => sum + pose.x, 0) / initialPoses.length,
+        (initialPoses.reduce((sum, pose) => sum + pose.x, 0) / initialPoses.length) * (this.flipSceneX ? -1 : 1),
         initialPoses.reduce((sum, pose) => sum + pose.y, 0) / initialPoses.length,
         initialPoses.reduce((sum, pose) => sum + pose.z, 0) / initialPoses.length,
       );
@@ -334,10 +349,10 @@ export class SpectateSceneRuntime {
     const native: (TrackPoint & { y: number })[] = [];
     for (const sample of this.pair.a.samples) {
       const pose = spectateSamplePosition(sample);
-      if (pose) native.push({ x: pose.x, y: pose.y ?? 0, z: pose.z });
+      if (pose) native.push({ x: this.flipSceneX ? -pose.x : pose.x, y: pose.y, z: pose.z });
     }
     let displayBoundaries = boundaries;
-    if (displayBoundaries && needsTrackFlip(this.pair.gameId)) displayBoundaries = flipBoundaries(displayBoundaries);
+    if (displayBoundaries && (needsTrackFlip(this.pair.gameId) || this.flipSceneX)) displayBoundaries = flipBoundaries(displayBoundaries);
     // These endpoints already return game-world metres. Fitting their centerline
     // to a driven lap moves the track toward the car and changes its scale.
     const worldBoundaries = displayBoundaries?.coordSystem === "forza" || displayBoundaries?.coordSystem === "f1-2025" || displayBoundaries?.coordSystem === "acc" || displayBoundaries?.coordSystem === "lmu" || displayBoundaries?.coordSystem === "ams2-world" || displayBoundaries?.coordSystem === "iracing-replay" || displayBoundaries?.coordSystem === "iracing-map";
@@ -457,12 +472,13 @@ export class SpectateSceneRuntime {
       const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
           const motion = lap.motionSamples ? sampleMotion(lap.motionSamples, sample.time, true, "opponentLapId" in lap.replay, lap.maximumGapSeconds) : null;
-          const pose = motion?.pose ?? spectateSamplePosition(sample);
+          const pose = motion ? motion.pose : spectateSamplePosition(sample);
+          const y = sample.values["motion.position-y"];
           return {
-            x: pose?.x ?? NaN,
-            y: pose?.y ?? this.origin.y,
+            x: pose ? (this.flipSceneX ? -pose.x : pose.x) : NaN,
+            y: motion ? pose?.y ?? NaN : sample.scenePose !== undefined ? pose?.y ?? this.origin.y : typeof y === "number" && Number.isFinite(y) ? y : this.origin.y,
             z: pose?.z ?? NaN,
-            distance: sample.distance,
+            distance: motion?.distance ?? sample.distance,
           };
         });
         this.focusNativePoints[side] = points;
@@ -485,11 +501,13 @@ export class SpectateSceneRuntime {
       if (!resolved) { resolved = color(token); palette.set(token, resolved); }
       return resolved;
     };
-    const nativePoint = (sample: SpectateSample): FocusRenderPoint => {
+    const nativePoint = (sample: SpectateSample, opponent: boolean): FocusRenderPoint => {
       const pose = spectateSamplePosition(sample);
+      const y = sample.values["motion.position-y"];
+      const height = sample.scenePose !== undefined ? pose?.y ?? this.origin.y : opponent ? 0 : typeof y === "number" && Number.isFinite(y) ? y : this.origin.y;
       return {
-        x: (pose?.x ?? NaN) - this.origin.x,
-        y: (pose?.y ?? this.origin.y) - this.origin.y,
+        x: (pose ? (this.flipSceneX ? -pose.x : pose.x) : NaN) - this.origin.x,
+        y: height - this.origin.y,
         z: (pose?.z ?? NaN) - this.origin.z,
         color: focusColor(sample),
       };
@@ -518,8 +536,8 @@ export class SpectateSceneRuntime {
         const valid = pose !== null;
         const connected = prior && valid && prior.run === sample.run && sample.time >= prior.time && !hasTelemetryGap(prior.time, sample.time, opponent ? 0.3 : (side === "a" ? this.pair.a : this.pair.b)?.maximumGapSeconds);
         if (prior && connected) {
-          if (!native.length) native.push(nativePoint(prior));
-          native.push(nativePoint(sample));
+          if (!native.length) native.push(nativePoint(prior, opponent));
+          native.push(nativePoint(sample, opponent));
           nativeCount++;
           const brake = sample.values["inputs.brake"], throttle = sample.values["inputs.accel"];
           if (typeof brake === "number" && Number.isFinite(brake) && controlInputPercent(brake) > 0) brakeCount++;
@@ -556,7 +574,7 @@ export class SpectateSceneRuntime {
     for (const [index, lap] of [a, b].entries()) {
       const line = this.estimatedLines[index]!;
       const positions = lap.estimated;
-      translateEstimatedRaceLineToScene(positions, this.origin, -this.origin.y);
+      translateEstimatedRaceLineToScene(positions, this.origin, -this.origin.y, this.flipSceneX);
       line.geometry.dispose();
       line.geometry = new THREE.BufferGeometry();
       line.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -675,6 +693,9 @@ export class SpectateSceneRuntime {
         ? temperature.binding.semanticId : "tire.temperature.surface.representative",
       temperatureThresholds: adapter.tireTempThresholds,
     };
+    // F1 scene coordinates are reflected at the car-group level. Keep all
+    // telemetry-driven parts in that same frame (including physical left/right).
+    if (this.flipSceneX) this.groups[i].scale.z = -1;
     slot.wheels = createAnalysisWheels(this.groups[i], selection.model);
     slot.springs = Array.from({ length: 4 }, () => createSuspensionSpringResource(this.scene));
     for (const spring of slot.springs) spring.spring.group.visible = spring.rod.group.visible = false;
@@ -707,7 +728,8 @@ export class SpectateSceneRuntime {
       const suspension = native ? normalized as number[]
         : Array.isArray(raw) && raw.length >= 4 && raw.slice(0, 4).every(value => typeof value === "number" && Number.isFinite(value)) && lap
           ? normalizeSuspensionTravel(raw, sceneSuspensionRange(lap.samples, this.pair.gameId)) : null;
-      const [fl, fr, rl, rr] = suspension ?? [0.5, 0.5, 0.5, 0.5];
+      const nativeSuspension = suspension ?? [0.5, 0.5, 0.5, 0.5];
+      const [fl, fr, rl, rr] = nativeSuspension;
       const stroke = slot.config.carModel.suspStroke ?? 0.08;
       slot.body.root.position.y = -((fl! + fr! + rl! + rr!) / 4 - 0.5) * stroke;
       slot.body.root.rotation.x = ((fr! + rr! - fl! - rl!) / 2) * 0.1;
@@ -722,7 +744,7 @@ export class SpectateSceneRuntime {
         const rear = index >= 2;
         const x = rear ? -model.halfWheelbase : model.halfWheelbase;
         const z = (index % 2 === 0 ? -1 : 1) * ((rear ? model.halfRearTrack : model.halfFrontTrack) - 0.35);
-        const travel = suspension[index]!;
+        const travel = nativeSuspension[analysisWheelTelemetryIndex(index, this.flipSceneX)]!;
         this.springBodyScratch.set(x, 0.23 - (travel - 0.5) * stroke, z);
         this.springWheelScratch.set(x, 0, z);
         this.groups[side].localToWorld(this.springBodyScratch);
@@ -733,7 +755,7 @@ export class SpectateSceneRuntime {
           travel, thresholds, Math.max(1, this.canvas.clientHeight));
       }
     }
-    const readings = updateAnalysisWheels(slot.wheels, frame, slot.config, elapsed, speed, playing);
+    const readings = updateAnalysisWheels(slot.wheels, frame, slot.config, elapsed, speed, playing, undefined, this.flipSceneX);
     const options = this.tireInfoOptions;
     if (!this.tireInfo || !options) {
       if (slot.wheelInfo) for (const label of slot.wheelInfo.labels) if (label) label.sprite.visible = false;
@@ -761,7 +783,8 @@ export class SpectateSceneRuntime {
     if (timestamp !== info.timestamp) {
       const dt = info.timestamp === null ? 0 : (timestamp - info.timestamp) / 1000;
       for (let index = 0; index < slot.wheels.length; index++) {
-        const wear = wheelNumber(reading.values, "tires.tire-wear", index), previous = info.previousWear[index];
+        const telemetryIndex = analysisWheelTelemetryIndex(index, this.flipSceneX);
+        const wear = wheelNumber(reading.values, "tires.tire-wear", telemetryIndex), previous = info.previousWear[index];
         info.wearRates[index] = consumedWearRate(previous, wear, dt, info.wearRates[index]!);
         info.previousWear[index] = wear;
       }
@@ -772,13 +795,14 @@ export class SpectateSceneRuntime {
     for (let index = 0; index < slot.wheels.length; index++) {
       let label = info.labels[index];
       if (refresh) {
-        const brakeTemp = wheelNumber(reading.values, "brakes.brake-temp", index);
+        const telemetryIndex = analysisWheelTelemetryIndex(index, this.flipSceneX);
+        const brakeTemp = wheelNumber(reading.values, "brakes.brake-temp", telemetryIndex);
         const config: WheelLabelConfig = {
           temperatureReadings: readings[index]!,
           carcassBands: [
-            wheelNumber(reading.values, "tire.temperature.carcass.left", index),
-            wheelNumber(reading.values, "tire.temperature.carcass.middle", index),
-            wheelNumber(reading.values, "tire.temperature.carcass.right", index),
+            wheelNumber(reading.values, "tire.temperature.carcass.left", telemetryIndex),
+            wheelNumber(reading.values, "tire.temperature.carcass.middle", telemetryIndex),
+            wheelNumber(reading.values, "tire.temperature.carcass.right", telemetryIndex),
           ],
           fmtTemp: options.fmtTemp, temperatureLabels: options.temperatureLabels,
           pitTemperatureLabel: options.pitTemperatureLabel, carcassLabel: options.carcassLabel,
@@ -788,8 +812,8 @@ export class SpectateSceneRuntime {
           coldPressure: false,
           temperatureThresholds: slot.config.temperatureThresholds,
           displayBrakeTemp: brakeTemp === null ? null : options.fmtTemp(brakeTemp),
-          wear: wheelNumber(reading.values, "tires.tire-wear", index), wearRate: info.wearRates[index]!,
-          brakeTemp: brakeTemp ?? 0, pressurePsi: wheelNumber(reading.values, "tires.tire-pressure", index),
+          wear: wheelNumber(reading.values, "tires.tire-wear", telemetryIndex), wearRate: info.wearRates[index]!,
+          brakeTemp: brakeTemp ?? 0, pressurePsi: wheelNumber(reading.values, "tires.tire-pressure", telemetryIndex),
           pressureOptimal: options.pressureOptimal[side],
           side: index % 2 === 0 ? "left" : "right", isRear: index >= 2,
         };
@@ -855,9 +879,9 @@ export class SpectateSceneRuntime {
     frames.length = count;
     trail.mesh.visible = trail.mesh.count > 0;
     if (trail.mesh.visible) {
-      trail.mesh.position.set(reading.pose.x - this.origin.x, reading.pose.y - this.origin.y, reading.pose.z - this.origin.z);
+      trail.mesh.position.set((this.flipSceneX ? -reading.pose.x : reading.pose.x) - this.origin.x, reading.pose.y - this.origin.y, reading.pose.z - this.origin.z);
       // Shared trail coordinates use forward +X and lateral +Z; replay world uses +Z forward.
-      trail.mesh.rotation.y = reading.pose.yaw - Math.PI / 2;
+      trail.mesh.rotation.y = (this.flipSceneX ? -reading.pose.yaw : reading.pose.yaw) - Math.PI / 2;
       trail.mesh.scale.z = -1;
     }
   }
@@ -884,7 +908,7 @@ export class SpectateSceneRuntime {
     for (const samples of [this.pair.a.samples, ...(this.pair.b ? [this.pair.b.samples] : [])])
       for (const sample of samples) {
         const pose = spectateSamplePosition(sample);
-        if (pose) box.expandByPoint(point.set(pose.x - this.origin.x, -this.origin.y, pose.z - this.origin.z));
+        if (pose) box.expandByPoint(point.set((this.flipSceneX ? -pose.x : pose.x) - this.origin.x, -this.origin.y, pose.z - this.origin.z));
       }
     if (box.isEmpty()) return;
     box.getCenter(this.centerScratch);
@@ -895,7 +919,15 @@ export class SpectateSceneRuntime {
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
     this.fitRadius = Math.max(20, (Math.max(halfDepth, halfWidth / aspect) / Math.tan(fov / 2)) * 1.12);
     this.controls.target.copy(this.centerScratch);
-    this.camera.position.set(this.centerScratch.x, this.centerScratch.y + this.fitRadius, this.centerScratch.z + this.fitRadius * 0.002);
+    if (this.directionLock) {
+      const pose = this.controller.getSnapshot().a?.pose ?? this.controller.getSnapshot().b?.pose;
+      const sceneYaw = pose ? (this.flipSceneX ? -pose.yaw : pose.yaw) : 0;
+      this.sphericalScratch.set(this.fitRadius, CHASE_CAMERA_PHI, pose ? sceneYaw + Math.PI : 0);
+      this.camera.position.setFromSpherical(this.sphericalScratch).add(this.centerScratch);
+    } else {
+      this.sphericalScratch.set(this.fitRadius, 0.002, 0);
+      this.camera.position.setFromSpherical(this.sphericalScratch).add(this.centerScratch);
+    }
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.controls.target);
     this.controls.update();
@@ -903,8 +935,8 @@ export class SpectateSceneRuntime {
   private pose(group: THREE.Group, pose: SpectatePose | null, side: "a" | "b") {
     // CarBody's canonical front is +X; Analyse's semantic yaw points [sin(yaw), cos(yaw)].
     if (pose) {
-      group.position.set(pose.x - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z);
-      group.rotation.set(0, pose.yaw - Math.PI / 2, 0);
+      group.position.set((this.flipSceneX ? -pose.x : pose.x) - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z);
+      group.rotation.set(0, (this.flipSceneX ? -pose.yaw : pose.yaw) - Math.PI / 2, 0);
     }
     this.canvas.dataset[`${side}RenderedCarWorldY`] = pose ? String(group.position.y + this.origin.y) : "";
   }
@@ -1013,7 +1045,8 @@ export class SpectateSceneRuntime {
     const interval = 1000 / this.fpsCap;
     const current = this.controller.getSnapshot();
     if (!current.seeking && !this.interactionPending && !this.resizePending && !this.pendingFrames.length && now - this.lastRender < interval) {
-      if (current.playing || this.settleFrames > 0 || this.dirty) this.raf = requestAnimationFrame(this.drawFrame);
+      // Keep the idle timer and snap animation alive across FPS-capped frames.
+      if (current.playing || this.settleFrames > 0 || this.dirty || this.zoomIdleUntil > 0 || this.zoomSnap) this.raf = requestAnimationFrame(this.drawFrame);
       return;
     }
     this.drawing = true;
@@ -1063,7 +1096,7 @@ export class SpectateSceneRuntime {
       const reading = side === 0 ? snapshot.a : snapshot.b;
       if (!reading?.pose) continue;
       const pose = reading.pose, byDistance = this.laneHasProgress[side] && reading.distance !== null;
-      this.positionScratch.set(pose.x - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z);
+      this.positionScratch.set((this.flipSceneX ? -pose.x : pose.x) - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z);
       if (blend > 0 && sampleFocusLane(this.centerScratch, this.projectedLaneSources[side], byDistance ? reading.distance! : reading.time, byDistance ? "distance" : "time")) this.positionScratch.lerp(this.centerScratch, blend);
       this.targetScratch.add(this.positionScratch);
       poseCount++;
@@ -1081,7 +1114,8 @@ export class SpectateSceneRuntime {
     this.sphericalScratch.setFromVector3(this.deltaScratch);
     const headingPose = first ?? second;
     if (this.directionLock && headingPose) {
-      const nativeHeading = headingPose.yaw + Math.PI;
+      const sceneHeading = this.flipSceneX ? -headingPose.yaw : headingPose.yaw;
+      const nativeHeading = sceneHeading + Math.PI;
       this.sphericalScratch.theta = nativeHeading;
     }
     this.pairFitRadius = 0;
@@ -1097,6 +1131,11 @@ export class SpectateSceneRuntime {
     }
     this.camera.position.setFromSpherical(this.sphericalScratch).add(this.controls.target);
     this.camera.lookAt(this.controls.target);
+    // OrbitControls caches its last camera position when update() runs.  The
+    // direction lock and pair-fit adjustment above move the camera afterwards;
+    // synchronize that cache so the next wheel event is not mistaken for a
+    // duplicate of the previous, pre-constraint position.
+    this.controls.update();
     this.camera.updateMatrixWorld();
     if (this.dirty) {
       try {
@@ -1279,8 +1318,9 @@ export class SpectateSceneRuntime {
           this.canvas.dataset.sceneRendered = "true";
           this.ready(true);
         }
-      } catch {
-        this.rejectPendingFrames(new Error("Scene rendering failed"));
+      } catch (error) {
+        console.error("Spectate frame rendering failed", error);
+        this.rejectPendingFrames(new Error("Scene rendering failed", { cause: error }));
         this.initialized = false;
         this.drawing = false;
         this.ready(false);
@@ -1295,7 +1335,7 @@ export class SpectateSceneRuntime {
     }
   }
   private projectPose(side: "a" | "b", pose: SpectatePose | null) {
-    if (pose) this.positionScratch.set(pose.x - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z).project(this.camera);
+    if (pose) this.positionScratch.set((this.flipSceneX ? -pose.x : pose.x) - this.origin.x, pose.y - this.origin.y, pose.z - this.origin.z).project(this.camera);
     this.canvas.dataset[side === "a" ? "aScreenX" : "bScreenX"] = pose ? String(this.positionScratch.x) : "";
     this.canvas.dataset[side === "a" ? "aScreenY" : "bScreenY"] = pose ? String(this.positionScratch.y) : "";
     this.canvas.dataset[side === "a" ? "aScreenZ" : "bScreenZ"] = pose ? String(this.positionScratch.z) : "";

@@ -81,6 +81,25 @@
     }
   },
   "tasks": {
+    "browser:runtime:impact": {},
+    "browser:seed:impact": {},
+    "browser:fresh:impact": {},
+    "e2e:catalogue-runtime:impact": {},
+    "browser:tunes:impact": {},
+    "browser:tunes-unseeded:impact": {},
+    "browser:seeded-e2e:impact": {},
+    "browser:seeded-routes:impact": {},
+    "browser:seeded-imports:impact": {},
+    "browser:webgpu:impact": {},
+    "visual:responsive:impact": {},
+    "visual:storybook:impact": {},
+    "verify:build:impact": {},
+    "verify:desktop:impact": {},
+    "bench:replay": {},
+    "ci:check-shards": { "cache": false },
+    "ci:check-locales": { "cache": false },
+    "ci:check-db-upgrade": { "cache": false },
+    "ci:check-telemetry": { "cache": false },
     "transit": {
       "dependsOn": [
         "^transit"
@@ -799,6 +818,9 @@
         "$TURBO_ROOT$/playwright/config/**",
         "$TURBO_ROOT$/playwright/support/**",
         "$TURBO_ROOT$/playwright/tests/support/**",
+        "$TURBO_ROOT$/playwright/tests/setup/**",
+        "$TURBO_ROOT$/packages/tooling-data/src/data/**",
+        "$TURBO_ROOT$/apps/backend/scripts/data/**",
         "$TURBO_ROOT$/playwright/playwright.config.ts",
         "$TURBO_ROOT$/packages/tooling-build/**",
         "$TURBO_ROOT$/test/artifacts/**",

@@ -8,6 +8,7 @@ import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 import { DEFAULT_RECORDING_FREQUENCY_HZ, type RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { LmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
+import type { AiProvider } from "@raceiq/shared/integrations/ai/providers";
 import type { OpenAiReasoningLevel } from "@raceiq/shared/integrations/ai/openai-reasoning";
 export interface DisplaySettings {
   recordingDirectory: string | null;
@@ -15,15 +16,16 @@ export interface DisplaySettings {
   recordLmuOpponents: boolean;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
-  aiProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
+  aiProvider: AiProvider;
   aiModel: string;
   aiThinkingBudget: number | null;
   aiReasoningLevel: OpenAiReasoningLevel;
-  chatProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
+  chatProvider: AiProvider;
   chatModel: string;
   chatThinkingBudget: number | null;
   chatReasoningLevel: OpenAiReasoningLevel;
-  autoTuneProvider: "gemini" | "openai" | "anthropic" | "deepseek" | "openai-compatible";
+  chatSubscriptionReasoningLevel: OpenAiReasoningLevel | null;
+  autoTuneProvider: AiProvider;
   autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
@@ -83,6 +85,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   chatModel: "",
   chatThinkingBudget: null,
   chatReasoningLevel: "medium",
+  chatSubscriptionReasoningLevel: null,
   autoTuneProvider: "gemini",
   autoTuneModel: "",
   localEndpoint: "http://localhost:1234/v1",

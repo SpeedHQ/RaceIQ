@@ -52,7 +52,8 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
   const suppressTabClick = useRef(false);
   const [tabDrop, setTabDrop] = useState<{ source: string; target: string | null } | null>(null);
   const [layout, setLayout] = useState<PanelLayout>({ widths: {}, railWidth: null, railPanels: [] });
-  const [viewport, setViewport] = useState(typeof window === "undefined" ? 1024 : window.innerWidth);
+  const initialViewport = useRef(typeof window === "undefined" ? 1024 : window.innerWidth);
+  const [viewport, setViewport] = useState(initialViewport.current);
   const [workspaceWidth, setWorkspaceWidth] = useState(0);
   const panelsRef = useRef(panels);
   const previousOpenPanels = useRef<Set<string> | null>(null);
@@ -95,7 +96,7 @@ export function SpectateWorkspace({ children, panels, panelHeaderTarget, storage
     } catch { setLayout({ widths: {}, railWidth: null, railPanels: [] }); }
   }, [storageKey]);
   useEffect(() => {
-    let previousViewport = window.innerWidth;
+    let previousViewport = initialViewport.current;
     const update = () => {
       const next = window.innerWidth;
       setViewport(next);

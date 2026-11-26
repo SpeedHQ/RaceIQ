@@ -15,7 +15,7 @@ import {
   saveTrackGeometry,
 } from "@raceiq/shared/racing/tracks/storage/meta";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { getTrackGuide } from "@raceiq/backend-core/ai/track-guides";
+import { getTrackGuide } from "@raceiq/assistant/ai/track-guides";
 import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
 import { cornerNumbers } from "@raceiq/shared/racing/tracks/facts";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";

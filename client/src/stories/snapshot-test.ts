@@ -3,6 +3,15 @@ import { dirname } from "node:path";
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 
+const historicalDashboardNames: Record<string, string> = {
+  "/api/car-name/42": "F1 2025",
+  "/api/car-name/1742": "BMW M4",
+  "/api/car-name/1001": "GT3",
+  "/api/car-name/lamborghini_huracan_gt3_evo2": "Lamborghini Huracan GT3 EVO2",
+  "/api/track-name/101": "Watkins Glen International",
+  "/api/track-name/%5B%22Spa%22%2C%22%22%5D": "Spa-Francorchamps",
+};
+
 const test = base.extend<{ isolatedApi: void }>({
   isolatedApi: [
     async ({ page }, use) => {
@@ -14,6 +23,10 @@ const test = base.extend<{ isolatedApi: void }>({
         let body: unknown;
         let status = 200;
 
+        if (process.env.RACEIQ_UI_DIFF_CAPTURE === "1" && method === "GET" && historicalDashboardNames[path]) {
+          await route.fulfill({ contentType: "text/plain", body: historicalDashboardNames[path] });
+          return;
+        }
         if (method === "GET" && path === "/api/settings") body = DEFAULT_DISPLAY_SETTINGS;
         else if (method === "GET" && path === "/api/car-model-configs") body = {};
         else if (method === "GET" && path === "/api/resolve-names") body = { trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" }, carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" } };

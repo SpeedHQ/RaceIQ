@@ -6,14 +6,14 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.23.0",
-      "sourceHash": "d962be99fd42739844668d75cca5a0560cffc3a22af6ca96da51c7ca4c2162ac"
+      "sourceHash": "78374791120163e4bd0a13eba7e0818e0fc49bad4bdbd0225d5e037cc975dc05"
     },
     "sourceHashes": {
       "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
-      "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
+      "packages/game-ac-evo/src/parser.ts": "fe28aef137e54edc5b0185d0477fda3c9e243c8c40224d1c16737d3c2c279ef7",
       "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
       "packages/game-ams2/src/normalizer.ts": "0b3a2c0b5cad95cf117d7bd9b2b16f4c3bcf57461f206936b3fdf26bc5680dde",
-      "packages/game-f1-2025/src/f1-state.ts": "3a8a7354ef04ac1515ecccdfe12d37e8a8e160c762fdac10920646039c661cce",
+      "packages/game-f1-2025/src/f1-state.ts": "e93c4d5304656e3064fe2e8032ab08af27231e2fd92051a303523f3433bfb5e9",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "6040cc75d63df010caaadd15edb758d1d3423520cf3f465db9c92ae538640db9",
@@ -22,7 +22,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "085c4e1960293b20df3556cade2266618c6ee9f607be638cc85197209f8c2106"
+    "contentHash": "f83ceb4811a1185ed0c5e7d4b304135a2018ab50c2646acad21646fde13f50b6"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -84,6 +84,9 @@
       "label": "Aerodynamics",
       "description": "Aerodynamic devices, ride heights, and aero-state values.",
       "children": [
+        "aero.active-aero-activation-distance",
+        "aero.active-aero-available",
+        "aero.active-aero-mode",
         "aero.drs-active",
         "aero.drs-available",
         "aero.drs-zone-approaching",
@@ -276,6 +279,9 @@
         "electronics.abs-raw",
         "electronics.abs-vibrations",
         "electronics.motor-map",
+        "electronics.overtake-activation-distance",
+        "electronics.overtake-active",
+        "electronics.overtake-available",
         "electronics.pit-limiter-status",
         "electronics.tc-active",
         "electronics.tc-cut",
@@ -357,6 +363,7 @@
         "fuel.dp-fuel-fill",
         "fuel.ers-deploy-mode",
         "fuel.ers-deployed",
+        "fuel.ers-harvest-limit-per-lap",
         "fuel.ers-harvested",
         "fuel.ers-store-energy",
         "fuel.fuel",
@@ -391,6 +398,7 @@
         "identity.car-performance-index",
         "identity.driver-name",
         "identity.drivetrain-type",
+        "identity.f1-regulations-2026",
         "identity.game-version",
         "identity.is-in-garage",
         "identity.is-on-track-car",
@@ -404,6 +412,7 @@
         "identity.player-track-surface-material",
         "identity.session-name",
         "identity.source-identity",
+        "identity.telemetry-wire-format",
         "identity.track-id",
         "identity.track-limits-steps",
         "identity.vehicle-class",
@@ -557,6 +566,7 @@
         "race.driver-incident-count",
         "race.driver-marker",
         "race.driver-status",
+        "race.driving-wrong-way",
         "race.extended-race-iq",
         "race.finish-status",
         "race.flag-status",
@@ -1384,6 +1394,196 @@
   ],
   "variables": [
     {
+      "id": "aero.active-aero-activation-distance",
+      "label": "Active aero activation distance",
+      "description": "Native metres until active aero is available; zero means unavailable. Requires 2026 UDP packet 16.",
+      "parentId": "aero",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "f1.carTelemetry2.activeAeroActivationDistance"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "aero.active-aero-available",
+      "label": "Active aero available",
+      "description": "Whether active aero is available, reported independently of DRS by 2026 UDP packet 16.",
+      "parentId": "aero",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.carTelemetry2.activeAeroAvailable"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "aero.active-aero-mode",
+      "label": "Active aero mode",
+      "description": "F1 active aero: 0 corner mode, 1 straight mode. Requires 2026 UDP packet 16; not legacy DRS.",
+      "parentId": "aero",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "f1.carTelemetry2.activeAeroMode"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1"
+      ],
+      "limitations": []
+    },
+    {
       "id": "aero.drs-active",
       "label": "DRS active",
       "description": "Whether drag-reduction flap is currently open.",
@@ -1408,7 +1608,7 @@
             "f1.drsActivated"
           ],
           "freshness": "continuous",
-          "normalization": "(cs?.drsAllowed && f1.drsActivated) ? 1 : 0",
+          "normalization": "cs?.drsAllowed && f1.drsActivated ? 1 : 0",
           "description": "f1-2025 maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
@@ -1426,7 +1626,7 @@
               "f1.drsActivated"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "06824f368ac6ef38ce66a390081ca9cdb029431fa826da778e380403aaf842ea"
+            "codeHash": "f7517fd315c69e4cdb66aa7aee19d6a639fe796ff3bd29942657b6c2170b0984"
           }
         },
         "acc": {
@@ -11220,6 +11420,192 @@
       "limitations": []
     },
     {
+      "id": "electronics.overtake-activation-distance",
+      "label": "Overtake mode activation distance",
+      "description": "Native metres until overtake mode is available; zero means unavailable. Requires 2026 UDP packet 16.",
+      "parentId": "electronics",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "f1.carTelemetry2.overtakeActivationDistance"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "electronics.overtake-active",
+      "label": "Overtake mode active",
+      "description": "Whether overtake mode is active according to 2026 UDP packet 16; not DRS activation.",
+      "parentId": "electronics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.carTelemetry2.overtakeActive"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "electronics.overtake-available",
+      "label": "Overtake mode available",
+      "description": "Whether overtake mode is available according to 2026 UDP packet 16; not DRS availability.",
+      "parentId": "electronics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.carTelemetry2.overtakeAvailable"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "electronics.pit-limiter-status",
       "label": "Pit Limiter Status",
       "description": "Pit Limiter Status source value reported by f1-2025 in count.",
@@ -13955,12 +14341,13 @@
           "kind": "derived",
           "nativeUnit": "W",
           "sources": [
+            "F1.Header.packetFormat",
             "F1.CarStatus.enginePowerICE",
             "F1.CarStatus.enginePowerMGUK"
           ],
           "freshness": "continuous",
           "normalization": "cs ? cs.enginePowerICE + cs.enginePowerMGUK : 0",
-          "description": "f1-2025 maps 2 native source channels into this value.",
+          "description": "f1-2025 maps 3 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
@@ -13972,11 +14359,12 @@
             "version": "0.23.0",
             "deterministic": true,
             "declaredInputs": [
+              "F1.Header.packetFormat",
               "F1.CarStatus.enginePowerICE",
               "F1.CarStatus.enginePowerMGUK"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "8825cdb1cb1d1ee8996d8dcc70524307c049064dee5ea177bc9a53c4ec9cfdb8"
+            "codeHash": "cfbe523b7c0ebc6a362ec85b0774a00d39041232edad03304f606db3cd2dd0b8"
           }
         },
         "acc": {
@@ -15321,7 +15709,7 @@
             "f1.ersDeployMode"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersDeployMode ?? 0",
+          "normalization": "cs?.ersDeployMode",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15338,7 +15726,7 @@
               "f1.ersDeployMode"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "64401f848de3dcd37a259b9b8f36032be56f040274efc57beb150e5aaac4b308"
+            "codeHash": "1272703d88d697d5c8c1b2cd0317b9b7ed3a6a700819c48c2a1129249bc79b64"
           }
         },
         "acc": {
@@ -15378,8 +15766,7 @@
         "0",
         "1",
         "2",
-        "3",
-        "4"
+        "3"
       ],
       "limitations": []
     },
@@ -15407,7 +15794,7 @@
             "f1.ersDeployedThisLap"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersDeployedThisLap ?? 0",
+          "normalization": "cs?.ersDeployedThisLap",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15424,7 +15811,7 @@
               "f1.ersDeployedThisLap"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "ab4ca95705f3c94c3fac42590f5e7d8a055c50ae86a71a0065049cea83111832"
+            "codeHash": "1429e9b5b773d73f0d49eab78b70391d255f66926b6187baa97000338e476992"
           }
         },
         "acc": {
@@ -15465,6 +15852,70 @@
       "limitations": []
     },
     {
+      "id": "fuel.ers-harvest-limit-per-lap",
+      "label": "ERS harvest limit per lap",
+      "description": "Native energy harvest limit for this lap in joules, reported by the 2026 UDP status layout; unavailable on 2025 packets.",
+      "parentId": "fuel",
+      "canonicalUnit": "J",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "J",
+          "sources": [
+            "f1.ersHarvestLimitPerLap"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "mass",
+        "length^2",
+        "time^-2"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "fuel.ers-harvested",
       "label": "ERS Harvested",
       "description": "ERS energy harvested during current lap.",
@@ -15488,7 +15939,7 @@
             "f1.ersHarvestedThisLap"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersHarvestedThisLap ?? 0",
+          "normalization": "cs?.ersHarvestedThisLap",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15505,7 +15956,7 @@
               "f1.ersHarvestedThisLap"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "6b005f6d06585f7fae02d4f4e41fd3d5150c32e1dbb9bf9451c28b81bc769f03"
+            "codeHash": "121544451d4b57be4257e2300ddf9bd2bc25143f009e1b72ecd0ea552617dbec"
           }
         },
         "acc": {
@@ -15569,7 +16020,7 @@
             "f1.ersStoreEnergy"
           ],
           "freshness": "continuous",
-          "normalization": "cs?.ersStore ?? 0",
+          "normalization": "cs?.ersStore",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -15586,7 +16037,7 @@
               "f1.ersStoreEnergy"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "186e2802785b32d340a4b50675f005dda3aee7a538c152f0c5fbbb633b18f7e5"
+            "codeHash": "5c81ba44d6b11b6b305f78280ec3a2d6cf9f1dcb85e2f26d940e7d9538d377ea"
           }
         },
         "acc": {
@@ -15667,12 +16118,13 @@
           "kind": "normalized",
           "nativeUnit": "fraction",
           "sources": [
+            "F1.Header.packetFormat",
             "F1.CarStatus.fuelCapacity",
             "F1.CarStatus.fuelRemaining"
           ],
           "freshness": "continuous",
           "normalization": "cs && cs.fuelCapacity > 0 ? cs.fuelRemaining / cs.fuelCapacity : 0",
-          "description": "f1-2025 maps 2 native source channels into this value.",
+          "description": "f1-2025 maps 3 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
@@ -15684,11 +16136,12 @@
             "version": "0.23.0",
             "deterministic": true,
             "declaredInputs": [
+              "F1.Header.packetFormat",
               "F1.CarStatus.fuelCapacity",
               "F1.CarStatus.fuelRemaining"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "7f529b19b8bc8c177dccd84391b29e9ff1889a4238e91fa87a2973877ec2d564"
+            "codeHash": "cf5ebab16cbd4a9df1ad5fb1561e85db7533fb5ca49085ae46396e5387133706"
           }
         },
         "acc": {
@@ -15853,11 +16306,12 @@
           "kind": "normalized",
           "nativeUnit": "L",
           "sources": [
+            "F1.Header.packetFormat",
             "F1.CarStatus.fuelCapacity"
           ],
           "freshness": "continuous",
           "normalization": "cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0 ? cs.fuelCapacity : undefined",
-          "description": "f1-2025 maps 1 native source channel into this value.",
+          "description": "f1-2025 maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
@@ -15869,10 +16323,11 @@
             "version": "0.23.0",
             "deterministic": true,
             "declaredInputs": [
+              "F1.Header.packetFormat",
               "F1.CarStatus.fuelCapacity"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "d3f8718e72cc13e9a1daf8a6658717219baf6d138ba409ea066d6ba6e53060c7"
+            "codeHash": "fa1cc37376ef124d31c0597308051092c9583d63d895ba4b87ddec8764cadaca"
           }
         },
         "acc": {
@@ -18408,6 +18863,68 @@
       "limitations": []
     },
     {
+      "id": "identity.f1-regulations-2026",
+      "label": "2026 F1 regulations",
+      "description": "Whether the car conforms to 2026 regulations; a 2026 wire-format packet can also carry a pre-2026 car.",
+      "parentId": "identity",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.carTelemetry2.regulations2026"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "identity.game-version",
       "label": "Game Version",
       "description": "Game Version source value reported by lmu in count.",
@@ -19278,6 +19795,72 @@
           }
         ]
       },
+      "limitations": []
+    },
+    {
+      "id": "identity.telemetry-wire-format",
+      "label": "Telemetry wire format",
+      "description": "F1 UDP structure format, independent of the selected car's regulations; absent on legacy stored packets.",
+      "parentId": "identity",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "f1.packetFormat"
+          ],
+          "freshness": "session-update",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "2025",
+        "2026"
+      ],
       "limitations": []
     },
     {
@@ -35717,6 +36300,68 @@
       "limitations": []
     },
     {
+      "id": "race.driving-wrong-way",
+      "label": "Driving wrong way",
+      "description": "Native wrong-way driving flag from 2026 UDP packet 16; absent before that packet arrives.",
+      "parentId": "race",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.carTelemetry2.drivingWrongWay"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ams2": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.extended-race-iq",
       "label": "Extended Race IQ",
       "description": "Extended Race IQ reported by normalized RaceIQ telemetry.",
@@ -43800,18 +44445,30 @@
           "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
-            "F1.Header.sessionUID.toString"
+            "F1.Header.sessionUID"
           ],
           "freshness": "continuous",
+          "normalization": "this.sessionUID === 0n ? undefined : this.sessionUID.toString()",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-f1-2025/src/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:session.session-uid:normalized",
+            "version": "0.23.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Header.sessionUID"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "dfebdac8709bd6eb3d2fd2c6983029bf244b4c7ebe5aa26502cf5f827758e84b"
+          }
         },
         "acc": {
           "kind": "unavailable",
@@ -68162,7 +68819,7 @@
             ]
           },
           "freshness": "continuous",
-          "normalization": "mx ? mx.wheelSpeedFL / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedFR / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedRL / 0.36 : (ct.speed / 3.6) / 0.36 | mx ? mx.wheelSpeedRR / 0.36 : (ct.speed / 3.6) / 0.36",
+          "normalization": "mx ? mx.wheelSpeedFL / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedFR / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedRL / 0.36 : ct.speed / 3.6 / 0.36 | mx ? mx.wheelSpeedRR / 0.36 : ct.speed / 3.6 / 0.36",
           "description": "Estimates wheel angular speed using an assumed 0.36 m radius and falls back to vehicle speed when per-wheel motion is unavailable.",
           "limitations": [
             "Assumed wheel radius and vehicle-speed fallback cannot preserve actual per-wheel rotation."
@@ -68187,7 +68844,7 @@
               "F1.CarTelemetry.speed"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "de37f4c41a17fbfe0d6780eb735e67b9c3208f775aa6e95dc40d9e776282b25b"
+            "codeHash": "608f4c2fa9936bb15ab742ed7f6783ea96d66ab36879589f6e11454ea35cdbfb"
           }
         },
         "acc": {
@@ -73979,6 +74636,102 @@
         "retention": "exact"
       },
       {
+        "path": "f1.carTelemetry2.activeAeroActivationDistance",
+        "label": "Active Aero Activation Distance",
+        "unit": "m",
+        "dataType": "number",
+        "count": 1,
+        "description": "F1 2026 packet 16 metres until active aero is available.",
+        "semanticId": "aero.active-aero-activation-distance",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.activeAeroAvailable",
+        "label": "Active Aero Available",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "F1 2026 packet 16 active-aero availability flag.",
+        "semanticId": "aero.active-aero-available",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.activeAeroMode",
+        "label": "Active Aero Mode",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "F1 2026 packet 16: 0 corner, 1 straight mode.",
+        "semanticId": "aero.active-aero-mode",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.drivingWrongWay",
+        "label": "Driving Wrong Way",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "F1 2026 packet 16 wrong-way driving flag.",
+        "semanticId": "race.driving-wrong-way",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.overtakeActivationDistance",
+        "label": "Overtake Activation Distance",
+        "unit": "m",
+        "dataType": "number",
+        "count": 1,
+        "description": "F1 2026 packet 16 metres until overtake mode is available.",
+        "semanticId": "electronics.overtake-activation-distance",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.overtakeActive",
+        "label": "Overtake Active",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "F1 2026 packet 16 overtake-mode activation flag.",
+        "semanticId": "electronics.overtake-active",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.overtakeAvailable",
+        "label": "Overtake Available",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "F1 2026 packet 16 overtake-mode availability flag.",
+        "semanticId": "electronics.overtake-available",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.carTelemetry2.regulations2026",
+        "label": "Regulations2026",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "F1 2026 packet 16 car-regulations flag, independent of wire format.",
+        "semanticId": "identity.f1-regulations-2026",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.cornerCuttingWarnings",
         "label": "Corner Cutting Warnings",
         "unit": "count",
@@ -74250,6 +75003,18 @@
         "count": 1,
         "description": "ERS Fault source value reported by f1-2025 in count.",
         "semanticId": "damage.ers-fault",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.ersHarvestLimitPerLap",
+        "label": "ERS Harvest Limit Per Lap",
+        "unit": "J",
+        "dataType": "number",
+        "count": 1,
+        "description": "F1 2026 status energy harvest limit in joules.",
+        "semanticId": "fuel.ers-harvest-limit-per-lap",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74994,6 +75759,18 @@
         "count": 1,
         "description": "F1 per-wheel vertical force.",
         "semanticId": "tires.wheel-force.vertical",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.packetFormat",
+        "label": "Packet Format",
+        "unit": "enum",
+        "dataType": "2025 | 2026",
+        "count": 1,
+        "description": "F1 UDP wire format, not car regulations.",
+        "semanticId": "identity.telemetry-wire-format",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -97182,7 +97959,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 151,
-    "semanticVariables": 857,
+    "semanticVariables": 867,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -97194,13 +97971,13 @@
         "recorded": 96
       },
       "f1-2025": {
-        "total": 292,
+        "total": 302,
         "packet": 119,
-        "extension": 173,
+        "extension": 183,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 292
+        "recorded": 302
       },
       "acc": {
         "total": 205,

@@ -8,6 +8,8 @@ import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 import { replayRoutes, semanticReplayIds } from "../../server";
 import type { SemanticLapTelemetry } from "../../contracts/replay";
+import { decodeSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "../../contracts/replay-wire";
+import { prepareSpectateLap } from "../../ui/spectate-replay";
 import type { KunosExtendedData } from "@raceiq/shared/telemetry/kunos";
 
 initGameAdapters();
@@ -25,6 +27,37 @@ test("semantic replay requests F1 Analyse dependencies", () => {
 });
 
 describe("GET /api/laps/:id/semantic-telemetry", () => {
+  test("replays a saved F1 flashback lap through the finish on the final driving line", async () => {
+    const sessionId = await insertSession("0", "0", "f1-2025");
+    const lapId = await insertLap(sessionId, 3, 71.598, false, null, 0, null, null, "rewind", null, null);
+    cacheSet(lapId, [
+      [0, 10],
+      [15, 20],
+      [18, 30],
+      [25.860, 40],
+      [15.656, 50],
+      [18, 60],
+      [71.598, 70],
+    ].map(([time, speed]) => packet("f1-2025", {
+      LapNumber: 3, CurrentLap: time, TimestampMS: Math.round(time * 1000), Speed: speed,
+    })));
+    try {
+      for (const accept of ["application/json", SEMANTIC_REPLAY_MEDIA_TYPE]) {
+        const response = await replayRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
+          headers: { "X-Game-Id": "f1-2025", Accept: accept },
+        });
+        expect(response.status).toBe(200);
+        const body = decodeSemanticLapTelemetry(await response.json());
+        const replay = prepareSpectateLap(body);
+        expect(replay.duration).toBeCloseTo(71.598, 3);
+        expect(replay.samples.map(({ values }) => values["motion.speed"])).toEqual([10, 20, 50, 60, 70]);
+      }
+    } finally {
+      cacheDelete(lapId);
+      await deleteSession(sessionId);
+    }
+  });
+
   test("returns full F1 Analyse replay with adapter channels", async () => {
     const sessionId = await insertSession("0", "0", "f1-2025");
     const lapId = await insertLap(sessionId, 1, 80.9, true, null, 0, null, null, null, null, null);

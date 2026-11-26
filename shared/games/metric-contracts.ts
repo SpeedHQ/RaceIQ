@@ -230,6 +230,16 @@ export function analyseSemanticIds(
 ): readonly TelemetryVariableId[] {
   return [...new Set([
     ...ANALYSE_BASE_SEMANTIC_IDS,
+    ...(adapter.id === "f1-2025" ? [
+      "aero.active-aero-activation-distance",
+      "aero.active-aero-available",
+      "aero.active-aero-mode",
+      "electronics.overtake-activation-distance",
+      "electronics.overtake-active",
+      "electronics.overtake-available",
+      "identity.telemetry-wire-format",
+      "identity.f1-regulations-2026",
+    ] as const : []),
     ...requiredSemanticIds(adapter),
     ...(adapter.id === "iracing" ? [
       "engine.coolant-temperature",

@@ -5,6 +5,12 @@
  * which used wchar_t[N] (UTF-16LE). Two separate readers live in this project.
  */
 
+import { ACEVO_SESSION_TYPE_NAMES, acEvoSessionTypeFromName } from "@raceiq/capture-formats/ac-evo/structs";
+
+export function resolveAcEvoSessionType(code: number, name: string): string {
+  return acEvoSessionTypeFromName(name) ?? ACEVO_SESSION_TYPE_NAMES[code] ?? "unknown";
+}
+
 /** Read a null-terminated single-byte string from a buffer (char[maxBytes]). */
 export function readCString(buf: Buffer, offset: number, maxBytes: number): string {
   const slice = buf.slice(offset, offset + maxBytes);

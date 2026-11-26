@@ -19,7 +19,7 @@ import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/rec
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { setDumpOnlyTelemetryRouting } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { udpListener } from "./udp-listener";
-import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
+import { PUBLIC_DIR, ROOT_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
@@ -37,6 +37,8 @@ import { notifyDriverProfileLap } from "../driver-profile/runner";
 import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
 import { configureHttpAccess, httpAccess } from "./http-access";
 import { readDesktopHostOptions } from "./desktop-host";
+import { chatGptAccounts, directChatGptPilot } from "./chatgpt-subscription-runtime";
+import { getChatGptPricing } from "@raceiq/assistant/ai/chatgpt-chat-pricing";
 
 export interface BootOptions {
   httpPort?: number;
@@ -63,8 +65,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   initServerGameAdapters(serverReleaseFeatures);
   initMotecTargets();
   registerDriverProfileLapNotifier(notifyDriverProfileLap);
+  void getChatGptPricing("boot");
 
-  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html")) ? PUBLIC_DIR : null;
+  const assetDir = IS_COMPILED ? PUBLIC_DIR
+    : directChatGptPilot && chatGptAccounts ? resolve(ROOT_DIR, "client", "dist") : null;
+  const staticDir = assetDir && existsSync(resolve(assetDir, "index.html")) ? assetDir : null;
   if (staticDir) {
     console.log(`[Server] Serving static assets from ${staticDir}`);
   }

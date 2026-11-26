@@ -15,8 +15,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bench:
+  plan:
+    name: Select replay benchmark
     if: ${{ !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v') }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    outputs:
+      plan: ${{ steps.select.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          filter: blob:none
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Emit verification plan
+        id: select
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bun scripts/ci/affected-verification.ts --mode affected --scope pr --base "$BASE" --head "$HEAD"
+
+  bench:
+    needs: plan
+    if: ${{ fromJSON(needs.plan.outputs.plan).benchmark == true }}
     timeout-minutes: 30
     runs-on:
       - mars-ubuntu-2vcpu-6g

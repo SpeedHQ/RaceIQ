@@ -587,13 +587,6 @@ test("AMS2 Spectate renders animated suspension for both cars", async ({ page, r
     await expect.poll(() => canvas.getAttribute("data-render-count")).not.toBe(before);
   }
   for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
-  const before = await canvas.evaluate(node => ({ a: (node as HTMLCanvasElement).dataset.aBodyHeave, b: (node as HTMLCanvasElement).dataset.bBodyHeave }));
-  await page.getByRole("button", { name: "Play replay", exact: true }).click();
-  for (const side of ["a", "b"] as const) {
-    await expect.poll(() => canvas.getAttribute(`data-${side}-body-heave`)).not.toBe(before[side]);
-    await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
-  }
-  await page.getByRole("button", { name: "Pause replay", exact: true }).click();
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
   const initialPhi = Number(await canvas.getAttribute("data-camera-phi"));
@@ -604,4 +597,18 @@ test("AMS2 Spectate renders animated suspension for both cars", async ({ page, r
   await expect.poll(async () => Number(await canvas.getAttribute("data-camera-phi"))).toBeGreaterThan(initialPhi + .1);
   for (const side of ["a", "b"]) await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
   await page.screenshot({ path: testInfo.outputPath("ams2-suspension-pair.png"), animations: "disabled" });
+  await page.getByRole("combobox", { name: "Playback speed" }).selectOption({ label: "0.25×" });
+  const before = await canvas.evaluate(node => {
+    const { aBodyHeave, bBodyHeave } = (node as HTMLCanvasElement).dataset;
+    return [Number(aBodyHeave), Number(bBodyHeave)];
+  });
+  expect(before.every(Number.isFinite)).toBe(true);
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  for (const [index, side] of ["a", "b"].entries()) {
+    await expect.poll(async () => {
+      const value = await canvas.getAttribute(`data-${side}-body-heave`);
+      return value !== null && Number.isFinite(Number(value)) && Number(value) !== before[index];
+    }).toBe(true);
+    await expect(canvas).toHaveAttribute(`data-${side}-suspension-visible-count`, "4");
+  }
 });

@@ -1,4 +1,5 @@
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
+import { acEvoSessionTypeFromName } from "@raceiq/capture-formats/ac-evo/structs";
 import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { recordOpenLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
@@ -34,6 +35,7 @@ export class KunosLapDetector implements ILapDetector {
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
+  private provisionalAcEvoSessionType: string | null | undefined;
   private currentSession: SessionState | null = null;
   private lastAcEvoSourceIdentity: TelemetryPacket["acEvoIdentity"] | null = null;
 
@@ -49,7 +51,12 @@ export class KunosLapDetector implements ILapDetector {
         const identity = await this.resolveSessionIdentity(packet);
         const carId = identity?.carId ?? packet.carId;
         const trackId = identity?.trackId ?? packet.trackId;
-        const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType);
+        const sessionType = packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType;
+        const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, sessionType);
+        const sessionName = packet.acc?.acEvo?.sessionName;
+        this.provisionalAcEvoSessionType = packet.gameId === "ac-evo" && (!sessionName || !acEvoSessionTypeFromName(sessionName))
+          ? sessionType ?? null
+          : undefined;
         this.currentSession = { sessionId, carId, trackId, carPI: packet.CarPerformanceIndex, gameId: packet.gameId, sessionUID: packet.sessionUID, bestLapTime: 0 };
       },
       onSessionStarted: async () => { await this.onSessionStart?.(this.currentSession!); },
@@ -156,7 +163,19 @@ export class KunosLapDetector implements ILapDetector {
   protected async resolveSessionIdentity(_packet: TelemetryPacket): Promise<SessionIdentity | undefined> { return undefined; }
   protected async backfillSessionIdentifiers(packet: TelemetryPacket): Promise<void> {
     const session = this.currentSession;
-    if (!session || (session.carId && session.trackId)) return;
+    if (!session) return;
+    const provisionalType = this.provisionalAcEvoSessionType;
+    const sessionName = packet.acc?.acEvo?.sessionName;
+    if (provisionalType !== undefined && sessionName) {
+      const namedType = acEvoSessionTypeFromName(sessionName);
+      if (namedType) {
+        if (namedType !== provisionalType) {
+          await this.db.correctProvisionalAcEvoSessionType?.(session.sessionId, provisionalType, namedType);
+        }
+        this.provisionalAcEvoSessionType = undefined;
+      }
+    }
+    if (session.carId && session.trackId) return;
     const identity = await this.resolveSessionIdentity(packet);
     if (!identity) return;
     await this.db.updateSessionCarTrack(session.sessionId, identity.carId, identity.trackId);

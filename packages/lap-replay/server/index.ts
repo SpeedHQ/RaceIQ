@@ -29,6 +29,7 @@ const IRACING_TRACK_MAP_SEMANTIC_IDS: Record<string, true> = {
   "timing.lap-fraction": true,
 };
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
   return analyseSemanticIds(getGame(gameId));
@@ -44,6 +45,25 @@ function processingFailure(processing: ProcessingMetadata) {
     return { code: "RECORDING_PROCESSING_FAILED", error: processing.error, status: 422 as const };
   }
   return null;
+}
+
+function f1FlashbackReplay(packets: TelemetryPacket[]): TelemetryPacket[] {
+  let kept: TelemetryPacket[] | undefined;
+  for (let i = 1; i < packets.length; i++) {
+    const packet = packets[i]!;
+    let previous = packets[i - 1]!;
+    if (previous.LapNumber === packet.LapNumber && packet.TimestampMS < previous.TimestampMS) {
+      // The game replaces this span of the lap after a flashback. Keep the
+      // original capture intact and remove the abandoned attempt from replay.
+      kept ??= packets.slice(0, i);
+      while (kept.length && previous.LapNumber === packet.LapNumber && previous.TimestampMS >= packet.TimestampMS) {
+        kept.pop();
+        previous = kept[kept.length - 1]!;
+      }
+    }
+    kept?.push(packet);
+  }
+  return kept ?? packets;
 }
 
 export const replayRoutes = new Hono()
@@ -123,11 +143,12 @@ export const replayRoutes = new Hono()
         });
       }
       const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
+      const replayPackets = meta.gameId === "f1-2025" ? f1FlashbackReplay(lap.telemetry) : lap.telemetry;
       const compact = c.req.header("Accept")?.split(",").some((value) => value.trim() === SEMANTIC_REPLAY_MEDIA_TYPE) ?? false;
       const encoder = compact ? createSemanticReplayEncoder() : undefined;
       const encodeContext = createLmuContextEncoder();
       const requestedSemanticIds = encoder
-        ? visitTelemetryReplayFrames(id, replaySource, lap.telemetry, semanticIds, (frame, _resolver, slots) => {
+        ? visitTelemetryReplayFrames(id, replaySource, replayPackets, semanticIds, (frame, _resolver, slots) => {
             encoder.addFrame({
               sequence: frame.sequence,
               observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(frame.observedAt) },
@@ -142,9 +163,9 @@ export const replayRoutes = new Hono()
             });
           }, rawCapture)
         : undefined;
-      const replay = encoder ? undefined : resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticIds, rawCapture);
-      const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
-      const processed = processLap(lap.telemetry, meta.gameId);
+      const replay = encoder ? undefined : resolveTelemetryReplay(id, replaySource, replayPackets, semanticIds, rawCapture);
+      const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(replayPackets[0]);
+      const processed = processLap(replayPackets, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, resolveLapAnalysisContext(meta.gameId, meta.trackId, processed.packets));
       restoreFrameIndices(analysis.insights, processed.sourceIndices);
       const metadata = {

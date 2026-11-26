@@ -524,6 +524,19 @@ export const ACEVO_SESSION_TYPE_NAMES: Record<number, string> = {
   [ACEVO_SESSION_TYPE.AC_CRUISE]: "cruise",
 };
 
+export function acEvoSessionTypeFromName(name: string): string | undefined {
+  switch (name.trim().toLowerCase().replace(/[-_]+/g, " ")) {
+    case "practice": return "practice";
+    case "qualifying": return "qualifying";
+    case "race": return "race";
+    case "time attack":
+    case "time trial": return "time_attack";
+    case "hot stint": return "hot_stint";
+    case "cruise": return "cruise";
+    default: return undefined;
+  }
+}
+
 // ACEVO_FLAG_TYPE — totally different mapping from ACC v1.x
 export const ACEVO_FLAG_TYPE = {
   AC_NO_FLAG: 0,

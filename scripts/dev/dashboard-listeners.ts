@@ -13,7 +13,7 @@ export function developmentDashboardHosts(value?: string): string[] {
 }
 
 /** Additional listeners forward HTTP and WebSocket bytes to loopback Vite. */
-export async function startDashboardListeners(port: number, hosts: string[]): Promise<() => Promise<void>> {
+export async function startDashboardListeners(port: number, hosts: string[], relayedPorts = new Set<number>()): Promise<() => Promise<void>> {
   const addresses = new Set<string>();
   for (const host of developmentDashboardHosts(JSON.stringify(hosts))) {
     if (host === "0.0.0.0" || host === "::") {
@@ -42,7 +42,17 @@ export async function startDashboardListeners(port: number, hosts: string[]): Pr
           socket.on("close", () => { sockets.delete(socket); incoming.destroy(); upstream.destroy(); });
           socket.on("error", () => { incoming.destroy(); upstream.destroy(); });
         }
-        incoming.pipe(upstream).pipe(incoming);
+        upstream.once("connect", () => {
+          const sourcePort = upstream.localPort;
+          if (sourcePort === undefined || incoming.destroyed) {
+            incoming.destroy();
+            upstream.destroy();
+            return;
+          }
+          relayedPorts.add(sourcePort);
+          upstream.once("close", () => relayedPorts.delete(sourcePort));
+          incoming.pipe(upstream).pipe(incoming);
+        });
       });
       servers.push(server);
       await new Promise<void>((resolve, reject) => {
