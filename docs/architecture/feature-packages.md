@@ -139,6 +139,8 @@ Turbo discovers workspace dependencies and uses package files as default inputs;
 
 Default package inputs capture new or changed UI, server, contract and spec files without maintaining file lists. Excluding tests from dependency transit prevents an owned spec from invalidating unrelated consumers; the owner's impact task still includes its tests. The one external host-adapter input records genuine application-owned integration. Cars use their corresponding adapter. Update shared root inputs only when the actual shared boundary changes.
 
+Cars and Tracks declare their app-owned entry routes and host adapters explicitly. Their shared `raceiq-e2e#e2e:catalogue-runtime:impact` task tracks app shell, theme, harness, seed and backend composition inputs. Home and Experiments page-owned files are not part of that boundary. When changing a catalogue host or the app shell, keep any new shared inputs covered by the task or by a declared workspace dependency.
+
 See Turbo's [default inputs](https://turborepo.dev/docs/crafting-your-repository/configuring-tasks#specifying-inputs), [array inheritance](https://turborepo.dev/docs/reference/package-configurations#extending-arrays-with-turbo_extends) and [affected selection](https://turborepo.dev/docs/reference/run#--affected). This pattern was verified against the installed Turbo 2.11.7.
 
 The package scripts invoke the existing Playwright CLI directly, with distinct seeded data directories, HTTP/client/UDP ports and output directories. There is no additional catalogue E2E runner. Full browser invocations and the existing CI matrix still include both projects; selective task support alone does not mean those CI jobs are skipped.

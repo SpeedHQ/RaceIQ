@@ -28,7 +28,8 @@ const projectTasks = new Map([
     ["lap-replay-webgpu", "webgpu"] as const,
   ].map(([project, task]) => [project, browserTask(`browser:${task}:impact`)] as const),
 ]);
-const mapped = new Set([...projectTasks.values(), ...Object.values(jobs), ...Object.values(utilities).map(browserTask)]);
+const benchmarkTask = "@raceiq/backend#bench:replay";
+const mapped = new Set([...projectTasks.values(), ...Object.values(jobs), ...Object.values(utilities).map(browserTask), benchmarkTask]);
 const taskNames = [...new Set([...mapped].map((id) => id.split("#")[1]!))];
 const ordinaryTasks = ["test:unit", "test:tooling", "test:integration", "test:e2e:recordings", "lint", "typecheck"];
 type Row = { name: string; serverSet: string; projects: string[]; shard: string };
@@ -64,6 +65,7 @@ function plan(mode: "full" | "affected", reason: string, selected: Set<string>, 
   const desktop = selected.has(jobs.desktop);
   const responsive = scope !== "non-pr" && selected.has(jobs.responsive);
   const storybook = scope !== "non-pr" && selected.has(jobs.storybook);
+  const benchmark = scope !== "non-pr" && selected.has(benchmarkTask);
   const checks = Object.fromEntries(Object.entries(utilities).map(([key, task]) => [
     key, (key !== "dbUpgrade" || scope !== "non-pr") && selected.has(browserTask(task)),
   ]));
@@ -77,7 +79,7 @@ function plan(mode: "full" | "affected", reason: string, selected: Set<string>, 
   };
   const browser = { matrix: browserMatrix, seedDatabase, nativeWebgpu };
   return {
-    mode, reason, head, base, build, desktop, browserMatrix, seedDatabase, nativeWebgpu,
+    mode, reason, head, base, build, desktop, browserMatrix, seedDatabase, nativeWebgpu, benchmark,
     responsive, storybook, checks, expected, browser,
     artifacts: {
       seed: seedDatabase ? "playwright-seeded-database" : "",
@@ -96,10 +98,12 @@ function command(args: string[], cwd = root) {
 function revisionInventory(cwd: string, base: string, head: string, paths: string[]) {
   const turbo = (args: string[]) => command(["bunx", "--no-install", "turbo", ...args], cwd);
   const configured = JSON.parse(readFileSync(join(cwd, "playwright/turbo.json"), "utf8")).tasks;
+  const backendTasks = JSON.parse(readFileSync(join(cwd, "apps/backend/turbo.json"), "utf8")).tasks;
   for (const id of mapped) {
     const [owner, task] = id.split("#") as [string, string];
     if (owner === "raceiq-e2e" && !configured[task]) throw new Error(`missing task configuration: ${id}`);
-    if (owner !== "raceiq-e2e" && !existsSync(join(cwd, "packages", owner.slice("@raceiq/".length), "turbo.json"))) {
+    if (id === benchmarkTask && !backendTasks[task]) throw new Error(`missing task configuration: ${id}`);
+    if (id !== benchmarkTask && owner !== "raceiq-e2e" && !existsSync(join(cwd, "packages", owner.slice("@raceiq/".length), "turbo.json"))) {
       throw new Error(`missing feature task configuration: ${id}`);
     }
   }

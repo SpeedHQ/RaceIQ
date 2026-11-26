@@ -6,7 +6,16 @@
       "inputs": ["$TURBO_DEFAULT$", "!test/**"]
     },
     "e2e:impact": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/client/src/features/cars-catalogue-host.tsx"]
+      "dependsOn": ["transit", "raceiq-e2e#e2e:catalogue-runtime:impact"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/client/src/features/cars-catalogue-host.tsx",
+        "$TURBO_ROOT$/client/src/routes/$gameid/cars.tsx",
+        "$TURBO_ROOT$/client/src/routes/fm23/cars_.$carId.tsx",
+        "$TURBO_ROOT$/server/db/{discovered-cars,index,migration-plan,migrations,schema,worker-sql,write-coordination}.ts",
+        "$TURBO_ROOT$/server/games/registry.ts",
+        "$TURBO_ROOT$/server/runtime/config/**"
+      ]
     }
   }
 }

@@ -23,6 +23,7 @@
     "./test-support/boot": "./src/runtime/boot.ts"
   },
   "scripts": {
+    "bench:replay": "cd ../.. && bun apps/backend/scripts/quality/process-bench.ts --suite=replay",
     "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --build tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/backend",
