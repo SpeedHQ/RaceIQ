@@ -107,7 +107,7 @@
     "./integrations/ai/chat-vision": "./integrations/ai/chat-vision.ts"
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "scripts": {
     "lint": "node ../client/node_modules/oxlint/bin/oxlint .",

@@ -16,7 +16,7 @@
     "./game-parser": "./src/game-parser.ts"
   },
   "dependencies": {
-    "@duckdb/node-api": "1.5.2-r.2",
+    "@duckdb/node-api": "2.0.1-r.1",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

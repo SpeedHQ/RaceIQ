@@ -21,6 +21,7 @@
  * the trace end-to-end. Cloud providers already emit reasoning parts natively,
  * so they never hit this path and are untouched.
  */
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
@@ -243,7 +244,7 @@ export function getMastraModelId(
     ? { provider: providerOrConfig, model: legacyModel ?? "", localEndpoint: legacyLocalEndpoint }
     : providerOrConfig;
   const { provider, model, localEndpoint, apiKey } = config;
-  if (provider !== "openai-compatible" && ["gemini", "openai", "anthropic", "deepseek"].includes(provider) && !apiKey) {
+  if (["gemini", "openai", "anthropic", "deepseek"].includes(provider) && !apiKey) {
     throw new AiProviderError(`${provider} API key not set. Configure it in Settings.`, {
       code: "missing-api-key",
       provider,
@@ -313,10 +314,8 @@ export function getMastraModelId(
         },
       }));
     }
-    case "anthropic": {
-      const id = `anthropic/${model || "claude-haiku-5-5"}` as const;
-      return { id, apiKey: apiKey! };
-    }
+    case "anthropic":
+      return bindMastraModel(createAnthropic({ apiKey, baseURL: "https://api.anthropic.com/v1" })(model || "claude-haiku-5-5"));
     case "deepseek": {
       if (!model.trim()) {
         throw new AiProviderError("No DeepSeek model selected. Choose one in Settings.", {

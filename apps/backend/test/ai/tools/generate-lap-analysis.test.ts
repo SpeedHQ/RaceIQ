@@ -255,10 +255,11 @@ describe("generateLapAnalysis", () => {
   });
 
   test.each([
-    ["gpt-5.4-mini", "medium", "medium", null],
+    ["gpt-6-luna", "medium", "medium", null],
+    ["gpt-6-luna", "xhigh", "xhigh", null],
+    ["gpt-6-luna", "none", "none", null],
+    ["gpt-6-luna", "none", "none", "upstream"],
     ["gpt-5.4-mini", "xhigh", "xhigh", null],
-    ["gpt-6-sol", "none", "none", "upstream"],
-    ["gpt-6.2-sol", "none", undefined, "sdk"],
     ["gpt-4.1-mini", "medium", undefined, null],
   ] as const)("runs structured analysis with tools on %s with %s reasoning", async (model, level, reasoning, rejection) => {
     const deps = makeDeps();
@@ -276,7 +277,7 @@ describe("generateLapAnalysis", () => {
       if (rejection === "upstream") {
         return Response.json({ error: { message: "This model does not support reasoning effort none.", param: "reasoning.effort" } }, { status: 400 });
       }
-      const output = requests.length === 1 && rejection !== "sdk"
+      const output = requests.length === 1
         ? [{ type: "function_call", id: "fc_1", call_id: "call_1", name: "get_track_guide", arguments: '{"trackName":"Monza"}', status: "completed" }]
         : [{ type: "message", id: "msg_1", role: "assistant", status: "completed", content: [{ type: "output_text", text: validAnalysis, annotations: [] }] }];
       return Response.json({
