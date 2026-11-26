@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import type { LMUCatalogueCar } from "@raceiq/cars-catalogue/contracts";
-import { collectBrowserErrors } from "raceiq-e2e/test-support/browser-errors";
+import type { LMUCatalogueCar } from "../../contracts";
+import { collectBrowserErrors } from "../../../../playwright/tests/support/browser-errors";
 
 test("Le Mans Ultimate cars preserve search and class filtering through the real API", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);

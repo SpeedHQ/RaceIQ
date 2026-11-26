@@ -131,7 +131,6 @@ apps/backend/test/session-capture/capture-splitting.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
 apps/backend/test/session-capture/dashboard-processing.test.ts
 apps/backend/test/session-capture/elapsed-duration.test.ts
-apps/backend/test/session-capture/filename.test.ts
 apps/backend/test/session-capture/generic-sparse-recorder.test.ts
 apps/backend/test/session-capture/historical-reconciliation.test.ts
 apps/backend/test/session-capture/kunos-sparse-recorder.test.ts
@@ -155,8 +154,6 @@ apps/backend/test/session-capture/live-recovery.test.ts
 apps/backend/test/session-capture/live-source-epoch.test.ts
 apps/backend/test/session-capture/live-source-writer.test.ts
 apps/backend/test/session-capture/live-worker-close.test.ts
-apps/backend/test/session-capture/source-loader-stream.test.ts
-apps/backend/test/session-capture/streaming-capture-framing.test.ts
 apps/backend/test/setups/ac-evo/carsetup-file-io.test.ts
 apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts
