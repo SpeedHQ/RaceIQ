@@ -5,6 +5,7 @@
 - Show F1 2026 ERS mode, energy availability, active aero, and overtake data in live telemetry and lap analysis.
 
 ### Fixes
+- Show the full recorded AC Evo lap in Replay when the lap timer briefly jumps backward.
 - Restore replay links for laps in older AMS2 and AC Evo recordings.
 - Show the correct gear in the Portable Combo dashboard for Automobilista 2.
 - Keep recording telemetry when a possible lap start is never confirmed.
