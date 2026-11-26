@@ -7,6 +7,7 @@ import { hasTelemetryGap, recordedTelemetryGapSeconds } from "./telemetry-gap"
 import type { OpponentSemanticLapTelemetry } from "../contracts/opponents"
 import type { SpectateController, SpectateLap, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 const OPPONENT_SAMPLE_GAP_SECONDS = 0.3;
+const AC_EVO_LAP_CLOCK_JITTER_SECONDS = 0.25;
 function isOpponentReplay(replay: SemanticLapTelemetry | OpponentSemanticLapTelemetry): replay is OpponentSemanticLapTelemetry {
   return "opponentLapId" in replay;
 }
@@ -154,7 +155,13 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     previousSequence = frame.sequence;
     const native = readNumber(frame, "timing.current-lap");
     const observed = firstObserved && frame.observedAt.domain === firstObserved.domain ? (frame.observedAt.milliseconds - firstObserved.milliseconds) / 1000 : null;
-    const time = useObservedInterval ? observed : native !== null && native >= 0 && nativeOrigin !== null ? native - nativeOrigin : observed;
+    let time = useObservedInterval ? observed : native !== null && native >= 0 && nativeOrigin !== null ? native - nativeOrigin : observed;
+    // AC EVO can briefly report an older lap-clock reading within the same lap.
+    // Keep the native clock used by Compare while coalescing these backward ticks.
+    if (frame.simulator === "ac-evo" && time !== null && native !== null && native >= 0 && nativeOrigin !== null
+      && time < previousTime && previousTime - time <= AC_EVO_LAP_CLOCK_JITTER_SECONDS) {
+      time = previousTime;
+    }
     if (time === null || !Number.isFinite(time) || time < 0) {
       run++;
       continue;
