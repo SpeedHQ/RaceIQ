@@ -20,6 +20,7 @@
 - Keep F1 races in the same session when telemetry briefly reports a zero session UID.
 
 ### Internal
+- Refactor game-owned catalog validation and MoTeC integration.
 - Move AI prompts and provider runtime into the assistant workspace package and consolidate provider registration, including ChatGPT subscriptions.
 - Allow CI replay WebGPU tests to use software adapters; hardware coverage is not guaranteed.
 - Require an explicitly configured model for AI evaluation runs.

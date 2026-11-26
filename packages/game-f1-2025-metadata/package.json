@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./index": "./src/index.ts",
+    "./session-identity": "./src/session-identity.ts",
     "./racing/cars/f1": "./src/racing/cars/f1.ts",
     "./racing/tracks/catalogs/f1": "./src/racing/tracks/catalogs/f1.ts",
     "./racing/compounds": "./src/racing/compounds.ts"

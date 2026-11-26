@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./index": "./src/index.ts",
+    "./session-identity": "./src/session-identity.ts",
     "./session-info/catalog": "./src/session-info/catalog.ts",
     "./session-info/contracts": "./src/session-info/contracts.ts",
     "./session-info/sections": "./src/session-info/sections.ts",

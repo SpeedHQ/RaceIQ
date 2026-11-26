@@ -200,7 +200,7 @@ export function lapWindows(beacons: number[], duration: number): Array<[number, 
   return windows;
 }
 
-export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile: { gameId: "acc" | "ac-evo"; trackId?: string } = { gameId: "acc" }): PreparedKunosMotecCapture {
+export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile: { gameId: "acc" | "ac-evo"; trackId?: string; centerSuspensionTravel?: boolean; closeCompleteLaps?: boolean; reconstructHeading?: boolean } = { gameId: "acc" }): PreparedKunosMotecCapture {
   const dt = 1 / MOTEC_SYNTH_HZ;
   if (!(log.duration > 0)) throw new Error("MoTeC log has no usable duration");
   const frameCount = Math.max(1, Math.floor(log.duration * MOTEC_SYNTH_HZ));
@@ -227,7 +227,7 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
     const values = resample(pick(log, MOTEC_CHANNELS.suspTravel(c)), frameCount, dt);
     const unit = findChannel(log, `SUS_TRAVEL_${c}`)?.unit ?? "";
     if (/^(mm|millimet(er|re)s?)$/i.test(unit.trim())) for (let i = 0; i < values.length; i++) values[i] /= 1000;
-    if (profile.gameId === "ac-evo") {
+    if (profile.centerSuspensionTravel) {
       let mean = 0; for (const value of values) mean += value; mean /= Math.max(1, values.length);
       for (let i = 0; i < values.length; i++) values[i] -= mean;
     }
@@ -236,7 +236,7 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   const wheelSpeed = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.wheelSpeed(c)), frameCount, dt));
   const windows = lapWindows(beacons, log.duration), lapIndexOf = new Int32Array(frameCount);
   const closedLapMask = new Uint8Array(windows.length);
-  if (profile.gameId === "ac-evo") for (let i = 1; i < windows.length - 1; i++) closedLapMask[i] = 1;
+  if (profile.closeCompleteLaps) for (let i = 1; i < windows.length - 1; i++) closedLapMask[i] = 1;
   const sessionDistanceM = new Float64Array(frameCount), lapDistanceM = new Float64Array(frameCount);
   let lap = 0, session = 0, lapStartDist = 0;
 
@@ -248,7 +248,7 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   let lapLengthM = 0;
   for (let i = 0; i < frameCount; i++) if ((i + 1 >= frameCount || lapIndexOf[i + 1] !== lapIndexOf[i]) && lapIndexOf[i]! < windows.length - 1) lapLengthM = Math.max(lapLengthM, lapDistanceM[i]!);
   if (lapLengthM === 0) lapLengthM = lapDistanceM[frameCount - 1] ?? 0;
-  const reconstructedHeading = profile.gameId === "ac-evo" && yawCh
+  const reconstructedHeading = profile.reconstructHeading && yawCh
     ? reconstructYawHeading(yawCh, frameCount, dt, windows, closedLapMask) : undefined;
   const path = deadReckonPath(speedKmh, yawRate, lateralG, lapIndexOf, dt, yawCh?.unit ?? "", reconstructedHeading, closedLapMask);
   if (profile.trackId !== undefined) alignPathToTrack(path, lapIndexOf, profile.gameId, profile.trackId, windows.length > 1);

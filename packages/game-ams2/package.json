@@ -23,6 +23,7 @@
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-ams2",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/game-ams2",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-ams2",
     "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-ams2"
   }
