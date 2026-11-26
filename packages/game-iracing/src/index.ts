@@ -13,6 +13,7 @@ import {
   type IRacingParserState,
 } from "./normalizer";
 
+import { readIbtSource } from "./ibt-source";
 const IRACING_SYSTEM_PROMPT = `You are an expert iRacing driver coach and race engineer.
 
 Analyze the supplied lap telemetry and give specific, data-grounded advice.
@@ -68,6 +69,9 @@ export const iracingServerAdapter: ServerGameAdapter = {
     iracingParser.primeParserState(buf, state as never);
   },
   createParserState: iracingParser.createParserState,
+  async loadImportedSource(path) {
+    return readIbtSource(path);
+  },
   captureParserCheckpoint(state) { return captureIRacingParserCheckpoint(state as IRacingParserState); },
   restoreParserCheckpoint(_state, payload) { return restoreIRacingParserCheckpoint(payload); },
 

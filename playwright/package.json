@@ -21,6 +21,7 @@
     "@raceiq/assistant": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/game-lmu": "workspace:*",
     "@raceiq/lap-replay": "workspace:*",
     "@raceiq/shared": "workspace:*"

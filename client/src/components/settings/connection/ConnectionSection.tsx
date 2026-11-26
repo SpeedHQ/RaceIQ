@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { IRacingConnection } from "./IRacingConnection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
@@ -184,6 +185,7 @@ export function ConnectionSection() {
           </div>
         )}
       </div>
+      <IRacingConnection />
     </section>
   );
 }

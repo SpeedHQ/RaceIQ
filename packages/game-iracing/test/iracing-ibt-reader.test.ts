@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { IRacingIbtReader } from "../src/ibt-reader";
 import { previewIbtFile } from "../src/ibt-preview";
+import { readIbtSource } from "../src/ibt-source";
 import { normalizeIRacingFrame } from "../src/normalizer";
 import { IRacingTelemetrySource } from "../src/source";
 import {
@@ -27,6 +28,7 @@ import {
   DISK_HEADER_SIZE,
   ROW_LENGTH,
   createRecording,
+  drivenRows,
   syntheticSessionInfo,
   writeCString,
 } from "./support/games/iracing-ibt";
@@ -185,6 +187,25 @@ describe("IRacingIbtReader", () => {
       recording.cleanup();
     }
   });
+  test("reads native-cadence packets and channels without modifying the IBT", async () => {
+    const recording = createRecording("source.ibt", drivenRows());
+    try {
+      const before = readFileSync(recording.path);
+      const preview = await previewIbtFile(recording.path);
+      const imported = await readIbtSource(recording.path, preview);
+      expect(preview.canImport).toBe(true);
+      expect(imported.packets).toHaveLength(preview.recordCount);
+      expect(imported.nativeValues).toHaveLength(imported.packets.length);
+      expect(imported.nativeValues?.map((values) => values.SessionTick)).toEqual([0, 2700, 3000, 6300, 6600, 6720]);
+      expect(imported.nativeValues?.[0]?.Speed).toBe(45);
+      expect(imported.packets[0]?.gameId).toBe("iracing");
+      expect(imported.packets[0]?.trackId).toBe("99");
+      expect(readFileSync(recording.path)).toEqual(before);
+    } finally {
+      recording.cleanup();
+    }
+  });
+
 
   test("rejects a recording whose declared rows are truncated", () => {
     const recording = createRecording();

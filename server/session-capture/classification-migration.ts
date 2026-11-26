@@ -125,7 +125,7 @@ export async function invalidateStaleCompletedClassificationSources(
 }
 
 export async function hasTerminalMigrationCaptureFailure(sessionId: number): Promise<boolean> {
-  const rows = await client.execute({
+  const rows = await readClient.execute({
     sql: `SELECT 1 FROM sessions s
       JOIN classification_migration_recordings r
         ON r.source_key=CASE WHEN s.raw_file IS NULL THEN 'session:' || s.id ELSE 'file:' || s.raw_file END

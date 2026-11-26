@@ -142,119 +142,61 @@ function pathFromLapFraction(
   outline: readonly LapPathPoint[],
   reader?: LapPathSemanticReader,
 ): { x: number[]; z: number[] } | null {
-  if (
-    outline.length < 2 ||
-    !packets.every((packet) =>
-      Number.isFinite(
-        readFinite(
-          reader,
-          packet,
-          "timing.lap-fraction",
-          packet.iracing?.lapDistancePct ?? Number.NaN,
-        ),
-      ),
-    )
-  ) {
-    return null;
-  }
-
-  const cumulative = [0];
-  for (let i = 1; i < outline.length; i++) {
-    cumulative.push(
-      cumulative[i - 1] +
-        Math.hypot(
-          outline[i].x - outline[i - 1].x,
-          outline[i].z - outline[i - 1].z,
-        ),
-    );
-  }
-  const total = cumulative[cumulative.length - 1];
-  if (total <= 0) return null;
-
+  const project = createLapFractionProjector(outline);
+  if (!project) return null;
   const x: number[] = [];
   const z: number[] = [];
   for (const packet of packets) {
-    const fraction = Math.min(
-      1,
-      Math.max(
-        0,
-        readFinite(
-          reader,
-          packet,
-          "timing.lap-fraction",
-          packet.iracing?.lapDistancePct ?? Number.NaN,
-        ),
-      ),
-    );
-    const target = fraction * total;
-    let lo = 1;
-    let hi = cumulative.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (cumulative[mid] < target) lo = mid + 1;
-      else hi = mid;
-    }
-    const endIndex = lo;
-    const startIndex = Math.max(0, endIndex - 1);
-    const segmentLength = cumulative[endIndex] - cumulative[startIndex];
-    const amount =
-      segmentLength > 0
-        ? (target - cumulative[startIndex]) / segmentLength
-        : 0;
-    x.push(
-      outline[startIndex].x +
-        (outline[endIndex].x - outline[startIndex].x) * amount,
-    );
-    z.push(
-      outline[startIndex].z +
-        (outline[endIndex].z - outline[startIndex].z) * amount,
-    );
+    const fraction = readFinite(reader, packet, "timing.lap-fraction", packet.iracing?.lapDistancePct ?? Number.NaN);
+    if (!Number.isFinite(fraction)) return null;
+    const pose = project(Math.max(0, Math.min(1, fraction)));
+    if (!pose) return null;
+    x.push(pose.x);
+    z.push(pose.z);
   }
   return { x, z };
 }
 
-/** Project one normalized lap fraction onto an outline by cumulative distance. */
-export function pointAtLapFraction(
-  outline: readonly LapPathPoint[],
-  fractionValue: number,
-): LapPathPoint | null {
-  if (outline.length < 2 || !Number.isFinite(fractionValue)) return null;
+export interface LapFractionPose extends LapPathPoint {
+  /** Heading in the outline's coordinate frame, not measured vehicle yaw. */
+  yaw: number;
+}
+
+/** Compile metre-space geometry once; fraction zero is the first outline point. */
+export function createLapFractionProjector(outline: readonly LapPathPoint[]): ((fraction: number) => LapFractionPose | null) | null {
+  if (outline.length < 2 || outline.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.z))) return null;
   const cumulative = [0];
   for (let index = 1; index < outline.length; index++) {
-    cumulative.push(
-      cumulative[index - 1] +
-        Math.hypot(
-          outline[index].x - outline[index - 1].x,
-          outline[index].z - outline[index - 1].z,
-        ),
-    );
+    cumulative.push(cumulative[index - 1] + Math.hypot(outline[index].x - outline[index - 1].x, outline[index].z - outline[index - 1].z));
   }
   const total = cumulative.at(-1)!;
-  if (!(total > 0)) return null;
-  const target = Math.max(0, Math.min(1, fractionValue)) * total;
-  let low = 1;
-  let high = cumulative.length - 1;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (cumulative[middle] < target) low = middle + 1;
-    else high = middle;
-  }
-  const endIndex = low;
-  const startIndex = Math.max(0, endIndex - 1);
-  const segmentLength =
-    cumulative[endIndex] - cumulative[startIndex];
-  const amount =
-    segmentLength > 0
-      ? (target - cumulative[startIndex]) / segmentLength
-      : 0;
-  return {
-    x:
-      outline[startIndex].x +
-      (outline[endIndex].x - outline[startIndex].x) * amount,
-    z:
-      outline[startIndex].z +
-      (outline[endIndex].z - outline[startIndex].z) * amount,
+  if (!(total > 0) || !Number.isFinite(total)) return null;
+  return (fraction) => {
+    if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1) return null;
+    const target = fraction * total;
+    let low = 1;
+    let high = cumulative.length - 1;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (cumulative[middle] < target) low = middle + 1;
+      else high = middle;
+    }
+    // Skip duplicated start points; preserve forward direction at lap wrap.
+    while (low < outline.length - 1 && cumulative[low] === cumulative[low - 1]) low++;
+    const start = low - 1;
+    const length = cumulative[low] - cumulative[start];
+    const amount = length > 0 ? (target - cumulative[start]) / length : 0;
+    const dx = outline[low].x - outline[start].x;
+    const dz = outline[low].z - outline[start].z;
+    return { x: outline[start].x + dx * amount, z: outline[start].z + dz * amount, yaw: Math.atan2(dx, dz) };
   };
+}
+
+/** Project one normalized lap fraction onto an outline by cumulative distance. */
+export function pointAtLapFraction(outline: readonly LapPathPoint[], fractionValue: number): LapPathPoint | null {
+  if (!Number.isFinite(fractionValue)) return null;
+  const pose = createLapFractionProjector(outline)?.(Math.max(0, Math.min(1, fractionValue)));
+  return pose ? { x: pose.x, z: pose.z } : null;
 }
 
 /**

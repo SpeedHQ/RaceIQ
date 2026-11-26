@@ -1,4 +1,5 @@
 import { getGame } from "@raceiq/shared/games/registry"
+import type { GameId } from "@raceiq/shared/games/ids";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -27,7 +28,7 @@ interface AnalyseSemanticFrame {
   values: SemanticAnalysisFrame["values"];
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
+  source?: SemanticAnalysisFrame["source"];
 }
 const emptyLaps: LapMeta[] = [];
 
@@ -35,7 +36,7 @@ type IdentityKey = string;
 
 const lapTrackKey = (lap: LapMeta): IdentityKey | null => lap.trackId ?? null;
 const lapCarKey = (lap: LapMeta): IdentityKey | null => lap.carId ?? null;
-export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0], sessionId?: number) {
+export function useAnalyseSelections(search: AnalyseSearch, gameId: GameId, sessionId?: number) {
   const navigate = useNavigate();
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<IdentityKey | null>(search.track ?? null);
@@ -82,7 +83,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (selectedCar == null && selectedLap) setSelectedCar(lapCarKey(selectedLap));
   }, [selectedLap, selectedTrack, selectedCar]);
   const trackId = selectedTrack ?? (selectedLap ? lapTrackKey(selectedLap) : null);
-  const { data: outlineRaw } = useTrackOutline(trackId ?? undefined);
+  const { data: outlineRaw, isLoading: trackGeometryLoading, isError: trackGeometryError } = useTrackOutline(trackId ?? undefined, gameId);
   const closed = !outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object" || !("closed" in outlineRaw) || outlineRaw.closed !== false;
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -91,6 +92,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     const d = outlineRaw as { points?: unknown };
     return Array.isArray(d.points) ? (d.points as Point[]) : null;
   }, [outlineRaw]);
+  const trackProjection = outlineRaw && !Array.isArray(outlineRaw) ? outlineRaw.projection ?? null : null;
   const pitLines = useMemo(() => {
     if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object") return null;
     if (!("pitLines" in outlineRaw)) return null;
@@ -102,8 +104,18 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     const labels = (outlineRaw as { labels?: unknown }).labels;
     return Array.isArray(labels) ? (labels as TrackMapLabel[]) : null;
   }, [outlineRaw]);
-  const { data: boundariesRaw } = useTrackBoundaries(trackId ?? undefined);
-  const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
+  const { data: boundariesRaw } = useTrackBoundaries(trackId ?? undefined, gameId);
+  const boundaries = useMemo(() => {
+    if (boundariesRaw && typeof boundariesRaw === "object") return boundariesRaw as TrackMapBoundaries;
+    if (gameId !== "iracing" || !outlineRaw || Array.isArray(outlineRaw)) return null;
+    const edges = outlineRaw.ribbonEdges;
+    if (!edges || !Array.isArray(edges.leftEdge) || !Array.isArray(edges.rightEdge) || edges.leftEdge.length < 2 || edges.leftEdge.length !== edges.rightEdge.length) return null;
+    const centerLine = edges.leftEdge.map((left, index) => ({
+      x: (left.x + edges.rightEdge[index]!.x) / 2,
+      z: (left.z + edges.rightEdge[index]!.z) / 2,
+    }));
+    return { ...edges, centerLine, pitLane: null, coordSystem: "official-map" } as TrackMapBoundaries;
+  }, [boundariesRaw, gameId, outlineRaw]);
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackId ?? undefined);
   const sectorData = useMemo<{ sectorStarts: number[]; sectorCount: number; firstDist: number; lapDist: number; times: number[] } | null>(() => {
     if (!semanticReplay || semanticFrames.length < 2) return null;
@@ -259,6 +271,9 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedLapId,
     handleLapChange,
     outline,
+    trackProjection,
+    trackGeometryLoading,
+    trackGeometryError,
     closed,
     mapLabels,
     boundaries,

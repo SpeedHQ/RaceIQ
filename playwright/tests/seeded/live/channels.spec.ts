@@ -17,12 +17,8 @@ for (const game of SEEDED_GAME_CASES) {
     await assertRecordingChangesLiveChannels(page, request, game.gameId, RECORDING_BY_GAME[game.gameId]);
 
     if (game.gameId === "iracing") {
-      await expect(page.getByRole("link", { name: "Driver", exact: true })).toBeVisible();
-      await expect(page.getByText("Tires", { exact: true })).toHaveCount(0);
-      await page.getByRole("link", { name: "Pit Crew", exact: true }).click();
-      await expect(page).toHaveURL(/\/live\/pit$/);
-      await expect(page.getByRole("heading", { name: "Race", exact: true })).toBeVisible();
-      await expect(page.getByText("Tires", { exact: true })).toHaveCount(0);
+      await expect(page.locator('[data-live-dashboard-game="iracing"]')).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Waiting for iRacing telemetry", exact: true })).toBeVisible();
     }
 
     await assertDisconnectReconnect(page, request, game.gameId);

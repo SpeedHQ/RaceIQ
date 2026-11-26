@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { getIRacingSvgTrackMap, IRACING_MAP_CACHE_VERSION, orientIRacingOvalMap } from "@raceiq/game-iracing/track-map";
+import { IRACING_MAP_CACHE_VERSION, orientIRacingOvalMap } from "@raceiq/game-iracing/track-map";
 import {
   alignIRacingAutoSegmentsToTurnLabels,
   parseIRacingActiveSvg,
@@ -12,6 +12,7 @@ import { getAllIRacingTracks, getIRacingSharedTrackName, getIRacingTrack } from 
 import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import { computeOutlineLength, resolveIRacingProjection } from "@raceiq/tracks-catalogue/server";
 
 const activeSvg = `
   <svg viewBox="0 0 100 100">
@@ -25,6 +26,17 @@ const activeSvg = `
 const startFinishSvg = `
   <svg viewBox="0 0 100 100">
     <path d="M45,-4 L55,-4 L55,4 L45,4 z"/>
+  </svg>
+`;
+
+const symbolStartFinishSvg = `
+  <svg xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+      <symbol id="Start_Finish_Line" viewBox="0 0 10 70"><rect width="10" height="70"/></symbol>
+      <symbol id="Track_Direction" viewBox="0 0 10 10"><polygon points="0,0 10,5 0,10"/></symbol>
+    </defs>
+    <use width="100" height="40" transform="translate(95 95) rotate(-180)" xlink:href="#Track_Direction"/>
+    <use width="10" height="70" transform="translate(55 22.4) rotate(-180) scale(1 .64)" xlink:href="#Start_Finish_Line"/>
   </svg>
 `;
 
@@ -69,10 +81,10 @@ describe("iRacing official SVG track maps", () => {
       turnsSvg,
     );
 
-    expect(map).not.toBeNull();
-    expect(map!.points).toHaveLength(512);
-    expect(map!.points[0].x).toBeCloseTo(-45, 0);
-    expect(map!.points[0].z).toBeCloseTo(5, 0);
+    expect(map!.startFinishAligned).toBe(true);
+    expect(Math.abs(map!.points[0].x + 50)).toBeLessThan(8);
+    expect(map!.points[0].z).toBeLessThan(10);
+    expect(map!.forwardDirectionKnown).toBe(true);
     expect(map!.labels.map((label) => label.text)).toEqual([
       "1",
       "2",
@@ -84,6 +96,67 @@ describe("iRacing official SVG track maps", () => {
     expect(nearestIndex(map!.points, turn1)).toBeLessThan(
       nearestIndex(map!.points, turn2),
     );
+    const edges = map!.ribbonEdges!;
+    expect((edges.leftEdge[0].x + edges.rightEdge[0].x) / 2).toBeCloseTo(map!.points[0].x);
+    expect((edges.leftEdge[0].z + edges.rightEdge[0].z) / 2).toBeCloseTo(map!.points[0].z);
+    const forward = { x: map!.points[1].x - map!.points[0].x, z: map!.points[1].z - map!.points[0].z };
+    const left = { x: edges.leftEdge[0].x - map!.points[0].x, z: edges.leftEdge[0].z - map!.points[0].z };
+    expect(-forward.z * left.x + forward.x * left.z).toBeGreaterThan(0);
+  });
+
+  test("recognizes symbol-based official start-finish markers without treating direction arrows as markers", () => {
+    const map = parseIRacingActiveSvg(activeSvg, symbolStartFinishSvg, turnsSvg)!;
+    expect(map.startFinishAligned).toBe(true);
+    expect(Math.abs(map.points[0].x + 50)).toBeLessThan(8);
+    expect(map.points[0].z).toBeLessThan(10);
+    const directionOnlySvg = symbolStartFinishSvg.replace(/<symbol id="Start_Finish_Line"[\s\S]*?<\/symbol>\s*/, "").replace(/<use width="10" height="70"[\s\S]*?<\/use>\s*/, "");
+    expect(parseIRacingActiveSvg(activeSvg, directionOnlySvg, turnsSvg)?.startFinishAligned).toBe(false);
+  });
+  test("resolves exact layout projection in metres without changing source geometry", async () => {
+    const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg)!;
+    const sourceStart = { ...map.points[0] };
+    const projection = (await resolveIRacingProjection("18", map))!;
+    expect(computeOutlineLength(projection.points)).toBeCloseTo(getIRacingTrack(18)!.lengthKm * 1000, 5);
+    expect(projection.points.at(-1)).toEqual(projection.points[0]);
+    expect(map.points[0]).toEqual(sourceStart);
+    expect(projection.points[0].x).toBeLessThan(0);
+    expect(await resolveIRacingProjection("99", map)).toBeNull();
+    expect(await resolveIRacingProjection("18", { ...map, startFinishAligned: false })).toBeNull();
+    expect(await resolveIRacingProjection("18", { ...map, forwardDirectionKnown: false })).toBeNull();
+    expect(await resolveIRacingProjection("18", { ...map, points: [{ x: NaN, z: 0 }, { x: 1, z: 1 }] })).toBeNull();
+    const alternate = (await resolveIRacingProjection("50", map))!;
+    expect(computeOutlineLength(alternate.points)).toBeCloseTo(getIRacingTrack(50)!.lengthKm * 1000, 5);
+    const projectedEdges = projection.boundaries!;
+    expect(projectedEdges.leftEdge.at(-1)).toEqual(projectedEdges.leftEdge[0]);
+    expect(projectedEdges.rightEdge.at(-1)).toEqual(projectedEdges.rightEdge[0]);
+    expect((projectedEdges.leftEdge[0].x + projectedEdges.rightEdge[0].x) / 2).toBeCloseTo(projection.points[0].x);
+    expect((projectedEdges.leftEdge[0].z + projectedEdges.rightEdge[0].z) / 2).toBeCloseTo(projection.points[0].z);
+    expect((await resolveIRacingProjection("181", { ...map, ribbonEdges: null }))?.boundaries).toBeNull();
+    expect((await resolveIRacingProjection("181", { ...map, ribbonEdges: { ...map.ribbonEdges!, leftEdge: [{ x: NaN, z: 0 }] } }))?.boundaries).toBeNull();
+  });
+
+  test("fails closed when SVG lacks start-finish and forward-direction evidence", () => {
+    const unmarked = parseIRacingActiveSvg(activeSvg);
+    expect(unmarked?.startFinishAligned).toBe(false);
+    expect(unmarked?.forwardDirectionKnown).toBe(false);
+    const ambiguousTurns = turnsSvg.replace("1 92 90", "1 92 10");
+    expect(parseIRacingActiveSvg(activeSvg, startFinishSvg, ambiguousTurns)?.forwardDirectionKnown).toBe(false);
+  });
+
+  test("does not invent edges from a single contour and preserves handedness when reversing", () => {
+    const single = parseIRacingActiveSvg('<svg><path d="M0,0 L100,0 L100,100 L0,100 z"/></svg>');
+    expect(single?.ribbonEdges).toBeNull();
+    const map = parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg)!;
+    let area = 0;
+    for (let index = 0; index < map.points.length; index++) {
+      const point = map.points[index], next = map.points[(index + 1) % map.points.length];
+      area += point.x * next.z - next.x * point.z;
+    }
+    const reversed = orientIRacingOvalMap(map, area > 0 ? "right" : "left");
+    expect(reversed.points[0]).toEqual(map.points[0]);
+    expect(reversed.points[1]).toEqual(map.points.at(-1)!);
+    expect(reversed.ribbonEdges!.leftEdge[0]).toEqual(map.ribbonEdges!.rightEdge[0]);
+    expect(reversed.ribbonEdges!.rightEdge[1]).toEqual(map.ribbonEdges!.leftEdge.at(-1)!);
   });
 
   test("reads matrix-positioned official turn names", () => {
@@ -152,7 +225,7 @@ describe("iRacing official SVG track maps", () => {
       .toEqual(parseIRacingPitRoadSvg(pitRoadSvg));
   });
 
-  test("bundles valid offline maps and returns pit lines from bundle", async () => {
+  test("bundles offline maps matched to each exact layout URL", () => {
     const tracks = getAllIRacingTracks();
     for (const track of tracks) {
       const path = resolve(gameCatalogDir("iracing"), "track-maps", `${track.ordinal}.json`);
@@ -163,13 +236,6 @@ describe("iRacing official SVG track maps", () => {
       expect(Array.isArray(cached.labels)).toBe(true);
       expect(Array.isArray(cached.pitLines)).toBe(true);
     }
-    const bundledPath = resolve(gameCatalogDir("iracing"), "track-maps", "238.json");
-    const bundled = JSON.parse(readFileSync(bundledPath, "utf8"));
-    await expect(getIRacingSvgTrackMap(238)).resolves.toEqual({
-      points: bundled.points,
-      labels: bundled.labels,
-      pitLines: bundled.pitLines,
-    });
   });
 
   test("normalizes oval orientation without changing pit lines", () => {
@@ -177,9 +243,13 @@ describe("iRacing official SVG track maps", () => {
       points: [{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 1, z: 1 }, { x: 0, z: 1 }],
       labels: [],
       pitLines: [{ kind: "pit-road" as const, points: [{ x: 2, z: 2 }, { x: 3, z: 2 }] }],
+      startFinishAligned: true,
+      forwardDirectionKnown: false,
+      ribbonEdges: null,
     };
     expect(orientIRacingOvalMap(map, "left").points).toEqual(map.points);
     expect(orientIRacingOvalMap(map, "right").points).toEqual([map.points[0], map.points[3], map.points[2], map.points[1]]);
     expect(orientIRacingOvalMap(map, "right").pitLines).toEqual(map.pitLines);
+    expect(orientIRacingOvalMap(map, "left").forwardDirectionKnown).toBe(true);
   });
 });

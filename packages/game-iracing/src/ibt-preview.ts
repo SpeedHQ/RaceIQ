@@ -1,13 +1,9 @@
 import { basename } from "node:path";
 import { IRacingIbtReader } from "./ibt-reader";
 import { parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
-import {
-  IRacingSourceFrameEncoder,
-  type IRacingSessionSnapshot,
-  type IRacingValue,
-} from "@raceiq/capture-formats/iracing/source-frame";
+import type { IRacingSessionSnapshot, IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
 const DRIVING_SPEED_MPS = 1;
-const TIMING_ROLLOVER_SECONDS = 5;
+export const TIMING_ROLLOVER_SECONDS = 5;
 const REQUIRED_IMPORT_VARIABLES = [
   "SessionTime", "SessionNum", "IsOnTrack", "Speed", "Lap",
   "LapLastLapTime", "LapCurrentLapTime",
@@ -217,54 +213,3 @@ export async function previewIbtFile(
     await reader.stop();
   }
 }
-
-export async function* ibtFrames(
-  path: string,
-  preview: IbtImportPreview,
-): AsyncGenerator<Buffer> {
-  const reader = new IRacingIbtReader(path);
-  const frameEncoder = new IRacingSourceFrameEncoder();
-  const sessionCache = new Map<number, IRacingSessionSnapshot>();
-  const lastRecord = Math.min(
-    preview.recordCount - 1,
-    (preview.lastDrivingRecord ?? 0) +
-      Math.ceil(preview.tickRate * TIMING_ROLLOVER_SECONDS),
-  );
-  reader.start();
-  try {
-    for (;;) {
-      const snapshot = reader.readLatest();
-      if (!snapshot) break;
-      const recordIndex = reader.recordsRead - 1;
-      if (
-        preview.firstDrivingRecord === null ||
-        recordIndex < preview.firstDrivingRecord
-      ) {
-        continue;
-      }
-      if (recordIndex > lastRecord) break;
-
-      const sessionNum = Math.trunc(
-        numeric(snapshot.values, "SessionNum"),
-      );
-      let session = sessionCache.get(sessionNum);
-      if (!session) {
-        session = parseIRacingSessionInfo(
-          snapshot.sessionInfo,
-          sessionNum,
-        );
-        sessionCache.set(sessionNum, session);
-      }
-      yield frameEncoder.encode({
-        schemaVersion: 3,
-        session,
-        values: snapshot.values,
-        sessionInfo: snapshot.sessionInfo,
-        sessionInfoUpdate: snapshot.sessionInfoUpdate,
-      });
-    }
-  } finally {
-    await reader.stop();
-  }
-}
-

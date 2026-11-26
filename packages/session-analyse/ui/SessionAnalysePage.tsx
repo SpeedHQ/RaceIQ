@@ -50,7 +50,7 @@ export function SessionProcessingShell({
 
 
 export function SessionAnalysePage({ gameId, trackId, carId, sessionId }: { gameId: GameId; trackId?: string; carId?: string; sessionId?: number }) {
-  const { m, Button, useSessions, useSessionLaps, useTrackName, useResolveNames, useCarName, getGameRoute } = useSessionAnalyseHost();
+  const { m, Button, IRacingIncidentReport, useSessions, useSessionLaps, useTrackName, useResolveNames, useCarName, getGameRoute } = useSessionAnalyseHost();
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { laps?: string; view?: string; tab?: string };
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError, refetch: refreshSessions } = useSessions();
@@ -144,11 +144,14 @@ export function SessionAnalysePage({ gameId, trackId, carId, sessionId }: { game
   }
   if (requestedLapIds == null && evaluationLaps.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <p role="status" className="text-sm text-app-text-muted">{m.review_no_valid_laps()}</p>
-        <Button variant="app-outline" size="app-sm" onClick={backToSession}>
-          {m.review_back_to_sessions()}
-        </Button>
+      <div className={gameId === "iracing" ? "flex min-h-full flex-col" : "flex h-full flex-col items-center justify-center gap-3 p-8 text-center"}>
+        <div className={gameId === "iracing" ? "flex flex-col items-center justify-center gap-3 p-8 text-center" : "contents"}>
+          <p role="status" className="text-sm text-app-text-muted">{m.review_no_valid_laps()}</p>
+          <Button variant="app-outline" size="app-sm" onClick={backToSession}>
+            {m.review_back_to_sessions()}
+          </Button>
+        </div>
+        {gameId === "iracing" && <IRacingIncidentReport sessionId={sessionId} />}
       </div>
     );
   }

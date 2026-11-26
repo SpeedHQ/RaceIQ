@@ -20,6 +20,7 @@
 - Keep F1 races in the same session when telemetry briefly reports a zero session UID.
 
 ### Internal
+- Run macOS desktop CI on an available GitHub-hosted runner and remove a telemetry catalog check that pinned descriptive wording rather than behavior.
 - Move AI prompts and provider runtime into the assistant workspace package and consolidate provider registration, including ChatGPT subscriptions.
 - Allow CI replay WebGPU tests to use software adapters; hardware coverage is not guaranteed.
 - Require an explicitly configured model for AI evaluation runs.

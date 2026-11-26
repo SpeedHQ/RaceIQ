@@ -142,7 +142,7 @@ jobs:
     timeout-minutes: 45
     needs: plan
     if: fromJSON(needs.plan.outputs.verification).desktop
-    runs-on: mars-macos-2vcpu-6g
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
         with:

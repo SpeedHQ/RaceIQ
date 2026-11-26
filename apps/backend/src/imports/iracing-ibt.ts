@@ -1,26 +1,18 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { open as openFile } from "node:fs/promises";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { copyFile, link, open as openFile, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import {
   IbtImportError,
-  ibtFrames,
   previewIbtFile,
   type IbtImportPreview,
 } from "@raceiq/game-iracing/ibt-preview";
+import { readIbtSource } from "@raceiq/game-iracing/ibt-source";
 import { registerImportedIRacingIdentity } from "@raceiq/game-iracing/identity";
-import { importSessionFrames, type ImportSessionResult } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { importSessionPackets, ImportSourceRecorder, type ImportSessionResult } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
-
 const STAGE_TTL_MS = 30 * 60 * 1000;
 export const MAX_IBT_BYTES = 8 * 1024 * 1024 * 1024;
 const TOKEN_PATTERN =
@@ -205,38 +197,59 @@ function loadManifest(token: string): {
 export async function commitStagedIbt(
   token: string,
   ownership: SessionOwnership = "mine",
+  options: { notifyDriverProfile?: boolean } = {},
 ): Promise<{
   packetCount: number;
   laps: ImportSessionResult["laps"];
   preview: IbtImportPreview;
 }> {
   const { paths, manifest } = loadManifest(token);
+  let publishedPath: string | null = null;
+  let temporaryPath: string | null = null;
+  let temporaryOwned = false;
   try {
-    try {
-      await registerImportedIRacingIdentity({
-        ...manifest.preview,
-        carId: manifest.preview.carId === "" ? -1 : Number(manifest.preview.carId),
-        trackId: manifest.preview.trackId === "" ? -1 : Number(manifest.preview.trackId),
-      });
-      const result = await importSessionFrames(
-        ibtFrames(paths.ibt, manifest.preview),
-        "iracing",
-        { requireLaps: true, ownership },
-      );
-      return {
-        packetCount: result.packetCount,
-        laps: result.laps,
-        preview: manifest.preview,
-      };
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === "No complete, importable laps were found"
-      ) {
-        throw new IbtImportError(error.message);
-      }
-      throw error;
+    await registerImportedIRacingIdentity({
+      ...manifest.preview,
+      carId: manifest.preview.carId === "" ? -1 : Number(manifest.preview.carId),
+      trackId: manifest.preview.trackId === "" ? -1 : Number(manifest.preview.trackId),
+    });
+    const directory = resolveRecordingGameDirectory("iracing", ownership);
+    mkdirSync(directory, { recursive: true });
+    const finalPath = join(directory, `ibt-${randomUUID()}.ibt`);
+    temporaryPath = `${finalPath}.tmp-${randomUUID()}`;
+    const temporary = await openFile(temporaryPath, "wx");
+    temporaryOwned = true;
+    await temporary.close();
+    await copyFile(paths.ibt, temporaryPath);
+    await link(temporaryPath, finalPath);
+    publishedPath = finalPath;
+    await unlink(temporaryPath);
+    temporaryOwned = false;
+    const source = await readIbtSource(publishedPath, manifest.preview);
+    const result = await importSessionPackets(
+      source.packets,
+      "iracing",
+      {
+        requireLaps: true,
+        ownership,
+        sessionSource: "ibt",
+        recorder: new ImportSourceRecorder(publishedPath),
+        rollbackFiles: [publishedPath],
+        notifyDriverProfile: options.notifyDriverProfile,
+      },
+    );
+    return { packetCount: result.packetCount, laps: result.laps, preview: manifest.preview };
+  } catch (error) {
+    if (temporaryOwned && temporaryPath) {
+      try { await unlink(temporaryPath); } catch {}
     }
+    if (publishedPath) {
+      try { unlinkSync(publishedPath); } catch {}
+    }
+    if (error instanceof Error && error.message === "No complete, importable laps were found") {
+      throw new IbtImportError(error.message);
+    }
+    throw error;
   } finally {
     removeStage(token);
   }

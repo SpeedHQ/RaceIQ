@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useSessionsPageHost } from "./host";
 import type { SessionsPageHost } from "../contracts";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 
 type DetectedFormat = "zip" | "bin" | "duckdb" | "ibt" | "motec" | "unknown";
 type DetectionResult = {
@@ -52,14 +51,18 @@ function AcEvoSetupImport({ file, onClose }: { file: File; onClose: () => void }
 }
 
 export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: GameId | null; onClose: () => void; onImported?: (result: ImportResult) => void }) {
-  const { m, Button, authenticatedFetch, importLapsZip, Dialog, DialogContent, DialogHeader, DialogTitle, SessionIdentityDialog, MotecImportModal, OwnershipChoice } = useSessionsPageHost();
+  const { m, Button, authenticatedFetch, importLapsZip, Dialog, DialogContent, DialogHeader, DialogTitle, SessionIdentityDialog, MotecImportModal, OwnershipChoice, IbtImportPreviewModal, useIbtImport } = useSessionsPageHost();
+  const ibtImport = useIbtImport();
+  const { ownership, setOwnership } = ibtImport;
   const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
+  const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [walFile, setWalFile] = useState<File | null>(null);
   const [detected, setDetected] = useState<DetectionResult | null>(null);
   const [detecting, setDetecting] = useState(false);
-  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
-  const [busy, setBusy] = useState(false);
+  const [importing, setBusy] = useState(false);
+  const busy = importing || ibtImport.importingBin;
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [identityIndex, setIdentityIndex] = useState<number | null>(null);
@@ -95,7 +98,19 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
     }
   }
 
+  function selectFiles(files: File[]) {
+    if (busy || detecting || files.length === 0) return;
+    const primary = files.find((candidate) => !candidate.name.toLowerCase().endsWith(".wal"));
+    if (!primary) return;
+    const wal = files.find((candidate) => candidate.name.toLowerCase() === `${primary.name}.wal`.toLowerCase()) ?? null;
+    void chooseFile(primary, wal);
+  }
+
   async function importFile(overrides = identityOverrides) {
+    if (file && detected?.format === "ibt") {
+      await ibtImport.handleImportBin(file);
+      return;
+    }
     if (!file || !detected?.supported || !["zip", "bin", "duckdb"].includes(detected.format)) return;
     if (detected.format === "zip") {
       const missing = (detected.missingMotecIdentities ?? []).find((item) => !overrides[item.file]);
@@ -136,8 +151,27 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
     }
   }
 
-  const canImport = !!file && !!detected?.supported && ["zip", "bin", "duckdb"].includes(detected.format) && !busy;
+  const canImport = !!file && !!detected && (detected.format === "ibt" || detected.supported && ["zip", "bin", "duckdb"].includes(detected.format)) && !busy && !detecting;
   const identityPrompt = identityIndex == null ? null : detected?.missingMotecIdentities?.[identityIndex] ?? null;
+  if (ibtImport.ibtPreview) {
+    return (
+      <IbtImportPreviewModal
+        token={ibtImport.ibtPreview.token}
+        preview={ibtImport.ibtPreview.preview}
+        importing={busy}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onClose={ibtImport.handleCancelIbt}
+        onImport={async () => {
+          const imported = await ibtImport.handleCommitIbt();
+          if (!imported) return;
+          const result = { imported: imported.laps.length, packetCount: imported.packetCount, gameId: imported.gameId };
+          setResult(result);
+          onImported?.(result);
+        }}
+      />
+    );
+  }
   if (identityPrompt?.gameId && !identityPrompt.unsupported) {
     return (
       <SessionIdentityDialog
@@ -187,7 +221,6 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
             </>
           ) : (
             <>
-              <p className="text-app-text-dim">{m.session_choose_file_hint()}</p>
               <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
               <input
                 ref={inputRef}
@@ -195,25 +228,52 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
                 accept={gameId === "ac-evo" ? ".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld,.carsetup" : ".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld"}
                 multiple
                 className="hidden"
-                onChange={(event) => {
-                  const files = Array.from(event.target.files ?? []);
-                  const primary = files.find((candidate) => !candidate.name.toLowerCase().endsWith(".wal")) ?? null;
-                  const wal = primary ? files.find((candidate) => candidate.name.toLowerCase() === `${primary.name}.wal`.toLowerCase()) ?? null : null;
-                  void chooseFile(primary, wal);
-                }}
+                disabled={busy || detecting}
+                onChange={(event) => selectFiles(Array.from(event.target.files ?? []))}
               />
-              <div className="flex min-w-0 items-center gap-2">
-                <Button variant="app-outline" size="app-md" className="shrink-0" onClick={() => inputRef.current?.click()} disabled={busy}>{m.session_choose_file()}</Button>
-                <span className="min-w-0 flex-1 truncate text-app-text-dim" title={file ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}` : undefined}>
-                  {file ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}` : m.session_no_file()}
-                </span>
+              <div
+                role="group"
+                aria-label={m.session_import_title()}
+                aria-disabled={busy || detecting}
+                aria-busy={busy || detecting}
+                className={`rounded border border-dashed p-4 transition-colors ${dragging && !busy && !detecting ? "border-app-accent bg-app-accent/10" : "border-app-border bg-app-surface-alt/40"}`}
+                onDragEnter={(event) => {
+                  if (!event.dataTransfer.types.includes("Files")) return;
+                  event.preventDefault();
+                  dragDepth.current++;
+                  if (!busy && !detecting) setDragging(true);
+                }}
+                onDragOver={(event) => {
+                  if (!event.dataTransfer.types.includes("Files")) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = busy || detecting ? "none" : "copy";
+                }}
+                onDragLeave={() => {
+                  dragDepth.current = Math.max(0, dragDepth.current - 1);
+                  if (dragDepth.current === 0) setDragging(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  dragDepth.current = 0;
+                  setDragging(false);
+                  selectFiles(Array.from(event.dataTransfer.files));
+                }}
+              >
+                <p className="mb-3 text-app-text-dim">{m.session_choose_file_hint()}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button variant="app-outline" size="app-md" className="shrink-0" onClick={() => inputRef.current?.click()} disabled={busy || detecting}>{m.session_choose_file()}</Button>
+                  <span className="min-w-0 flex-1 truncate text-app-text-dim" title={file ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}` : undefined}>
+                    {file ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}` : m.session_no_file()}
+                  </span>
+                </div>
               </div>
               {file && (
                 <div className="rounded border border-app-border bg-app-surface-alt/40 p-3 text-app-text-dim">
                   {detecting ? <span>{m.session_reading()}</span> : detected ? (
                     <>
                       <div>{m.session_detected({ format: formatLabel(detected.format, m) })}{detected.gameIds.length > 0 && <span className="text-app-text"> ({detected.gameIds.join(", ")})</span>}</div>
-                      {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? m.session_unsupported()}</p>}
+                      {!detected.supported && detected.format !== "ibt" && <p className="mt-1 text-status-warning">{detected.message ?? m.session_unsupported()}</p>}
                       {detected.supported && detected.format === "bin" && <p className="mt-1">{m.session_game_detected()}</p>}
                       {detected.supported && detected.format === "duckdb" && <p className="mt-1">{m.session_duckdb_conversion_hint()}</p>}
                       {detected.format === "duckdb" && detected.preview && <p className="mt-1">{m.session_duckdb_preview({ car: detected.preview.carName, track: detected.preview.trackName, count: detected.preview.completedLapCount, plural: detected.preview.completedLapCount === 1 ? "" : "s" })}</p>}

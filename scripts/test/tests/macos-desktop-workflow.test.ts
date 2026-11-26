@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 test("macOS desktop CI installs Rust before building and testing the native host", async () => {
-  const workflow = await readFile(resolve(import.meta.dir, "../../../.github/workflows/build-test.yml"), "utf8");
+  const workflow = (await readFile(resolve(import.meta.dir, "../../../.github/workflows/build-test.yml"), "utf8")).replaceAll("\r\n", "\n");
   const job = workflow.match(/^  macos-desktop:\n([\s\S]*?)(?=^  [\w-]+:\n|$(?![\s\S]))/m)?.[1];
   expect(job).toBeDefined();
 
