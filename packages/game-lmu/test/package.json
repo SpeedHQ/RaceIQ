@@ -2,7 +2,9 @@
   "name": "@raceiq/game-lmu-tests",
   "private": true,
   "type": "module",
-  "raceiq": { "testRoot": "." },
+  "raceiq": {
+    "testRoot": "."
+  },
   "scripts": {
     "lint": "bun ../../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
@@ -12,8 +14,8 @@
     "test:e2e:recordings": "bun ../../../scripts/test/run-suite.ts e2e --package @raceiq/game-lmu-tests"
   },
   "devDependencies": {
-    "@duckdb/node-api": "1.5.2-r.2",
-    "@playwright/test": "1.62.1",
+    "@duckdb/node-api": "2.0.1-r.1",
+    "@playwright/test": "1.65.1",
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/backend": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
@@ -31,15 +33,15 @@
     "@raceiq/tooling-data": "workspace:*",
     "@raceiq/tooling-release": "workspace:*",
     "@raceiq/tracks-catalogue": "workspace:*",
-    "@types/react": "^19.3.0",
+    "@types/react": "^19.3.2",
     "@types/react-dom": "^19.3.0",
     "client": "workspace:*",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "fflate": "^0.8.3",
-    "hono": "4.13.8",
+    "hono": "4.13.22",
     "libsql": "^0.5.29",
     "raceiq-e2e": "workspace:*",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }
