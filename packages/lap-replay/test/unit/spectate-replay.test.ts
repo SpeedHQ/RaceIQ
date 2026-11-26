@@ -839,6 +839,35 @@ describe("Spectate native sampling", () => {
   });
 });
 
+test("AC EVO replays through backward clock jitter and stops at the next lap", () => {
+  const replay = recordedLap(0.35, time => time * 100).replay;
+  // Ferrari F2004, Brands Hatch GP, lap 7. Preserve the observed 29 ms and 6 ms
+  // backward ticks in a short fixture with a true reset at the end.
+  const clocks = [0.141, 0.112, 0.241, 0.235, 0.341, 0.287, 0.441, 0.06];
+  replay.envelopes = replay.envelopes.map((frame, index) => ({
+    ...frame,
+    simulator: "ac-evo",
+    values: [...frame.values,
+      { semanticId: "timing.current-lap", value: clocks[index] },
+      { semanticId: "timing.distance-traveled", value: index * 5 },
+    ],
+  }));
+
+  const acc = { ...replay, envelopes: replay.envelopes.map(frame => ({ ...frame, simulator: "acc" as const })) };
+  expect(prepareSpectateLap(acc).duration).toBeCloseTo(0.1);
+
+  const a = prepareSpectateLap(replay);
+  const controller = createSpectateController(a, prepareSpectateLap(replay));
+  try {
+    expect(a.duration).toBeCloseTo(0.3);
+    expect(a.samples.map(sample => sample.frame?.sequence)).toEqual([1010, 1030, 1050, 1060]);
+    expect(controller.sample(0.3).a?.pose?.x).toBeCloseTo(30);
+    expect(controller.sample(0.3).b?.pose?.x).toBeCloseTo(30);
+    controller.seekFrame("a", 3);
+    expect(controller.getSnapshot().a?.pose?.x).toBeCloseTo(15);
+  } finally { controller.dispose(); }
+});
+
 function reducedRateReplay(simulator: "ams2" | "fm-2023" = "ams2"): SemanticLapTelemetry {
   const replay = recordedLap(1.2, time => time * 20).replay;
   let milliseconds = 0;

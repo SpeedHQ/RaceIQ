@@ -23,7 +23,6 @@
     "@hono/zod-validator": "0.9.1",
     "zod": "^4.6.5",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/backend-core": "workspace:*",
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/game-fm-2023-metadata": "workspace:*",
     "@raceiq/game-f1-2025-metadata": "workspace:*",

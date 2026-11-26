@@ -199,6 +199,8 @@ and must restore any note/import/delete mutation in `finally`.
 
 Tracks and cars specs live in `packages/{tracks,cars}-catalogue/test/e2e/`, with one corresponding Playwright project each. Central configuration retains their seeded setup dependency and includes both in full browser runs. Tracks retain a single project worker for their stateful import/delete flows.
 
+The Cars project also owns the Le Mans Ultimate catalogue journey. `seeded-imports` retains the recording policy, storage, import, analysis, and LMU replay journeys. Its impact task follows those sources and shared boot, fixture, and database inputs rather than the whole client and backend workspaces.
+
 Run both real compiled-app suites from the repository root:
 
 ```sh

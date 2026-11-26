@@ -264,7 +264,6 @@
       "dependencies": {
         "@base-ui/react": "^1.8.0",
         "@hono/zod-validator": "0.9.1",
-        "@raceiq/backend-core": "workspace:*",
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc-metadata": "workspace:*",
@@ -453,7 +452,6 @@
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/capture-splitting": "workspace:*",
-        "@raceiq/cars-catalogue": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
