@@ -5,17 +5,17 @@ import type { ProcessLLMRequestArgs } from "@mastra/core/processors";
 import { db } from "@raceiq/backend-core/db/index";
 import { lapAnalyses, laps, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { getAnalysis, saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
-import { chatThreadId } from "@raceiq/backend-core/ai/chat-agent";
-import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+import { chatThreadId } from "@raceiq/assistant/ai/chat-agent";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/assistant/ai/chat-message-context";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
 import { buildLapChatInstructions, lapChatGroundingProcessor, lapChatPrepareStep, requiresCornerMetricsLookup, requiresLapInsightsLookup } from "../../../src/mastra/agents/lap-chat";
-import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
-import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import { getLapInsightsToolFor } from "@raceiq/assistant/mastra/tools/lap-insights";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import { tuneChatRoutes } from "../../../src/routes/tune-chat-routes";
 import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
-import * as providerKeys from "@raceiq/backend-core/ai/openai-compatible-provider";
+import * as providerKeys from "@raceiq/assistant/ai/openai-compatible-provider";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -254,11 +254,11 @@ describe("lap chat route context and targeted removal", () => {
   });
 
   test.each([
-    ["gpt-6-sol", "medium", "medium", null],
-    ["gpt-6-sol", "max", "max", null],
-    ["gpt-6-sol", "none", "none", null],
-    ["gpt-6-sol", "none", "none", "upstream"],
-    ["gpt-6.2-sol", "none", undefined, "sdk"],
+    ["gpt-6-luna", "medium", "medium", null],
+    ["gpt-6-luna", "max", "max", null],
+    ["gpt-6-luna", "none", "none", null],
+    ["gpt-6-luna", "none", "none", "upstream"],
+    ["gpt-4.1-mini", "high", undefined, "sdk"],
   ] as const)("streams OpenAI Responses on %s with %s reasoning (%s on wire, %s rejection)", async (model, level, reasoning, rejection) => {
     const fixture = await makeLapFixture(54, "OPENAI-RESPONSES");
     const settings = { ...settingsModule.loadSettings(), chatProvider: "openai", chatModel: model,

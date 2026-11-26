@@ -75,6 +75,22 @@ switch (operation) {
     const basePlaywright = join(base, "playwright");
     const output = join(current, "playwright/screenshots/mobile");
     const config = join(basePlaywright, "responsive-screenshots.config.ts");
+    // Repair the historical replay interaction without replacing baseline-owned helpers.
+    const baseSpec = join(basePlaywright, "tests/responsive/mobile-screenshots.spec.ts");
+    const legacyInteraction = `} else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
+          // Base revision can overlap this trigger at phone width; keyboard still opens the menu for comparison.
+          await p.getByRole("button", { name: "Overlays", exact: true }).focus();
+          await p.keyboard.press("Enter");
+          await expect(p.getByRole("menu")).toBeVisible();`;
+    const correctedInteraction = `} else if (screenshotCase.kind === "analyse-actions") {
+          await p.getByRole("button", { name: "Actions", exact: true }).click();
+          await expect(p.getByRole("menu")).toBeVisible();
+        } else if (screenshotCase.kind === "analyse-data-panel-loaded") {
+          // The loaded panel itself is the screenshot target.`;
+    const baseSpecSource = readFileSync(baseSpec, "utf8");
+    if (baseSpecSource.includes(legacyInteraction)) {
+      writeFileSync(baseSpec, baseSpecSource.replace(legacyInteraction, correctedInteraction));
+    }
     // Keep baseline-owned cases and helpers compatible with its historical API.
     writeFileSync(config, `
       import { devices, defineConfig } from "@playwright/test";
@@ -96,15 +112,26 @@ switch (operation) {
     `);
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync([
-      "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
-      `--config=${config}`, `--shard=${env.SHARD}/4`,
-    ], {
-      cwd: basePlaywright,
-      env: { ...env, RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
-      stdout: "inherit",
-      stderr: "inherit",
-    }).exitCode;
+    const originalBaseSpec = readFileSync(baseSpec, "utf8");
+    let status: number | null;
+    try {
+      // Older baseline specs use the obsolete menu label even when the baseline app says Actions.
+      writeFileSync(baseSpec, originalBaseSpec.replace(
+        'getByRole("button", { name: "Overlays", exact: true })',
+        'getByRole("button", { name: /^(Actions|Overlays)$/ })',
+      ));
+      status = Bun.spawnSync([
+        "bun", "run", join(current, "scripts/playwright-ci.ts"), "test",
+        `--config=${config}`, `--shard=${env.SHARD}/4`,
+      ], {
+        cwd: basePlaywright,
+        env: { ...env, RACEIQ_APP_ROOT: base, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
+        stdout: "inherit",
+        stderr: "inherit",
+      }).exitCode;
+    } finally {
+      writeFileSync(baseSpec, baseSpecSource);
+    }
     const saved = join(env.RUNNER_TEMP!, "base-responsive");
     rmSync(saved, { recursive: true, force: true });
     if (existsSync(output)) cpSync(output, saved, { recursive: true });

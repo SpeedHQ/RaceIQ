@@ -6,7 +6,12 @@
       "inputs": ["$TURBO_DEFAULT$", "!test/**"]
     },
     "e2e:impact": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/client/src/features/tracks-catalogue-host.tsx"]
+      "dependsOn": ["transit", "raceiq-e2e#e2e:catalogue-runtime:impact"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/client/src/features/tracks-catalogue-host.tsx",
+        "$TURBO_ROOT$/client/src/routes/$gameid/tracks*.tsx"
+      ]
     }
   }
 }

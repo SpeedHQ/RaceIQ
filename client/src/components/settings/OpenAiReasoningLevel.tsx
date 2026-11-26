@@ -14,23 +14,39 @@ const options = OPENAI_REASONING_LEVELS.map((value) => ({
 
 type Props = {
   id: string;
+} & ({
   value: ReasoningLevel;
   onChange: (value: ReasoningLevel) => void;
-};
+  levels?: undefined;
+} | {
+  value: ReasoningLevel | null;
+  onChange: (value: ReasoningLevel | null) => void;
+  levels: readonly ReasoningLevel[];
+});
 
-export function OpenAiReasoningLevel({ id, value, onChange }: Props) {
+export function OpenAiReasoningLevel(props: Props) {
+  const { id, value, levels } = props;
+  const defaultOption = "model-default";
+  const visibleOptions = levels === undefined ? options : [
+    { value: defaultOption, label: m.ai_chat_model_default_effort() },
+    ...levels.map((level) => ({ value: level, label: labels[level] })),
+  ];
   const label = m.ai_reasoning_enabled();
   return (
     <div className="space-y-1">
       <Label htmlFor={id} className="block text-xs text-app-text-muted">{label}</Label>
       <SearchSelect
         id={id}
-        value={value}
+        value={levels === undefined ? value ?? "medium" : value && levels.includes(value) ? value : defaultOption}
         onChange={(selected) => {
-          const level = OPENAI_REASONING_LEVELS.find((level) => level === selected);
-          if (level) onChange(level);
+          if (props.levels !== undefined && selected === defaultOption) {
+            props.onChange(null);
+            return;
+          }
+          const level = (levels ?? OPENAI_REASONING_LEVELS).find((level) => level === selected);
+          if (level) props.onChange(level);
         }}
-        options={options}
+        options={visibleOptions}
         ariaLabel={label}
         clearOnOpen
       />

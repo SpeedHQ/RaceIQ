@@ -5,6 +5,16 @@ import type { AvailableLink, ExtensionMetadata, GameId, GameLink, UnavailableExt
 import { GAME_IDS } from "./model";
 
 const EXTENSION_ALIASES: Record<string, string> = {
+  "f1.packetFormat": "identity.telemetry-wire-format",
+  "f1.ersHarvestLimitPerLap": "fuel.ers-harvest-limit-per-lap",
+  "f1.carTelemetry2.activeAeroMode": "aero.active-aero-mode",
+  "f1.carTelemetry2.activeAeroAvailable": "aero.active-aero-available",
+  "f1.carTelemetry2.activeAeroActivationDistance": "aero.active-aero-activation-distance",
+  "f1.carTelemetry2.overtakeAvailable": "electronics.overtake-available",
+  "f1.carTelemetry2.overtakeActive": "electronics.overtake-active",
+  "f1.carTelemetry2.overtakeActivationDistance": "electronics.overtake-activation-distance",
+  "f1.carTelemetry2.regulations2026": "identity.f1-regulations-2026",
+  "f1.carTelemetry2.drivingWrongWay": "race.driving-wrong-way",
   ...Object.fromEntries(Object.entries(SETUP_PARSER_SOURCE_MAPPINGS).map(([path, mapping]) => [path, mapping.semanticId])),
   "f1.drsActivated": "aero.drs-active",
   "f1.ersStoreEnergy": "fuel.ers-store-energy",
@@ -187,6 +197,16 @@ const EXTENSION_ALIASES: Record<string, string> = {
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
+  "f1.packetFormat": { unit: "enum", freshness: "session-update", description: "F1 UDP wire format, not car regulations." },
+  "f1.ersHarvestLimitPerLap": { unit: "J", description: "F1 2026 status energy harvest limit in joules." },
+  "f1.carTelemetry2.activeAeroMode": { unit: "enum", description: "F1 2026 packet 16: 0 corner, 1 straight mode." },
+  "f1.carTelemetry2.activeAeroAvailable": { unit: "boolean", description: "F1 2026 packet 16 active-aero availability flag." },
+  "f1.carTelemetry2.activeAeroActivationDistance": { unit: "m", description: "F1 2026 packet 16 metres until active aero is available." },
+  "f1.carTelemetry2.overtakeAvailable": { unit: "boolean", description: "F1 2026 packet 16 overtake-mode availability flag." },
+  "f1.carTelemetry2.overtakeActive": { unit: "boolean", description: "F1 2026 packet 16 overtake-mode activation flag." },
+  "f1.carTelemetry2.overtakeActivationDistance": { unit: "m", description: "F1 2026 packet 16 metres until overtake mode is available." },
+  "f1.carTelemetry2.regulations2026": { unit: "boolean", description: "F1 2026 packet 16 car-regulations flag, independent of wire format." },
+  "f1.carTelemetry2.drivingWrongWay": { unit: "boolean", description: "F1 2026 packet 16 wrong-way driving flag." },
   ...Object.fromEntries(
     Object.entries(SETUP_PARSER_SOURCE_MAPPINGS).map(([path, mapping]) => [
       path,

@@ -55,7 +55,11 @@ test("startup splitting completes when the telemetry UDP port is occupied", asyn
     let final = await start.json() as Status;
     while (Date.now() < deadline && final.progress.status === "running") {
       await Bun.sleep(100);
-      final = await (await fetch(url, { signal: AbortSignal.timeout(1000) })).json() as Status;
+      try {
+        final = await (await fetch(url, { signal: AbortSignal.timeout(1000) })).json() as Status;
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "TimeoutError")) throw error;
+      }
     }
     expect(final.progress).toMatchObject({ status: "success", done: 1, total: 1, migrated: 1, failed: 0 });
     passed = true;

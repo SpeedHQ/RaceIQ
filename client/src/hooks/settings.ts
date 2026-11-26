@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { client } from "../lib/rpc";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "../stores/telemetry";
+import { localizeChatGptRecovery } from "../lib/chatgpt-recovery";
 import { queryKeys } from "./query-keys";
 
 export function useSettings({ enabled = true }: { enabled?: boolean } = {}) {
@@ -26,7 +27,12 @@ export function useSaveSettings() {
   return useMutation({
     mutationFn: async (settings: any) => {
       const res = await client.api.settings.$put({ json: settings });
-      if (!res.ok) throw new Error(res.statusText);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null) as { error?: unknown; code?: unknown } | null;
+        const recovery = localizeChatGptRecovery(body);
+        const message = typeof body?.error === "string" && body.error !== body.code ? body.error : res.statusText;
+        throw new Error(recovery ?? message);
+      }
       return settings;
     },
     onSuccess: (savedSettings) => {

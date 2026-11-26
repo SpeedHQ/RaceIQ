@@ -25,6 +25,13 @@ bun run bench:replay-io
 manifest and rejects duplicate, missing, stale, or invalid entries. Suite
 runners, pre-commit checks, and CI run this guard before tests can be skipped.
 
+The Turbo wrapper derives suite-specific inputs from these ownership manifests.
+Keep manifests and shared test dependencies accurate: they determine affected
+selection and cache invalidation as well as execution. Use
+`bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected`
+for an affected run; omit `--affected` for full selection. Range defaults and
+fallback behavior are documented in [`scripts/README.md`](../scripts/README.md).
+
 `bun run test:unit` runs `scripts/test/unit-files.txt`. It has no DB preload and
 Bun may run workers in parallel. `bun run test:tooling` runs deterministic
 toolchain checks from `scripts/test/tooling-files.txt` without DB preload.

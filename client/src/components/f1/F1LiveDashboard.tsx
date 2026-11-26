@@ -5,6 +5,7 @@ import { severityColor } from "@raceiq/scene-3d/colors";
 import { CarDamageDiagram, damageColor } from "./CarDamageDiagram";
 import { m } from "@/paraglide/messages";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import { getF1ErsDeployModeName } from "@raceiq/shared/telemetry/f1-2025";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -40,6 +41,11 @@ const DEPLOY_MODES: Record<number, { label: string; color: string }> = {
 function formatGap(gap: number): string {
   if (gap === 0) return "-";
   return gap > 0 ? `+${gap.toFixed(1)}` : `-${Math.abs(gap).toFixed(1)}`;
+}
+
+function freshSemantic(view: LiveTelemetryView, id: string): unknown {
+  const status = view.statusBySemanticId[id];
+  return status?.resolution === "ok" && status.freshness === "fresh" ? view.valuesBySemanticId[id] : undefined;
 }
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
@@ -80,7 +86,13 @@ export function F1LiveDashboard() {
             <WeatherWidget weather={view.weather} />
           </div>
           <div>
-            <ErsSection ers={view.ers} aero={view.aero} />
+            <F1LiveErsSection
+              ers={view.ers}
+              aero={view.aero}
+              electronics={view.electronics}
+              wireFormat={Number(freshSemantic(view, "identity.telemetry-wire-format"))}
+              regulations={freshSemantic(view, "identity.f1-regulations-2026")}
+            />
           </div>
         </div>
         {/* Damage | Tyres */}
@@ -194,11 +206,15 @@ function CarDamageSection({ damage }: { damage: LiveTelemetryView["damage"] }) {
 
 // ── ERS Section ──────────────────────────────────────────────────────────────
 
-function ErsSection({ ers, aero }: { ers: LiveTelemetryView["ers"]; aero: LiveTelemetryView["aero"] }) {
-  const chargePct = ers.storeJ === undefined ? undefined : Math.min(100, (ers.storeJ / ERS_MAX_ENERGY) * 100);
-  const mode = ers.deployMode === undefined ? undefined : DEPLOY_MODES[ers.deployMode];
-  const deployedPct = ers.deployedThisLapJ === undefined ? undefined : Math.min(100, (ers.deployedThisLapJ / ERS_MAX_ENERGY) * 100);
-  const harvestedPct = ers.harvestedThisLapJ === undefined ? undefined : Math.min(100, (ers.harvestedThisLapJ / ERS_MAX_ENERGY) * 100);
+export function F1LiveErsSection({ ers, aero, electronics = {}, wireFormat, regulations }: { ers: LiveTelemetryView["ers"]; aero: LiveTelemetryView["aero"]; electronics?: NonNullable<LiveTelemetryView["electronics"]>; wireFormat?: number; regulations?: unknown }) {
+  const format2026 = wireFormat === 2026;
+  const regulations2026 = regulations === true || regulations === 1;
+  const chargePct = format2026 || ers.storeJ === undefined ? undefined : Math.min(100, (ers.storeJ / ERS_MAX_ENERGY) * 100);
+  const modeName = getF1ErsDeployModeName(ers.deployMode, wireFormat);
+  const mode = modeName === undefined ? undefined : DEPLOY_MODES[modeName === "none" ? 0 : modeName === "medium" ? 1 : modeName === "hotlap" ? 2 : 3];
+  const deployedPct = format2026 || ers.deployedThisLapJ === undefined ? undefined : Math.min(100, (ers.deployedThisLapJ / ERS_MAX_ENERGY) * 100);
+  const harvestedPct = format2026 || ers.harvestedThisLapJ === undefined ? undefined : Math.min(100, (ers.harvestedThisLapJ / ERS_MAX_ENERGY) * 100);
+  const energy = (value: number | undefined) => value === undefined || !Number.isFinite(value) ? "—" : `${(value / 1000).toFixed(0)} kJ`;
   const chargeColor = chargePct === undefined ? "var(--status-unavailable)" : severityColor(chargePct < 20 ? 3 : chargePct < 50 ? 1 : 0);
 
   return (
@@ -207,32 +223,58 @@ function ErsSection({ ers, aero }: { ers: LiveTelemetryView["ers"]; aero: LiveTe
         <h2 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_electronics()}</h2>
       </div>
       <div className="p-3 space-y-2">
-        <DrsIndicator aero={aero} />
+        {(!format2026 || regulations === false || regulations === 0) && <DrsIndicator aero={aero} />}
+        {format2026 && regulations2026 && <div className="space-y-1 border-b border-app-border pb-2 text-app-caption">
+          <div className="font-semibold text-app-text-muted">{m.f1live_active_aero()}</div>
+          <TelemetryStatusRow label={m.analyse_mode()} value={aero.activeAeroMode === 0 ? m.label_corner() : aero.activeAeroMode === 1 ? m.analyse_straight() : "—"} />
+          <TelemetryStatusRow label={m.analyse_available()} value={availabilityLabel(aero.activeAeroAvailable)} />
+          <TelemetryStatusRow label={m.recap_distance()} value={distanceLabel(aero.activeAeroActivationDistanceM)} />
+          <div className="font-semibold text-app-text-muted pt-1">{m.f1live_ers_overtake()}</div>
+          <TelemetryStatusRow label={m.analyse_available()} value={availabilityLabel(electronics.overtakeAvailable)} />
+          <TelemetryStatusRow label={m.lmu_state_active()} value={enabledLabel(electronics.overtakeActive)} />
+          <TelemetryStatusRow label={m.recap_distance()} value={distanceLabel(electronics.overtakeActivationDistanceM)} />
+        </div>}
         <div className="flex items-center justify-between gap-2 mt-1">
           <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt tabular-nums" style={{ color: chargeColor }}>
-              {chargePct === undefined ? "—" : `${chargePct.toFixed(0)}%`}
+              {format2026 ? energy(ers.storeJ) : chargePct === undefined ? "—" : `${chargePct.toFixed(0)}%`}
             </span>
             <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt" style={{ color: mode?.color ?? "var(--status-unavailable)" }}>
-              {mode?.label ?? "—"}
+              {format2026 && ers.deployMode === 3 ? m.live_boost() : mode?.label ?? "—"}
             </span>
           </div>
         </div>
-        {chargePct === undefined ? (
+        {!format2026 && (chargePct === undefined ? (
           <div className="h-2 rounded-full border border-dashed border-app-border" />
         ) : (
           <div className="h-2 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all" style={{ backgroundColor: chargeColor, width: `${chargePct}%` }} />
           </div>
-        )}
+        ))}
         <div className="flex justify-between text-app-caption text-app-text-muted font-mono tabular-nums">
-          <span>↓ {deployedPct === undefined ? "—" : `${deployedPct.toFixed(0)}%`}</span>
-          <span>↑ {harvestedPct === undefined ? "—" : `${harvestedPct.toFixed(0)}%`}</span>
+          <span>↓ {format2026 ? energy(ers.deployedThisLapJ) : deployedPct === undefined ? "—" : `${deployedPct.toFixed(0)}%`}</span>
+          <span>↑ {format2026 ? energy(ers.harvestedThisLapJ) : harvestedPct === undefined ? "—" : `${harvestedPct.toFixed(0)}%`}</span>
         </div>
       </div>
     </div>
   );
+}
+
+function availabilityLabel(value: boolean | undefined): string {
+  return value === undefined ? "—" : value ? m.analyse_available() : m.analyse_unavailable_short();
+}
+
+function enabledLabel(value: boolean | undefined): string {
+  return value === undefined ? "—" : value ? m.common_enabled() : m.common_disabled();
+}
+
+function distanceLabel(value: number | undefined): string {
+  return value === undefined || value <= 0 ? "—" : `${value} m`;
+}
+
+function TelemetryStatusRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex justify-between gap-2"><span className="text-app-text-muted">{label}</span><span className="tabular-nums text-app-text">{value}</span></div>;
 }
 
 // ── Weather Section ──────────────────────────────────────────────────────────
