@@ -101,8 +101,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await p.getByRole("combobox", { name: "Search language...", exact: true }).click();
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
         } else if (screenshotCase.kind === "analyse-actions") {
-          await p.getByRole("button", { name: "Actions", exact: true }).focus();
-          await p.keyboard.press("Enter");
+          await p.getByRole("button", { name: "Actions", exact: true }).click();
           await expect(p.getByRole("menu")).toBeVisible();
         } else if (screenshotCase.kind === "analyse-data-panel-loaded") {
           // The loaded panel itself is the screenshot target.
