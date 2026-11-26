@@ -48,34 +48,13 @@ async function completeOnboarding(page: Page, request: APIRequestContext, baseUR
   expect(await completed(), "released onboarding is complete before updating").toBe(true);
 }
 
-async function completeReleasedConversion(page: Page, request: APIRequestContext, baseURL: string, apiURL: string) {
-  const response = await request.get(`${apiURL}/api/sessions/capture-migration-status`);
-  // Later releases have already removed the legacy converter.
-  if (response.status() === 404) return;
-  expect(response.ok(), "released capture conversion status").toBe(true);
-  const initial = await response.json() as { captureCount: number };
-  await page.goto(baseURL, { waitUntil: "domcontentloaded" });
-  if (initial.captureCount === 0) return;
-
-  const dialog = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Convert old recordings", exact: true }) });
-  await expect(dialog, "old release prompts for conversion").toBeVisible({ timeout: 60_000 });
-  const accepted = page.waitForResponse((result) => result.url().endsWith("/api/sessions/migrate-captures") && result.request().method() === "POST", { timeout: 5 * 60_000 });
-  await dialog.getByRole("button", { name: "Convert", exact: true }).click();
-  const result = await accepted;
-  expect(result.ok(), "released conversion request succeeds").toBe(true);
-  const outcome = await result.json() as { failed: number; results?: Array<{ error?: string }> };
-  const errors = outcome.results?.map((item) => item.error ?? "").filter(Boolean).join("\n").slice(0, 4_000) ?? "";
-  expect(outcome.failed, `released conversion failed: ${errors}`).toBe(0);
-  await expect.poll(async () => {
-    const current = await request.get(`${apiURL}/api/sessions/capture-migration-status`);
-    expect(current.ok()).toBe(true);
-    const status = await current.json() as { captureCount: number; migrationProgress: { status: string; failed: number } };
-    return status.captureCount === 0 && status.migrationProgress.status === "success" && status.migrationProgress.failed === 0;
-  }, { timeout: 5 * 60_000 }).toBe(true);
-  const success = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: /^Conversion complete:/ }) });
-  await expect(success, "released conversion shows success").toBeVisible();
-  await success.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(page.getByRole("dialog"), "released dialogs are complete before updating").toHaveCount(0);
+async function assertSplitSeedReady(request: APIRequestContext, apiURL: string) {
+  const response = await request.get(`${apiURL}/api/storage/split-migration`);
+  expect(response.ok(), "split migration status is readable").toBe(true);
+  expect(await response.json(), "seeded recordings already use per-lap storage").toMatchObject({
+    sessionCount: 0,
+    progress: { status: "idle", failed: 0 },
+  });
 }
 
 async function completeOrganization(page: Page, request: APIRequestContext, baseURL: string, apiURL: string, options: { previousRelease?: boolean; requirePending?: boolean } = {}) {
@@ -115,17 +94,18 @@ test("released data upgrades through the required popup dialogs", async ({ page,
   const harness = await createSourceUpgradeHarness();
   try {
     await upgradeStep("Check out latest published release", () => harness.checkoutPrevious());
-    await upgradeStep("Install release dependencies, migrate and seed database", () => harness.seedPrevious());
+    await upgradeStep("Prepare and verify all released split fixtures", () => harness.preparePreviousSeed());
+    await upgradeStep("Seed the released installation from verified split fixtures", () => harness.seedPrevious());
     await upgradeStep("Start released application", () => harness.start());
     const previouslyOrganized = await upgradeStep("Complete all released-version setup and migration dialogs", async () => {
       await completeAccessSetup(page, request, harness.baseURL, harness.apiURL, true);
       await completeOnboarding(page, request, harness.baseURL, harness.apiURL);
-      await completeReleasedConversion(page, request, harness.baseURL, harness.apiURL);
+      await assertSplitSeedReady(request, harness.apiURL);
       const organized = await completeOrganization(page, request, harness.baseURL, harness.apiURL, { previousRelease: true });
       await expect(page.getByRole("dialog"), "all released-version dialogs are complete before updating").toHaveCount(0);
       return organized;
     });
-    const games = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"];
+    const games = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu", "ams2"];
     const existingIDsByGame = new Map<string, number[]>();
     for (const game of games) {
       const before = await request.get(`${harness.apiURL}/api/sessions?gameId=${game}`);
@@ -138,11 +118,11 @@ test("released data upgrades through the required popup dialogs", async ({ page,
 
     await page.goto("about:blank");
     await harness.stop();
-    await upgradeStep("Validate released converted recordings before checkout", () => harness.validateConvertedCaptures());
     await upgradeStep("Check out latest origin/main and install dependencies", () => harness.checkoutMain());
     await upgradeStep("Start main against released database and run migrations", () => harness.start());
     await upgradeStep("Complete upgrade setup and recording migration dialogs", async () => {
       await completeAccessSetup(page, request, harness.baseURL, harness.apiURL);
+      await assertSplitSeedReady(request, harness.apiURL);
       await completeOrganization(page, request, harness.baseURL, harness.apiURL, { requirePending: !previouslyOrganized });
     });
     await upgradeStep("Wait for main startup reconciliation", async () => {

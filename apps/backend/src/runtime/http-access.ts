@@ -1,24 +1,84 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { networkInterfaces } from "node:os";
 import type { DashboardAuth } from "./dashboard-auth";
 
-const sharedAuthorizationRequests = new WeakSet<Request>();
+type RequestListener = Pick<Bun.Server<unknown>, "port" | "requestIP">;
+const requestListeners = new WeakMap<Request, RequestListener | null>();
 const sharedAuthorizationCache = new WeakMap<Request, Promise<Response | undefined>>();
+const directLocalAiAccess = new AsyncLocalStorage<boolean>();
 
-export function beginRequestAuthorization(request: Request): void {
-  sharedAuthorizationRequests.add(request);
+const devLocalAiProxyToken = process.env.NODE_ENV !== "production" ? process.env.DEV_LOCAL_AI_PROXY_TOKEN : undefined;
+
+function trustedLocalOrigin(request: Request): string | null {
+  const listener = requestListeners.get(request);
+  if (!listener?.port) return null;
+  const peer = listener.requestIP(request)?.address;
+  const ipv4Loopback = peer === "127.0.0.1" || peer === "::ffff:127.0.0.1";
+  if (!ipv4Loopback && peer !== "::1") return null;
+  const authority = request.headers.get("Host");
+  const url = new URL(request.url);
+  if (url.protocol !== "http:" || authority !== url.host || Number(url.port || 80) !== listener.port) return null;
+
+  const proof = request.headers.get("x-raceiq-local-ai-proxy");
+  if (proof !== null) {
+    if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) return null;
+    if (!devLocalAiProxyToken || !/^[a-f0-9]{64}$/.test(devLocalAiProxyToken) || !/^[a-f0-9]{64}$/.test(proof)
+      || !timingSafeEqual(Buffer.from(proof, "hex"), Buffer.from(devLocalAiProxyToken, "hex"))) return null;
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    if (request.headers.get("x-forwarded-proto") !== "http"
+      || !forwardedHost || !/^(?:[a-z0-9-]+\.)+localhost(?::\d+)?$/.test(forwardedHost)) return null;
+    return URL.parse(`http://${forwardedHost}`)?.origin ?? null;
+  }
+
+  if (!ipv4Loopback || url.hostname !== "127.0.0.1") return null;
+
+  for (const name of request.headers.keys()) {
+    if (name === "forwarded" || name.startsWith("x-forwarded-") || name === "x-real-ip") return null;
+  }
+  return url.origin;
+}
+
+export function isTrustedLocalRequest(request: Request, requireOrigin = false): boolean {
+  const expected = trustedLocalOrigin(request);
+  const origin = request.headers.get("Origin");
+  return expected !== null && (origin === expected || (!requireOrigin && origin === null));
+}
+
+export function withDirectLocalAiAccess<T>(request: Request, run: () => T): T {
+  return directLocalAiAccess.run(isTrustedLocalRequest(request, true), run);
+}
+
+export function hasDirectLocalAiAccess(): boolean {
+  return directLocalAiAccess.getStore() === true;
+}
+
+export function beginRequestAuthorization(request: Request, listener: RequestListener | null = null): void {
+  requestListeners.set(request, listener);
 }
 
 export function endRequestAuthorization(request: Request): void {
-  sharedAuthorizationRequests.delete(request);
+  requestListeners.delete(request);
   sharedAuthorizationCache.delete(request);
 }
 
 export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
   const network = auth ? await auth.getNetwork() : undefined;
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
-  const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : (network?.hosts ?? ["0.0.0.0"]);
+  const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : [...(network?.hosts ?? ["0.0.0.0"])];
+  // The native URL uses IPv4 explicitly. Resolve localhost to IPv4 in desktop
+  // mode rather than binding it twice if the runtime already resolves it there.
+  if (env.RACEIQ_DESKTOP === "1") {
+    for (let i = hosts.length - 1; i >= 0; i--) {
+      if (hosts[i] !== "localhost") continue;
+      if (hosts.includes("127.0.0.1") || hosts.includes("0.0.0.0")) hosts.splice(i, 1);
+      else hosts[i] = "127.0.0.1";
+    }
+    // Preserve LAN listeners; an IPv4 wildcard already covers the native URL.
+    // Treat the IPv6 wildcard as dual-stack to avoid overlapping binds.
+    if (!hosts.some((host) => host === "127.0.0.1" || host === "0.0.0.0" || host === "::")) hosts.push("127.0.0.1");
+  }
   const hostname = hosts[0];
   const password = auth ? "" : env.SERVER_PASSWORD || "";
   // Release builds replace this exact process.env expression. An installed
@@ -68,6 +128,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
       const url = new URL(origin);
       if (url.origin !== origin || !["http:", "https:"].includes(url.protocol)) return false;
       // An explicit list replaces compatibility rules, independently of auth.
+      if (env.RACEIQ_DESKTOP === "1" && origin === new URL(request.url).origin) return true;
       if (origins.size > 0) return origins.has(origin) || (!env.SERVER_ALLOWED_ORIGINS && development && (localHost(url.hostname) || listenerHosts.has(url.hostname)));
       const target = new URL(request.url);
       const forwardedHost = request.headers.get("x-forwarded-host");
@@ -105,7 +166,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
     if (host && host.toLowerCase() !== url.host.toLowerCase()) {
       return new Response("Forbidden", { status: 403 });
     }
-    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
+    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname)) && !(env.RACEIQ_DESKTOP === "1" && ["localhost", "127.0.0.1", "::1"].includes(url.hostname))) return new Response("Forbidden", { status: 403 });
     const origin = request.headers.get("origin");
     if (origin !== null && !allowsOrigin(origin, request)) return new Response("Forbidden", { status: 403 });
     if (!origin && request.headers.get("sec-fetch-site") === "cross-site") {
@@ -152,7 +213,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
   }
 
   function authorize(request: Request): Promise<Response | undefined> {
-    if (!sharedAuthorizationRequests.has(request)) return authorizeUncached(request);
+    if (!requestListeners.has(request)) return authorizeUncached(request);
     const cached = sharedAuthorizationCache.get(request);
     if (cached) return cached;
     const pending = authorizeUncached(request);

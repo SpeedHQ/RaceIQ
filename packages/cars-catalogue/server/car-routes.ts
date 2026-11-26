@@ -11,19 +11,13 @@ import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { getAllIRacingCars } from "@raceiq/game-iracing-metadata/racing/cars/iracing";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import {
-  getDiscoveredCarName,
-  listDiscoveredCars,
-} from "@raceiq/backend-core/db/discovered-cars";
 import { getLMUCar, lmuCarCatalog } from "@raceiq/game-lmu-metadata/catalog";
 import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
-import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { getAllF1Cars } from "@raceiq/game-f1-2025-metadata/racing/cars/f1";
 import { ams2CarCatalog } from "@raceiq/game-ams2-metadata/index";
 // ─── Car model config paths ────────────────────────────────────────────────────
 
-import { USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
 // Optional local thumbnails extracted from the user's AMS2 installation.
 function ams2CarImagePath(carId: string): string | null {
@@ -32,7 +26,6 @@ function ams2CarImagePath(carId: string): string | null {
   return existsSync(file) ? file : null;
 }
 
-const CAR_MODEL_CONFIGS_PATH = resolve(USER_DATA_DIR, "car-model-configs.json");
 const CAR_DIMENSIONS_PATH = resolve(gameCatalogDir("fm-2023"), "car-dimensions.csv");
 
 // ─── Car dimensions (loaded at module init) ─────────────────────────────────────
@@ -65,10 +58,10 @@ try {
 export const CarModelConfigUpdateSchema = z.object({ glbOffsetX: z.number() }).strict();
 
 
-function loadCarModelConfigs(): Record<string, any> {
-  if (!existsSync(CAR_MODEL_CONFIGS_PATH)) return {};
+function loadCarModelConfigs(path: string): Record<string, any> {
+  if (!existsSync(path)) return {};
   try {
-    const configs = JSON.parse(readFileSync(CAR_MODEL_CONFIGS_PATH, "utf-8")) as Record<string, any>;
+    const configs = JSON.parse(readFileSync(path, "utf-8")) as Record<string, any>;
     let migrated = false;
     for (const config of Object.values(configs)) {
       if (config && typeof config === "object" && "glbRotationY" in config) {
@@ -76,7 +69,7 @@ function loadCarModelConfigs(): Record<string, any> {
         migrated = true;
       }
     }
-    if (migrated) writeFileSync(CAR_MODEL_CONFIGS_PATH, JSON.stringify(configs, null, 2));
+    if (migrated) writeFileSync(path, JSON.stringify(configs, null, 2));
     return configs;
   } catch {
     return {};
@@ -94,7 +87,14 @@ const IdentityListQuerySchema = z.string().transform((value, ctx) => {
   }
 }).pipe(z.array(z.string())).optional();
 
-export const carRoutes = new Hono()
+interface CarRoutesHost {
+  getDiscoveredCarName(gameId: string, carId: string): Promise<string | undefined>;
+  listDiscoveredCars(gameId: string): Promise<readonly { carId: string; name: string }[]>;
+  tryGetServerGame(gameId: string): { getCarName(carId: string): string; getTrackName(trackId: string): string } | undefined;
+  carModelConfigsPath: string;
+}
+
+export const createCarRoutes = ({ getDiscoveredCarName, listDiscoveredCars, tryGetServerGame, carModelConfigsPath }: CarRoutesHost) => new Hono()
 
   // GET /api/cars — list cars for the requested game
   .get("/api/cars", async (c) => {
@@ -292,7 +292,7 @@ export const carRoutes = new Hono()
   )
   // GET /api/car-model-configs — all configs (merged with extracted dimensions)
   .get("/api/car-model-configs", (c) => {
-    const configs = loadCarModelConfigs();
+    const configs = loadCarModelConfigs(carModelConfigsPath);
     for (const [ordinal, dims] of Object.entries(carDimensions)) {
       if (!configs[ordinal]) configs[ordinal] = {};
       const cfg = configs[ordinal];
@@ -315,7 +315,7 @@ export const carRoutes = new Hono()
     zValidator("param", CarIdParamSchema),
     (c) => {
       const { carId } = c.req.valid("param");
-      const configs = loadCarModelConfigs();
+      const configs = loadCarModelConfigs(carModelConfigsPath);
       const key = carId;
       return configs[key] ? c.json(configs[key]) : c.json({ error: "No config" }, 404);
     },
@@ -331,9 +331,9 @@ export const carRoutes = new Hono()
       const key = carId;
       const body = c.req.valid("json");
 
-      const configs = loadCarModelConfigs();
+      const configs = loadCarModelConfigs(carModelConfigsPath);
       configs[key] = { ...configs[key], ...body };
-      writeFileSync(CAR_MODEL_CONFIGS_PATH, JSON.stringify(configs, null, 2));
+      writeFileSync(carModelConfigsPath, JSON.stringify(configs, null, 2));
       console.log(`[CarModel] Saved config for car ${key}:`, body);
       return c.json({ success: true, config: configs[key] });
     },

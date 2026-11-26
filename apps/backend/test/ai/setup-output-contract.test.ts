@@ -5,7 +5,7 @@ import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
 import { getSetupCapabilities } from "@raceiq/backend-core/setups/rules/catalog";
 import { sanitizeAnalystOutput, validateSetupRecommendations } from "@raceiq/backend-core/ai/schemas";
-import { setupContextForLap } from "../../src/ai/lap-setup-context";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 import type { GameAdapter } from "@raceiq/shared/games/types";
 
 const fixturePath = resolve(import.meta.dir, "../../../../test/artifacts/carsetup/Default-12312.carsetup");

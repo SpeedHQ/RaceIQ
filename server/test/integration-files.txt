@@ -1,1 +1,2 @@
 server/test/games/kunos/triplet-assembler.test.ts
+server/test/session-capture/source-loader-stream.test.ts

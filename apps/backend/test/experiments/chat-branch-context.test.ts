@@ -10,8 +10,8 @@ import { createExperimentVersion } from "@raceiq/backend-core/db/experiment-vers
 import { db } from "@raceiq/backend-core/db/index";
 import { experiments, experimentVersions } from "@raceiq/backend-core/db/schema";
 import { resolveExperimentChatBranch } from "../../src/experiments/chat-branch-context";
-import { deleteChatLineage, getChatMemory, saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
-import { finishRun, getActiveRun } from "@raceiq/backend-core/ai/chat-run-registry";
+import { deleteChatLineage, getChatMemory, saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/assistant/ai/chat-agent";
+import { finishRun, getActiveRun } from "@raceiq/assistant/ai/chat-run-registry";
 import type { ExperimentChatBranchContext } from "../../src/experiments/chat-branch-context";
 import { sessionAgentForFocus } from "../../src/ai/agents";
 import * as settingsModule from "@raceiq/backend-core/runtime/config/settings";
@@ -100,6 +100,30 @@ describe("experiment chat branch context", () => {
     expect(await stale.json()).toMatchObject({ code: "stale_experiment_head" });
     expect((await memory.recall({ threadId })).messages).toEqual(before);
     expect(getActiveRun(threadId)).toBeUndefined();
+  });
+
+  test("subscription chat rejects nonlocal requests before saving a turn", async () => {
+    const sessionId = await createSession("chat-subscription-local-only");
+    const threadId = tuneSessionThreadId(sessionId);
+    const settings = spyOn(settingsModule, "loadSettings").mockReturnValue({
+      ...settingsModule.loadSettings(), chatProvider: "chatgpt-subscription", chatModel: "gpt-6.2-sol",
+    });
+    try {
+      const response = await tuneChatRoutes.request(`/api/experiments/${sessionId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headVersionId: null,
+          messages: [{ id: `nonlocal-${sessionId}`, role: "user", parts: [{ type: "text", text: "Review this setup." }] }],
+        }),
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "forbidden" });
+      expect((await getChatMemory().recall({ threadId })).messages).toEqual([]);
+      expect(getActiveRun(threadId)).toBeUndefined();
+    } finally {
+      settings.mockRestore();
+    }
   });
 
   test("different-head in-flight admission rejects before persistence and failed prerequisites release the slot", async () => {

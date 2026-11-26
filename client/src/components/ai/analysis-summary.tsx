@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { m } from "@/paraglide/messages";
+import { localizeChatGptRecovery } from "@/lib/chatgpt-recovery";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Shared completed-analysis summary row. */
@@ -86,7 +87,7 @@ export function AnalysisResultCard({
       )}
       {error && (
         <div className="text-app-caption text-status-danger mb-1">
-          {error}
+          {localizeChatGptRecovery(error) ?? error}
           <Button variant="app-outline" size="app-sm" onClick={onRetry} className="ml-2">
             {retryLabel}
           </Button>

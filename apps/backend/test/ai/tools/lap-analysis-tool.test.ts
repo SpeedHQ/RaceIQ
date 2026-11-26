@@ -4,8 +4,8 @@ import {
   getLapAnalysisToolFor,
   parseCachedLapAnalysis,
 } from "../../../src/mastra/tools/lap-analysis";
-import { buildCompareChatSystemPrompt } from "@raceiq/backend-core/ai/compare-chat-prompt";
-import { setupContextForLap } from "../../../src/ai/lap-setup-context";
+import { buildCompareChatSystemPrompt } from "@raceiq/assistant/ai/compare-chat-prompt";
+import { setupContextForLap } from "@raceiq/assistant/ai/lap-setup-context";
 
 const lap = {
   id: 1,

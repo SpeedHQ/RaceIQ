@@ -3,7 +3,7 @@ import {
   buildTuneChatSystemPrompt,
   summariseSetupJson,
   type TuneChatTest,
-} from "@raceiq/backend-core/ai/tune-chat-prompt";
+} from "@raceiq/assistant/ai/tune-chat-prompt";
 import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 
 /**

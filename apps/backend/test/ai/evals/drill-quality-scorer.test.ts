@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { SCORER_THRESHOLDS, scoreOutput } from "../../../src/mastra/evals/index";
-import { drillQualityScorer } from "../../../src/mastra/evals/scorers/drill-quality";
+import { SCORER_THRESHOLDS, scoreOutput } from "@raceiq/assistant/mastra/evals/index";
+import { drillQualityScorer } from "@raceiq/assistant/mastra/evals/scorers/drill-quality";
 
 /**
  * `drill-quality` is the gate that stops the Driver Coach recording coaching

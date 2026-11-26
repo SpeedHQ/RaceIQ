@@ -10,6 +10,8 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "ac-evo"], fakeSessionLaps);
+queryClient.setQueryData(["track-name", JSON.stringify(["Spa", ""]), "ac-evo"], "Spa-Francorchamps");
+queryClient.setQueryData(["car-name", "lamborghini_huracan_gt3_evo2", "ac-evo"], "Lamborghini Huracán GT3 EVO2");
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeAcEvoSemanticFixture;
