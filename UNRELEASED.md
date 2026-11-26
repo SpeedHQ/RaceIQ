@@ -18,6 +18,7 @@
 - Keep F1 replay from the start of the lap through the last recorded point after a mid-lap flashback, even if you quit before the finish.
 - Correct F1 brake-bias percentages in Replay and align F1 car wheels and track overviews with replay orientation.
 - Keep F1 races in the same session when telemetry briefly reports a zero session UID.
+- Show the reason and launcher log location when RaceIQ fails to start on Windows, even if the backend never writes a log.
 
 ### Internal
 - Move AI prompts and provider runtime into the assistant workspace package and consolidate provider registration, including ChatGPT subscriptions.
