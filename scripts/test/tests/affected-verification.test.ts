@@ -10,6 +10,7 @@ const queryInventory = JSON.stringify({
     ...Object.keys(JSON.parse(readFileSync(resolve(root, "playwright/turbo.json"), "utf8")).tasks as object)
       .map((task) => `raceiq-e2e#${task}`),
     ...["tracks-catalogue", "cars-catalogue", "lap-replay", "sessions-page", "session-analyse"].map((owner) => `@raceiq/${owner}#e2e:impact`),
+    "@raceiq/backend#bench:replay",
   ].map((taskId) => ({ taskId, directory: ".", inputs: { "scripts/i18n/check-message-keys.ts": "hash" }, dependencies: [] })),
 });
 
@@ -63,6 +64,10 @@ describe("affected verification selector", () => {
     expect(selection.nativeWebgpu).toBe(true);
     expect(selection.responsive).toBe(true);
     expect(selection.storybook).toBe(true);
+    expect(selection.benchmark).toBe(true);
+    const nonPr = JSON.parse(run("--mode", "full", "--scope", "non-pr").stdout.toString());
+    expect(nonPr.benchmark).toBe(false);
+    expect(nonPr.expected.test).toBe(true);
   });
 
   test("full selection covers real Playwright discovery without record-demo", () => {
@@ -163,7 +168,10 @@ describe("affected verification selector", () => {
   test("real Turbo selects independent jobs, transitive consumers, and previous owners", () => {
     const fixture = mkdtempSync(resolve(tmpdir(), "raceiq-impact-real-"));
     const command = (args: string[], cwd = fixture) => {
-      const result = Bun.spawnSync(args, { cwd, stdout: "pipe", stderr: "pipe" });
+      const result = Bun.spawnSync(args, {
+        cwd, stdout: "pipe", stderr: "pipe",
+        env: { ...Bun.env, GITHUB_OUTPUT: resolve(fixture, ".git/verification-output") },
+      });
       if (result.exitCode !== 0) throw new Error(`${args.join(" ")}: ${result.stderr.toString()}`);
       return result.stdout.toString().trim();
     };
@@ -182,7 +190,37 @@ describe("affected verification selector", () => {
       const fixtureFiles = [
         ".gitignore",
         "UNRELEASED.md",
+        "client/index.html",
         "client/src/main.tsx",
+        "client/src/components/home/HomePageView.tsx",
+        "client/src/components/tunes/ExperimentWorkspace.tsx",
+        "client/src/components/tunes/experiment/ExperimentList.tsx",
+        "client/src/components/ui/table.tsx",
+        "client/src/routes/index.tsx",
+        "client/src/routes/fm23/index.tsx",
+        "client/src/routes/$gameid/experiments.$experimentId.tsx",
+        "client/src/routes/$gameid/cars.tsx",
+        "client/src/routes/$gameid/tracks.index.tsx",
+        "packages/cars-catalogue/ui/cars/CarsPage.tsx",
+        "packages/cars-catalogue/test/e2e/lmu-cars.spec.ts",
+        "packages/cars-catalogue/server/car-routes.ts",
+        "packages/tracks-catalogue/server/catalog-routes.ts",
+        "server/db/discovered-cars.ts",
+        "server/db/lap-read-queries.ts",
+        "server/db/schema.ts",
+        "server/db/track-queries.ts",
+        "server/session-capture/frame-time.ts",
+        "server/telemetry/replay.ts",
+        "packages/game-ac-evo/src/game-parser.ts",
+        "packages/capture-formats/src/session/framing.ts",
+        "packages/game-f1-2025/test/e2e/f1-2025-recording.test.ts",
+        "apps/backend/test/benchmarks/replay-process-bench.ts",
+        "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+        "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+        "server/session-capture/direct-recorder.ts",
+        "apps/backend/test/session-capture/direct-recorder.test.ts",
+        "packages/game-lmu/test/e2e/browser/settings/lmu-recording-policy.spec.ts",
+        "playwright/tests/seeded/settings/storage.spec.ts",
         "bun.lock",
         "scripts/ci/affected-verification.ts",
         "playwright/config/projects.ts",
@@ -248,10 +286,153 @@ describe("affected verification selector", () => {
       const projects = (selection: { browserMatrix: { projects: string[] }[] }) =>
         new Set(selection.browserMatrix.flatMap((row) => row.projects));
       const assertAffected = (selection: { mode: string; reason: string }) => expect(selection.mode, selection.reason).toBe("affected");
+      const recordingOnly = select("packages/game-f1-2025/test/e2e/f1-2025-recording.test.ts");
+      assertAffected(recordingOnly);
+      expect(recordingOnly.expected).toMatchObject({ test: true, "playwright-e2e": false, "visual-regression": false });
+      expect(recordingOnly.benchmark).toBe(false);
+      expect(readFileSync(resolve(fixture, ".git/verification-output"), "utf8").trimEnd()).toEndWith(`plan=${JSON.stringify(recordingOnly)}`);
+      const recordingTasks = JSON.parse(command([
+        "bunx", "--no-install", "turbo", "query", "affected", "--tasks", "test:e2e:recordings", "--base", base, "--head", recordingOnly.head,
+      ]));
+      expect(recordingTasks.data.affectedTasks.items.map((item: { fullName: string }) => item.fullName))
+        .toContain("@raceiq/game-f1-2025#test:e2e:recordings");
+      for (const path of [
+        "client/src/components/home/HomePageView.tsx",
+        "server/session-capture/direct-recorder.ts",
+        "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+      ]) {
+        const unaffected = select(path);
+        assertAffected(unaffected);
+        expect(unaffected.benchmark, path).toBe(false);
+      }
+      for (const path of [
+        "server/session-capture/frame-time.ts",
+        "server/telemetry/replay.ts",
+        "packages/game-ac-evo/src/game-parser.ts",
+        "packages/capture-formats/src/session/framing.ts",
+        "apps/backend/test/benchmarks/replay-process-bench.ts",
+        "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+      ]) {
+        const affected = select(path);
+        expect(affected.mode, `${path}: ${affected.reason}`).toBe("affected");
+        expect(affected.benchmark, path).toBe(true);
+      }
+      const replayPath = resolve(fixture, "server/telemetry/replay.ts");
+      const originalReplay = readFileSync(replayPath);
+      const removedReplay = selectChanges(() => rmSync(replayPath), () => writeFileSync(replayPath, originalReplay));
+      assertAffected(removedReplay);
+      expect(removedReplay.benchmark).toBe(true);
+      const invalidRange = JSON.parse(command([
+        "bun", resolve(fixture, "scripts/ci/affected-verification.ts"), "--mode", "affected", "--base", "not-a-ref", "--head", removedReplay.head,
+      ]));
+      expect(invalidRange).toMatchObject({ mode: "full", benchmark: true });
       const feature = select("packages/tracks-catalogue/ui/track/TrackCard.tsx");
       assertAffected(feature);
       expect(projects(feature).has("tracks-catalogue")).toBe(true);
       expect(projects(feature).has("sessions-page")).toBe(true);
+      expect(projects(feature).has("cars-catalogue")).toBe(false);
+      const cars = select("packages/cars-catalogue/ui/cars/CarsPage.tsx");
+      assertAffected(cars);
+      expect(projects(cars).has("cars-catalogue")).toBe(true);
+      expect(projects(cars).has("tracks-catalogue")).toBe(false);
+      expect(projects(cars).has("seeded-imports")).toBe(false);
+      const lmuCars = select("packages/cars-catalogue/test/e2e/lmu-cars.spec.ts");
+      assertAffected(lmuCars);
+      expect(projects(lmuCars)).toEqual(new Set(["cars-catalogue"]));
+      for (const [path, owner, peer] of [
+        ["client/src/routes/$gameid/cars.tsx", "cars-catalogue", "tracks-catalogue"],
+        ["client/src/routes/$gameid/tracks.index.tsx", "tracks-catalogue", "cars-catalogue"],
+      ] as const) {
+        const selection = select(path);
+        assertAffected(selection);
+        expect(projects(selection).has(owner)).toBe(true);
+        expect(projects(selection).has(peer)).toBe(false);
+      }
+      for (const [path, owner, peer] of [
+        ["packages/cars-catalogue/server/car-routes.ts", "cars-catalogue", "tracks-catalogue"],
+        ["packages/tracks-catalogue/server/catalog-routes.ts", "tracks-catalogue", "cars-catalogue"],
+      ] as const) {
+        const selection = select(path);
+        assertAffected(selection);
+        expect(projects(selection).has(owner)).toBe(true);
+        expect(projects(selection).has(peer)).toBe(false);
+      }
+      const recorderPaths = [
+        "server/session-capture/direct-recorder.ts",
+        "apps/backend/test/session-capture/direct-recorder.test.ts",
+        "UNRELEASED.md",
+      ].map((path) => resolve(fixture, path));
+      const originalRecorderFiles = recorderPaths.map((path) => readFileSync(path));
+      const recorder = selectChanges(
+        () => recorderPaths.forEach((path, i) => writeFileSync(path, Buffer.concat([originalRecorderFiles[i]!, Buffer.from("\n")]))),
+        () => recorderPaths.forEach((path, i) => writeFileSync(path, originalRecorderFiles[i]!)),
+      );
+      assertAffected(recorder);
+      expect(projects(recorder).has("cars-catalogue")).toBe(false);
+      expect(projects(recorder).has("tracks-catalogue")).toBe(true);
+      expect(projects(recorder).has("seeded-imports")).toBe(true);
+      for (const path of [
+        "packages/game-lmu/test/e2e/browser/settings/lmu-recording-policy.spec.ts",
+        "playwright/tests/seeded/settings/storage.spec.ts",
+      ]) {
+        const recording = select(path);
+        assertAffected(recording);
+        expect(projects(recording).has("seeded-imports"), path).toBe(true);
+        expect(projects(recording).has("cars-catalogue"), path).toBe(false);
+      }
+      const lmuFixture = resolve(fixture, "packages/game-lmu/test/fixtures/sessions/impact-fixture.bin.gz");
+      const addedFixture = selectChanges(
+        () => { mkdirSync(dirname(lmuFixture), { recursive: true }); writeFileSync(lmuFixture, "fixture"); },
+        () => rmSync(lmuFixture),
+      );
+      assertAffected(addedFixture);
+      expect(projects(addedFixture).has("seeded-imports")).toBe(true);
+      const carDiscovery = select("server/db/discovered-cars.ts");
+      assertAffected(carDiscovery);
+      expect(projects(carDiscovery).has("cars-catalogue")).toBe(true);
+      const lapQueries = select("server/db/lap-read-queries.ts");
+      assertAffected(lapQueries);
+      expect(projects(lapQueries).has("tracks-catalogue")).toBe(true);
+      expect(projects(lapQueries).has("cars-catalogue")).toBe(false);
+      const trackCounts = select("server/db/track-queries.ts");
+      assertAffected(trackCounts);
+      expect(projects(trackCounts).has("tracks-catalogue")).toBe(true);
+      expect(projects(trackCounts).has("cars-catalogue")).toBe(false);
+      for (const path of ["server/db/schema.ts", "client/index.html"]) {
+        const selection = select(path);
+        assertAffected(selection);
+        const selectedProjects = projects(selection);
+        for (const project of ["cars-catalogue", "tracks-catalogue", "seeded-imports"]) {
+          expect(selectedProjects.has(project), `${path}: ${project}`).toBe(true);
+        }
+      }
+      for (const path of [
+        "client/src/components/home/HomePageView.tsx",
+        "client/src/components/tunes/ExperimentWorkspace.tsx",
+        "client/src/components/tunes/experiment/ExperimentList.tsx",
+        "client/src/routes/index.tsx",
+        "client/src/routes/fm23/index.tsx",
+        "client/src/routes/$gameid/experiments.$experimentId.tsx",
+      ]) {
+        const selection = select(path);
+        assertAffected(selection);
+        expect(projects(selection).has("cars-catalogue"), path).toBe(false);
+        expect(projects(selection).has("tracks-catalogue"), path).toBe(false);
+        expect(selection.build, path).toBe(true);
+      }
+      const newHomePanel = resolve(fixture, "client/src/components/home/NewPanel.tsx");
+      const added = selectChanges(
+        () => writeFileSync(newHomePanel, "export const NewPanel = () => null;\n"),
+        () => rmSync(newHomePanel),
+      );
+      assertAffected(added);
+      expect(projects(added).has("cars-catalogue")).toBe(false);
+      expect(projects(added).has("tracks-catalogue")).toBe(false);
+      expect(added.build).toBe(true);
+      const sharedTable = select("client/src/components/ui/table.tsx");
+      assertAffected(sharedTable);
+      expect(projects(sharedTable).has("cars-catalogue")).toBe(true);
+      expect(projects(sharedTable).has("tracks-catalogue")).toBe(true);
       const setup = select("playwright/tests/setup/sparse-split-migration.spec.ts");
       assertAffected(setup);
       expect(projects(setup).has("seeded-e2e")).toBe(true);

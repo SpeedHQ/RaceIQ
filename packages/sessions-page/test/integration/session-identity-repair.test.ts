@@ -11,7 +11,7 @@ import { getDiscoveredTrackName } from "@raceiq/backend-core/db/discovered-track
 import { fmCarCatalog } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
 import { fmTrackCatalog } from "@raceiq/game-fm-2023-metadata/racing/tracks/catalogs/fm";
 import { createSessionRoutes } from "@raceiq/sessions-page/server";
-import { carRoutes } from "@raceiq/cars-catalogue/server";
+import { carRoutes } from "../../../../apps/backend/src/routes/catalogue-cars";
 import { trackRoutes } from "@raceiq/tracks-catalogue/server";
 import { ams2Adapter, registerAMS2Identity, ams2TrackCatalog } from "@raceiq/game-ams2-metadata/index";
 import { ams2IdentityId } from "@raceiq/game-ams2-metadata/identity";

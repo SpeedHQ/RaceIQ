@@ -15,7 +15,6 @@ packages/game-lmu/test/e2e/backend/lap-analysis/lmu-opponent-native-v2.test.ts
 packages/game-lmu/test/e2e/backend/race-results/lmu-race-results-storage.test.ts
 packages/game-lmu/test/e2e/backend/race-results/lmu-race-results.test.ts
 packages/game-lmu/test/e2e/backend/routes/lmu-string-identity.test.ts
-packages/game-lmu/test/e2e/backend/session-capture/direct-capture-repair.test.ts
 packages/game-lmu/test/e2e/backend/session-capture/direct-recording-ingress.test.ts
 packages/game-lmu/test/e2e/backend/session-capture/elapsed-duration.test.ts
 packages/game-lmu/test/e2e/backend/session-capture/lmu-capture-format.test.ts

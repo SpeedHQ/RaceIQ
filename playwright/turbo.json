@@ -6,6 +6,44 @@
       "dependsOn": ["@raceiq/tooling-build#build"],
       "env": ["NODE_ENV", "RACEIQ_*", "BUN_TEST_WORKERS", "E2E_SERVER_MODE", "PW_*"]
     },
+    "e2e:catalogue-runtime:impact": {
+      "inputs": [
+        "config/**",
+        "support/**",
+        "tests/support/**",
+        "tests/setup/**",
+        "playwright.config.ts",
+        "$TURBO_ROOT$/scripts/test/check-feature-boundaries.ts",
+        "$TURBO_ROOT$/packages/tooling-data/src/data/**",
+        "$TURBO_ROOT$/apps/backend/scripts/data/**",
+        "$TURBO_ROOT$/packages/tooling-build/**",
+        "$TURBO_ROOT$/test/artifacts/**",
+        "$TURBO_ROOT$/client/src/routes/{__root,$gameid,ac-evo,acc,ams2,f125,fm23,iracing,lmu,login,onboarding}.tsx",
+        "$TURBO_ROOT$/client/src/features/{lap-replay,session-analyse,sessions-page}-host.tsx",
+        "$TURBO_ROOT$/client/src/components/*",
+        "$TURBO_ROOT$/client/src/components/{acc,ai,ai-chat,analyse,assistant-ui,comparison,dev,driver,f1,forza,import,live-track,lmu,onboarding,race-results,security,settings,setup-tune,shadcn-studio,streaming,telemetry,ui,wireframe}/**",
+        "$TURBO_ROOT$/client/src/components/tunes/{SectorDetailView,SectorMap,SectorRangeBreakdown,SetupSections,track-map-geometry}.*",
+        "$TURBO_ROOT$/client/src/components/tunes/{review,track-focus}/**",
+        "$TURBO_ROOT$/client/src/data/car-models.ts",
+        "$TURBO_ROOT$/client/src/hooks/**",
+        "$TURBO_ROOT$/client/src/lib/**",
+        "$TURBO_ROOT$/client/src/stores/**",
+        "$TURBO_ROOT$/client/src/styles/**",
+        "$TURBO_ROOT$/client/src/index.css",
+        "$TURBO_ROOT$/client/src/main.tsx",
+        "$TURBO_ROOT$/client/index.html",
+        "$TURBO_ROOT$/client/messages/**",
+        "$TURBO_ROOT$/client/public/**",
+        "$TURBO_ROOT$/client/package.json",
+        "$TURBO_ROOT$/client/vite.config.ts",
+        "$TURBO_ROOT$/apps/backend/src/**",
+        "$TURBO_ROOT$/apps/backend/package.json",
+        "$TURBO_ROOT$/scripts/playwright-ci.ts",
+        "$TURBO_ROOT$/scripts/run-browser-verification.ts",
+        "$TURBO_ROOT$/scripts/build-browser.ts",
+        "$TURBO_ROOT$/tsconfig.base.json"
+      ]
+    },
     "browser:runtime:impact": {
       "dependsOn": ["client#transit", "@raceiq/backend#transit"],
       "inputs": ["config/**", "support/server/**", "playwright.config.ts", "tsconfig.json", "tests/support/**", "$TURBO_ROOT$/scripts/playwright-ci.ts", "$TURBO_ROOT$/packages/tooling-build/src/build/**", "$TURBO_ROOT$/tsconfig.base.json"]
@@ -35,8 +73,26 @@
       "inputs": ["tests/seeded/routes/**"]
     },
     "browser:seeded-imports:impact": {
-      "dependsOn": ["browser:seed:impact"],
-      "inputs": ["tests/seeded/analyse/core-flow.spec.ts", "tests/seeded/dev-tools/server-import.spec.ts", "tests/seeded/settings/storage.spec.ts", "$TURBO_ROOT$/packages/game-lmu/test/e2e/**", "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/**"]
+      "dependsOn": [
+        "e2e:catalogue-runtime:impact",
+        "@raceiq/game-lmu#transit",
+        "@raceiq/lap-replay#transit",
+        "@raceiq/session-analyse#transit",
+        "@raceiq/tooling-data#transit"
+      ],
+      "inputs": [
+        "tests/seeded/analyse/{core-flow.spec,controls,fixtures}.ts",
+        "tests/seeded/dev-tools/{server-import.spec,helpers}.ts",
+        "tests/seeded/settings/storage.spec.ts",
+        "$TURBO_ROOT$/packages/game-lmu/test/e2e/browser/**",
+        "$TURBO_ROOT$/packages/game-lmu/test/support/**",
+        "$TURBO_ROOT$/packages/game-lmu/test/fixtures/sessions/**",
+        "$TURBO_ROOT$/packages/sessions-page/{contracts,server,ui}/**",
+        "$TURBO_ROOT$/client/src/components/home/**",
+        "$TURBO_ROOT$/client/src/routes/{dev,index}.tsx",
+        "$TURBO_ROOT$/client/src/routes/$gameid/{compare,sessions,sessions.*,tracks,tracks.*}.tsx",
+        "$TURBO_ROOT$/client/src/routes/$gameid/sessions/**"
+      ]
     },
     "browser:webgpu:impact": {
       "dependsOn": ["browser:seed:impact", "@raceiq/lap-replay#transit"],
