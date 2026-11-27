@@ -27,7 +27,7 @@
     "@raceiq/game-iracing-metadata": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "cheerio": "^1.2.0",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "@raceiq/game-acc-metadata": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/analysis-core": "workspace:*"

@@ -17,7 +17,7 @@
     "test:tooling": "bun ../scripts/test/run-suite.ts tooling --package raceiq-e2e"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.65.1",
     "@raceiq/assistant": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
@@ -27,9 +27,9 @@
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "libsql": "^0.5.29",
-    "zod": "^4.6.5",
+    "zod": "^4.6.7",
     "@raceiq/tooling-data": "workspace:*",
     "@raceiq/analysis-core": "workspace:*"
   }

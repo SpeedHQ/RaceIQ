@@ -19,7 +19,7 @@
     "./game-parser": "./src/game-parser.ts"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/shared": "workspace:*",

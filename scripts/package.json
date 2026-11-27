@@ -14,7 +14,7 @@
   "dependencies": {
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@babel/parser": "^8.0.5",
+    "@babel/parser": "^8.1.3",
     "@raceiq/tooling-release": "workspace:*",
     "@raceiq/tooling-build": "workspace:*",
     "libsql": "^0.5.29"

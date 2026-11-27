@@ -1,3 +1,4 @@
+import { APICallError } from "ai";
 import { Agent } from "@mastra/core/agent";
 import { AiProviderError } from "@raceiq/assistant/ai/provider-error";
 import { getMastraModelId, type BoundMastraModel } from "../mastra/model";
@@ -160,7 +161,6 @@ export class OpenAiCompatibleProviderAdapter {
   }
 }
 
-/** Claude models through Mastra's native Anthropic provider. */
 export class AnthropicProviderAdapter {
   readonly feature: AiFeature;
   readonly provider: AiProvider = "anthropic";
@@ -171,17 +171,14 @@ export class AnthropicProviderAdapter {
   constructor(config: ProviderAdapterConfig & { apiKey: string }) {
     this.feature = config.feature;
     this.model = config.model;
+    this.mastraModel = getMastraModelId({ provider: this.provider, model: this.model, apiKey: config.apiKey });
     this.#agent = new Agent({
       id: "anthropic-direct",
       name: "Anthropic direct",
       instructions: "Follow the user's instructions.",
       maxRetries: 0,
-      model: getMastraModelId({ provider: this.provider, model: this.model, apiKey: config.apiKey }),
-    });
-    this.mastraModel = getMastraModelId({
-      provider: this.provider,
-      model: this.model,
-      apiKey: config.apiKey,
+      errorProcessorDefaults: false,
+      model: this.mastraModel,
     });
   }
 
@@ -202,12 +199,9 @@ export class AnthropicProviderAdapter {
         try {
           return await generate();
         } catch (error) {
-          const candidate = error as { name?: unknown; message?: unknown; statusCode?: unknown; responseHeaders?: Record<string, string> } | null;
-          const status = typeof candidate?.statusCode === "number" ? candidate.statusCode : null;
-          // The gateway does not expose fetch provenance, so message-only transport errors cannot be retried safely.
-          if (candidate?.name === "AbortError" || attempt >= DEFAULT_RETRY_POLICY.maxAttempts ||
-              status === null || !isRetryableStatus(status)) throw error;
-          const retryAfter = parseRetryAfter(candidate?.responseHeaders?.["retry-after"]);
+          if (!APICallError.isInstance(error) || error.statusCode === undefined ||
+              !isRetryableStatus(error.statusCode) || attempt >= DEFAULT_RETRY_POLICY.maxAttempts) throw error;
+          const retryAfter = parseRetryAfter(error.responseHeaders?.["retry-after"]);
           if (retryAfter !== null && retryAfter > DEFAULT_RETRY_POLICY.maxRetryAfterMs) throw error;
           const { promise, resolve } = Promise.withResolvers<void>();
           setTimeout(resolve, retryDelayMs(attempt, DEFAULT_RETRY_POLICY, Math.random, retryAfter));
@@ -215,16 +209,15 @@ export class AnthropicProviderAdapter {
         }
       }
     })().catch((error: unknown) => {
-      if (error instanceof AiProviderError) throw error;
-      if (typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number") {
+      if (APICallError.isInstance(error) && error.statusCode !== undefined) {
         const statusCode = error.statusCode;
         throw new AiProviderError(describeCompatibleApiFailure("anthropic", statusCode), {
           code: "upstream",
           provider: "anthropic",
           modelId: this.model,
           statusCode,
-          isRetryable: statusCode >= 500 || statusCode === 429,
-          responseBody: "responseBody" in error && typeof error.responseBody === "string" ? error.responseBody : undefined,
+          isRetryable: isRetryableStatus(statusCode),
+          responseBody: error.responseBody,
         });
       }
       throw error;
@@ -313,9 +306,8 @@ export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
     generateText: adapter.generateText.bind(adapter),
     generateStructured: adapter.generateStructured.bind(adapter),
   };
-  setResolvedAiInternals(resolved, {
-    model: "mastraModel" in adapter ? adapter.mastraModel : undefined,
-  });
+  const modelAdapter: { readonly mastraModel: BoundMastraModel } = adapter;
+  setResolvedAiInternals(resolved, { model: modelAdapter.mastraModel });
   return resolved;
 }
 export function unsupportedAiOperation(feature: AiFeature, provider: AiProvider, operation: string): never {
