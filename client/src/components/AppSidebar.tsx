@@ -3,6 +3,7 @@ import { getAllGames } from "@raceiq/shared/games/registry"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Binary,
+  Box,
   Car,
   Check,
   Code2,
@@ -160,7 +161,7 @@ export function AppSidebar({
   const [gameSelectOpen, setGameSelectOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
   const activeGame = getAllGames().find((game) => isGameContextPath(location.pathname, [game.routePrefix]));
-  const showGameLinks = location.pathname === "/" || location.pathname === "/live" || location.pathname.startsWith("/live/");
+  const showGameLinks = location.pathname === "/" || location.pathname === "/car-models" || location.pathname === "/live" || location.pathname.startsWith("/live/");
   const visibleGames = getAllGames().filter((game) => !hiddenGames.includes(game.id) || game.id === activeGame?.id);
   const selectItems = useMemo(() => visibleGames.map((game) => ({ value: game.id, label: game.displayName })), [visibleGames]);
   const visibleFeatures = activeGame ? FEATURE_LINKS.filter((feature) => !feature.feature || supportsGameFeature(activeGame.routePrefix, feature.feature)) : [];
@@ -306,6 +307,9 @@ export function AppSidebar({
                 {visibleGames.map((game) => (
                   <SidebarLink key={game.id} collapsed={showCollapsed} icon={Gamepad2} logoSrc={GAME_LOGO_SRC[game.id]} label={game.displayName} to={`/${game.routePrefix}`} onClick={onClose} />
                 ))}
+                <SidebarAction collapsed={showCollapsed} label={m.model_library()} onClick={() => { onClose?.(); void navigate({ to: "/car-models" }); }} className={location.pathname === "/car-models" ? "bg-app-surface-hover text-app-accent" : undefined}>
+                  <Box className="size-4 shrink-0" /><span className={showCollapsed ? "sr-only" : "truncate"}>{m.model_library()}</span>
+                </SidebarAction>
               </div>
             )}
           </>

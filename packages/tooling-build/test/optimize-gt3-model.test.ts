@@ -7,7 +7,7 @@ import { NodeIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression, KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
 import { getBounds } from "@gltf-transform/functions";
 import { MeshoptDecoder } from "meshoptimizer";
-import { GT3_SOURCE_SHA256, optimizeGt3Model, REMOVED_GT3_NODE_NAMES } from "../src/assets/optimize-gt3-model";
+import { GT3_SOURCE_SHA256, shrinkShipped, REMOVED_GT3_NODE_NAMES } from "@raceiq/car-models/shipped";
 
 const sourcePath = resolve("assets/models/source/aston_martin_vantage_gt3.glb");
 const retainedAssemblies = [
@@ -44,7 +44,7 @@ describe("GT3 optimised derivative", () => {
     await Promise.all([MeshoptDecoder.ready]);
     temporaryDirectory = await mkdtemp(join(tmpdir(), "raceiq-gt3-"));
     generatedPath = join(temporaryDirectory, "aston_martin_vantage_gt3_optimised.glb");
-    await optimizeGt3Model(sourcePath, generatedPath);
+    await shrinkShipped('gt3', sourcePath, generatedPath);
   });
 
   afterAll(async () => {

@@ -3,6 +3,7 @@
  * Loaded from server (data/car-model-configs.json).
  * Falls back to default wireframe dimensions when no config exists.
  */
+import { loadLibrary, registerShipped } from '@raceiq/car-models';
 import { client } from "../lib/rpc";
 import type { CarModelEnrichment } from "@raceiq/scene-3d/model-types";
 
@@ -53,10 +54,14 @@ let configs: Record<string, CarModelEnrichment> = {};
 let loaded = false;
 
 export async function loadCarModelConfigs(): Promise<void> {
+  await loadLibrary().catch(() => undefined);
   if (loaded) return;
   try {
     const res = await client.api["car-model-configs"].$get();
-    if (res.ok) configs = await res.json();
+    if (res.ok) {
+      configs = await res.json();
+      for (const [id, config] of Object.entries(configs)) if (config.modelPath) registerShipped(id, { ...DEFAULT_CAR, ...config, hasModel: true });
+    }
     loaded = true;
   } catch {}
 }
@@ -73,6 +78,10 @@ export const DEMO_CAR: CarModelEnrichment & { hasModel: true } = {
   modelPath: "/models/aston_martin_vantage_gt3_optimised.glb",
   hasModel: true,
 };
+
+registerShipped('Aston Martin Vantage GT3', DEMO_CAR);
+registerShipped('McLaren MCL39', F1_CAR);
+registerShipped('Peugeot 9X8 Evo', LMU_HYPERCAR_CAR);
 
 /** Closest available LMU body for each catalog class. */
 export const LMU_CLASS_CAR_MODELS: Record<string, CarModelEnrichment & { hasModel: true }> = {

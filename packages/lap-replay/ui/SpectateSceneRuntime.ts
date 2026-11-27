@@ -4,6 +4,7 @@ import { WebGPURenderer } from "three/webgpu";
 import { createRibbonPool, updateRibbonPool, disposeRibbonPool, type RibbonPool, type RibbonRun } from "@raceiq/scene-3d/wireframe/LineResources";
 import type { ReplaySession, SpectateController, SpectatePose, SpectateReading, SpectateSample, SpectateSnapshot } from "../contracts/spectate";
 import type { TrackMapBoundaries, Point } from "../contracts/host"
+import { fittedModel, assignment } from '@raceiq/car-models';
 import type { ReplayModelResources } from "../contracts/host";
 import { createCarBody, type CarBodyInstance } from "@raceiq/scene-3d/wireframe/CarBody";
 
@@ -594,6 +595,9 @@ export class SpectateSceneRuntime {
     this.canvas.dataset.focusLaneAvailable = String(this.focusLaneAvailable);
     this.wake();
   }
+  refreshCarModels() {
+    if (!this.disposed) { this.error(''); void this.initialize(); }
+  }
   private initGeneration = 0;
   private async initialize() {
     const generation = ++this.initGeneration;
@@ -656,7 +660,9 @@ export class SpectateSceneRuntime {
     this.trails[i] = null;
     const lap = i ? this.pair.b && this.pair.comparison.lapB : this.pair.comparison.lapA;
     if (!lap) return;
-    const selection = this.resources.resolveCarModelSelection(this.pair.gameId, lap.carId);
+    const automatic = this.resources.resolveCarModelSelection(this.pair.gameId, lap.carId);
+    const model = fittedModel(automatic.model, assignment(this.pair.gameId, lap.carId));
+    const selection = model === automatic.model ? automatic : { model, label: 'custom' };
     if (!selection.model.hasModel) throw new Error("scene.model-unavailable");
     this.genericModels[i] = selection.label === "generic";
     const body = await createCarBody(selection.model, this.carModelMode === "hidden" ? "solid" : this.carModelMode, selection.model.glbOffsetX ?? 0, true);

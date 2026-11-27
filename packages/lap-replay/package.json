@@ -20,6 +20,7 @@
     "test:e2e": "cd ../../playwright && E2E_SERVER_MODE=compiled PW_SERVER_SET=seeded PW_SEEDED_E2E_PORT=3164 PW_SEEDED_E2E_CLIENT_PORT=4164 PW_SEEDED_E2E_UDP_PORT=15364 PW_SEEDED_E2E_DATA_DIR=./test-results/test-data-lap-replay RACEIQ_FEATURE_F1_EXPERIMENTS=true RACEIQ_FEATURE_IRACING_ADAPTER=true bun ../scripts/playwright-ci.ts test --config=playwright.config.ts --project=lap-replay --project=lap-replay-webgpu --output=test-results/lap-replay"
   },
   "dependencies": {
+    "@raceiq/car-models": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.187.0",

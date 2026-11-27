@@ -115,7 +115,7 @@ export interface CarsCatalogueHost {
   useRequiredGameId: () => GameId;
   useUnits: () => { unit: "metric" | "imperial"; speedLabel: string; fromMph: (mph: number) => number };
   loadCarModelConfigs: () => Promise<void>;
-  getCarModel: (id: string) => { hasModel: boolean };
+  getCarModel: (id: string, gameId: GameId) => { hasModel: boolean };
   loadCars: (gameId: GameId) => Promise<Car[]>;
   loadAccCars: () => Promise<AccCatalogueCar[]>;
   loadAcEvoCars: () => Promise<AcEvoCatalogueCar[]>;

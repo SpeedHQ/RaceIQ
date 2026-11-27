@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { ModelSelector } from '@raceiq/car-models/selector';
 import { Navigation, Footprints, CarFront, Route, Map, Info, X } from "lucide-react";
 import type { SpectateController, ReplaySession } from "../contracts/spectate";
 import type { TrackMapBoundaries } from "../contracts/host"
@@ -63,6 +64,7 @@ const canLock = useSyncExternalStore(controller.subscribe, () => controller.getS
 const host = useRef<HTMLDivElement>(null);
 const runtime = useRef<SpectateSceneRuntime | null>(null);
 const zoomIndicator = useRef<HTMLDivElement>(null);
+const [editing, setEditing] = useState<{ side: 'a' | 'b'; session: string } | null>(null);
 const [ready, setReady] = useState(false);
 const [directionLock, setDirectionLock] = useToolbarToggle("spectate-direction-lock", false);
 const [tireTrails, setTireTrails] = useToolbarToggle("spectate-tire-trails", false);
@@ -195,6 +197,10 @@ return (
     data-side-a-state={sideAState}
     data-side-b-state={pair.b ? sideBState : undefined}
   >
+    <div className="absolute bottom-2 left-2 z-20 flex gap-1">
+      {(['a', ...(pair.b ? ['b'] : [])] as ('a' | 'b')[]).map(side => <button type="button" key={side} className="cursor-pointer rounded-sm border border-app-border bg-app-surface px-2 py-1 text-app-label text-app-text" onClick={() => setEditing({ side, session: key })}>{m.model_picker()}{pair.b ? ' ' + side.toUpperCase() : ''}</button>)}
+    </div>
+    {editing && editing.session === key && <ModelSelector game={pair.gameId} car={(editing.side === 'a' ? pair.comparison.lapA : pair.comparison.lapB)?.carId} automatic={models.resolveCarModelSelection(pair.gameId, (editing.side === 'a' ? pair.comparison.lapA : pair.comparison.lapB)?.carId).model} m={m} onApply={() => runtime.current?.refreshCarModels()} onClose={() => setEditing(null)} />}
     <div ref={host} className="absolute inset-0" />
     <div
       ref={zoomIndicator}

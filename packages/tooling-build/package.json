@@ -6,6 +6,7 @@
     "./build/copy-duckdb-runtime": "./src/build/copy-duckdb-runtime.ts"
   },
   "dependencies": {
+    "@raceiq/car-models": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@gltf-transform/core": "4.5.1",
     "@gltf-transform/extensions": "4.5.1",

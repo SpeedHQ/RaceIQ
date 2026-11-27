@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "@raceiq/scene-3d/semantic-frame";
 import type { SceneSource } from "@raceiq/scene-3d/wireframe/SceneRuntime"
+import { fittedModel, assignment } from '@raceiq/car-models';
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
@@ -26,7 +27,7 @@ function CarModelPage() {
   useEffect(() => {
     loadCarModelConfigs().then(() => setReady(true));
   }, []);
-  const carModel = useMemo(() => (ready ? getCarModel(carId) : null), [carId, ready]);
+  const carModel = useMemo(() => (ready ? fittedModel(getCarModel(carId), assignment('fm-2023', carId)) : null), [carId, ready]);
 
   const { data: carInfo } = useQuery({
     queryKey: ["car", carId],

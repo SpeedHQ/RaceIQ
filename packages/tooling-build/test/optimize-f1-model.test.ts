@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { NodeIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression, KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
-import { optimizeF1Model, F1_SOURCE_SHA256 } from "../src/assets/optimize-f1-model";
+import { shrinkShipped, F1_SOURCE_SHA256 } from "@raceiq/car-models/shipped";
 import { MeshoptDecoder } from "meshoptimizer";
 
 const sourcePath = resolve("assets/models/source/f1_2025_mclaren_mcl39.glb");
@@ -18,7 +18,7 @@ describe("F1 optimised derivative", () => {
     await MeshoptDecoder.ready;
     temporaryDirectory = await mkdtemp(join(tmpdir(), "raceiq-f1-"));
     generatedPath = join(temporaryDirectory, "f1_2025_mclaren_mcl39_optimised.glb");
-    await optimizeF1Model(sourcePath, generatedPath);
+    await shrinkShipped('f1', sourcePath, generatedPath);
   });
 
   afterAll(async () => rm(temporaryDirectory, { recursive: true, force: true }));

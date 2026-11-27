@@ -1,0 +1,12 @@
+{
+  "name": "@raceiq/car-models",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "bun check --project tsconfig.json" },
+  "exports": { ".": "./library.ts", "./selector": "./ModelSelector.tsx", "./shipped": "./shipped.ts", "./page": "./ModelLibraryPage.tsx" },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1", "@gltf-transform/extensions": "4.5.1", "@gltf-transform/functions": "4.5.1", "meshoptimizer": "1.3.0",
+    "@raceiq/scene-3d": "workspace:*", "react": "^19.3.0", "three": "^0.187.0"
+  },
+  "devDependencies": { "@types/react": "^19.3.0", "@types/three": "^0.187.0" }
+}
