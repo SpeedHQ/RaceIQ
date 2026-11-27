@@ -11,6 +11,7 @@ export interface PreopenedFileWriterOptions {
   onClosed?: (info: PreopenedFileInfo) => void | Promise<void>;
   onFailure?: (error: unknown) => void;
   onWritten?: (info: PreopenedFileInfo, bytes: number, durationMs: number) => void;
+  onBatchWritten?: (batch: readonly Buffer[]) => void;
   onDurable?: (info: PreopenedFileInfo) => void | Promise<void>;
 }
 type FileState = {
@@ -47,6 +48,7 @@ export class PreopenedFileWriter {
   private readonly onClosed?: PreopenedFileWriterOptions["onClosed"];
   private readonly onFailure?: PreopenedFileWriterOptions["onFailure"];
   private readonly onWritten?: PreopenedFileWriterOptions["onWritten"];
+  private readonly onBatchWritten?: PreopenedFileWriterOptions["onBatchWritten"];
   private readonly onDurable?: PreopenedFileWriterOptions["onDurable"];
   private queued = 0;
   private failure?: unknown;
@@ -62,6 +64,7 @@ export class PreopenedFileWriter {
     this.onClosed = options.onClosed;
     this.onFailure = options.onFailure;
     this.onWritten = options.onWritten;
+    this.onBatchWritten = options.onBatchWritten;
     this.onDurable = options.onDurable;
     if (![this.maxQueued, this.maxRetiring, this.maxBatch].every(Number.isSafeInteger) || this.maxQueued < 1 || this.maxRetiring < 1 || this.maxBatch < 1 || !Number.isFinite(this.delay) || this.delay < 0) throw new RangeError("Invalid writer limits");
     this.activeState = this.makeState();
@@ -196,6 +199,7 @@ export class PreopenedFileWriter {
           try { this.onWritten?.(state.info, result.bytesWritten, durationMs); } catch (error) { this.fail(error); throw error; }
           if (state.queued === 0) state.enqueuedAt = undefined;
         }
+        this.onBatchWritten?.(batch);
       }
     };
     const promise = run().catch(error => { this.writeFailed = true; this.fail(error); throw error; }).finally(() => { state.drain = undefined; if (state.head < state.queue.length && !this.writeFailed) this.schedule(state, true); });

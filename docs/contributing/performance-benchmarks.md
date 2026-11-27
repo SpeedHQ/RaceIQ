@@ -4,7 +4,19 @@ RaceIQ keeps performance measurements separate from ordinary tests. `bun run ben
 
 ## Direct recording audit: timing and memory
 
-### Implemented recorder versus `7023af6b8`
+### Retained LMU capture: SHA-256 in the writer drain
+
+| 12-frame burst, median | Original reread (`7023af6b8`) | Inline hash (`4a7bee3e75`) | Batch hash |
+|---|---:|---:|---:|
+| First write through completed stop | 7.070 ms | 5.746 ms | 6.000 ms |
+| Synchronous write | 242.98 µs/frame | 294.95 µs/frame | 237.75 µs/frame |
+| Stop including pending writes | 4.173 ms | 2.149 ms | 3.093 ms |
+
+The total is measured directly, not summed from stage medians. Each implementation recorded the same 12 prebuilt synthetic v2 frames on macOS arm64, with four warmups followed by 21 measured captures. Setup and independent digest verification were outside the timer. Batched hashing saved 1.070 ms (15.1%) per capture versus the original. Compared with inline hashing, writes took 19.4% less time, but the burst took 0.254 ms (4.4%) longer overall.
+
+A separate paced run scheduled 120 frames per capture at 4 ms intervals. Over four measured captures after one warmup, median synchronous write time fell from 495 to 354 µs/frame and median stop took 3.92 versus 3.98 ms. P95 scheduled-to-actual write-start delay **increased** from 1.41 to 1.65 ms across 480 frames per variant. All records committed and companion digests matched across variants. Delay includes timer jitter; this is not a live UDP or Windows benchmark.
+
+### Earlier inline-hash recorder versus `7023af6b8`
 
 | Workload | Baseline | Updated |
 |---|---:|---:|

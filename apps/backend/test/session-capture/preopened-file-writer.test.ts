@@ -50,13 +50,18 @@ describe("PreopenedFileWriter", () => {
     });
     spies.push(spy);
     await probe.close();
-    const writer = new PreopenedFileWriter(directory, { maxBatchDelayMs: 1000 });
+    const batches: string[] = [];
+    const writer = new PreopenedFileWriter(directory, {
+      maxBatchDelayMs: 1000, maxBatchBytes: 5,
+      onBatchWritten: batch => { batches.push(Buffer.concat(batch).toString()); },
+    });
     await writer.ready;
     const path = writer.active.path;
     writer.appendOwned(Buffer.from("abc"));
     writer.appendOwned(Buffer.from("defgh"));
     await writer.close();
     expect(await readFile(path, "utf8")).toBe("abcdefgh");
+    expect(batches).toEqual(["abcde", "fgh"]);
   });
 
   test("treats zero-progress writes as failure and does not publish incomplete files", async () => {
