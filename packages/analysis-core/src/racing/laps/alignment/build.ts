@@ -11,9 +11,32 @@ const corners = ["FL", "FR", "RL", "RR"] as const;
 const U32 = 4294967296;
 const rec = (p: TelemetryPacket) => p as unknown as Record<string, number | undefined>;
 const span = (p: TelemetryPacket[]) => { const a = p.find((x) => Number.isFinite(x.DistanceTraveled)); const b = [...p].reverse().find((x) => Number.isFinite(x.DistanceTraveled)); return a && b ? Math.max(0, b.DistanceTraveled - a.DistanceTraveled) : 0; };
-function raw(p: TelemetryPacket[]) { const first = p.find((x) => Number.isFinite(x.DistanceTraveled))?.DistanceTraveled ?? 0; let prev = 0; return p.map((x) => { const n = Number.isFinite(x.DistanceTraveled - first) ? Math.max(prev, x.DistanceTraveled - first) : prev; prev = n; return n; }); }
-function fractions(p: TelemetryPacket[], total: number) { const vals = p.map((x) => x.iracing?.lapDistancePct); if (vals.filter((x) => Number.isFinite(x)).length < 2) return null; let prev = 0, offset = 0; const out = vals.map((x) => { if (!Number.isFinite(x)) return prev; let n = x! + offset; if (n < prev - .5) { offset++; n = x! + offset; } n = clamp(n, prev, 1); prev = n; return n; }); const a = out[0] ?? 0, b = out.at(-1) ?? a; return b > a ? out.map((x) => (x - a) / (b - a) * total) : null; }
-function projected(p: TelemetryPacket[], reference: TelemetryPacket[], total: number) {
+function raw(p: TelemetryPacket[], preserveGaps = false) {
+  const first = p.find((x) => Number.isFinite(x.DistanceTraveled))?.DistanceTraveled ?? 0;
+  let prev = 0;
+  return p.map((x) => {
+    if (!Number.isFinite(x.DistanceTraveled - first)) return preserveGaps ? NaN : prev;
+    if (preserveGaps && x.DistanceTraveled - first < prev) return NaN;
+    prev = Math.max(prev, x.DistanceTraveled - first);
+    return prev;
+  });
+}
+function fractions(p: TelemetryPacket[], total: number, preserveGaps = false) {
+  let prev = 0, offset = 0, start = 0, samples = 0;
+  const out = p.map((packet, i) => {
+    const value = packet.iracing?.lapDistancePct;
+    if (!Number.isFinite(value)) return preserveGaps ? NaN : prev;
+    samples++;
+    let n = value! + offset;
+    if (n < prev - .5) { offset++; n = value! + offset; }
+    if (preserveGaps && n < prev) return NaN;
+    prev = clamp(n, prev, 1);
+    if (i === 0) start = prev;
+    return prev;
+  });
+  return samples >= 2 && prev > start ? out.map((x) => (x - start) / (prev - start) * total) : null;
+}
+function projected(p: TelemetryPacket[], reference: TelemetryPacket[], total: number, preserveGaps = false) {
   const path = lapPath(reference);
   const pts = path.x.map((x, i) => ({ x, z: path.z[i] })).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.z) && (q.x !== 0 || q.z !== 0));
   if (pts.length < 20) return null;
@@ -26,7 +49,7 @@ function projected(p: TelemetryPacket[], reference: TelemetryPacket[], total: nu
   for (let i = 0; i < p.length; i++) {
     const x = p[i].PositionX, z = p[i].PositionZ;
     if (!Number.isFinite(x) || !Number.isFinite(z) || (x === 0 && z === 0)) {
-      result.push(prev);
+      result.push(preserveGaps ? NaN : prev);
       continue;
     }
     const inc = i ? Math.max(0, source[i] - source[i - 1]) : 50;
@@ -49,10 +72,16 @@ function projected(p: TelemetryPacket[], reference: TelemetryPacket[], total: nu
       }
     }
     prev = Math.max(prev, Math.min(high, best));
-    result.push(prev);
+    result.push(preserveGaps && !Number.isFinite(bd) ? NaN : prev);
   }
-  const a = result[0] ?? 0, b = result.at(-1) ?? a;
+  const a = Number.isFinite(result[0]) ? result[0]! : 0, b = prev;
   return b > a ? result.map((x) => (x - a) / (b - a) * total) : null;
+}
+export function recordedLapFractions(telemetry: TelemetryPacket[]): number[] | null {
+  const total = span(telemetry);
+  if (!(total > 0)) return null;
+  const path = hasWorldPositions(telemetry) ? projected(telemetry, telemetry, 1, true) : null;
+  return path ?? fractions(telemetry, 1, true) ?? raw(telemetry, true).map((distance) => distance / total);
 }
 function choose(inputs: AlignmentLapInput[], length?: number|null) { let best=0; for(let i=1;i<inputs.length;i++){ const a=inputs[best],b=inputs[i]; const aCompleted=Number.isFinite(a.lapTime)&&a.lapTime>0,bCompleted=Number.isFinite(b.lapTime)&&b.lapTime>0; if(aCompleted!==bCompleted){if(bCompleted)best=i;continue;} if(a.isValid!==b.isValid){if(b.isValid)best=i;continue;} const sa=span(a.telemetry),sb=span(b.telemetry); if(length&&length>0&&Math.abs(sb-length)!==Math.abs(sa-length)){if(Math.abs(sb-length)<Math.abs(sa-length))best=i;continue;} if(sb>0&&(sa<=0||sb<sa))best=i; } return best; }
 export function prepareLapSetAlignmentIndex(inputs: AlignmentLapInput[], options: Omit<AlignmentOptions,"preparedIndex">): LapSetAlignmentIndex { const ri=choose(inputs,options.trackLengthMeters); const ref=inputs[ri]; const nominal=span(ref.telemetry)||Math.max(...inputs.map(x=>span(x.telemetry))); const canProject=nominal>0&&inputs.every(x=>hasWorldPositions(x.telemetry)); let ds=inputs.map(x=>canProject?projected(x.telemetry,ref.telemetry,nominal):null); if(ds.some(x=>!x)){ const fs=inputs.map(x=>fractions(x.telemetry,nominal)); ds=fs.some(x=>!x)?inputs.map(x=>raw(x.telemetry)):fs; } return {referenceLapId:ref.lapId,nominalSpanMeters:nominal,distancesByLapId:new Map(inputs.map((x,i)=>[x.lapId,ds[i]!]))}; }

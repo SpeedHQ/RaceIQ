@@ -203,7 +203,13 @@ export function SessionsPage() {
       setSelectedLaps(new Set());
       setSelectedSessions(new Set());
       setConfirmDelete(false);
-      await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.sessions }), queryClient.invalidateQueries({ queryKey: queryKeys.laps }), queryClient.invalidateQueries({ queryKey: queryKeys.userTunes })]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
+        queryClient.invalidateQueries({ queryKey: ["three-to-improve"] }),
+        queryClient.invalidateQueries({ queryKey: ["three-to-improve-evidence"] }),
+      ]);
       invalidateDashboardQueries();
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : String(error));
@@ -229,6 +235,8 @@ export function SessionsPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
         queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
         queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
+        queryClient.invalidateQueries({ queryKey: ["three-to-improve"] }),
+        queryClient.invalidateQueries({ queryKey: ["three-to-improve-evidence"] }),
       ]);
       invalidateDashboardQueries();
     },

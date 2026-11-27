@@ -37,6 +37,7 @@
     "@types/react": "^19.3.2",
     "@types/react-dom": "^19.3.0",
     "@playwright/test": "1.65.1",
+    "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*"
   }

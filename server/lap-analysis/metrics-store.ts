@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, inArray, isNull, ne, or } from "drizzle-orm";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
@@ -156,6 +157,24 @@ export function getOrComputeLapInsights(lapId: number): Promise<LapInsight[] | n
     return hit ?? (await rerunLapInsights(lapId, existing))?.insights ?? null;
   });
 }
+export function getOrComputeLapInsightsForLap(
+  lap: LapMeta & { telemetry: TelemetryPacket[]; parseError?: string; parseErrorKind?: "missing-capture" | "failure" },
+): Promise<LapInsight[] | null> {
+  return withLapWork(lap.id, async () => {
+    const existing = await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
+    const hit = existing ? rowInsights(existing) : null;
+    if (hit) return hit;
+    if (lap.telemetry.length === 0 || !lap.gameId) return null;
+    const gameId = lap.gameId as GameId;
+    const processed = processLap(lap.telemetry, gameId);
+    const insights = analyzeLap(processed.packets, gameId, resolveLapAnalysisContext(gameId, lap.trackId, processed.packets));
+    restoreFrameIndices(insights, processed.sourceIndices);
+    if (existing) await persistInsights(lap.id, insights);
+    else await persist(computeForLap(lap, insights));
+    return insights;
+  });
+}
+
 
 async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<LapMetrics | null> {
   const row = existing ?? await readDb.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
+import { alignLapSet, prepareLapSetAlignmentIndex, recordedLapFractions, type AlignmentLapInput } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import type { IRacingExtendedData } from "@raceiq/shared/telemetry/iracing";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
@@ -50,6 +50,17 @@ function input(lapId: number, wearRR?: number[]): AlignmentLapInput {
 }
 
 describe("aligned telemetry", () => {
+  test("coaching withholds missing source positions without changing chart interpolation", () => {
+    const lap = input(1);
+    lap.telemetry[1]!.DistanceTraveled = NaN;
+    expect(recordedLapFractions(lap.telemetry)).toEqual([0, NaN, 1]);
+    expect(prepareLapSetAlignmentIndex([lap], { gridStepMeters: 1 }).distancesByLapId.get(1)).toEqual([0, 0, 2]);
+    for (const [i, packet] of lap.telemetry.entries()) {
+      packet.DistanceTraveled = i;
+      packet.iracing = { lapDistancePct: i === 1 ? NaN : i / 2 } as IRacingExtendedData;
+    }
+    expect(recordedLapFractions(lap.telemetry)).toEqual([0, NaN, 1]);
+  });
   test("keeps ordered laps on an endpoint-inclusive one-metre grid", () => {
     const set = alignLapSet([input(3), input(1), input(2)], { gridStepMeters: 1 });
     expect([...set.distanceMeters]).toEqual([0, 1, 2]);

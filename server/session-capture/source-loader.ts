@@ -605,6 +605,12 @@ export function resolveLiveLapCaptureArtifact(
     chunk, publicationIdentity: `${snapshot.captureEpoch}\0${snapshot.generation}\0${chunk.id}\0${chunk.memberOffset}:${chunk.compressedByteLength}:${chunk.byteLength}`,
   };
 }
+export class MissingLapCaptureResourceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MissingLapCaptureResourceError";
+  }
+}
 export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: string, expectedLapId?: number, reference?: { captureLayoutVersion?: number | null; captureArchiveFile?: string | null }): Promise<{ path: string; artifact?: SessionCaptureSource["artifact"]; manifest: PublishedManifest; chunk: Chunk | ArchiveChunk; publicationIdentity: string }> {
   const absoluteManifest = resolve(manifestPath);
   const manifest = await loadCaptureManifest(absoluteManifest);
@@ -614,7 +620,7 @@ export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: s
   }
   const manifestIdentity = `${absoluteManifest}\0${manifestCache.get(absoluteManifest)!.key}\0${chunkId}`;
   const chunk = manifest.chunks.find((candidate) => candidate.id === chunkId && candidate.kind === "lap");
-  if (!chunk) throw new Error(`Capture manifest ${absoluteManifest} has no lap chunk ${chunkId}`);
+  if (!chunk) throw new MissingLapCaptureResourceError(`Capture manifest ${absoluteManifest} has no lap chunk ${chunkId}`);
   if (expectedLapId != null && chunk.lapId !== String(expectedLapId)) throw new Error(`Capture chunk ${chunkId} lap ID mismatch: expected ${expectedLapId}, got ${chunk.lapId}`);
   if (!chunk.lapId || chunk.ownedFrameByteOffset == null || chunk.ownedFrameCount == null) throw new Error(`Capture manifest lap chunk ${chunkId} is missing owned frame window`);
   if (manifest.version === 4) {
@@ -634,7 +640,7 @@ export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: s
   const rel = relative(dirname(absoluteManifest), path);
   if (rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(rel)) throw new Error(`Capture chunk path escapes manifest directory: ${legacy.path}`);
   const file = Bun.file(path);
-  if (!await file.exists()) throw new Error(`Capture chunk ${chunkId} is missing: ${path}`);
+  if (!await file.exists()) throw new MissingLapCaptureResourceError(`Capture chunk ${chunkId} is missing: ${path}`);
   const [realManifestDir, realChunkPath] = await Promise.all([realpath(dirname(absoluteManifest)), realpath(path)]);
   const realRelative = relative(realManifestDir, realChunkPath);
   if (realRelative === ".." || realRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(realRelative)) throw new Error(`Capture chunk path escapes manifest directory: ${legacy.path}`);
