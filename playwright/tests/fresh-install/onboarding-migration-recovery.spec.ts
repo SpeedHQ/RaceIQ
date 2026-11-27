@@ -78,7 +78,7 @@ async function reachStorage(page: Page) {
     await expect(page.getByRole("heading", { name: "Access & security" })).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
   }
-  for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
+  for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login", "Automatic recording"]) {
     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
   }
@@ -142,7 +142,7 @@ test.describe("onboarding recording-layout recovery", () => {
     try {
       await reachStorage(page);
       await page.getByRole("button", { name: "Back", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Automatic recording" })).toBeVisible();
       fixture.exposeFailure();
       // Expire cached layout status before reopening Storage without a wall-clock wait.
       await page.clock.setFixedTime(new Date(Date.now() + 60_000));
