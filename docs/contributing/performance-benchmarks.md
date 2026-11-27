@@ -4,6 +4,18 @@ RaceIQ keeps performance measurements separate from ordinary tests. `bun run ben
 
 ## Direct recording audit: timing and memory
 
+### Decision: inline SHA-256 for retained LMU opponents
+
+The [accepted decision](../adr/0018-inline-companion-sha256.md) prioritizes missed deadlines over synchronous write speed. Three synthetic runs per strategy submitted 500 frames each at 250 Hz on macOS arm64, rotating strategy order. A miss means `writeRecord()` returned after the next scheduled frame was due. Start delay includes timer jitter.
+
+| Strategy | Lost / submitted | Deadline misses by run | P95 start delay | Median write | Peak queued |
+|---|---:|---|---:|---:|---:|
+| Reread at stop | 0 / 1,500 | 2, 2, 4 | 1.44 ms | 441 µs | 385 KiB |
+| Inline (selected) | 0 / 1,500 | 0, 1, 0 | 1.49 ms | 511 µs | 514 KiB |
+| Batch drain | 0 / 1,500 | 1, 1, 1 | 1.58 ms | 360 µs | 514 KiB |
+
+All strategies committed every frame with identical companion digests. Mean queued bytes in the first and last quarters were within 1 KiB for each strategy. The low miss counts do not establish a statistically reliable advantage. The batch results below describe the evaluated alternative, not the selected implementation.
+
 ### Retained LMU capture: SHA-256 in the writer drain
 
 | 12-frame burst, median | Original reread (`7023af6b8`) | Inline hash (`4a7bee3e75`) | Batch hash |

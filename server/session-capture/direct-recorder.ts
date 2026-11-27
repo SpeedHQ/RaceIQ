@@ -122,24 +122,23 @@ export class DirectCaptureRecording {
       onClosed: async (info) => { try { this.closed(info); } finally { await onClosed?.(info); } },
       onFailure: (error) => { try { onFailure?.(error); } finally { this.fail(error); } },
     });
-    const digest = this.companionDigest = this.recordLmuOpponents ? createHash("sha256") : null;
-    this.companionWriter = digest
+    this.companionWriter = this.recordLmuOpponents
       ? new PreopenedFileWriter(directory, {
         ...(options.writerOptions?.maxRetiringFiles === undefined ? {} : { maxRetiringFiles: options.writerOptions.maxRetiringFiles }),
         ...(options.writerOptions?.maxQueuedBytes === undefined ? {} : { maxQueuedBytes: options.writerOptions.maxQueuedBytes }),
         ...(options.writerOptions?.maxBatchBytes === undefined ? {} : { maxBatchBytes: options.writerOptions.maxBatchBytes }),
-        onBatchWritten: batch => { for (const bytes of batch) digest.update(bytes); },
         onFailure: (error) => this.failCompanion(error),
       })
       : null;
     this.companionEncoder = this.companionWriter ? new SparseCaptureEncoder("lmu") : null;
+    this.companionDigest = this.companionWriter ? createHash("sha256") : null;
     this.current = this.part(this.writer.active, 0, this.sourceBytes, "auxiliary");
     this.parts.set(this.current.info.id, this.current);
     this.ready = this.writer.ready;
     if (this.companionWriter) {
       void this.companionWriter.ready.catch((error) => this.failCompanion(error));
       const companionHeader = Buffer.concat([encodeMetaFrame(), encodeSparseCaptureFormatFrame()]);
-      try { this.companionWriter.appendOwned(companionHeader); }
+      try { this.appendCompanionBytes(companionHeader); }
       catch (error) { this.failCompanion(error); }
       this.companionDescriptor = {
         file: basename(this.companionWriter.active.path), codecVersion: 1, byteLength: this.companionWriter.active.byteLength,
@@ -342,12 +341,16 @@ export class DirectCaptureRecording {
       }
     }
   }
+  private appendCompanionBytes(bytes: Buffer): void {
+    this.companionWriter!.appendOwned(bytes);
+    this.companionDigest!.update(bytes);
+  }
   private appendCompanionFrame(companion: Buffer, sourceFrame: Buffer, timestamp?: number): void {
     if (this.companionFailure || !this.companionWriter || !this.companionEncoder) return;
     try {
       const localOffset = this.companionWriter.active.byteLength;
       const encoded = this.companionEncoder.encode(companion, localOffset);
-      this.companionWriter.appendOwned(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
+      this.appendCompanionBytes(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
       this.companionRecordCount++;
       const key = decodeLMUSourceFrame(sourceFrame)?.lmuContext?.key;
       if (key) {
