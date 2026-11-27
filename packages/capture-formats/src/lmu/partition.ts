@@ -241,7 +241,7 @@ export function decodeLMUPartitionPrimary(frame: Buffer, decodeContext?: LMUCont
   } catch { return null; }
 }
 
-export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; companion: Buffer | null } | null {
+export function partitionLMUSourceFrame(frame: Buffer, includeCompanion = true): { primary: Buffer; companion: Buffer | null } | null {
   if (frame.length >= 10 && frame.readUInt16LE(8) === 5) return decodeLMUPartitionPrimary(frame) ? { primary: frame, companion: null } : null;
   if (frame.length < NATIVE_END || frame.length > MAX_FRAME || !frame.subarray(0, 8).equals(SOURCE_MAGIC)) return null;
   const version = frame.readUInt16LE(8);
@@ -307,6 +307,7 @@ export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; compa
     header.writeUInt32LE(projectedLength, 52);
     const primary = encodeRanges(header, ranges, frame);
     if (!decodeLMUPartitionPrimary(primary)) fail();
+    if (!includeCompanion) return { primary, companion: null };
     const companionHeader = Buffer.alloc(COMPANION_HEADER);
     LMU_COMPANION_MAGIC.copy(companionHeader);
     companionHeader.writeUInt16LE(1, 8);

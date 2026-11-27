@@ -632,11 +632,15 @@ export class LiveTelemetryPipeline {
   }
 
   private async _finalizeCurrentSession(): Promise<void> {
-    const session = this._recordingSession;
-    this._observeSourceTail();
-    await this._lapDetector?.finalizeCurrentSession?.();
-    await this._finishRecordedSession(session);
-    await Promise.all(this._retiringCaptures);
+    const retirements = [...this._retiringCaptures];
+    const finishCurrent = async () => {
+      const session = this._recordingSession;
+      this._observeSourceTail();
+      await this._lapDetector?.finalizeCurrentSession?.();
+      await this._finishRecordedSession(session);
+    };
+    const results = await Promise.allSettled([finishCurrent(), ...retirements]);
+    for (const result of results) if (result.status === "rejected") throw result.reason;
   }
 
   /** Detect game-specific stale finalization and finish its durable capture. */
@@ -677,7 +681,6 @@ export class LiveTelemetryPipeline {
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
-    while (this._ingressBarrier) await this._ingressBarrier;
     const reservedBytes = 16 * 1024 + (Buffer.isBuffer(source) ? source.length + (this._parserSourceFrames.get(source)?.locator?.byteCost ?? 0) : 0);
     if (this._queuedPacketBytes + reservedBytes > 8 * 1024 * 1024) {
       const error = new Error("Recording detector queue capacity exhausted");
@@ -686,6 +689,7 @@ export class LiveTelemetryPipeline {
       throw error;
     }
     this._queuedPacketBytes += reservedBytes;
+    while (this._ingressBarrier) await this._ingressBarrier;
     const previous = this._packetQueue;
     let release!: () => void;
     this._packetQueue = new Promise<void>((resolve) => { release = resolve; });

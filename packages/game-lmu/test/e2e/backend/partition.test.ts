@@ -98,6 +98,7 @@ describe("LMU player/opponent source partition", () => {
     for (const slot of [0, 1]) {
       const source = original(1, slot);
       const { primary, companion } = pair(source);
+      expect(partitionLMUSourceFrame(source, false)).toEqual({ primary, companion: null });
       expect(restoreLMUSourceFrame(primary, companion)).toEqual(source);
       expect(getLMUPartitionSourceLength(primary)).toBe(source.length);
       expect(getLMUPartitionKey(primary)).toBe(getLMUPartitionKey(companion));
@@ -118,6 +119,7 @@ describe("LMU player/opponent source partition", () => {
     const v2 = Buffer.from(source.subarray(0, LMU_SOURCE_FRAME_V2_SIZE));
     v2.writeUInt16LE(2, 8);
     const legacy = pair(v2);
+    expect(partitionLMUSourceFrame(v2, false)).toEqual({ primary: legacy.primary, companion: null });
     expect(restoreLMUSourceFrame(legacy.primary, legacy.companion)).toEqual(v2);
     const parsed = JSON.parse(source.subarray(LMU_SOURCE_FRAME_V2_SIZE + 4).toString("utf8"));
     const { competitors, ...rest } = parsed;

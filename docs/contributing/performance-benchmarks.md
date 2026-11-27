@@ -4,6 +4,29 @@ RaceIQ keeps performance measurements separate from ordinary tests. `bun run ben
 
 ## Direct recording audit: timing and memory
 
+### Implemented recorder versus `7023af6b8`
+
+| Workload | Baseline | Updated |
+|---|---:|---:|
+| LMU partition, retention disabled | 127.65 µs/frame | 1.82 µs/frame |
+| Publish a snapshot of 128 already-published laps | 238.67 µs/snapshot | 2.52 µs/snapshot |
+| Retained LMU capture, synchronous `writeRecord` | 248.54 µs/frame | 326.03 µs/frame |
+| Retained LMU capture, `stop()` including pending writes | 3.93 ms/capture | 2.89 ms/capture |
+
+These measurements used the baseline and updated TypeScript implementations in separate Bun processes on macOS arm64. Timing values are medians of nine trials after two warmups. Each partition trial processed 64 synthetic v2 frames; each publication trial processed 50 snapshots. Each retained capture wrote 12 frames with varying opponent telemetry to a temporary directory. Both implementations produced a 2,491,597-byte companion whose manifest digest matched a separate file hash. Incremental hashing moved work into ingress: writes cost about 77 µs more per frame while stop finished about 1.04 ms sooner. This is not an end-to-end throughput claim.
+
+| Sampled RSS increase above warm baseline | Baseline | Updated |
+|---|---:|---:|
+| 512 partitions | 0.000 MiB | 0.016 MiB |
+| 512 publication snapshots | 1.094 MiB | 0.391 MiB |
+| 12-frame retained capture | 0.031 MiB | 0.063 MiB |
+
+For partition and publication, each fresh process ran a warmup workload, forced GC, then sampled RSS every eight operations. Values are medians across three processes. Retained-capture RSS was sampled after each write and after stop, with the same nine trials as timing. Warm allocator reuse makes small deltas inconclusive; eliminating a companion allocation does not imply a matching reduction in resident memory.
+
+Regression tests hold a real retiring writer at its durability fence and verify strict replay after current-capture failure. The paused-ingress test submits 800 packets: 544 reject before release, 256 drain in order, and the next packet succeeds with no budget leak.
+
+### Original candidate probes
+
 These one-off probes compared revision `7023af6b8` with in-memory candidate changes on Bun 1.4.6, macOS arm64. The candidates did not change the shipped recorder. Timing values are medians of nine alternating paired trials after two warmups. Memory values are medians of three fresh processes per variant: the highest sampled RSS above each process's post-GC baseline, not retained heap or an exact allocation peak.
 
 | Stage and workload | Current time | Candidate time | Current RSS increase | Candidate RSS increase |

@@ -1,5 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { createHash, randomUUID, type Hash } from "node:crypto";
 import { basename, join, resolve } from "node:path";
 import { Schema } from "effect";
 import { ChunkSchema, ManifestSchema, type Chunk, type Manifest } from "@raceiq/capture-splitting";
@@ -59,6 +58,7 @@ export class DirectCaptureRecording {
   private readonly releaseActiveOpponentSource: (() => void) | null;
   private readonly companionWriter: PreopenedFileWriter | null;
   private readonly companionEncoder: SparseCaptureEncoder | null;
+  private readonly companionDigest: Hash | null;
   private companionRecordCount = 0;
   private companionFirstKey: { sessionKey: string; captureSequence: string } | null = null;
   private companionLastKey: { sessionKey: string; captureSequence: string } | null = null;
@@ -131,13 +131,14 @@ export class DirectCaptureRecording {
       })
       : null;
     this.companionEncoder = this.companionWriter ? new SparseCaptureEncoder("lmu") : null;
+    this.companionDigest = this.companionWriter ? createHash("sha256") : null;
     this.current = this.part(this.writer.active, 0, this.sourceBytes, "auxiliary");
     this.parts.set(this.current.info.id, this.current);
     this.ready = this.writer.ready;
     if (this.companionWriter) {
       void this.companionWriter.ready.catch((error) => this.failCompanion(error));
       const companionHeader = Buffer.concat([encodeMetaFrame(), encodeSparseCaptureFormatFrame()]);
-      try { this.companionWriter.appendOwned(companionHeader); }
+      try { this.appendCompanionBytes(companionHeader); }
       catch (error) { this.failCompanion(error); }
       this.companionDescriptor = {
         file: basename(this.companionWriter.active.path), codecVersion: 1, byteLength: this.companionWriter.active.byteLength,
@@ -300,7 +301,7 @@ export class DirectCaptureRecording {
   writeMetaFrame(): void {}
   writeRecord(frame: Buffer, timestamp?: number): void {
     const version = this.gameId === "lmu" && frame.length >= 10 ? frame.readUInt16LE(8) : 0;
-    const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(frame) : null;
+    const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(frame, this.recordLmuOpponents && !this.companionFailure) : null;
     if (this.gameId === "lmu" && (version === 2 || version === 3) && !partition) {
       const error = new Error("LMU source frame cannot be safely partitioned");
       this.fail(error);
@@ -340,12 +341,16 @@ export class DirectCaptureRecording {
       }
     }
   }
+  private appendCompanionBytes(bytes: Buffer): void {
+    this.companionWriter!.appendOwned(bytes);
+    this.companionDigest!.update(bytes);
+  }
   private appendCompanionFrame(companion: Buffer, sourceFrame: Buffer, timestamp?: number): void {
     if (this.companionFailure || !this.companionWriter || !this.companionEncoder) return;
     try {
       const localOffset = this.companionWriter.active.byteLength;
       const encoded = this.companionEncoder.encode(companion, localOffset);
-      this.companionWriter.appendOwned(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
+      this.appendCompanionBytes(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
       this.companionRecordCount++;
       const key = decodeLMUSourceFrame(sourceFrame)?.lmuContext?.key;
       if (key) {
@@ -388,7 +393,7 @@ export class DirectCaptureRecording {
       let wireLength = record.endOffset - record.offset;
       if (record.kind === "frame") {
         const version = record.frame.length >= 10 ? record.frame.readUInt16LE(8) : 0;
-        const partition = partitionLMUSourceFrame(record.frame);
+        const partition = partitionLMUSourceFrame(record.frame, this.recordLmuOpponents && !this.companionFailure);
         if ((version === 2 || version === 3) && !partition) throw new Error("LMU raw context frame cannot be safely partitioned");
         if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, record.frame, record.frameTimeMs);
         const primary = partition?.primary ?? record.frame;
@@ -440,10 +445,8 @@ export class DirectCaptureRecording {
         await this.companionWriter.close();
         if (!this.companionFailure) {
           const info = this.companionWriter.active;
-          const digest = createHash("sha256");
-          for await (const chunk of createReadStream(info.path)) digest.update(chunk);
           this.companionDescriptor = {
-            file: basename(info.path), codecVersion: 1, byteLength: info.byteLength, sha256: digest.digest("hex"),
+            file: basename(info.path), codecVersion: 1, byteLength: info.byteLength, sha256: this.companionDigest!.digest("hex"),
             frameKeyStart: this.companionFirstKey, frameKeyEnd: this.companionLastKey,
             committedPrefix: { byteLength: info.byteLength, recordCount: this.companionRecordCount },
           };
@@ -497,7 +500,7 @@ export class DirectCaptureRecording {
         const contextStart = encodeSegmentContextFrame(); next.prefixBytes += contextStart.length; this.append(contextStart);
         for (const record of plan.precedingRecords) {
           const version = this.gameId === "lmu" && record.frame.length >= 10 ? record.frame.readUInt16LE(8) : 0;
-          const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(record.frame) : null;
+          const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(record.frame, false) : null;
           if (this.gameId === "lmu" && (version === 2 || version === 3) && !partition) throw new Error("LMU parser context cannot be safely partitioned");
           const contextFrame = partition?.primary ?? record.frame;
           const bytes = Buffer.concat([encodeFrameLength(contextFrame.length, record.timestampMs), contextFrame]);
@@ -600,9 +603,10 @@ export class DirectCaptureRecording {
     await this.sourceRegistered;
     for (const chunk of snapshot.chunks) {
       if (chunk.kind !== "lap" || chunk.lapId === undefined || chunk.ownedFrameCount === undefined) continue;
+      if (this.publishedLapIds.has(Number(chunk.lapId))) continue;
       const part = [...this.parts.values()].find((candidate) => basename(candidate.info.path) === chunk.path);
       const binding = part?.owner?.binding;
-      if (!binding || this.publishedLapIds.has(binding.lapId)) continue;
+      if (!binding) continue;
       if (String(binding.lapId) !== chunk.lapId || chunk.ownedFrameCount !== binding.frameCount ||
           chunk.lapNumber !== binding.lapNumber) throw new Error(`Persisted lap ${binding.lapId} disagrees with direct capture ownership`);
       await withDatabaseWrite(() => db.transaction(async (tx) => {
