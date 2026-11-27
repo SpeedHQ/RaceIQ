@@ -2,6 +2,29 @@
 
 RaceIQ keeps performance measurements separate from ordinary tests. `bun run bench` runs parser/pipeline benchmarks; `bun run bench:replay-io` measures end-to-end replay storage and I/O. Process-isolated benchmark tooling lives in `apps/backend/scripts/quality/process-bench.ts` with fixtures under `test/benchmarks/`.
 
+## Direct recording audit: timing and memory
+
+These one-off probes compared revision `7023af6b8` with in-memory candidate changes on Bun 1.4.6, macOS arm64. The candidates did not change the shipped recorder. Timing values are medians of nine alternating paired trials after two warmups. Memory values are medians of three fresh processes per variant: the highest sampled RSS above each process's post-GC baseline, not retained heap or an exact allocation peak.
+
+| Stage and workload | Current time | Candidate time | Current RSS increase | Candidate RSS increase |
+|---|---:|---:|---:|---:|
+| LMU partition, opponents off; skip companion construction | 123.09 µs/frame | 1.48 µs/frame | 11.73 MiB | 0.67 MiB |
+| Lap publication, 128 already-published laps; skip known IDs before path lookup | 210.73 µs/snapshot | 2.61 µs/snapshot | 18.22 MiB | 4.53 MiB |
+| 4 MiB companion checksum, write + sync + close + digest; hash on append instead of rereading | 4.29 ms/file | 3.23 ms/file | 4.78 MiB | 0.11 MiB |
+
+The LMU timing probe processed 64 synthetic v2 frames per trial; the memory probe processed 512. Both variants produced identical player bytes in the timing probe. The current path copied 322,624 source bytes into a 322,720-byte opponent buffer per tested frame, despite retention being off.
+
+The publication probe processed 50 snapshots per timing trial and 512 per memory trial. A single 128-lap snapshot performed 8,256 path inspections without publishing a lap. The memory result measures repeated scans, not a sustained per-session saving.
+
+The checksum probe used real temporary files and 64 KiB writes. Both variants produced the expected SHA-256 digest. Post-close digest time, already included in the table, fell from 2.20 ms to 0.0014 ms. Hashing on append moves CPU work into recording; this probe did not measure live ingress latency.
+
+Two fault probes identified correctness risks separate from the timing comparison:
+
+- **Paused admission:** 800 pending calls to `processPacket` held 12.5 MiB of source buffers while the 8 MiB detector budget reported zero charged bytes. Sampled RSS rose by a median 11.86 MiB. In the admission probe, 256 calls proceeded and 544 rejected after release. Downstream packet processing was stubbed; this was not a UDP loss measurement.
+- **Shutdown drain:** With one real recorder held at its durability fence, a second recorder failed. The pipeline finalizer rejected before the healthy recorder sealed or published its manifest. Releasing the fence produced a sealed, one-chunk manifest. The probe did not terminate a live backend or demonstrate permanent data loss.
+
+These are stage measurements, not Windows full-session results, production memory forecasts, or release benchmarks.
+
 ## Benchmark tools and profiling
 
 Follow [Bun's benchmarking recommendations](https://bun.com/docs/project/benchmarking): Mitata for parser/pipeline microbenchmarks; Hyperfine for complete script/CLI timings. CLI measurements include startup, fixture preparation, reporting and shutdown, so do not compare them directly with stage-only timings. The recorder scenarios keep explicit acquisition/import/finalization boundaries rather than treating paced replay duration as throughput.
