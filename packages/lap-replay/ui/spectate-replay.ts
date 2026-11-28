@@ -43,16 +43,27 @@ const number = (value: unknown): number | null => (typeof value === "number" && 
 const validEntry = (value: SemanticReplayFrame["values"][number]) => (value.state == null || value.state === "ok") && (value.freshness == null || value.freshness === "fresh");
 function numericShape(value: unknown): unknown {
   if (number(value) !== null) return value;
-  if (Array.isArray(value)) return value.map(numericShape);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, numericShape(item)]));
+  if (Array.isArray(value)) return value.every(item => item === null || Number.isFinite(item)) ? value : value.map(numericShape);
+  if (value && typeof value === "object") {
+    const values = value as Record<string, unknown>;
+    for (const key in values) {
+      if (Object.hasOwn(values, key) && values[key] !== null && !Number.isFinite(values[key])) {
+        return Object.fromEntries(Object.entries(values).map(([key, item]) => [key, numericShape(item)]));
+      }
+    }
+    return value;
+  }
   return null;
 }
-function frameValues(frame: SemanticReplayFrame): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
-  for (const entry of frame.values) {
-    values[entry.semanticId] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
+function frameValues(frame: SemanticReplayFrame, entries: [string, unknown][] = []): Record<string, unknown> {
+  entries.length = frame.values.length;
+  for (let i = 0; i < frame.values.length; i++) {
+    const entry = frame.values[i]!;
+    const pair = entries[i] ??= ["", null];
+    pair[0] = entry.semanticId;
+    pair[1] = validEntry(entry) ? (typeof entry.value === "boolean" || entry.semanticId === "fuel.ers-deploy-mode" ? entry.value : numericShape(entry.value)) : null;
   }
-  return values;
+  return Object.fromEntries(entries);
 }
 function interpolateShape(left: unknown, right: unknown, fraction: number): unknown {
   const a = number(left),
@@ -148,6 +159,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     run = 0,
     maxDistance = 0;
   const samples: SpectateSample[] = [];
+  const entries: [string, unknown][] = [];
   let previousSequence: number | null = null;
   for (const frame of replay.envelopes) {
     const sourceGap = frame.simulator === "lmu" && previousSequence !== null && frame.sequence > previousSequence + 1;
@@ -169,7 +181,7 @@ export function prepareSpectateLap(replay: SemanticLapTelemetry | OpponentSemant
     // A reset starts another lap/interval. Do not splice it into this recording.
     if (time < previousTime - 0.001) break;
 if (hasSourceAwareGap(previousTime, time, isOpponentReplay(replay), maximumGapSeconds)) run++;
-    const values = frameValues(frame);
+    const values = frameValues(frame, entries);
     const traveled = number(values["timing.distance-traveled"]);
     let distance = NaN;
     const index = lowerBound(aligned, time, (point) => point.time);
@@ -371,11 +383,15 @@ if (!left || left.run !== right.run || hasSourceAwareGap(left.time, right.time, 
   return left.time + ((right.time - left.time) * (distance - left.distance)) / (right.distance - left.distance);
 }
 
+export interface HydratableSpectateController extends SpectateController {
+  updateTelemetry(a: SpectateLap, b: SpectateLap | null): void;
+}
+
 /** One demand-driven driver owns clock, transition, play intent, and subscribers. */
-export function createSpectateController(a: SpectateLap, b: SpectateLap | null, initialDistance?: number, fpsCap: number | (() => number) = 30): SpectateController {
+export function createSpectateController(a: SpectateLap, b: SpectateLap | null, initialDistance?: number, fpsCap: number | (() => number) = 30): HydratableSpectateController {
   const duration = Math.max(a.duration, b?.duration ?? 0),
     listeners = new Set<() => void>();
-  const aProgress = progressIndex(a),
+  let aProgress = progressIndex(a),
     bProgress = b ? progressIndex(b) : [];
   const canLock = !!b && a.hasProgress && b.hasProgress;
 let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, isOpponentReplay(a.replay), a.maximumGapSeconds) ?? 0),
@@ -390,7 +406,7 @@ let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, 
     previousFrame: number | null = null;
   let transition: { from: number; to: number; start: number } | null = null;
   let snapshot: SpectateSnapshot;
-  let selectedFrame: { side: "a" | "b"; time: number; frame: SemanticReplayFrame; values: Readonly<Record<string, unknown>> } | null = null;
+  let selectedFrame: { side: "a" | "b"; frameIndex: number; time: number; frame: SemanticReplayFrame; values: Readonly<Record<string, unknown>> } | null = null;
   const readLap = (lap: SpectateLap, side: "a" | "b", target: number, holdPose: boolean) => {
     const reading = sampleLap(lap, target, holdPose);
     if (reading && lap.motionSamples) Object.assign(reading, sampleMotion(lap.motionSamples, target, holdPose, isOpponentReplay(lap.replay), lap.maximumGapSeconds));
@@ -469,6 +485,18 @@ let time = initialDistance == null ? 0 : (arrivalAt(aProgress, initialDistance, 
   if (typeof document !== "undefined") document.addEventListener("visibilitychange", visibility);
   publish();
   return {
+    updateTelemetry(nextA, nextB) {
+      if (a === nextA && b === nextB) return;
+      a = nextA;
+      b = nextB;
+      aProgress = progressIndex(a);
+      bProgress = b ? progressIndex(b) : [];
+      if (selectedFrame) {
+        const frame = (selectedFrame.side === "a" ? a : b)?.replay.envelopes[selectedFrame.frameIndex];
+        selectedFrame = frame ? { ...selectedFrame, frame, values: frameValues(frame) } : null;
+      }
+      publish();
+    },
     getSnapshot: () => snapshot,
     getFrameSnapshot: (now) => {
       const frameTime = timeAt(now);
@@ -538,7 +566,7 @@ const alignedTime = Number.isFinite(sample.distance) ? arrivalAt(aProgress, samp
       }
       stop();
       time = Math.max(0, Math.min(duration, target));
-      if (index < lap.samples.length) selectedFrame = { side, time: sample.time, frame, values: sample.frame === frame ? sample.values : frameValues(frame) };
+      if (index < lap.samples.length) selectedFrame = { side, frameIndex, time: sample.time, frame, values: sample.frame === frame ? sample.values : frameValues(frame) };
       seekGeneration++;
       publish();
       start();

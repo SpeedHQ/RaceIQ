@@ -129,6 +129,8 @@ test("tire labels retain playback wear history, cap refreshes and reset on a sma
   await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}`);
   const scene = page.locator("[data-replay-scene]");
   await expect(scene).toHaveAttribute("data-scene-ready", "true");
+  const migrationClose = page.getByRole("dialog", { name: "Historical lap classification" }).getByRole("button", { name: "Close" });
+  if (await migrationClose.isVisible()) await migrationClose.click();
   const canvas = scene.locator("canvas[data-renderer-backend]");
   for (let step = 0; step < 32 && await canvas.getAttribute("data-native-view-visible") !== "true"; step++) {
     const box = (await canvas.boundingBox())!;

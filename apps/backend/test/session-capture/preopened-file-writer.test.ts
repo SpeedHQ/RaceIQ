@@ -50,7 +50,7 @@ describe("PreopenedFileWriter", () => {
     });
     spies.push(spy);
     await probe.close();
-    const writer = new PreopenedFileWriter(directory, { maxBatchDelayMs: 1000 });
+    const writer = new PreopenedFileWriter(directory, { maxBatchDelayMs: 1000, maxBatchBytes: 5 });
     await writer.ready;
     const path = writer.active.path;
     writer.appendOwned(Buffer.from("abc"));

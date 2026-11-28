@@ -32,6 +32,7 @@ export interface SpectateSceneProps {
   outline: readonly { x: number; z: number }[] | null;
   overview: ReactNode;
   focus: SpectateFocus;
+  onSceneSettled?: () => void;
 }
 
 function useToolbarToggle(key: string, defaultValue: boolean) {
@@ -56,7 +57,7 @@ function useToolbarToggle(key: string, defaultValue: boolean) {
 }
 
 /** Canvas owner for one recorded replay, optionally paired for comparison. */
-export function SpectateScene({ pair, controller, outline, overview, focus }: SpectateSceneProps) { const { models, getLocale } = useReplayHost(); const m = useMessages(); const { displaySettings } = useSettings();
+export function SpectateScene({ pair, controller, outline, overview, focus, onSceneSettled }: SpectateSceneProps) { const { models, getLocale } = useReplayHost(); const m = useMessages(); const { displaySettings } = useSettings();
 const boundaries = useTrackBoundaries(pair.comparison.lapA.trackId, pair.gameId).data as TrackMapBoundaries | undefined;
 const positionLock = useSyncExternalStore(controller.subscribe, () => controller.getSnapshot().positionLock, () => controller.getSnapshot().positionLock);
 const canLock = useSyncExternalStore(controller.subscribe, () => controller.getSnapshot().canLock, () => controller.getSnapshot().canLock);
@@ -95,6 +96,7 @@ useEffect(() => {
   (value) => {
     if (mounted) {
       setReady(value);
+      if (value) onSceneSettled?.();
       setSideAState(runtime.current?.canvas.dataset.sideAState ?? "loading");
       setSideBState(runtime.current?.canvas.dataset.sideBState ?? "loading");
     }
@@ -102,6 +104,7 @@ useEffect(() => {
   (message) => {
     if (mounted) {
       setError(message || null);
+      if (message) onSceneSettled?.();
       setSideAState(runtime.current?.canvas.dataset.sideAState ?? "unavailable");
       setSideBState(runtime.current?.canvas.dataset.sideBState ?? "unavailable");
     }
@@ -123,11 +126,14 @@ useEffect(() => {
   };
 }, [key, controller, displaySettings.renderFpsCap]);
 useEffect(() => {
-  runtime.current?.setOutline(outline, boundaries ?? null);
-}, [outline, boundaries, key, controller, displaySettings.renderFpsCap]);
+  runtime.current?.updateTelemetry(pair);
+}, [pair]);
 useEffect(() => {
   runtime.current?.setFocus(focus);
 }, [focus, key, controller, displaySettings.renderFpsCap]);
+useEffect(() => {
+  runtime.current?.setOutline(outline, boundaries ?? null);
+}, [outline, boundaries, key, controller, displaySettings.renderFpsCap]);
 useEffect(() => {
   runtime.current?.setDirectionLock(directionLock);
 }, [directionLock, key, controller, displaySettings.renderFpsCap]);

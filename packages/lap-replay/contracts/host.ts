@@ -64,7 +64,7 @@ export interface ReplayHost {
   useUnits: (gameId?: GameId) => ReplayUnits;
   useTirePressureOptimal: (gameId: GameId, carId: string | undefined, enabled: boolean) => { min: number; max: number } | undefined;
   useLocalStorage: <T>(key: string, fallback: T) => [T, Dispatch<SetStateAction<T>>];
-  useLapSemanticTelemetry: (id: number | null) => { data: SemanticLapTelemetry | undefined; error: Error | null; refetch: () => Promise<unknown> };
+  useLapSemanticTelemetry: (id: number | null, sessionId?: number, motionOnly?: boolean) => { data: SemanticLapTelemetry | undefined; error: Error | null; refetch: () => Promise<unknown> };
   useOpponentLapSemanticTelemetry: (reference: OpponentReference | null) => { data: OpponentSemanticLapTelemetry | undefined; error: Error | null; refetch: () => Promise<unknown> };
   useCompareLineSpread: (gameId: GameId, lapIds: readonly number[]) => { data: ReplayLineSpread | null | undefined };
   useTrackBoundaries: (id: string | undefined, gameId?: GameId) => { data: unknown };

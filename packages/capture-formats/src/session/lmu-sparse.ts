@@ -95,11 +95,17 @@ function encodePartitionDelta(frame: Buffer, previous: Buffer, backDistance: num
   const blocks = Math.ceil(frame.length / BLOCK_BYTES);
   const bitmap = Buffer.alloc(Math.ceil(blocks / 8));
   let changedBytes = 0;
-  for (let block = 0; block < blocks; block++) {
-    const start = block * BLOCK_BYTES, end = Math.min(frame.length, start + BLOCK_BYTES);
-    if (end > previous.length || frame.compare(previous, start, end, start, end) !== 0) {
-      bitmap[block >> 3] |= 1 << (block & 7);
-      changedBytes += end - start;
+  const groupBlocks = 64;
+  for (let first = 0; first < blocks; first += groupBlocks) {
+    const limit = Math.min(first + groupBlocks, blocks);
+    const groupStart = first * BLOCK_BYTES, groupEnd = Math.min(frame.length, limit * BLOCK_BYTES);
+    if (groupEnd <= previous.length && frame.compare(previous, groupStart, groupEnd, groupStart, groupEnd) === 0) continue;
+    for (let block = first; block < limit; block++) {
+      const start = block * BLOCK_BYTES, end = Math.min(frame.length, start + BLOCK_BYTES);
+      if (end > previous.length || frame.compare(previous, start, end, start, end) !== 0) {
+        bitmap[block >> 3] |= 1 << (block & 7);
+        changedBytes += end - start;
+      }
     }
   }
   const encoded = Buffer.allocUnsafe(12 + bitmap.length + changedBytes);

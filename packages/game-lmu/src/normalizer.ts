@@ -176,7 +176,7 @@ function weatherType(raining: number, cloudCoverage: number): number {
 }
 
 export function identityFromLMUSourceFrame(
-  frame: LMUSourceFrame,
+  frame: Pick<LMUSourceFrame, "telemetry" | "scoringInfo">,
 ): LMUIdentityRecord {
   const carName = readCString(
     frame.telemetry,

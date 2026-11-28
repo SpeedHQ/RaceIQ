@@ -102,7 +102,10 @@ describe("DirectCaptureRecording", () => {
     });
     captures.push(capture);
     await capture.ready;
-    capture.attachSession(session.id, Promise.resolve(), () => {});
+    const readyLapIds: unknown[] = [];
+    capture.attachSession(session.id, Promise.resolve(), event => {
+      if (event.type === "lap-capture-ready") readyLapIds.push(event.lapId);
+    });
     capture.writeRecord(lapAFrame!, 100);
     const windowA: DetectorOwnershipWindow = { revision: 1, lapNumber: 1, startOffset: offsetA, startOrdinal: 0, frameCount: 1, status: "provisional", trailingContextFrameCount: 0, bounded: true };
     capture.processTransitions([ownershipTransition("window-start", windowA)], null);
@@ -115,6 +118,7 @@ describe("DirectCaptureRecording", () => {
     capture.processTransitions([ownershipTransition("final-incomplete", { ...windowB, revision: 4, status: "incomplete" })], null);
     capture.bindLap({ sessionId: session.id, lapId: rowB.id, lapNumber: 2, startByteOffset: offsetB, frameCount: 1 });
     await capture.stop();
+    expect(readyLapIds).toEqual([rowA.id, rowB.id]);
     await writeFile(join(directory, "capture-manifest.json"), "{interrupted publication");
     await runSessionCaptureMaintenanceNow();
 

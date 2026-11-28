@@ -37,7 +37,7 @@ describe("CSS renderer color resolution", () => {
       documentElement: { appendChild() {} },
       body: null,
     } as never;
-    globalThis.getComputedStyle = (() => ({ color: "oklch(0.8 0.15 85)" })) as never;
+    globalThis.getComputedStyle = (() => ({ getPropertyValue: () => "oklch(0.8 0.15 85)", color: "oklch(0.8 0.15 85)" })) as never;
 
     expect(resolveCssColor("var(--test-oklch-color)")).toBe("rgb(251, 191, 36)");
   });

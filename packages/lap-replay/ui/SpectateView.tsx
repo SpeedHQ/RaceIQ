@@ -34,6 +34,7 @@ export function SpectateView({
   panelHeaderTarget,
   onAiOpenChange,
   ai,
+  onSceneSettled,
 }: {
   pair: ReplaySession;
   controller: SpectateController;
@@ -47,6 +48,7 @@ export function SpectateView({
   panelHeaderTarget: HTMLDivElement | null;
   onAiOpenChange: (open: boolean) => void;
   ai?: (headerTarget: HTMLDivElement | null) => ReactNode;
+  onSceneSettled?: () => void;
 }) {
 const { formatLapTime } = useReplayHost(); const m = useMessages(); const single = pair.b === null;
 const playerLapA = pair.comparison.lapA && !("kind" in pair.comparison.lapA) ? pair.comparison.lapA : null;
@@ -82,7 +84,7 @@ return (
   ]}>
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="relative min-h-0 flex-1 overflow-hidden">
-      <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus}
+      <SpectateScene pair={pair} controller={controller} outline={outline} focus={focus} onSceneSettled={onSceneSettled}
         overview={<SpectateOverview pair={pair} controller={controller} segments={segments} focus={focus} />} />
       <SpectateFocusToolbar focus={focus} onChange={setFocusMode} single={single} tirePanelOpen={!opponentReplay && carPanelOpen} onTirePanelOpenChange={opponentReplay ? undefined : onCarPanelOpenChange} />
       {pair.b && playerLapA && playerLapB && <ComparisonLineScore pair={pair} controller={controller} lapAId={playerLapA.id} lapBId={playerLapB.id} />}

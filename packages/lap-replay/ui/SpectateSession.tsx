@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
+import { loadCarBodyModel } from "@raceiq/scene-3d/wireframe/CarBody";
 import type { OpponentLapReference, OpponentLapSummary } from "../contracts/opponents";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useReplayHost } from "./host";
 import { useLapSemanticTelemetry } from "./host"
 import { useSettings } from "./host"
-import { createSpectateController, prepareSpectateLap } from "./spectate-replay";
+import { createSpectateController, prepareSpectateLap, type HydratableSpectateController } from "./spectate-replay";
 import { useMessages } from "./host"
 import { Button } from "./host"
 import { LoadingIndicator } from "./host"
@@ -69,18 +70,47 @@ const playerLap = playerComparison ? playerComparison.lapA : opponentComparison!
 const replayHost = useReplayHost();
 const replayAllowed = requested && playerLap.processing.state === "ready"
   && (!playerComparison || playerComparison.lapB.processing.state === "ready");
-const replayA = useLapSemanticTelemetry(replayAllowed ? playerLap.id : null);
-const replayB = useLapSemanticTelemetry(replayAllowed && playerComparison ? playerComparison.lapB.id : null);
+const [sceneLoaded, setSceneLoaded] = useState(false);
+const requestDetails = useCallback(() => setSceneLoaded(true), []);
+const [loadDetail, setLoadDetail] = useState(false);
+useEffect(() => {
+  if (!active || !sceneLoaded || loadDetail) return;
+  const timer = window.setTimeout(() => setLoadDetail(true), 1000);
+  return () => window.clearTimeout(timer);
+}, [active, sceneLoaded, loadDetail]);
+const replayA = useLapSemanticTelemetry(replayAllowed && (!playerComparison || loadDetail) ? playerLap.id : null);
+const replayB = useLapSemanticTelemetry(replayAllowed && playerComparison && loadDetail && replayA.data ? playerComparison.lapB.id : null);
+const hasDetails = !!replayA.data && !!replayB.data;
+const motionA = useLapSemanticTelemetry(replayAllowed && playerComparison && !hasDetails ? playerLap.id : null, true);
+const motionB = useLapSemanticTelemetry(replayAllowed && playerComparison && !hasDetails ? playerComparison.lapB.id : null, true);
+const dataA = playerComparison && !hasDetails ? motionA.data : replayA.data;
+const dataB = hasDetails ? replayB.data : motionB.data;
 const replayOpponent = replayHost.useOpponentLapSemanticTelemetry(replayAllowed && opponentComparison ? opponentComparison.reference : null);
+const models = replayHost.models;
+const carA = playerLap.carId;
+const carB = playerComparison?.lapB.carId;
+useEffect(() => {
+  if (!active || !replayAllowed || !playerComparison) return;
+  let cancelled = false;
+  void models.loadCarModelConfigs().then(async () => {
+    if (cancelled) return;
+    const preload = (carId: typeof carA) => {
+      const { model } = models.resolveCarModelSelection(gameId, carId);
+      if (model.hasModel) return loadCarBodyModel(model.modelPath);
+    };
+    await Promise.all([preload(carA), carB !== undefined && carB !== carA && preload(carB)]);
+  }).catch(() => {});
+  return () => { cancelled = true; };
+}, [active, replayAllowed, playerComparison, models, gameId, carA, carB]);
 const pair = useMemo<ReplayPair | null>(() => {
   if (playerLap.processing.state !== "ready" || (playerComparison && playerComparison.lapB.processing.state !== "ready")) return null;
-  if (!replayA.data || replayA.data.lapId !== playerLap.id) return null;
+  if (!dataA || dataA.lapId !== playerLap.id) return null;
   if (playerComparison) {
-    const other = replayB.data;
+    const other = dataB;
     if (!other || other.lapId !== playerComparison.lapB.id) return null;
     return {
       gameId, comparison: playerComparison,
-      a: prepareSpectateLap(replayA.data, playerComparison, "a"),
+      a: prepareSpectateLap(dataA, playerComparison, "a"),
       b: prepareSpectateLap(other, playerComparison, "b"),
     };
   }
@@ -97,22 +127,31 @@ const pair = useMemo<ReplayPair | null>(() => {
       ...(sectors.length && sectors.every((sector) => sector.duration.state === "ok" && sector.duration.value !== null)
         ? { sectorTimes: sectors.map((sector) => sector.duration.value!) } : {}),
     } },
-    a: prepareSpectateLap(replayA.data, undefined, "a", { preserveLapDistance: true }),
+    a: prepareSpectateLap(dataA, undefined, "a", { preserveLapDistance: true }),
     b: prepareSpectateLap(other, undefined, "b", { preserveLapDistance: true }),
   };
-}, [gameId, playerLap, playerComparison, opponentComparison, replayA.data, replayB.data, replayOpponent.data]);
-const [controllerEntry, setControllerEntry] = useState<{ pair: ReplayPair; controller: SpectateController } | null>(null);
-const controller = controllerEntry?.pair === pair ? controllerEntry.controller : null;
+}, [gameId, playerLap, playerComparison, opponentComparison, dataA, dataB, replayOpponent.data]);
+useEffect(() => {
+  if (pair && (pair.a.samples.length < 2 || pair.b.samples.length < 2)) setLoadDetail(true);
+}, [pair]);
+const driver = useRef<HydratableSpectateController | null>(null);
+const [controller, setController] = useState<SpectateController | null>(null);
 const distanceCallback = useRef(onDistanceChange);
 distanceCallback.current = onDistanceChange;
-useEffect(() => {
+useLayoutEffect(() => {
   if (!pair) return;
+  if (driver.current) {
+    driver.current.updateTelemetry(pair.a, pair.b);
+    return;
+  }
   const next = createSpectateController(pair.a, pair.b, distanceRef.current ?? undefined, () => fpsCap.current);
-  setControllerEntry({ pair, controller: next });
-  return () => {
-    next.dispose();
-  };
+  driver.current = next;
+  setController(next);
 }, [pair, distanceRef]);
+useLayoutEffect(() => () => {
+  driver.current?.dispose();
+  driver.current = null;
+}, []);
 useEffect(() => {
   if (!controller) return;
   if (active) {
@@ -174,7 +213,7 @@ if (blockedLap) {
         : null;
   return <div role={pending ? "status" : "alert"} aria-busy={pending || undefined} data-processing-state={blockedLap.processing.state} className="flex flex-1 items-center justify-center text-app-detail text-app-text-secondary">{message}</div>;
 }
-const error = opponentComparison ? replayOpponent.error ?? replayA.error : replayA.error ?? replayB.error;
+const error = opponentComparison ? replayOpponent.error ?? replayA.error : replayA.error ?? replayB.error ?? motionA.error ?? motionB.error;
 const errorCode = error && "code" in error ? error.code : null;
 if (error && opponentComparison && errorCode === "OPPONENT_INDEX_NOT_READY")
   return <div role="status" data-opponent-state="not-ready" className="flex flex-1 items-center justify-center"><LoadingIndicator label={m.compare_loading()} /></div>;
@@ -192,9 +231,11 @@ if (error)
       <Button
         variant="app-outline"
         onClick={() => {
-          void replayA.refetch();
-          if (opponentComparison) void replayOpponent.refetch();
-          else void replayB.refetch();
+          if (replayA.error) void replayA.refetch();
+          if (opponentComparison && replayOpponent.error) void replayOpponent.refetch();
+          if (replayB.error) void replayB.refetch();
+          if (motionA.error) void motionA.refetch();
+          if (motionB.error) void motionB.refetch();
         }}
       >
         {m.spectate_retry()}
@@ -213,4 +254,4 @@ if (pair.a.samples.length < 2 || pair.b.samples.length < 2)
       {m.spectate_replay_unavailable()}
     </div>
   );
-return <SpectateView pair={pair} controller={controller} outline={outline} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }
+return <SpectateView onSceneSettled={requestDetails} pair={pair} controller={controller} outline={outline} segments={segments} aiOpen={aiOpen} telemetryOpen={telemetryOpen} carPanelOpen={carPanelOpen} onTelemetryOpenChange={onTelemetryOpenChange} onCarPanelOpenChange={onCarPanelOpenChange} onAiOpenChange={onAiOpenChange} panelHeaderTarget={panelHeaderTarget} />; }

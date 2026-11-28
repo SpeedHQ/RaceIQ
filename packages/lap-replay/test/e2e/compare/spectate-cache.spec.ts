@@ -14,7 +14,7 @@ for (const resource of ["aligned", "semantic"] as const) {
     const pending = new Promise<void>((resolve) => { release = resolve; });
     page.on("requestfailed", (req) => { if (matches(req.url())) failed.push(req.url()); });
     await page.route(resource === "aligned" ? "**/api/laps/aligned-telemetry" : "**/api/laps/*/semantic-telemetry", async (route) => {
-      calls.push(route.request().url());
+      calls.push(`${route.request().url()} ${route.request().headers().accept}`);
       const response = await route.fetch();
       await pending;
       await route.fulfill({ response });
@@ -42,7 +42,7 @@ for (const resource of ["aligned", "semantic"] as const) {
       await page.locator("#compare-tab-spectate").click();
       await expect(page.locator("[data-spectate-playback]")).toBeVisible();
       expect(failed).toEqual([]);
-      expect(calls.length).toBe(resource === "aligned" ? 1 : 2);
+      await expect.poll(() => calls.length).toBe(resource === "aligned" ? 1 : 4);
       expect(new Set(calls).size).toBe(calls.length);
     } finally {
       release();

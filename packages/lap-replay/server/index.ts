@@ -19,10 +19,12 @@ import { opponentRoutes } from "./opponent-routes";
 import { resolveTelemetryReplay, visitTelemetryReplayFrames } from "@raceiq/backend-core/telemetry/replay";
 import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
 import { createLmuContextEncoder } from "@raceiq/shared/telemetry/lmu-context";
-import { createSemanticReplayEncoder, SEMANTIC_REPLAY_MEDIA_TYPE } from "../contracts/replay-wire";
+import { createSemanticReplayEncoder, MOTION_REPLAY_MEDIA_TYPE, SEMANTIC_REPLAY_MEDIA_TYPE } from "../contracts/replay-wire";
 import type { SemanticLapTelemetry } from "../contracts/replay";
 import type { ProcessingMetadata } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+
+const motionChannels = ["timing.current-lap", "timing.distance-traveled", "motion.position-x", "motion.position-y", "motion.position-z", "motion.yaw", "motion.speed", "inputs.throttle", "inputs.brake", "inputs.steer"];
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
   return analyseSemanticIds(getGame(gameId));
@@ -100,9 +102,12 @@ export const replayRoutes = new Hono()
             )
           : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
         : undefined;
-      const semanticIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
+      const accepted = c.req.header("Accept")?.split(",").map(value => value.trim());
+      const motionOnly = accepted?.includes(MOTION_REPLAY_MEDIA_TYPE);
+      const allIds = meta.gameId === "lmu" ? [...new Set([...semanticReplayIds(meta.gameId), ...liveSemanticIds("lmu")])] : semanticReplayIds(meta.gameId);
+      const semanticIds = motionOnly ? allIds.filter(id => motionChannels.includes(id)) : allIds;
       const replayPackets = meta.gameId === "f1-2025" ? f1FlashbackReplay(lap.telemetry) : lap.telemetry;
-      const compact = c.req.header("Accept")?.split(",").some((value) => value.trim() === SEMANTIC_REPLAY_MEDIA_TYPE) ?? false;
+      const compact = motionOnly || accepted?.includes(SEMANTIC_REPLAY_MEDIA_TYPE);
       const encoder = compact ? createSemanticReplayEncoder() : undefined;
       const encodeContext = createLmuContextEncoder();
       const requestedSemanticIds = encoder
@@ -117,12 +122,15 @@ export const replayRoutes = new Hono()
                 sample.value = canonicalizeTelemetryScalar(sample.value, sample.semanticId);
                 return sample;
               }),
-              ...(meta.gameId === "lmu" && frame.packet.lmuContext ? { lmu: encodeContext(frame.packet.lmuContext) } : {}),
+              ...(!motionOnly && meta.gameId === "lmu" && frame.packet.lmuContext ? { lmu: encodeContext(frame.packet.lmuContext) } : {}),
             });
           }, rawCapture)
         : undefined;
       const replay = encoder ? undefined : resolveTelemetryReplay(id, replaySource, replayPackets, semanticIds, rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(replayPackets[0]);
+      if (motionOnly && encoder && requestedSemanticIds) {
+        return c.body(JSON.stringify(encoder.finish({ lapId: id, requestedSemanticIds, sectorTimes: meta.sectorTimes, sectorStarts: nativeLayout?.starts })), 200, { "Content-Type": MOTION_REPLAY_MEDIA_TYPE });
+      }
       const processed = processLap(replayPackets, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, resolveLapAnalysisContext(meta.gameId, meta.trackId, processed.packets));
       restoreFrameIndices(analysis.insights, processed.sourceIndices);

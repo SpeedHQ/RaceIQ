@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { LMUSourceFrame } from "./source-frame";
-import { decodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
+import { decodeLmuContext, isLmuLiveContextWire } from "@raceiq/shared/telemetry/lmu-context";
 import {
   LMU_MAX_VEHICLES, LMU_SHARED_MEMORY_SIZE, LMU_SCORING_INFO_OFFSET,
   LMU_SCORING_INFO_SIZE, LMU_SCORING_INFO, LMU_SCORING_VEHICLES_OFFSET,
@@ -15,6 +16,7 @@ const HEADER = 28;
 const PRIMARY_HEADER = 56;
 const COMPANION_HEADER = 80;
 const NATIVE_END = HEADER + LMU_SHARED_MEMORY_SIZE;
+const MAX_CACHED_CONTEXT_BYTES = 1024 * 1024;
 const MAX_FRAME = 16 * 1024 * 1024;
 const ABSENT = 0xffffffff;
 type Range = { start: number; end: number };
@@ -34,15 +36,26 @@ function fail(): never { throw new Error("Invalid LMU source partition"); }
 function space(byte: number): boolean { return byte === 32 || byte === 9 || byte === 10 || byte === 13; }
 
 /** Scan a fully parsed JSON root, rejecting duplicate names before selecting raw spans. */
-export function lmuContextProperty(json: Buffer, property: string): { property: Range; value: Range } | null {
+export function lmuContextProperty(json: Buffer, property: string, keyRange?: Range): { property: Range; value: Range } | null {
+  return scanContextProperty(json, property, keyRange, false);
+}
+
+export function probeLmuContextKey(json: Buffer): Range | undefined {
+  return scanContextProperty(json, "key", undefined, true)?.value;
+}
+
+function scanContextProperty(json: Buffer, property: string, keyRange: Range | undefined, firstMatch: boolean): { property: Range; value: Range } | null {
   let cursor = 0;
   const whitespace = () => { while (cursor < json.length && space(json[cursor]!)) cursor++; };
   const stringEnd = () => {
     if (json[cursor++] !== 34) fail();
     while (cursor < json.length) {
-      const byte = json[cursor++]!;
-      if (byte === 92) cursor++;
-      else if (byte === 34) return;
+      const quote = json.indexOf(34, cursor);
+      if (quote < 0) fail();
+      let firstEscape = quote;
+      while (json[firstEscape - 1] === 92) firstEscape--;
+      cursor = quote + 1;
+      if (!((quote - firstEscape) & 1)) return;
     }
     fail();
   };
@@ -85,12 +98,14 @@ export function lmuContextProperty(json: Buffer, property: string): { property: 
     const valueStart = cursor;
     valueEnd();
     const end = cursor;
+    if (keyRange && name === "key") { keyRange.start = valueStart; keyRange.end = end; }
     whitespace();
     const comma = json[cursor] === 44 ? cursor : -1;
     if (name === property) result = {
       property: comma >= 0 ? { start, end: comma + 1 } : { start: precedingComma >= 0 ? precedingComma : start, end },
       value: { start: valueStart, end },
     };
+    if (firstMatch && result) return result;
     if (comma < 0) { if (json[cursor++] !== 125) fail(); break; }
     precedingComma = comma;
     cursor++;
@@ -241,7 +256,48 @@ export function decodeLMUPartitionPrimary(frame: Buffer, decodeContext?: LMUCont
   } catch { return null; }
 }
 
-export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; companion: Buffer | null } | null {
+export class LMUPartitionContextCache {
+  private previous?: { bytes: Buffer; range: Range; removed: Range | null; session: string | null; keyAllowedWithoutPlayer: boolean };
+
+  project(json: Buffer, hasPlayer: boolean) {
+    const previous = this.previous;
+    if (previous && json.length <= MAX_CACHED_CONTEXT_BYTES) {
+      const { start } = previous.range;
+      const delta = json.length - previous.bytes.length;
+      const end = previous.range.end + delta;
+      if (end > start && json.subarray(0, start).equals(previous.bytes.subarray(0, start)) &&
+          json.subarray(end).equals(previous.bytes.subarray(previous.range.end))) {
+        try {
+          const key = JSON.parse(json.toString("utf8", start, end));
+          if (key && (previous.session === null || previous.session === key.sessionKey)) {
+            const span = previous.removed;
+            const removed = delta && span && span.start >= previous.range.end ? { start: span.start + delta, end: span.end + delta } : span;
+            return { removed, keyAllowed: hasPlayer || previous.keyAllowedWithoutPlayer };
+          }
+        } catch {}
+      }
+    }
+    const range = { start: 0, end: 0 };
+    const result = inspectPartitionContext(json, hasPlayer, range);
+    this.previous = undefined;
+    if (range.end && json.length <= MAX_CACHED_CONTEXT_BYTES) {
+      const bytes = previous?.bytes.length === json.length ? previous.bytes : Buffer.allocUnsafe(json.length);
+      json.copy(bytes);
+      this.previous = { bytes, range, removed: result.removed, session: result.session, keyAllowedWithoutPlayer: result.keyAllowedWithoutPlayer };
+    }
+    return result;
+  }
+}
+
+function inspectPartitionContext(json: Buffer, hasPlayer: boolean, range?: Range) {
+  const wire: unknown = JSON.parse(json.toString("utf8"));
+  if (!isLmuLiveContextWire(wire)) fail();
+  const removed = lmuContextProperty(json, "competitors", range)?.property ?? null;
+  const keyAllowedWithoutPlayer = wire.playerVehicleId === null && wire.competitors !== undefined;
+  return { removed, keyAllowed: hasPlayer || keyAllowedWithoutPlayer, keyAllowedWithoutPlayer, session: wire.supplemental.length ? wire.key.sessionKey : null };
+}
+
+export function partitionLMUSourceFrame(frame: Buffer, includeCompanion = true, cache?: LMUPartitionContextCache): { primary: Buffer; companion: Buffer | null; frameKey?: LmuLiveContext["key"] } | null {
   if (frame.length >= 10 && frame.readUInt16LE(8) === 5) return decodeLMUPartitionPrimary(frame) ? { primary: frame, companion: null } : null;
   if (frame.length < NATIVE_END || frame.length > MAX_FRAME || !frame.subarray(0, 8).equals(SOURCE_MAGIC)) return null;
   const version = frame.readUInt16LE(8);
@@ -271,14 +327,16 @@ export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; compa
     }
     let contextOffset = 0, contextLength = 0, projectedLength = 0;
     let removed: Range | null = null;
+    let keyAllowed = false;
     if (version === 3) {
       if (frame.length < NATIVE_END + 4) fail();
       contextOffset = NATIVE_END + 4;
       contextLength = frame.readUInt32LE(NATIVE_END);
       if (contextLength !== frame.length - contextOffset) fail();
       const json = frame.subarray(contextOffset);
-      if (!decodeLmuContext(JSON.parse(json.toString("utf8")))) fail();
-      removed = lmuContextProperty(json, "competitors")?.property ?? null;
+      const projection = cache ? cache.project(json, hasPlayer) : inspectPartitionContext(json, hasPlayer);
+      keyAllowed = projection.keyAllowed;
+      removed = projection.removed;
       projectedLength = contextLength - (removed ? removed.end - removed.start : 0);
     } else if (frame.length !== NATIVE_END) fail();
     const ranges: Range[] = [
@@ -306,7 +364,9 @@ export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; compa
     header.writeUInt32LE(contextLength, 48);
     header.writeUInt32LE(projectedLength, 52);
     const primary = encodeRanges(header, ranges, frame);
-    if (!decodeLMUPartitionPrimary(primary)) fail();
+    const decoded = decodeLMUPartitionPrimary(primary);
+    if (!decoded) fail();
+    if (!includeCompanion) return { primary, companion: null };
     const companionHeader = Buffer.alloc(COMPANION_HEADER);
     LMU_COMPANION_MAGIC.copy(companionHeader);
     companionHeader.writeUInt16LE(1, 8);
@@ -314,7 +374,7 @@ export function partitionLMUSourceFrame(frame: Buffer): { primary: Buffer; compa
     companionHeader.writeUInt32LE(frame.length, 12);
     createHash("sha256").update(primary).digest().copy(companionHeader, 16);
     createHash("sha256").update(frame).digest().copy(companionHeader, 48);
-    return { primary, companion: encodeRanges(companionHeader, excluded, frame) };
+    return { primary, companion: encodeRanges(companionHeader, excluded, frame), frameKey: keyAllowed ? decoded.lmuContext?.key : undefined };
   } catch { return null; }
 }
 

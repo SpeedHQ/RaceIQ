@@ -11,6 +11,20 @@ export function projectFocusCenterline(samples: readonly Point[], centerLine: re
     const length = Math.sqrt(length2);
     segments.push({ x: p.x, z: p.z, dx, dz, length2, tx: dx / length, tz: dz / length });
   }
+  const blockSize = 16;
+  const bounds: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
+  for (let start = 0; start < segments.length; start += blockSize) {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (let i = start; i < Math.min(start + blockSize, segments.length); i++) {
+      const s = segments[i];
+      minX = Math.min(minX, s.x, s.x + s.dx);
+      maxX = Math.max(maxX, s.x, s.x + s.dx);
+      minZ = Math.min(minZ, s.z, s.z + s.dz);
+      maxZ = Math.max(maxZ, s.z, s.z + s.dz);
+    }
+    bounds.push({ minX, maxX, minZ, maxZ });
+  }
+  let previousSegment = 0;
   let travelX = 0, travelZ = 0;
   for (let i = 1; i < samples.length; i++) {
     const dx = samples[i].x - samples[i - 1].x, dz = samples[i].z - samples[i - 1].z;
@@ -22,11 +36,25 @@ export function projectFocusCenterline(samples: readonly Point[], centerLine: re
   return samples.map((sample, i) => {
     if (!Number.isFinite(sample.x) || !Number.isFinite(sample.z)) return null;
     let best = Infinity, px = 0, pz = 0, tx = 0, tz = 0;
-    for (const segment of segments) {
-      const t = Math.max(0, Math.min(1, ((sample.x - segment.x) * segment.dx + (sample.z - segment.z) * segment.dz) / segment.length2));
-      const x = segment.x + segment.dx * t, z = segment.z + segment.dz * t;
-      const distance = (x - sample.x) ** 2 + (z - sample.z) ** 2;
-      if (distance < best) { best = distance; px = x; pz = z; tx = segment.tx; tz = segment.tz; }
+    const previous = segments[previousSegment];
+    if (!previous) return null;
+    let limit = (sample.x - previous.x) ** 2 + (sample.z - previous.z) ** 2;
+    for (let block = 0; block < bounds.length; block++) {
+      const box = bounds[block];
+      const dx = Math.max(0, box.minX - sample.x, sample.x - box.maxX);
+      const dz = Math.max(0, box.minZ - sample.z, sample.z - box.maxZ);
+      if (dx * dx + dz * dz > limit) continue;
+      const end = Math.min((block + 1) * blockSize, segments.length);
+      for (let j = block * blockSize; j < end; j++) {
+        const segment = segments[j];
+        const t = Math.max(0, Math.min(1, ((sample.x - segment.x) * segment.dx + (sample.z - segment.z) * segment.dz) / segment.length2));
+        const x = segment.x + segment.dx * t, z = segment.z + segment.dz * t;
+        const distance = (x - sample.x) ** 2 + (z - sample.z) ** 2;
+        if (distance < best) {
+          best = distance; limit = Math.min(limit, best); previousSegment = j;
+          px = x; pz = z; tx = segment.tx; tz = segment.tz;
+        }
+      }
     }
     if (!Number.isFinite(best)) return null;
     const next = samples[i + 1], prior = samples[i - 1];

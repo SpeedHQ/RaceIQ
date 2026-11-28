@@ -21,6 +21,7 @@ import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
 import { useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
 import { useSessions } from "../../hooks/session-queries";
 import { buildExportCsv } from "../../lib/lap-export";
+import { semanticValues } from "@raceiq/scene-3d/semantic-frame";
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -38,7 +39,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     lapLoading,
     lapError,
     parseError,
-    semanticFrames,
     selectedLap,
     selectedLapReady,
     selectedLapProcessingLoading,
@@ -62,6 +62,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     handleTrackChange,
     handleCarChange,
   } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
+  const hasTelemetry = (semanticReplay?.envelopes.length ?? 0) > 0;
   const identitySessionId = sessionId ?? selectedLap?.sessionId;
   const { data: sessions = [], isLoading: sessionsLoading, refetch: refetchSessions } = useSessions();
   const identitySession = sessions.find((session) => session.id === identitySessionId);
@@ -218,7 +219,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         onAnalyseSession={analyseSessionProcessing?.state === "ready" ? handleAnalyseSession : undefined}
         onExport={() =>
           buildExportCsv(
-            semanticFrames.map((frame) => frame.values),
+            semanticReplay?.envelopes.map((frame) => semanticValues(frame.values)) ?? [],
             carName,
             trackName,
             selectedLap,
@@ -240,7 +241,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         tracks={tracks}
         carsForTrack={carsForTrack}
         filteredLaps={filteredLaps}
-        hasTelemetry={semanticFrames.length > 0}
+        hasTelemetry={hasTelemetry}
         availableTunes={availableTunes}
         tunePending={updateLapTune.isPending}
         loading={loading}
@@ -259,9 +260,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         onNotesChange={handleNotesChange}
       />
 
-      {semanticFrames.length === 0 && (selectedLapId == null || selectedLapReady) && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
+      {!hasTelemetry && (selectedLapId == null || selectedLapReady) && <AnalyseWorkspaceStatus loading={loading} lapError={lapError} parseError={parseError} selectedLapId={selectedLapId} />}
 
-      {semanticReplay && selectedLap && semanticFrames.length > 0 && (
+      {semanticReplay && selectedLap && hasTelemetry && (
         <SingleReplaySession
           key={selectedLap.id}
           gameId={gameId}
