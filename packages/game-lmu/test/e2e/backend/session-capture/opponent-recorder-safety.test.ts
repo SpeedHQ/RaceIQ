@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { readFile, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -47,6 +48,8 @@ test("companion queue failure preserves every player frame and publishes incompl
     }
     expect(capture.hasFailed).toBe(false);
     await capture.stop();
+    const manifest = JSON.parse(await readFile(capture.path, "utf8"));
+    expect(manifest.opponentCompanion).toMatchObject({ sha256: "", committedPrefix: { byteLength: 0, recordCount: 0 } });
     expect(await readLmuOpponentRetention(capture.path)).toMatchObject({ opponentRetention: "retained", opponentAvailability: "incomplete" });
     const restored = await recordedFrames(capture);
     expect(restored.map((frame) => decodeLMUSourceFrame(frame)!.telemetry)).toEqual(frames.map(({ frame }) => decodeLMUSourceFrame(frame)!.telemetry));
@@ -77,6 +80,7 @@ test("warm companion validation detects changed, replaced, missing and repaired 
     const manifest = JSON.parse(await readFile(capture.path, "utf8"));
     const companionPath = join(dirname(capture.path), manifest.opponentCompanion.file);
     const original = await readFile(companionPath);
+    expect(manifest.opponentCompanion.sha256).toBe(createHash("sha256").update(original).digest("hex"));
     const originalInfo = await stat(companionPath);
     const retained = { opponentRetention: "retained", opponentAvailability: "complete" };
     expect(await readLmuOpponentRetention(capture.path)).toMatchObject(retained);

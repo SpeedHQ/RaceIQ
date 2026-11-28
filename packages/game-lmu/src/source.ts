@@ -10,8 +10,8 @@ import { LMUSharedMemoryReader } from "./memory-reader";
 import { identityFromLMUSourceFrame } from "./normalizer";
 import { lmuRecorder, type LMURecorderContract } from "./recorder";
 import { LmuSupplementalRest, type LmuRestOptions } from "./supplemental-rest";
-import { decodeLMUSourceFrame, encodeLMUSourceFrame, encodeLMUScoringSourceFrame, type LMUIdentity } from "@raceiq/capture-formats/lmu/source-frame";
-import { LMU_MAX_VEHICLES, LMU_SHARED_MEMORY_SIZE, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY_INFO_SIZE, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO, LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE_SIZE, LMU_SCORING_VEHICLE, LMU_SESSION_EVENT_OFFSET } from "@raceiq/capture-formats/lmu/layout";
+import { encodeLMUSourceFrame, encodeLMUScoringSourceFrame, type LMUIdentity } from "@raceiq/capture-formats/lmu/source-frame";
+import { LMU_MAX_VEHICLES, LMU_SHARED_MEMORY_SIZE, LMU_TELEMETRY_HEADER_OFFSET, LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY_INFO_SIZE, LMU_TELEMETRY, LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO_SIZE, LMU_SCORING_INFO, LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE_SIZE, LMU_SCORING_VEHICLE, LMU_SESSION_EVENT_OFFSET } from "@raceiq/capture-formats/lmu/layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
 
 export interface LMUFrameReader { start(): void; stop(): Promise<void>; readLatest(): Buffer | null; }
@@ -54,12 +54,13 @@ export class LMUTelemetrySource {
   private holdsTimerResolution = false;
   private readonly captureRateLimiter = new NativeCaptureRateLimiter();
   private lastFrameKey = "";
+  private lastPlayerRestRevision: number | undefined;
   private identity: LMUIdentity | null = null;
   private lastErrorLogAt = 0;
   private runKey = randomUUID();
   private generation = 0;
   private sequence = 0n;
-  private nativeIdentity = "";
+  private nativeIdentity: string | { event: number; session: number; vehicleId: number; slot: number; names: Buffer } = "";
   private lastElapsed = -1;
   private lastScoringElapsed = -1;
   private lastNativeUpdateAt = 0;
@@ -90,6 +91,7 @@ export class LMUTelemetrySource {
     this.warnedUnadmittedScoringOnly = false;
     this.nativeIdentity = "";
     this.lastFrameKey = "";
+    this.lastPlayerRestRevision = undefined;
     this.lastElapsed = -1;
     this.lastScoringElapsed = -1;
     this.identity = null;
@@ -130,23 +132,26 @@ export class LMUTelemetrySource {
     }
   }
 
-  private pollLock: Promise<void> = Promise.resolve();
+  private pollLock: Promise<void> | null = null;
 
   async pollOnce(): Promise<boolean> {
     const readerMemory = this.reader.readLatest();
-    // Reader reuses its buffer; copy each poll before waiting for serialized processing.
-    const memory = readerMemory ? Buffer.from(readerMemory) : null;
+    const previous = this.pollLock;
+    const memory = previous && readerMemory ? Buffer.from(readerMemory) : readerMemory;
     const now = Date.now();
     const monotonicNow = performance.now();
-    const previous = this.pollLock;
     const { promise, resolve } = Promise.withResolvers<void>();
     this.pollLock = promise;
-    await previous;
-    try { return await this.pollOnceLocked(memory, now, monotonicNow, resolve); }
-    finally { resolve(); }
+    const release = () => {
+      if (this.pollLock === promise) this.pollLock = null;
+      resolve();
+    };
+    if (previous) await previous;
+    try { return await this.pollOnceLocked(memory, now, monotonicNow, release, previous !== null); }
+    finally { release(); }
   }
 
-  private async pollOnceLocked(memory: Buffer | null, now: number, monotonicNow: number, release: () => void): Promise<boolean> {
+  private async pollOnceLocked(memory: Buffer | null, now: number, monotonicNow: number, release: () => void, owned: boolean): Promise<boolean> {
     try {
       if (!memory || memory.length < LMU_SHARED_MEMORY_SIZE) {
         if (monotonicNow - this.lastNativeUpdateAt > 1000) await this.invalidate();
@@ -156,7 +161,7 @@ export class LMUTelemetrySource {
       const slot = memory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 1);
       const playerHasVehicle = memory.readUInt8(LMU_TELEMETRY_HEADER_OFFSET + 2) !== 0;
       if (count > LMU_MAX_VEHICLES || (playerHasVehicle && (count < 1 || slot >= count)) || !memory.readUInt8(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.inRealtime) || memory.readUInt8(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.gamePhase) === 9) { await this.invalidate(); return false; }
-      if (!playerHasVehicle) return await this.publishScoringSnapshot(memory, now, monotonicNow);
+      if (!playerHasVehicle) return await this.publishScoringSnapshot(owned ? memory : Buffer.from(memory), now, monotonicNow);
       const t = LMU_TELEMETRY_INFO_OFFSET + slot * LMU_TELEMETRY_INFO_SIZE;
       const vehicleId = memory.readInt32LE(t + LMU_TELEMETRY.id);
       let telemetryMatches = 0;
@@ -180,34 +185,46 @@ export class LMUTelemetrySource {
       const elapsed = memory.readDoubleLE(t + LMU_TELEMETRY.elapsedTime);
       const scoringElapsed = memory.readDoubleLE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
       if (!Number.isFinite(elapsed) || elapsed < 0 || !Number.isFinite(scoringElapsed) || scoringElapsed < 0) { await this.invalidate(); return false; }
-      const nativeIdentity = `${memory.readUInt32LE(LMU_SESSION_EVENT_OFFSET)}:${memory.readInt32LE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.session)}:${vehicleId}:${slot}:${memory.subarray(t + LMU_TELEMETRY.vehicleName, t + LMU_TELEMETRY.trackName + 64).toString("hex")}`;
+      const event = memory.readUInt32LE(LMU_SESSION_EVENT_OFFSET);
+      const session = memory.readInt32LE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.session);
+      const namesStart = t + LMU_TELEMETRY.vehicleName;
+      const namesEnd = t + LMU_TELEMETRY.trackName + 64;
+      const identityKey = this.nativeIdentity;
       // Reader snapshots are reusable: do not yield between validation and encoding.
-      if (this.context && (nativeIdentity !== this.nativeIdentity || elapsed < this.lastElapsed || scoringElapsed < this.lastScoringElapsed)) await this.invalidate();
+      if (this.context && (typeof identityKey === "string" || identityKey.event !== event || identityKey.session !== session ||
+        identityKey.vehicleId !== vehicleId || identityKey.slot !== slot || identityKey.names.compare(memory, namesStart, namesEnd) !== 0 ||
+        elapsed < this.lastElapsed || scoringElapsed < this.lastScoringElapsed)) {
+        if (!owned) memory = Buffer.from(memory);
+        await this.invalidate();
+      }
       if (elapsed !== this.lastElapsed) this.lastNativeUpdateAt = monotonicNow;
       else if (monotonicNow - this.lastNativeUpdateAt > 1000) { await this.invalidate(); return false; }
+      const sameFrameTime = elapsed === this.lastElapsed && scoringElapsed === this.lastScoringElapsed;
       this.lastElapsed = elapsed;
       this.lastScoringElapsed = scoringElapsed;
       this.scoringOnlyContext = false;
       if (!this.context) {
-        this.nativeIdentity = nativeIdentity;
+        this.nativeIdentity = { event, session, vehicleId, slot, names: Buffer.from(memory.subarray(namesStart, namesEnd)) };
         this.context = { schemaVersion: 1, key: { sessionKey: `${this.runKey}:${++this.generation}`, captureSequence: "0", frameTime: { domain: "session", milliseconds: elapsed * 1000 } }, playerVehicleId: vehicleId, status: "active", supplemental: [] };
         if (this.running) this.rest?.activate({ sessionKey: this.context.key.sessionKey, vehicleId });
       }
-      const frameKey = `${this.context.key.sessionKey}:${elapsed}:${scoringElapsed}:${this.rest?.revision ?? 0}`;
-      if (frameKey === this.lastFrameKey) return false;
+      const restRevision = this.rest?.revision ?? 0;
+      if (sameFrameTime && restRevision === this.lastPlayerRestRevision) return false;
       const captureSequence = this.sequence + 1n;
-      const competitors = this.opponentIdentityTracker.snapshot(memory, opponentGeneration(memory, this.runKey), captureSequence, vehicleId);
+      const sessionGeneration = opponentGeneration(memory, this.runKey);
+      const competitors = this.opponentIdentityTracker.snapshot(memory, sessionGeneration, captureSequence, vehicleId);
       if (!competitors) { await this.invalidate(); return false; }
-      this.lastFrameKey = frameKey;
+      this.lastPlayerRestRevision = restRevision;
       this.sequence = captureSequence;
       this.context = { ...this.context, key: { ...this.context.key, captureSequence: captureSequence.toString(), frameTime: { domain: "session", milliseconds: elapsed * 1000 } }, competitors, supplemental: this.rest?.snapshot() ?? [] };
       const rawFrame = encodeLMUSourceFrame(memory, now, { context: this.context });
       if (!rawFrame) return false;
-      const frame = decodeLMUSourceFrame(rawFrame);
-      if (!frame) return false;
-      this.admittedOpponentGeneration = opponentGeneration(memory, this.runKey);
+      this.admittedOpponentGeneration = sessionGeneration;
       if (this.running && !this.holdsTimerResolution) { acquireHighResolutionTimer(); this.holdsTimerResolution = true; }
-      const identity = identityFromLMUSourceFrame(frame);
+      const identity = identityFromLMUSourceFrame({
+        telemetry: memory.subarray(t, t + LMU_TELEMETRY_INFO_SIZE),
+        scoringInfo: memory.subarray(LMU_SCORING_INFO_OFFSET, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO_SIZE),
+      });
       const pending = Promise.withResolvers<boolean>();
       this.frameQueue.push({ rawFrame, frameTimeMs: now, identity, resolve: pending.resolve });
       this.ensureDrain();
@@ -242,14 +259,14 @@ export class LMUTelemetrySource {
     const frameKey = `${this.context.key.sessionKey}:${scoringElapsed}`;
     if (frameKey === this.lastFrameKey) return false;
     const captureSequence = this.sequence + 1n;
-    const competitors = this.opponentIdentityTracker.snapshot(memory, opponentGeneration(memory, this.runKey), captureSequence, playerVehicleId);
+    const sessionGeneration = opponentGeneration(memory, this.runKey);
+    const competitors = this.opponentIdentityTracker.snapshot(memory, sessionGeneration, captureSequence, playerVehicleId);
     if (!competitors) { await this.invalidate(); return false; }
     this.lastFrameKey = frameKey;
     this.sequence = captureSequence;
     this.context = { ...this.context, playerVehicleId, competitors, key: { ...this.context.key, captureSequence: captureSequence.toString(), frameTime: { domain: "session", milliseconds: scoringElapsed * 1000 } }, status: "active", supplemental: [] };
     this.scoringOnlyContext = true;
     this.identity = null;
-    const sessionGeneration = opponentGeneration(memory, this.runKey);
     if (playerVehicleId === null && this.admittedOpponentGeneration === sessionGeneration) {
       const rawFrame = encodeLMUScoringSourceFrame(memory, now, { context: this.context });
       if (!rawFrame) { await this.invalidate(); return false; }
@@ -274,6 +291,7 @@ export class LMUTelemetrySource {
     this.scoringOnlyContext = false;
     this.identity = null;
     this.lastFrameKey = "";
+    this.lastPlayerRestRevision = undefined;
     this.nativeIdentity = "";
     this.lastElapsed = -1;
     this.lastScoringElapsed = -1;

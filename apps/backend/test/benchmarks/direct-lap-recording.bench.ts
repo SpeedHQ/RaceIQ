@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { FIXTURES } from "./live-lossless-release.bench";
+import { FIXTURES, fixturePath as resolveFixture } from "./live-lossless-release.bench";
 
 type Args = { output: string; game?: string; trials: number; fps: number; sampleLimit?: number };
 function parseArgs(argv: string[]): Args {
@@ -27,7 +27,6 @@ function parseArgs(argv: string[]): Args {
 async function main() {
   const args = parseArgs(Bun.argv.slice(2));
   const root = resolve(import.meta.dir, "../../../../");
-  const fixtureRoot = resolve(root, "test/artifacts/sessions");
   const fixtures = args.game ? FIXTURES.filter((f) => f.gameId === args.game) : [...FIXTURES];
   if (fixtures.length !== (args.game ? 1 : 6)) throw new Error("Required six-game fixture coverage unavailable");
   const output: Record<string, unknown>[] = [];
@@ -35,7 +34,7 @@ async function main() {
   const temp = await mkdtemp(resolve(tmpdir(), "raceiq-direct-lap-bench-"));
   try {
     for (const item of fixtures) {
-      const fixturePath = resolve(fixtureRoot, item.fixture);
+      const fixturePath = resolveFixture(item.fixture);
       const fixture = await readFile(fixturePath);
       for (let trial = 1; trial <= args.trials; trial++) {
         const workDir = resolve(temp, `${item.gameId}-${trial}`);

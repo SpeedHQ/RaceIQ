@@ -5,8 +5,8 @@ import {
   LMU_TELEMETRY_INFO_OFFSET, LMU_TELEMETRY_INFO_SIZE,
 } from "./layout";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
-import { decodeLmuContext, decodeLmuContextKey, encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
-import { decodeLMUPartitionPrimary, isLMUPartitionPrimary, lmuContextProperty, type LMUContextDecoder } from "./partition";
+import { decodeLmuContext, decodeLmuContextJson, decodeLmuContextKey, encodeLmuContext } from "@raceiq/shared/telemetry/lmu-context";
+import { decodeLMUPartitionPrimary, isLMUPartitionPrimary, lmuContextProperty, probeLmuContextKey, type LMUContextDecoder } from "./partition";
 
 export const LMU_SOURCE_FRAME_MAGIC = Buffer.from("RQLMUSF\0", "ascii");
 export const LMU_SOURCE_SCHEMA_VERSION_V2 = 2;
@@ -182,9 +182,15 @@ export function canHandleLMUSourceFrame(buffer: Buffer): boolean {
   return version === 3 && buffer.length >= LMU_SOURCE_FRAME_V2_SIZE + CONTEXT_LENGTH_SIZE && buffer.readUInt32LE(LMU_SOURCE_FRAME_V2_SIZE) === buffer.length - LMU_SOURCE_FRAME_V2_SIZE - CONTEXT_LENGTH_SIZE;
 }
 
+function uniqueCachedKey(bytes: Buffer): boolean {
+  try { return lmuContextProperty(bytes, "key") !== null; }
+  catch { return false; }
+}
+
 /** Acceleration state only: every frame remains independently decodable after a reset. */
 export function createLMUSourceFrameDecoder(): { decode: typeof decodeLMUSourceFrame; reset(): void } {
-  let previous: { bytes: Buffer; start: number; end: number; context: LmuLiveContext; projected: boolean; unavailable: boolean } | undefined;
+  let previous: { bytes: Buffer; start: number; end: number; verified: boolean; context: LmuLiveContext; projected: boolean; unavailable: boolean } | undefined;
+  let previousMissed = false;
   const decodeContext: LMUContextDecoder = (bytes, projected = false, unavailable = false) => {
     try {
       if (previous && previous.projected === projected && previous.unavailable === unavailable) {
@@ -192,7 +198,9 @@ export function createLMUSourceFrameDecoder(): { decode: typeof decodeLMUSourceF
         const suffixLength = previous.bytes.length - end;
         const nextEnd = bytes.length - suffixLength;
         if (nextEnd > start && bytes.subarray(0, start).equals(previous.bytes.subarray(0, start)) &&
-            bytes.subarray(nextEnd).equals(previous.bytes.subarray(end))) {
+            bytes.subarray(nextEnd).equals(previous.bytes.subarray(end)) && (previous.verified || uniqueCachedKey(previous.bytes))) {
+          previous.verified = true;
+          previousMissed = false;
           const key = decodeLmuContextKey(JSON.parse(bytes.subarray(start, nextEnd).toString("utf8")));
           if (!key || (context.supplemental.length > 0 && key.sessionKey !== context.key.sessionKey)) {
             previous = undefined;
@@ -201,15 +209,14 @@ export function createLMUSourceFrameDecoder(): { decode: typeof decodeLMUSourceF
           return Object.freeze({ ...context, key });
         }
       }
+      const probeOnly = previous !== undefined && previousMissed;
+      previousMissed = previous !== undefined;
       previous = undefined;
-      const parsed = JSON.parse(bytes.toString("utf8"));
-      if (projected && Object.prototype.hasOwnProperty.call(parsed, "competitors")) return null;
-      const context = decodeLmuContext(unavailable ? { ...parsed, status: "unavailable" } : parsed, { immutable: true });
+      const context = decodeLmuContextJson(bytes.toString("utf8"), projected, unavailable);
       if (!context) return null;
-      // Duplicate root names retain JSON.parse semantics but never qualify for reuse.
       try {
-        const range = lmuContextProperty(bytes, "key")?.value;
-        if (range) previous = { bytes: Buffer.from(bytes), ...range, context, projected, unavailable };
+        const range = probeOnly ? probeLmuContextKey(bytes) : lmuContextProperty(bytes, "key")?.value;
+        if (range) previous = { bytes: Buffer.from(bytes), ...range, verified: !probeOnly, context, projected, unavailable };
       } catch {}
       return context;
     } catch {
@@ -219,7 +226,7 @@ export function createLMUSourceFrameDecoder(): { decode: typeof decodeLMUSourceF
   };
   return {
     decode(buffer) { return decodeLMUSourceFrame(buffer, decodeContext); },
-    reset() { previous = undefined; },
+    reset() { previous = undefined; previousMissed = false; },
   };
 }
 

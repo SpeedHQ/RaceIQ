@@ -7,7 +7,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { RealDbAdapter, NullWsAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
-import { DirectSessionRecorderAdapter } from "@raceiq/backend-core/session-capture/direct-recorder";
+import { DirectCaptureRecording, DirectSessionRecorderAdapter } from "@raceiq/backend-core/session-capture/direct-recorder";
 import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
@@ -57,6 +57,68 @@ class ObservedDirectRecorder extends DirectSessionRecorderAdapter {
     for (const record of iterateSessionCaptureRecords(bytes, 0, { strict: true })) if (record.kind === "frame") this.accepted.get(this.path!)!.add(record.frame, record.frameTimeMs);
   }
 }
+
+test("a failed finalization waits for an unrelated retiring recording to seal", async () => {
+  const recorder = new DirectSessionRecorderAdapter("others");
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter(), new NullWsAdapter(), { recorder });
+  recorder.start("fm-2023");
+  const current = recorder.capture!;
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const directory = resolve(dirname(current.path), "retiring");
+  const retiring = new DirectCaptureRecording("fm-2023", directory, resolve(directory, "manifest.json"), {
+    writerOptions: { onDurable: () => { entered.resolve(); return release.promise; } },
+  });
+  try {
+    await Promise.all([current.ready, retiring.ready]);
+    retiring.writeRecord(Buffer.alloc(324), 1);
+    pipeline["_retiringCaptures"].add(retiring.stop());
+    await entered.promise;
+    pipeline["_recordingSession"] = { sessionId: 1, gameId: "fm-2023", directCapture: current };
+    const failure = new Error("current recording failed");
+    current.fail(failure);
+    let settled = false;
+    const result = pipeline.finalizeCurrentSession().then(() => null, error => error).finally(() => { settled = true; });
+    await current.stop().catch(() => {});
+    await nextTurn();
+    expect(settled).toBe(false);
+    release.resolve();
+    expect(await result).toBe(failure);
+    expect(retiring.isSealed).toBe(true);
+    const frames: Buffer[] = [];
+    for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: retiring.path, gameId: "fm-2023", source: null, carId: "", trackId: "" }, { strict: true })) {
+      if (record.kind === "frame") frames.push(record.frame);
+    }
+    expect(frames).toEqual([Buffer.alloc(324)]);
+  } finally {
+    release.resolve();
+    await Promise.allSettled([current.stop(), retiring.stop()]);
+    await rm(dirname(current.path), { recursive: true, force: true });
+  }
+});
+
+test("paused ingress rejects excess packets before release and drains accepted packets in order", async () => {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter(), new NullWsAdapter());
+  const gate = Promise.withResolvers<void>();
+  const pause = pipeline["_withIngressPaused"](() => gate.promise);
+  const processed: number[] = [];
+  pipeline["_processPacket"] = async packet => { processed.push(packet.TimestampMS); };
+  const packet = { gameId: "fm-2023", TimestampMS: 0 } as TelemetryPacket;
+  const submit = (index: number) => pipeline.processPacket({ ...packet, TimestampMS: index }, Buffer.alloc(16 * 1024));
+  const accepted = Array.from({ length: 256 }, (_, i) => submit(i));
+  try {
+    const rejected = Array.from({ length: 544 }, (_, i) => submit(256 + i).then(() => null, error => error.message));
+    expect(await Promise.all(rejected)).toEqual(Array(544).fill("Recording detector queue capacity exhausted"));
+    expect(processed).toEqual([]);
+  } finally {
+    gate.resolve();
+    await pause;
+    await Promise.all(accepted);
+  }
+  await submit(256);
+  expect(processed).toEqual(Array.from({ length: 257 }, (_, i) => i));
+  expect(pipeline["_queuedPacketBytes"]).toBe(0);
+});
 
 test("direct recording retains queued native input across a delayed lap binding and exports without a monolith", async () => {
   initServerGameAdapters(); resetParserState("fm-2023");

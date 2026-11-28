@@ -47,14 +47,16 @@ function args(argv: string[]): Args {
   if (!Number.isFinite(rateScale) || rateScale < 0 || rateScale > 64) throw Error("--rate-scale must be between 0 (burst) and 64");
   return { ...(game ? { game } : {}), trials, output: resolve(output), rateScale };
 }
-function fixtureFrames(bytes: Buffer, gameId: GameId): Frame[] {
+function fixtureFrames(bytes: Buffer, gameId: GameId, limit = Infinity): Frame[] {
   const capture = decompressIfGzipSync(bytes);
   if (gameId === "iracing" && capture.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)) {
-    return readIRacingFramesFromBuffer(capture).map((frame) => ({ bytes: frame }));
+    const records = readIRacingFramesFromBuffer(capture);
+    return (limit < records.length ? records.slice(0, limit) : records).map((frame) => ({ bytes: frame }));
   }
   const frames: Frame[] = [];
   for (const record of iterateSessionCaptureRecords(capture)) {
     if (record.kind === "frame") frames.push({ bytes: record.frame, ...(record.frameTimeMs === undefined ? {} : { timestampMs: record.frameTimeMs }) });
+    if (frames.length >= limit) break;
   }
   if (!frames.length) throw Error(`${gameId} fixture contains no supported source frames`);
   return frames;
@@ -426,5 +428,5 @@ async function main() {
     console.log(JSON.stringify({ output: config.output, completedGames: results.map((item) => item.gameId), missingFixtures: missing, status: missing.length ? "incomplete-missing-fixtures" : "behavioral-smoke-passed-no-release-budget" }));
   } finally { await rm(root, { recursive: true, force: true }); }
 }
-export { args, FIXTURES, fixtureFrames, liveFixtureTrial, sourceRate };
+export { args, FIXTURES, fixtureFrames, fixturePath, liveFixtureTrial, sourceRate };
 if (import.meta.main) await main();
