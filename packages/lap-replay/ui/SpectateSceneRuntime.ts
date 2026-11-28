@@ -144,10 +144,13 @@ export class SpectateSceneRuntime {
   private focusLaneAvailable = false;
   private schematicLinesActive = false;
   private focus: SpectateFocus | null = null;
+  updateTelemetry(pair: ReplaySession) {
+    this.pair = pair;
+  }
   setFocus(focus: SpectateFocus) {
     this.focus = focus;
     this.canvas.dataset.focusMode = focus.mode;
-    this.rebuildLines();
+    if (this.outlineSource !== undefined) this.rebuildLines();
     this.wake();
   }
   private groups: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
@@ -328,7 +331,6 @@ export class SpectateSceneRuntime {
     this.observer.observe(container);
     document.addEventListener("visibilitychange", this.visibilityChanged);
     this.unsubscribe = controller.subscribe(this.controllerChanged);
-    this.setOutline(null);
     void this.initialize();
   }
   private createRenderer() {
@@ -383,9 +385,6 @@ export class SpectateSceneRuntime {
       return checks > 0 && error / checks <= Math.max(5, Math.max(maxX - minX, maxZ - minZ) * 0.025);
     };
     if (!worldBoundaries && !validAlignment(displayBoundaries?.centerLine ?? [], boundaryAlignment)) boundaryAlignment = null;
-    // LMU's outline is also native world geometry, including when limits are absent.
-    const outlineAlignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : computeAlignment([...(outline ?? [])], native);
-    const validOutlineAlignment = this.pair.gameId === "lmu" || validAlignment(outline ?? [], outlineAlignment) ? outlineAlignment : null;
     const transform = (points: readonly Point[], alignment: TrackAlignment) => points.map((point) => applyAlignment(point, alignment));
     const drawPoints = (points: readonly Point[], alignment: TrackAlignment, tint: string, runs: RibbonRun[], dashed = true) => {
       const transformed = transform(points, alignment);
@@ -450,9 +449,12 @@ export class SpectateSceneRuntime {
     this.canvas.dataset.trackEdgeCount = String(edgeCount);
     let geometrySource = native.length > 1 ? "recorded-trace" : "unavailable";
     if (edgeCount) geometrySource = "calibrated-boundaries";
-    else if (outline && outline.length > 1 && validOutlineAlignment) {
-      drawPoints(outline, validOutlineAlignment, "--app-text", edgeRuns, false);
-      geometrySource = "calibrated-outline";
+    else if (outline && outline.length > 1) {
+      const alignment = this.pair.gameId === "lmu" ? WORLD_ALIGNMENT : computeAlignment([...outline], native);
+      if (alignment && (this.pair.gameId === "lmu" || validAlignment(outline, alignment))) {
+        drawPoints(outline, alignment, "--app-text", edgeRuns, false);
+        geometrySource = "calibrated-outline";
+      }
     }
     this.focusLaneAvailable = false;
     this.focusCenterPoints = [[], []];
@@ -460,7 +462,8 @@ export class SpectateSceneRuntime {
     this.centerLineRuns = [];
     if (displayBoundaries && boundaryAlignment && displayBoundaries.centerLine.length > 1) {
       const centerLine = transform(displayBoundaries.centerLine, boundaryAlignment);
-      const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: -this.origin.y, z: point.z - this.origin.z, color: color("--app-border") }));
+      const centerColor = color("--app-border");
+      const center = centerLine.map((point) => ({ x: point.x - this.origin.x, y: -this.origin.y, z: point.z - this.origin.z, color: centerColor }));
       if (center.length > 1) this.centerLineRuns = [center];
       const project = (lap: ReplaySession["a"], side: 0 | 1) => {
         const points = lap.samples.map((sample): FocusNativePoint => {
@@ -585,10 +588,7 @@ export class SpectateSceneRuntime {
         return valid;
       }));
     }) as [boolean, boolean];
-    this.schematicLaneRuns = [
-      a.projected.map((run) => run.map(({ x, y, z, color, time, endTime, distance, endDistance }) => ({ x, y, z, color, time, endTime, distance, endDistance }))),
-      b.projected.map((run) => run.map(({ x, y, z, color, time, endTime, distance, endDistance }) => ({ x, y, z, color, time, endTime, distance, endDistance }))),
-    ];
+    this.schematicLaneRuns = [[], []];
     this.focusLaneAvailable = this.centerLineRuns.length > 0 && a.laneCount + b.laneCount > 0;
     this.schematicLinesActive &&= this.focusLaneAvailable;
     this.canvas.dataset.focusLaneAvailable = String(this.focusLaneAvailable);
@@ -1200,8 +1200,9 @@ export class SpectateSceneRuntime {
           for (let side = 0; side < 2; side++) {
             const sources = this.projectedLaneSources[side], outputs = this.schematicLaneRuns[side];
             for (let r = 0; r < sources.length; r++) {
+              const run = outputs[r] ??= sources[r].map(({ x, y, z, color, time, endTime, distance, endDistance }) => ({ x, y, z, color, time, endTime, distance, endDistance }));
               for (let p = 0; p < sources[r].length; p++) {
-                const source = sources[r][p], output = outputs[r][p];
+                const source = sources[r][p], output = run[p];
                 const depth = (source.x - this.camera.position.x) * viewX + (source.y - this.camera.position.y) * viewY + (source.z - this.camera.position.z) * viewZ;
                 offsetFocusLane(this.laneOffset, source, this.laneRight, this.laneUp, side === 0 ? SCHEMATIC_LANE_OFFSET : -SCHEMATIC_LANE_OFFSET, Math.max(this.camera.near, depth) * pixelScale);
                 output.x = THREE.MathUtils.lerp(source.nativeX, source.x + this.laneOffset.x, blend);

@@ -69,6 +69,7 @@ export function ComparisonCursorLoadingIndicator({ loading, position }: { loadin
   return <PointerLoadingIndicator loading={loading} position={position} label={m.compare_fetching_higher_fidelity_datapoints()} />;
 }
 
+
 function usePanelOpen(key: string) {
   const [open, setOpen] = useState(() => {
     try {
@@ -255,6 +256,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const [spectatePanelHeader, setSpectatePanelHeader] = useState<HTMLDivElement | null>(null);
   const [compareAiHeaderControls, setCompareAiHeaderControls] = useState<HTMLDivElement | null>(null);
   const spectateActive = search.view !== "compare";
+  const [visitedCompare, setVisitedCompare] = useState(!spectateActive);
+  useEffect(() => {
+    if (!spectateActive) setVisitedCompare(true);
+  }, [spectateActive]);
+  const mountCompare = !spectateActive || visitedCompare;
   const changeBodyView = useCallback((view: "compare" | "spectate") => {
     if (view === "spectate") spectateDistanceRef.current = hoveredDistanceRef.current;
     void navigate({
@@ -309,7 +315,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     });
     observer.observe(layout);
     return () => observer.disconnect();
-  }, [comparison]);
+  }, [comparison, mountCompare]);
   useEffect(
     () => () => {
       mapResizeCleanupRef.current?.();
@@ -705,6 +711,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       ) : visibleLapAId === visibleLapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces.distance.length ? (
+        mountCompare && (
         <div
           id="compare-body-compare"
           role="tabpanel"
@@ -800,6 +807,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           )}
         </div>
+        )
       ) : comparison ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div>
       ) : null}

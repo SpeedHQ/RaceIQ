@@ -37,11 +37,6 @@ export function filterOutlierPoints(points: Point[]): Point[] {
 export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean } | null {
   if (src.length < 5 || tgt.length < 5) return null;
   const n = Math.min(100, Math.min(src.length, tgt.length));
-  const sample = (pts: Point[]) => {
-    const step = pts.length / n;
-    return Array.from({ length: n }, (_, i) => pts[Math.floor(i * step)]);
-  };
-  void sample(tgt); // sampled at equal fractional distances below instead
 
   // Sample target at equal fractional distances
   function cumDist(pts: Point[]): number[] {
@@ -50,14 +45,17 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
       d.push(d[i - 1] + Math.sqrt((pts[i].x - pts[i - 1].x) ** 2 + (pts[i].z - pts[i - 1].z) ** 2));
     return d;
   }
-  function sampleAtFracs(pts: Point[], fracs: number[]): Point[] {
-    const cd = cumDist(pts);
+  function sampleAtFracs(pts: Point[], cd: number[], fracs: number[]): Point[] {
     const total = cd[cd.length - 1];
     return fracs.map(f => {
       const target = f * total;
-      let lo = 0;
-      for (let i = 1; i < cd.length; i++) { if (cd[i] >= target) { lo = i - 1; break; } }
-      if (lo >= pts.length - 1) return pts[pts.length - 1];
+      let low = 1, high = cd.length;
+      while (low < high) {
+        const mid = (low + high) >>> 1;
+        if (cd[mid] >= target) high = mid;
+        else low = mid + 1;
+      }
+      const lo = low === cd.length ? 0 : low - 1;
       const seg = cd[lo + 1] - cd[lo];
       const t2 = seg > 0 ? (target - cd[lo]) / seg : 0;
       return { x: pts[lo].x + t2 * (pts[lo + 1].x - pts[lo].x), z: pts[lo].z + t2 * (pts[lo + 1].z - pts[lo].z) };
@@ -65,7 +63,7 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
   }
 
   const fracs = Array.from({ length: n }, (_, i) => i / n);
-  const tSampled = sampleAtFracs(tgt, fracs);
+  const tSampled = sampleAtFracs(tgt, cumDist(tgt), fracs);
 
   function procrustes(s: Point[], t2: Point[]) {
     // Give long, locally straight sections greater influence than corners.
@@ -113,10 +111,11 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
 
   for (const [flipX, flipZ] of [[false, false], [false, true], [true, false], [true, true]] as [boolean, boolean][]) {
     const flipped = src.map(p => ({ x: flipX ? -p.x : p.x, z: flipZ ? -p.z : p.z }));
+    const distances = cumDist(flipped);
     // Try multiple starting offsets
     for (let off = 0; off < n; off += offsets) {
       const shifted = fracs.map(f => (f + off / n) % 1);
-      const sSampled = sampleAtFracs(flipped, shifted);
+      const sSampled = sampleAtFracs(flipped, distances, shifted);
       const r = procrustes(sSampled, tSampled);
       if (!best || r.err < best.err) {
         best = { ...r, flipX, flipZ };
@@ -124,9 +123,10 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
     }
     // Also try reversed direction
     const revFlipped = [...flipped].reverse();
+    const reverseDistances = cumDist(revFlipped);
     for (let off = 0; off < n; off += offsets) {
       const shifted = fracs.map(f => (f + off / n) % 1);
-      const sSampled = sampleAtFracs(revFlipped, shifted);
+      const sSampled = sampleAtFracs(revFlipped, reverseDistances, shifted);
       const r = procrustes(sSampled, tSampled);
       if (!best || r.err < best.err) {
         best = { ...r, flipX, flipZ };

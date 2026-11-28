@@ -11,7 +11,7 @@ loader.setMeshoptDecoder(MeshoptDecoder);
 const modelCache = new Map<string, Promise<GLTF>>();
 
 
-function loadModel(path: string): Promise<GLTF> {
+export function loadCarBodyModel(path: string): Promise<GLTF> {
   let cached = modelCache.get(path);
   if (!cached) {
     const request: Promise<GLTF> = loader.loadAsync(path).catch((reason: unknown) => {
@@ -46,7 +46,7 @@ export async function createCarBody(
   hideModelWheels = false,
   options: CarBodyCreationOptions = {},
 ): Promise<CarBodyInstance> {
-  const { scene } = await loadModel(carModel.modelPath);
+  const { scene } = await loadCarBodyModel(carModel.modelPath);
   const yawAlignment = canonicalModelYawAlignment(carModel.modelPath);
   const clone = scene.clone(true);
   const replacement =

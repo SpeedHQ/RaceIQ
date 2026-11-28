@@ -15,7 +15,7 @@ import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 import { usePendingMetadataRefetchInterval } from "./session-queries";
 import { invalidateDashboardQueries } from "./dashboard";
-import { decodeSemanticLapTelemetry, SEMANTIC_REPLAY_MEDIA_TYPE } from "@raceiq/lap-replay/contracts";
+import { decodeBackgroundLapTelemetry, decodeSemanticLapTelemetry, MOTION_REPLAY_MEDIA_TYPE, SEMANTIC_REPLAY_MEDIA_TYPE, type SemanticLapTelemetry } from "@raceiq/lap-replay/contracts";
 
 export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean; enabled?: boolean }) {
   const gameId = useGameId();
@@ -77,8 +77,8 @@ function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): Co
     distance: [...set.distanceMeters],
     sourceIndicesA: [...a.sourceIndices],
     sourceIndicesB: [...b.sourceIndices],
-    speedA: [...a.speedMps].map((v) => v * 2.236936),
-    speedB: [...b.speedMps].map((v) => v * 2.236936),
+    speedA: Array.from(a.speedMps, (v) => v * 2.236936),
+    speedB: Array.from(b.speedMps, (v) => v * 2.236936),
     throttleA: [...a.throttle],
     throttleB: [...b.throttle],
     brakeA: [...a.brake],
@@ -123,23 +123,25 @@ export function useLapComparisonRange(lapAId: number | null, lapBId: number | nu
   const canRead = canReadLapMetadata(lapsQuery.data, lapsQuery.isError, ids);
   const aligned = useAlignedTelemetry(
     canRead ? ids : [],
-    stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : { step: 1 },
+    stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : null,
   );
   useRefreshProcessingMetadataOnError(aligned.error);
   const laps = lapsQuery.data ?? [];
   const lapA = laps.find((lap) => lap.id === lapAId);
   const lapB = laps.find((lap) => lap.id === lapBId);
-  const data = !isProcessingReadinessError(aligned.error) && aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined;
+  const data = useMemo(() => {
+    if (isProcessingReadinessError(aligned.error) || !aligned.data || !lapA || !lapB) return undefined;
+    const { traces, timeDelta } = alignedComparison(aligned.data, lapA, lapB);
+    return {
+      distanceStart: traces.distance[0] ?? 0,
+      distanceEnd: traces.distance.at(-1) ?? 0,
+      stepMeters: traces.distance[1] - traces.distance[0],
+      traces,
+      timeDelta,
+    };
+  }, [aligned.data, aligned.error, lapA, lapB]);
   return {
-    data: data
-      ? {
-          distanceStart: data.traces.distance[0] ?? 0,
-          distanceEnd: data.traces.distance.at(-1) ?? 0,
-          stepMeters: data.traces.distance[1] - data.traces.distance[0],
-          traces: data.traces,
-          timeDelta: data.timeDelta,
-        }
-      : undefined,
+    data,
     isLoading: aligned.isLoading,
     isFetching: aligned.isFetching,
     isPlaceholderData: aligned.isPlaceholderData,
@@ -191,18 +193,22 @@ interface SemanticTelemetryError extends Error {
 }
 
 /** Canonical semantic replay; unlike useLapTelemetry this never exposes native packets. */
-export function useLapSemanticTelemetry(lapId: number | null) {
+export function useLapSemanticTelemetry(lapId: number | null, sessionId?: number, motionOnly = false) {
   const gameId = useGameId();
   const queryClient = useQueryClient();
-  const lapsQuery = useLaps();
+  const gameLaps = useLaps({ enabled: sessionId == null && lapId != null });
+  const sessionLaps = useSessionLaps(sessionId ?? null);
+  const lapsQuery = sessionId == null ? gameLaps : sessionLaps;
   const metadataReady = lapId != null && gameId != null && canReadLapMetadata(lapsQuery.data, lapsQuery.isError, [lapId]);
+  const fullKey = ["lap-semantic-telemetry", lapId, gameId ?? null];
+  const cachedFull = motionOnly ? queryClient.getQueryData<SemanticLapTelemetry>(fullKey) : undefined;
   const query = useQuery({
-    queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
+    queryKey: motionOnly ? [...fullKey, "motion"] : fullKey,
     // Keep replay work alive across view/page changes so new observers await it.
     queryFn: async () => {
       if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
-      const res: Pick<Response, "ok" | "status" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId, Accept: SEMANTIC_REPLAY_MEDIA_TYPE } });
+      const res: Pick<Response, "ok" | "status" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId, Accept: motionOnly ? MOTION_REPLAY_MEDIA_TYPE : SEMANTIC_REPLAY_MEDIA_TYPE } });
       const body = (await res.json().catch(() => null)) as { code?: string; error?: string; parseError?: string } | null;
       if (!res.ok || body?.parseError) {
         const error = new Error(body?.parseError ?? body?.error ?? res.statusText) as SemanticTelemetryError;
@@ -212,10 +218,10 @@ export function useLapSemanticTelemetry(lapId: number | null) {
         throw error;
       }
       if (!body) throw new Error("Unable to replay telemetry");
-      return decodeSemanticLapTelemetry(body);
+      return motionOnly ? decodeSemanticLapTelemetry(body, { consume: true }) : decodeBackgroundLapTelemetry(body);
     },
-    enabled: metadataReady,
-    gcTime: 5 * 60 * 1000,
+    enabled: metadataReady && !cachedFull,
+    gcTime: sessionId == null && !motionOnly ? 5 * 60 * 1000 : 0,
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnMount: (current) => isProcessingReadinessError(current.state.error) ? "always" : false,
   });
@@ -228,16 +234,16 @@ export function useLapSemanticTelemetry(lapId: number | null) {
         refetchType: "none",
       }),
     ]).then(() => {
-      const latestLaps = queryClient.getQueryData<LapMeta[]>(["laps", gameId]);
+      const latestLaps = queryClient.getQueryData<LapMeta[]>(sessionId == null ? ["laps", gameId] : ["session-laps", gameId, sessionId]);
       if (latestLaps && canReadLapMetadata(latestLaps, false, [lapId])) void query.refetch();
     });
-  }, [gameId, lapId, query.error, query.refetch, queryClient]);
+  }, [gameId, lapId, sessionId, query.error, query.refetch, queryClient]);
   const metadataError = lapsQuery.error;
   const blocked = lapId != null && !metadataReady;
   const showTelemetry = !blocked && !isProcessingReadinessError(query.error);
   return {
     ...query,
-    data: showTelemetry ? query.data : undefined,
+    data: showTelemetry ? query.data ?? cachedFull : undefined,
     error: metadataError ?? query.error,
     isLoading: blocked ? !lapsQuery.isError : query.isLoading,
   };

@@ -2,6 +2,7 @@ import { isLmuLiveContextWire, type LmuLiveContextWire, type LmuObservationWire 
 import type { SemanticLapTelemetry, SemanticReplayFrame } from "./replay";
 
 export const SEMANTIC_REPLAY_MEDIA_TYPE = "application/vnd.raceiq.semantic-replay+json";
+export const MOTION_REPLAY_MEDIA_TYPE = "application/vnd.raceiq.motion-replay+json";
 const FORMAT = "raceiq-semantic-replay-v1";
 type ValueDefinition = Omit<SemanticReplayFrame["values"][number], "value">;
 type CompactContext = Omit<LmuLiveContextWire, "supplemental"> & { supplemental: number[] };
@@ -175,7 +176,7 @@ function decodeContext(value: unknown, supplemental: readonly LmuObservationWire
 }
 
 /** Decode the negotiated wire representation into the unchanged replay consumer model. */
-export function decodeSemanticLapTelemetry(value: unknown): SemanticLapTelemetry {
+function* decodeFrames(value: unknown, options?: { consume: boolean; shareScalars?: boolean }): Generator<void, SemanticLapTelemetry> {
   if (!record(value) || !lapMetadata(value) || !Array.isArray(value.envelopes)) invalid();
   const validated = new WeakSet<object>();
   const visiting = new WeakSet<object>();
@@ -194,22 +195,59 @@ export function decodeSemanticLapTelemetry(value: unknown): SemanticLapTelemetry
   for (const entry of definitions) {
     if (!definition(entry) || Object.hasOwn(entry, "value")) invalid();
   }
+  const standardDefinitions = definitions.map((entry) => Object.keys(entry).length === 4 &&
+    Object.hasOwn(entry, "unit") && Object.hasOwn(entry, "state") && Object.hasOwn(entry, "freshness") && Object.hasOwn(entry, "semanticId"));
   const supplemental: LmuObservationWire[] = value.supplemental;
   for (const entry of supplemental) {
     if (!observation(entry)) throw new TypeError("Invalid LMU historical context");
   }
-  const envelopes: SemanticReplayFrame[] = [];
-  for (const frame of value.envelopes) {
+  const envelopes: SemanticReplayFrame[] = options?.consume ? value.envelopes : new Array(value.envelopes.length);
+  const previousScalars: SemanticReplayFrame["values"] | undefined = options?.shareScalars ? [] : undefined;
+  for (let frameIndex = 0; frameIndex < value.envelopes.length; frameIndex++) {
+    if (frameIndex && frameIndex % 32 === 0) yield;
+    const frame = value.envelopes[frameIndex];
     if (!frameMetadata(frame) || !Array.isArray(frame.values)) invalid();
     const { values, lmu, ...metadata } = frame;
-    const expanded: SemanticReplayFrame["values"] = [];
-    for (const entry of values) {
+    const expanded: SemanticReplayFrame["values"] = options?.consume ? values : new Array(values.length);
+    for (let i = 0; i < values.length; i++) {
+      const entry = values[i];
       if (!Array.isArray(entry) || entry.length !== 2 || !jsonValue(entry[1], validated, visiting)) invalid();
       const index = dictionaryIndex(entry[0], definitions.length);
-      expanded.push({ ...definitions[index]!, value: entry[1] });
+      const def = definitions[index]!;
+      const scalar = entry[1] === null || typeof entry[1] !== "object";
+      const previous = scalar ? previousScalars?.[index] : undefined;
+      if (previous && Object.is(previous.value, entry[1])) {
+        expanded[i] = Object.isFrozen(previous) ? previous : Object.freeze(previous);
+        continue;
+      }
+      expanded[i] = standardDefinitions[index]
+        ? { semanticId: def.semanticId, unit: def.unit, state: def.state, freshness: def.freshness, value: entry[1] }
+        : { ...def, value: entry[1] };
+      if (scalar && previousScalars) previousScalars[index] = expanded[i]!;
     }
-    envelopes.push({ ...metadata, values: expanded, ...(lmu === undefined ? {} : { lmu: decodeContext(lmu, supplemental) }) });
+    envelopes[frameIndex] = { ...metadata, values: expanded, ...(lmu === undefined ? {} : { lmu: decodeContext(lmu, supplemental) }) };
   }
   const { format: _format, definitions: _definitions, supplemental: _supplemental, envelopes: _envelopes, ...metadata } = value;
   return { ...metadata, envelopes } as SemanticLapTelemetry;
+}
+
+export function decodeSemanticLapTelemetry(value: unknown, options?: { consume: boolean }): SemanticLapTelemetry {
+  const frames = decodeFrames(value, options);
+  let step = frames.next();
+  while (!step.done) step = frames.next();
+  return step.value;
+}
+
+export async function decodeBackgroundLapTelemetry(value: unknown): Promise<SemanticLapTelemetry> {
+  const frames = decodeFrames(value, { consume: true, shareScalars: true });
+  let sliceEnd = performance.now() + 8;
+  for (let step = frames.next(); ; step = frames.next()) {
+    if (step.done) return step.value;
+    if (performance.now() >= sliceEnd) {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 0);
+      await promise;
+      sliceEnd = performance.now() + 8;
+    }
+  }
 }

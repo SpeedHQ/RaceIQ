@@ -20,7 +20,9 @@ const numeric = (v: unknown): v is number => typeof v === "number" && Number.isF
 
 function collectNumericIds(samples: readonly SpectateSample[], ids: Set<string>) {
   for (const sample of samples) {
-    for (const [id, value] of Object.entries(sample.values)) {
+    for (const id in sample.values) {
+      if (ids.has(id) || !Object.hasOwn(sample.values, id)) continue;
+      const value = sample.values[id];
       if (numeric(value) || (Array.isArray(value) && value.some(numeric))) ids.add(id);
     }
   }

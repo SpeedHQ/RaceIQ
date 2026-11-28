@@ -16,7 +16,7 @@ export function useSettings() { return useReplayHost().useSettings(); }
 export function useUnits(gameId?: GameId) { return useReplayHost().useUnits(gameId); }
 export function useTirePressureOptimal(gameId: GameId, carId: string | undefined, enabled: boolean) { return useReplayHost().useTirePressureOptimal(gameId, carId, enabled); }
 export function useLocalStorage<T>(key: string, fallback: T) { return useReplayHost().useLocalStorage(key, fallback); }
-export function useLapSemanticTelemetry(id: number | null) { return useReplayHost().useLapSemanticTelemetry(id); }
+export function useLapSemanticTelemetry(id: number | null, motionOnly = false) { return useReplayHost().useLapSemanticTelemetry(id, undefined, motionOnly); }
 export function useCompareLineSpread(gameId: GameId, lapIds: readonly number[]) { return useReplayHost().useCompareLineSpread(gameId, lapIds); }
 export function useTrackBoundaries(id: string | undefined, gameId?: GameId) { return useReplayHost().useTrackBoundaries(id, gameId); }
 
