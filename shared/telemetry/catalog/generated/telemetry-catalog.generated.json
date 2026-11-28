@@ -9,7 +9,7 @@
       "sourceHash": "470a86c7a7ba60465607c297f7099b1624df3ebfcd60d75154485d0afc3a6a67"
     },
     "sourceHashes": {
-      "packages/capture-formats/src/lmu/opponent-snapshot.ts": "c18e10f39668501f9c4742bec8999bc7faeeba2c8ea7b42d60accfbbe4e8f0c6",
+      "packages/capture-formats/src/lmu/opponent-snapshot.ts": "b5b75f40087307a625306f2c8bae6e9635a552235efc64166701e4b76355a4df",
       "packages/game-ac-evo/src/parser.ts": "fe28aef137e54edc5b0185d0477fda3c9e243c8c40224d1c16737d3c2c279ef7",
       "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
       "packages/game-ams2/src/normalizer.ts": "0b3a2c0b5cad95cf117d7bd9b2b16f4c3bcf57461f206936b3fdf26bc5680dde",
@@ -17,12 +17,12 @@
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
-      "packages/game-lmu/src/normalizer.ts": "dbd68de1aad791136103401c6502893502b2f52559fe3f4388892ee5103e4b8e",
+      "packages/game-lmu/src/normalizer.ts": "4bdc0f3d9894fecb7138077aeb30cfa1ceb748f89ec3cc9d1de10e91f76fa399",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "6d878cc39729fcc96ff88b3d06266893bc396584d60a050cd3990d4f50aa9378",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "81654b48dca4fb2311c6cbc12b80662348e97d85398a0dce3601feabc82575e7"
+    "contentHash": "710292ca923626a6d97c00cf12b152078ddbd1fdfc5e12c29a2a3b6da7a28700"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",

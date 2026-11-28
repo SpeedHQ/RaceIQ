@@ -156,6 +156,22 @@ function decodeCompetitor(value: LmuCompetitorWire): LmuCompetitor {
   }
   return { ...value, channels };
 }
+function consumeCompetitor(value: LmuCompetitorWire): LmuCompetitor {
+  for (const channel of Object.values(value.channels)) {
+    const wire = channel.provenance;
+    const native = wire as unknown as ResolutionProvenance;
+    native.observedAt = decodeTimestamp(wire.observedAt);
+    const source = wire.sourceObservation;
+    if (source) native.sourceObservation = { timestamp: decodeTimestamp(source.timestamp), updateSequence: BigInt(source.updateSequence) };
+  }
+  return value as unknown as LmuCompetitor;
+}
+
+function freezeJsonTree(value: unknown): void {
+  if (value === null || typeof value !== "object") return;
+  for (const item of Object.values(value)) freezeJsonTree(item);
+  Object.freeze(value);
+}
 const immutableSupplemental = new WeakSet<readonly LmuSupplementalObservation[]>();
 function freezeOwned<T>(value: T, seen = new WeakSet<object>()): T {
   if (value !== null && typeof value === "object" && !seen.has(value)) {
@@ -180,15 +196,27 @@ export function encodeLmuContext(value: LmuLiveContext): LmuLiveContextWire {
 /** Immutable mode consumes an owned decoded JSON tree; nested values are frozen, not copied. */
 export function decodeLmuContext(value: unknown, options: { immutable?: boolean } = {}): LmuLiveContext | null {
   if (!isLmuLiveContextWire(value)) return null;
+  return decodeValidatedContext(value, !!options.immutable, false);
+}
+
+export function decodeLmuContextJson(json: string, projected: boolean, unavailable: boolean): LmuLiveContext | null {
+  const value: unknown = JSON.parse(json);
+  if (!record(value) || (projected && Object.hasOwn(value, "competitors"))) return null;
+  if (unavailable) value.status = "unavailable";
+  return isLmuLiveContextWire(value) ? decodeValidatedContext(value, true, true) : null;
+}
+
+function decodeValidatedContext(value: LmuLiveContextWire, immutable: boolean, ownedJson: boolean): LmuLiveContext {
   const supplemental = value.supplemental.map((entry): LmuSupplementalObservation => {
     const p = entry.observation.provenance;
     const { sourceObservation, ...provenance } = p;
     return { ...entry, acquiredAt: decodeTimestamp(entry.acquiredAt), observation: { ...entry.observation, provenance: { ...provenance, observedAt: decodeTimestamp(p.observedAt), ...(sourceObservation ? { sourceObservation: { timestamp: decodeTimestamp(sourceObservation.timestamp), updateSequence: BigInt(sourceObservation.updateSequence) } } : {}) } } };
   });
   const { competitors, ...context } = value;
-  const decoded: LmuLiveContext = { ...context, key: { ...value.key, frameTime: decodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(decodeCompetitor) } : {}) };
-  if (options.immutable) {
-    freezeOwned(decoded);
+  const decoded: LmuLiveContext = { ...context, key: { ...value.key, frameTime: decodeTimestamp(value.key.frameTime) }, supplemental, ...(competitors ? { competitors: competitors.map(ownedJson ? consumeCompetitor : decodeCompetitor) } : {}) };
+  if (immutable) {
+    if (ownedJson) freezeJsonTree(decoded);
+    else freezeOwned(decoded);
     immutableSupplemental.add(decoded.supplemental);
   }
   return decoded;

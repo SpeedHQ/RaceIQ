@@ -6,8 +6,7 @@ import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeS
 import { PreopenedFileWriter, type PreopenedFileInfo, type PreopenedFileWriterOptions } from "@raceiq/capture-formats/session/preopened-file-writer";
 import { persistCaptureManifest } from "./manifest-persistence";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
-import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
-import { getLMUPartitionSourceLength, partitionLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
+import { getLMUPartitionSourceLength, LMUPartitionContextCache, partitionLMUSourceFrame } from "@raceiq/capture-formats/lmu/partition";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { DetectorOwnershipTransition } from "@raceiq/telemetry-core/processor/ordinal-engine";
@@ -59,6 +58,7 @@ export class DirectCaptureRecording {
   private readonly companionWriter: PreopenedFileWriter | null;
   private readonly companionEncoder: SparseCaptureEncoder | null;
   private readonly companionDigest: Hash | null;
+  private partitionCache?: LMUPartitionContextCache;
   private companionRecordCount = 0;
   private companionFirstKey: { sessionKey: string; captureSequence: string } | null = null;
   private companionLastKey: { sessionKey: string; captureSequence: string } | null = null;
@@ -132,6 +132,7 @@ export class DirectCaptureRecording {
       : null;
     this.companionEncoder = this.companionWriter ? new SparseCaptureEncoder("lmu") : null;
     this.companionDigest = this.companionWriter ? createHash("sha256") : null;
+    if (this.companionWriter) this.partitionCache = new LMUPartitionContextCache();
     this.current = this.part(this.writer.active, 0, this.sourceBytes, "auxiliary");
     this.parts.set(this.current.info.id, this.current);
     this.ready = this.writer.ready;
@@ -301,7 +302,7 @@ export class DirectCaptureRecording {
   writeMetaFrame(): void {}
   writeRecord(frame: Buffer, timestamp?: number): void {
     const version = this.gameId === "lmu" && frame.length >= 10 ? frame.readUInt16LE(8) : 0;
-    const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(frame, this.recordLmuOpponents && !this.companionFailure) : null;
+    const partition = this.gameId === "lmu" ? partitionLMUSourceFrame(frame, this.recordLmuOpponents && !this.companionFailure, this.partitionCache) : null;
     if (this.gameId === "lmu" && (version === 2 || version === 3) && !partition) {
       const error = new Error("LMU source frame cannot be safely partitioned");
       this.fail(error);
@@ -313,7 +314,7 @@ export class DirectCaptureRecording {
       throw error;
     }
     const storedFrame = partition?.primary ?? frame;
-    if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, frame, timestamp);
+    if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, partition.frameKey, timestamp);
     const start = this.sourceBytes;
     const localOffset = this.current.localOffset;
     const encoded = this.current.encoder!.encode(storedFrame, localOffset);
@@ -345,14 +346,13 @@ export class DirectCaptureRecording {
     this.companionWriter!.appendOwned(bytes);
     this.companionDigest!.update(bytes);
   }
-  private appendCompanionFrame(companion: Buffer, sourceFrame: Buffer, timestamp?: number): void {
+  private appendCompanionFrame(companion: Buffer, key: { sessionKey: string; captureSequence: string } | undefined, timestamp?: number): void {
     if (this.companionFailure || !this.companionWriter || !this.companionEncoder) return;
     try {
       const localOffset = this.companionWriter.active.byteLength;
       const encoded = this.companionEncoder.encode(companion, localOffset);
       this.appendCompanionBytes(Buffer.concat([encodeFrameLength(encoded.length, timestamp), encoded]));
       this.companionRecordCount++;
-      const key = decodeLMUSourceFrame(sourceFrame)?.lmuContext?.key;
       if (key) {
         const value = { sessionKey: key.sessionKey, captureSequence: key.captureSequence };
         this.companionFirstKey ??= value;
@@ -393,9 +393,9 @@ export class DirectCaptureRecording {
       let wireLength = record.endOffset - record.offset;
       if (record.kind === "frame") {
         const version = record.frame.length >= 10 ? record.frame.readUInt16LE(8) : 0;
-        const partition = partitionLMUSourceFrame(record.frame, this.recordLmuOpponents && !this.companionFailure);
+        const partition = partitionLMUSourceFrame(record.frame, this.recordLmuOpponents && !this.companionFailure, this.partitionCache);
         if ((version === 2 || version === 3) && !partition) throw new Error("LMU raw context frame cannot be safely partitioned");
-        if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, record.frame, record.frameTimeMs);
+        if (this.recordLmuOpponents && partition?.companion) this.appendCompanionFrame(partition.companion, partition.frameKey, record.frameTimeMs);
         const primary = partition?.primary ?? record.frame;
         const encoded = this.current.encoder!.encode(primary, this.current.localOffset);
         this.append(Buffer.concat([encodeFrameLength(encoded.length, record.frameTimeMs), encoded]));
@@ -429,6 +429,7 @@ export class DirectCaptureRecording {
 
   stop(): Promise<void> {
     if (!this.stopTask) {
+      this.partitionCache = undefined;
       this.stopTask = this.stopImpl().finally(() => this.releaseActiveOpponentSource?.());
     }
     return this.stopTask;

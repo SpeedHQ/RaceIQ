@@ -5,7 +5,7 @@ import {
   LMU_SCORING_VEHICLES_OFFSET, LMU_SCORING_VEHICLE_SIZE, LMU_SCORING_VEHICLE,
 } from "@raceiq/capture-formats/lmu/layout";
 import { createLMUSourceFrameDecoder, decodeLMUSourceFrame, encodeLMUSourceFrame, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { partitionLMUSourceFrame, restoreLMUSourceFrame, getLMUPartitionSourceLength, getLMUPartitionKey } from "@raceiq/capture-formats/lmu/partition";
+import { LMUPartitionContextCache, partitionLMUSourceFrame, restoreLMUSourceFrame, getLMUPartitionSourceLength, getLMUPartitionKey } from "@raceiq/capture-formats/lmu/partition";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import type { LmuLiveContext } from "@raceiq/shared/telemetry/lmu";
@@ -94,6 +94,32 @@ function sparseRoundtrip(frames: readonly Buffer[]): Buffer[] {
 }
 
 describe("LMU player/opponent source partition", () => {
+  test("retained grid reuse preserves both streams and rechecks changes to caller-owned bytes", () => {
+    const cache = new LMUPartitionContextCache();
+    const source = original(1);
+    const json = source.subarray(LMU_SOURCE_FRAME_V2_SIZE + 4).toString("utf8");
+    for (const frame of [source, original(2), original(10)]) {
+      expect(partitionLMUSourceFrame(frame, true, cache)).toEqual(partitionLMUSourceFrame(frame));
+    }
+    const reused = Buffer.from(source);
+    expect(partitionLMUSourceFrame(reused, true, cache)).toEqual(partitionLMUSourceFrame(source));
+    const valid = Buffer.from('"vehicleId":77'), duplicate = Buffer.from('"vehicleId":42');
+    const offset = reused.indexOf(valid);
+    expect(offset).toBeGreaterThan(0);
+    duplicate.copy(reused, offset);
+    expect(partitionLMUSourceFrame(reused, true, cache)).toBeNull();
+    for (const invalid of [json.replace('"captureSequence":"1"', '"captureSequence":"x"'), json.replace('{', '{"competitors":null,')]) {
+      expect(partitionLMUSourceFrame(withContextJson(source, invalid), true, cache)).toBeNull();
+    }
+    const bound = JSON.stringify(encodeLmuContext(cachedContext("1")));
+    const boundFrame = withContextJson(source, bound);
+    expect(partitionLMUSourceFrame(boundFrame, true, cache)).toEqual(partitionLMUSourceFrame(boundFrame));
+    const wrongSession = bound.replace('"sessionKey":"cache-test"', '"sessionKey":"other-test"');
+    expect(partitionLMUSourceFrame(withContextJson(source, wrongSession), true, cache)).toBeNull();
+    const next = original(2);
+    expect(partitionLMUSourceFrame(next, true, cache)).toEqual(partitionLMUSourceFrame(next, true, new LMUPartitionContextCache()));
+  });
+
   test("retains exact source bytes once while primary independently exposes only player context", () => {
     for (const slot of [0, 1]) {
       const source = original(1, slot);
@@ -194,10 +220,14 @@ describe("LMU player/opponent source partition", () => {
     expect(second.supplemental).toBe(first.supplemental);
     expect(second).toEqual(cachedContext("100"));
     const duplicate = json("101").replace("{", '{"key":null,');
+    decoder.decode(withContextJson(source, json("101").replace("{", '{"extra":true,')));
     const duplicateFirst = decoder.decode(withContextJson(source, duplicate))!.lmuContext!;
     const duplicateNext = decoder.decode(withContextJson(source, duplicate))!.lmuContext!;
     expect(duplicateNext).toEqual(duplicateFirst);
     expect(duplicateNext.supplemental).not.toBe(duplicateFirst.supplemental);
+    const shadowedKey = JSON.stringify(encodeLmuContext(cachedContext("999")).key);
+    const changedShadow = duplicate.replace('"key":null', `"key":${shadowedKey}`);
+    expect(decoder.decode(withContextJson(source, changedShadow))!.lmuContext!.key.captureSequence).toBe("101");
     decoder.decode(withContextJson(source, json("100")));
     const badSession = json("101").replace('"sessionKey":"cache-test","captureSequence"', '"sessionKey":"other","captureSequence"');
     expect(decoder.decode(withContextJson(source, badSession))).toBeNull();

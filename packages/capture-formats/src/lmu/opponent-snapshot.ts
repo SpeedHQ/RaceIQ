@@ -83,6 +83,7 @@ export class LmuOpponentIdentityTracker {
   private sessionKey = "";
   private lastScoringElapsed = -1;
   private scoringSequence = 0n;
+  private cachedGrid: { bytes: Buffer; playerVehicleId: number | null; competitors: readonly LmuCompetitor[] } | null = null;
 
   reset(): void {
     this.incarnations.clear();
@@ -90,6 +91,7 @@ export class LmuOpponentIdentityTracker {
     this.sessionKey = "";
     this.lastScoringElapsed = -1;
     this.scoringSequence = 0n;
+    this.cachedGrid = null;
   }
 
   snapshot(memory: Buffer, sessionKey: string, captureSequence: bigint, playerVehicleId: number | null): readonly LmuCompetitor[] | null {
@@ -100,6 +102,10 @@ export class LmuOpponentIdentityTracker {
     if (count < 0 || count > LMU_MAX_VEHICLES) return null;
     const elapsed = memory.readDoubleLE(LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.currentElapsedTime);
     if (!Number.isFinite(elapsed) || elapsed < 0 || captureSequence < 0n) return null;
+    const scoringBytes = memory.subarray(LMU_SCORING_INFO_OFFSET, LMU_SCORING_VEHICLES_OFFSET + count * LMU_SCORING_VEHICLE_SIZE);
+    const cached = this.cachedGrid;
+    if (cached && cached.playerVehicleId === playerVehicleId && cached.bytes.equals(scoringBytes)) return cached.competitors;
+    this.cachedGrid = null;
     if (elapsed !== this.lastScoringElapsed) {
       this.lastScoringElapsed = elapsed;
       this.scoringSequence++;
@@ -107,7 +113,8 @@ export class LmuOpponentIdentityTracker {
     const sourceSequence = this.scoringSequence;
     const observedAt: TelemetryTimestamp = { domain: "session", milliseconds: elapsed * 1000 };
     const current = new Map<number, ScoringIdentity>();
-    const rows: { id: number; identity: ScoringIdentity; offset: number; isPlayer: boolean }[] = [];
+    const rows: { id: number; identity: ScoringIdentity; offset: number; isPlayer: boolean; place: number }[] = [];
+    const classPlaces = new Map<string, number[]>();
     let markedPlayer: number | null = null;
     for (let index = 0; index < count; index++) {
       const offset = LMU_SCORING_VEHICLES_OFFSET + index * LMU_SCORING_VEHICLE_SIZE;
@@ -124,7 +131,13 @@ export class LmuOpponentIdentityTracker {
         if (markedPlayer !== null) return null;
         markedPlayer = id;
       }
-      rows.push({ id, identity, offset, isPlayer });
+      const place = memory.readUInt8(offset + LMU_SCORING_VEHICLE.place);
+      if (identity.vehicleClass && place) {
+        const places = classPlaces.get(identity.vehicleClass);
+        if (places) places.push(place);
+        else classPlaces.set(identity.vehicleClass, [place]);
+      }
+      rows.push({ id, identity, offset, isPlayer, place });
     }
     if (markedPlayer !== playerVehicleId) return null;
     for (const { id, identity } of rows) {
@@ -136,7 +149,7 @@ export class LmuOpponentIdentityTracker {
       } else if (!this.incarnations.has(id)) this.incarnations.set(id, 0);
     }
     this.previous = current;
-    return rows.map(({ id, identity, offset, isPlayer }) => {
+    const competitors = rows.map(({ id, identity, offset, isPlayer, place }) => {
       const channels: Record<string, Channel> = {};
       const addNumber = (key: string, fieldOffset: number, unit: string) => {
         const n = memory.readDoubleLE(offset + fieldOffset);
@@ -149,10 +162,8 @@ export class LmuOpponentIdentityTracker {
       channels["race.competitor.total-laps"] = value("race.competitor.total-laps", laps >= 0 ? laps : null, "count", observedAt, sourceSequence);
       channels["race.competitor.current-lap-number"] = value("race.competitor.current-lap-number", laps >= 0 ? completedLapsPlusOne(laps) : null, "count", observedAt, sourceSequence, { derived: true, derivationId: "lmu-completed-laps-plus-one" });
       channels["race.competitor.scoring-time"] = value("race.competitor.scoring-time", elapsed, "s", observedAt, sourceSequence);
-      channels["race.competitor.position"] = value("race.competitor.position", memory.readUInt8(offset + LMU_SCORING_VEHICLE.place) || null, "count", observedAt, sourceSequence);
-      const nativePlace = memory.readUInt8(offset + LMU_SCORING_VEHICLE.place);
-      const otherClassPlaces = identity.vehicleClass ? rows.filter((other) => other.identity.vehicleClass === identity.vehicleClass).map((other) => memory.readUInt8(other.offset + LMU_SCORING_VEHICLE.place)) : [];
-      const classPosition = identity.vehicleClass ? nativeClassPlace(nativePlace, otherClassPlaces) : null;
+      channels["race.competitor.position"] = value("race.competitor.position", place || null, "count", observedAt, sourceSequence);
+      const classPosition = identity.vehicleClass && place ? nativeClassPlace(place, classPlaces.get(identity.vehicleClass)!) : null;
       channels["race.competitor.class-position"] = value("race.competitor.class-position", classPosition, "count", observedAt, sourceSequence, { derived: true, derivationId: "lmu-native-class-place" });
       const sector = memory.readInt8(offset + LMU_SCORING_VEHICLE.sector);
       channels["race.competitor.current-sector"] = value("race.competitor.current-sector", sector >= 0 && sector <= 2 ? sector : null, "index", observedAt, sourceSequence);
@@ -211,5 +222,9 @@ export class LmuOpponentIdentityTracker {
       });
       return { vehicleId: id, incarnation: this.incarnations.get(id)!, isPlayer, channels };
     });
+    const bytes = cached?.bytes.length === scoringBytes.length ? cached.bytes : Buffer.allocUnsafe(scoringBytes.length);
+    scoringBytes.copy(bytes);
+    this.cachedGrid = { bytes, playerVehicleId, competitors };
+    return competitors;
   }
 }

@@ -4,6 +4,116 @@ RaceIQ keeps performance measurements separate from ordinary tests. `bun run ben
 
 ## Direct recording audit: timing and memory
 
+### Reproduce the direct recorder comparison
+
+Run `bun run bench:direct-compare <baseline-checkout> <output.json>` from the candidate checkout. Both checkouts need dependencies, native fixtures, clean production sources, and identical copies of `direct-recorder-compare.ts`, `direct-recorder-workloads.ts`, and `live-lossless-release.bench.ts` under `apps/backend/test/benchmarks/`. The runner alternates revision order across two rounds and writes raw observations plus a Markdown table next to the JSON.
+
+The seven-game burst times 32 fixture frames from first write through stop. Burst and paced runs verify persisted frame bytes, timestamps and order outside the timer. The 250 Hz synthetic LMU run measures write completion against the next scheduled frame, not heartbeat lateness. Stage timing and sampled RSS growth run in separate processes. Percent reductions compare local workload medians, not live game throughput.
+
+### Retained LMU v3 grid: matched local recorder comparison
+
+The input was the first 32 frames of `lmu-real-opponents-grid-2026-10-22.bin.gz`. The changing-grid variant alternated the first competitor's incarnation to force context cache misses. Each column used two fresh processes per workload, two warmups, and six measured captures per process. Revision order reversed in the second round. Time values are medians; deadline misses are counts across all 384 measured frames per column.
+
+| Workload | Original (`7023af6b8`) | Reuse decoded key only | Context reuse + sparse block grouping + quote scan |
+|---|---:|---:|---:|
+| Real grid, synchronous writes | 100.57 ms | 75.80 ms | 27.95 ms |
+| Real grid, first write through stop | 107.00 ms | 79.85 ms | 31.39 ms |
+| Changing grid, first write through stop | 102.30 ms | 82.52 ms | 64.12 ms |
+| Real grid at 250 Hz, missed write deadlines | 122 | 55 | 7 |
+| Sampled RSS increase during writes, warm allocator | 0.336 MiB | 0.156 MiB | 0.023 MiB |
+
+Each capture checked replay order, native bytes, timestamps, source-decoded first/last keys, and the companion SHA-256. The cache holds at most 1 MiB of context bytes per recorder; the warm RSS sample is not a bound on total or retained memory. Absolute deadline counts vary with the host. A separate unpaced stress case that grew the grid every frame exhausted the writer queue on both the key-only baseline and the optimized recorder. No buffer limit or integrity check was relaxed.
+
+### LMU player identity on the live acquisition path
+
+The live source reads identity from the same native telemetry and scoring slices that supplied the encoded frame. It no longer decodes that frame solely to obtain identity. The encoder still checks native player consistency and validates the context before emission.
+
+On macOS arm64, four fresh processes per version replayed all 51 native memory snapshots at recorded spacing through `LMUTelemetrySource.pollOnce()`, the default parser, live pipeline, and recorder. REST was disabled; this excludes Windows mapping and REST acquisition. Pooled median poll completion fell from 3.084 to 2.769 ms (10.2%); p95 was 7.803 versus 7.733 ms. With fixed source clock and session key, all eight captures emitted the same frame digest. Strict replay matched every emitted frame and timestamp, and every live identity matched the identity decoded from its emitted frame.
+
+For duplicate-heavy polling, the same 51 snapshots were polled four times each within their original update intervals. One controlled REST revision changed between native updates: 52 polls emitted frames and 152 were duplicates. Six fresh processes per candidate ran in balanced order on macOS arm64. Timings exclude Windows mapping and HTTP; live parsing, recording and strict replay were enabled.
+
+| Duplicate-heavy live workload | Before | Reuse last identical snapshot | Borrow uncontended player snapshot and compare native identity fields |
+|---|---:|---:|---:|
+| Duplicate poll p95 | 70.5 µs | 40.6 µs | 30.0 µs |
+| Main-thread CPU during duplicate polls per trial, median | 7.95 ms | 3.38 ms | 1.72 ms |
+| All polls p95 | 4.04 ms | 3.60 ms | 3.51 ms |
+| Main-thread CPU during all polls per trial, median | 212.3 ms | 188.4 ms | 177.0 ms |
+
+The duplicate improvement repeated in an earlier four-trial comparison; whole-workload p95 did not improve consistently across both experiments. All candidates preserved admission decisions, replay bytes and timestamps. The selected path still copies snapshots when polls queue, player-session invalidation yields, or scoring-only processing needs ownership.
+
+### LMU accepted-frame opponent snapshots
+
+In the 16-car fixture, 44 of 51 accepted player frames repeated the preceding active scoring bytes. The tracker reuses its validated grid only for identical scoring bytes and player identity in the same session. On misses, it groups places by class once and applies the existing rank derivation.
+
+| 51 accepted polls at recorded spacing | Main-thread CPU before → after | Poll p95 before → after |
+|---|---:|---:|
+| Recorded grid | 190.95 → 173.64 ms | 7.97 → 6.72 ms |
+| Forced multiclass position changes on every frame | 310.70 → 307.56 ms | 7.72 → 7.95 ms |
+
+Four fresh macOS arm64 processes per version and workload, balanced run order. CPU is the median total measured inside accepted polls; latency is pooled across polls. Every replay matched source frames and timestamps, and frame digests matched across versions within each workload. The changing 16-car grid showed no clear end-to-end gain. A separate tracker-only stress test with 104 cars and four classes used 38.95 → 36.58 ms median thread CPU per 100 changing grids, excluding recording and I/O.
+
+### LMU dispatch when every opponent moves
+
+On the 51-frame, 16-car trace, rotate native scoring rows and change each car's position, velocity, lap distance and rank on every accepted frame. Keep the production parser, live session capture and native dump worker active. A baseline profile measured 219.2 ms of main-thread CPU in `parsePacket` and 60.7 ms in `processPacket`. The dump worker used 11.8 ms of thread CPU from startup through the last poll; waiting for dump admission after submission took 0.13 ms elapsed over the trace. Worker time is not additive to main-thread CPU.
+
+After consecutive context-cache misses, the decoder locates the first root `key` without scanning the entire opponent payload for duplicate names. Every changed context still passes full wire validation. Before cached data can be reused, the decoder checks the surrounding bytes and verifies root names are unique.
+
+| Workload | Main-thread CPU before → after, ms per trace | Poll p95 before → after, ms |
+|---|---:|---:|
+| Every car moving | 318.13 → 292.27 | 7.51 → 7.46 |
+| Every car moving, reversed run order and matched checkouts | 307.66 → 295.86 | 7.40 → 7.46 |
+| Original recorded grid | 191.45 → 202.05 | 8.61 → 9.12 |
+| Original recorded grid, reversed run order and matched checkouts | 189.95 → 196.38 | 9.44 → 9.43 |
+
+Each row uses six fresh macOS arm64 processes per version, median CPU and pooled poll p95. Moving-grid CPU fell in both comparisons; p95 did not change consistently. Original recorded-grid CPU increased in both comparisons. Every native dump and strict session replay matched the emitted frames, including timestamps; digests matched across revisions within each workload.
+
+#### Decoder-owned buffer reuse (not adopted)
+
+The candidate copied changed context bytes into a reusable decoder-owned backing buffer. Capacity rounded up to 4 KiB; contexts above 1 MiB bypassed the cache. Both rounds used six fresh processes per workload and version; the second round reversed the order. The production parser, session recorder and native dump worker remained active.
+
+| 51-frame workload | Median main-thread CPU, baseline → reuse | Pooled poll p95, baseline → reuse |
+|---|---:|---:|
+| Every car moving, round 1 | 300.41 → 306.70 ms | 7.84 → 8.08 ms |
+| Every car moving, round 2 | 293.93 → 294.31 ms | 7.72 → 7.13 ms |
+| Original recorded grid, round 1 | 214.63 → 186.45 ms | 8.74 → 8.02 ms |
+| Original recorded grid, round 2 | 199.01 → 184.50 ms | 9.42 → 8.51 ms |
+
+Separate decoder replays counted cache backing allocations. On the moving grid, allocations fell from 51 to 2 (29,871,305 → 1,175,552 bytes allocated cumulatively); final backing capacity rose from 585,917 to 589,824 bytes. On the recorded grid, allocations fell from 7 to 3 (4,142,826 → 1,785,856 bytes); final capacity rose from 589,799 to 589,824 bytes. These figures exclude decoded objects and are not process RSS.
+
+Strict session replay matched all emitted frames and timestamps; native dump counts and digests matched on both workloads. Reuse reduced recorded-grid CPU but did not reduce moving-grid CPU in either round. Keep the existing decoder for the moving-grid priority. The next experiment should target parsing the serialized context immediately after the live source encoded it, without changing recording bytes or replay validation.
+
+#### Live player context handoff (not adopted)
+
+Four candidates passed an immutable opponent grid from LMU acquisition to the live parser. Recording and replay still used the original bytes. Each comparison used six fresh processes per workload and version, with the native dump worker enabled. Positive percentages below mean **less** main-thread CPU than the matched baseline. Ranges are separate rounds, not confidence intervals.
+
+| Handoff strategy | Every car moving | Original recorded grid |
+|---|---:|---:|
+| Copy and freeze the context on every player frame | +5.1% | −12.3% |
+| Reuse the copied grid after checking its bytes | −7.2%, −2.5% | −6.8%, +5.7% |
+| Freeze the native grid in place on every player frame | +11.1% | −13.7% |
+| Freeze in place only after consecutive grid changes | +9.3%, −0.5% | −8.9%, +11.9% |
+
+The adaptive candidate kept a private metadata copy until dispatch, rejected changed metadata, decoded the supplemental header independently and left replay on the ordinary decoder. On the moving grid, poll p95 was 7.34 → 7.37 ms and 7.19 → 7.57 ms. No candidate demonstrated a repeatable moving-grid CPU improvement without a recorded-grid regression. Keep the ordinary parser and do not add the handoff or its per-queued-frame storage.
+
+Strict session replay matched emitted frame bytes and timestamps. Native dump counts and digests matched for all four candidates. The final candidate also matched all 51 normalized packets against ordinary decoding and passed the targeted partition, phase1, adapter and opponent-recorder tests. These are local fixture replays, not live Windows or HTTP measurements.
+
+#### Decode privately parsed opponent channels in place (adopted)
+
+On a cache miss, the decoder parses and validates the complete JSON, converts timestamps and sequence numbers inside the privately owned competitor records, then freezes the tree. Parsed JSON cannot contain cycles, so this path does not allocate a visited-object set. The general object decoder still handles caller-owned objects separately. The encoder, SHA-256, capture bytes and worker boundary do not change.
+
+| Workload and order | Baseline → owned decoder, median main-thread CPU per 51 frames | Reduction | Poll p95 |
+|---|---:|---:|---:|
+| Every car moving | 297.00 → 283.51 ms | 4.5% | 7.28 → 7.97 ms |
+| Every car moving, reversed | 299.01 → 276.33 ms | 7.6% | 7.68 → 7.31 ms |
+| Recorded grid | 196.41 → 193.24 ms | 1.6% | 8.61 → 8.93 ms |
+| Recorded grid, reversed | 195.46 → 187.78 ms | 3.9% | 9.40 → 8.52 ms |
+
+Six fresh processes per version, workload and order. The baseline already includes the adaptive key probe. CPU improvements repeated; poll p95 did not. Strict replay bytes, timestamps, dump counts and digests matched. No RSS or live Windows claim.
+
+Writing UTF-8 directly into the output buffer instead of copying a temporary buffer gave mixed results. Alone, it changed moving-grid CPU from 290.77 to 301.71 ms and recorded-grid CPU from 202.16 to 190.92 ms. Added to the owned decoder, it changed moving-grid CPU from 291.11 to 268.70 ms but raised recorded-grid CPU from 178.87 to 212.86 ms. Keep the existing encoder.
+
+A separate size experiment used the original 51 metadata documents, not the full capture or the recorder. A per-frame provenance dictionary reduced 32,943,247 bytes to 18,800,356; per-frame Zstandard level 1 reduced them to 674,515. Both reconstructed every input byte. Neither is a demonstrated recorder speedup: the current parser needs decoded values, and storing either representation would require a format change. Do not add those size reductions to the CPU savings above.
+
 ### Decision: inline SHA-256 for retained LMU opponents
 
 The [accepted decision](../adr/0018-inline-companion-sha256.md) prioritizes missed deadlines over synchronous write speed. Three synthetic runs per strategy submitted 500 frames each at 250 Hz on macOS arm64, rotating strategy order. A miss means `writeRecord()` returned after the next scheduled frame was due. Start delay includes timer jitter.
